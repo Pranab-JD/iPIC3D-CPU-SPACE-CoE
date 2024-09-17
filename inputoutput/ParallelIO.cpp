@@ -365,11 +365,11 @@ void ReadFieldsH5hut(int nspec, EMfields3D *EMf, Collective *col, VCtopology3D *
 #endif
 
 
-template<typename T, int sz>
-int size(T(&)[sz])
-{
-    return sz;
-}
+//template<typename T, int sz>
+//int size(T(&)[sz])
+//{
+//    return sz;
+//}
 
 void WriteFieldsVTK(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct, const string & outputTag ,int cycle){
 
