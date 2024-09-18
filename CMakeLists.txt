@@ -63,7 +63,8 @@ if(USE_CATALYST)
       install(TARGETS iPICAdaptor)
     endif()
 
-    target_link_libraries(iPICAdaptor PRIVATE ParaView::PythonCatalyst VTK::CommonDataModel Python3::Python)
+    target_link_libraries(iPICAdaptor PRIVATE stdc++fs ParaView::PythonCatalyst VTK::CommonDataModel Python3::Python)
+    # target_link_libraries(iPICAdaptor PRIVATE ParaView::PythonCatalyst VTK::CommonDataModel Python3::Python)
     target_include_directories(iPICAdaptor INTERFACE ${CMAKE_SOURCE_DIR}/catalyst)
     target_compile_definitions(iPICAdaptor INTERFACE USE_CATALYST)
 
@@ -163,6 +164,7 @@ if (USE_CATALYST)
   target_link_libraries(
     iPIC3Dlib
     PUBLIC iPICAdaptor
+    PRIVATE stdc++fs
     )
 endif()
 
@@ -197,6 +199,7 @@ add_executable(
 target_link_libraries(
   iPIC3D
   iPIC3Dlib
+  stdc++fs
   )
 
 if(NOT CMAKE_BUILD_TYPE)
