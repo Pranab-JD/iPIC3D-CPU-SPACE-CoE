@@ -262,29 +262,29 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     MPI_Type_commit(&yzFacetypeC);
     
     //For face exchange on Y dir
-    MPI_Type_hvector((nxc-2),(nzc-2),(nzc*nyc*sizeof(double)), MPI_DOUBLE, &xzFacetypeC);
+    MPI_Type_create_hvector((nxc-2),(nzc-2),(nzc*nyc*sizeof(double)), MPI_DOUBLE, &xzFacetypeC);
     MPI_Type_commit(&xzFacetypeC);
 
     MPI_Type_vector((nyc-2), 1, nzc, MPI_DOUBLE, &yEdgetypeC);
     MPI_Type_commit(&yEdgetypeC);
     
     //For face exchangeg on Z dir
-    MPI_Type_hvector((nxc-2), 1, (nzc*nyc*sizeof(double)), yEdgetypeC, &xyFacetypeC);
+    MPI_Type_create_hvector((nxc-2), 1, (nzc*nyc*sizeof(double)), yEdgetypeC, &xyFacetypeC);
     MPI_Type_commit(&xyFacetypeC);
     
     //2 yEdgeType can be merged into one message
-    MPI_Type_hvector(2, 1,(nzc-1)*sizeof(double), yEdgetypeC, &yEdgetypeC2);
+    MPI_Type_create_hvector(2, 1,(nzc-1)*sizeof(double), yEdgetypeC, &yEdgetypeC2);
     MPI_Type_commit(&yEdgetypeC2);
     
     MPI_Type_contiguous((nzc-2),MPI_DOUBLE, &zEdgetypeC);
     MPI_Type_commit(&zEdgetypeC);
     
-    MPI_Type_hvector(2, (nzc-2),(nxc-1)*(nyc*nzc)*sizeof(double), MPI_DOUBLE, &zEdgetypeC2);
+    MPI_Type_create_hvector(2, (nzc-2),(nxc-1)*(nyc*nzc)*sizeof(double), MPI_DOUBLE, &zEdgetypeC2);
     MPI_Type_commit(&zEdgetypeC2);
     
     MPI_Type_vector((nxc-2), 1, nyc*nzc, MPI_DOUBLE, &xEdgetypeC);
     MPI_Type_commit(&xEdgetypeC);
-    MPI_Type_hvector(2, 1, (nyc-1)*nzc*sizeof(double), xEdgetypeC, &xEdgetypeC2);
+    MPI_Type_create_hvector(2, 1, (nyc-1)*nzc*sizeof(double), xEdgetypeC, &xEdgetypeC2);
     MPI_Type_commit(&xEdgetypeC2);
     
     //corner used to communicate in x direction
@@ -301,29 +301,29 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     MPI_Type_commit(&yzFacetypeN);
 
     //For face exchange on Y dir
-    MPI_Type_hvector((nxn-2),(nzn-2),(nzn*nyn*sizeof(double)), MPI_DOUBLE, &xzFacetypeN);
+    MPI_Type_create_hvector((nxn-2),(nzn-2),(nzn*nyn*sizeof(double)), MPI_DOUBLE, &xzFacetypeN);
     MPI_Type_commit(&xzFacetypeN);
 
     MPI_Type_vector((nyn-2), 1, nzn, MPI_DOUBLE, &yEdgetypeN);
     MPI_Type_commit(&yEdgetypeN);
 
     //For face exchangeg on Z dir
-    MPI_Type_hvector((nxn-2), 1, (nzn*nyn*sizeof(double)), yEdgetypeN, &xyFacetypeN);
+    MPI_Type_create_hvector((nxn-2), 1, (nzn*nyn*sizeof(double)), yEdgetypeN, &xyFacetypeN);
     MPI_Type_commit(&xyFacetypeN);
 
     //2 yEdgeType can be merged into one message
-    MPI_Type_hvector(2, 1,(nzn-1)*sizeof(double), yEdgetypeN, &yEdgetypeN2);
+    MPI_Type_create_hvector(2, 1,(nzn-1)*sizeof(double), yEdgetypeN, &yEdgetypeN2);
     MPI_Type_commit(&yEdgetypeN2);
 
     MPI_Type_contiguous((nzn-2),MPI_DOUBLE, &zEdgetypeN);
     MPI_Type_commit(&zEdgetypeN);
 
-    MPI_Type_hvector(2, (nzn-2),(nxn-1)*(nyn*nzn)*sizeof(double), MPI_DOUBLE, &zEdgetypeN2);
+    MPI_Type_create_hvector(2, (nzn-2),(nxn-1)*(nyn*nzn)*sizeof(double), MPI_DOUBLE, &zEdgetypeN2);
     MPI_Type_commit(&zEdgetypeN2);
 
     MPI_Type_vector((nxn-2), 1, nyn*nzn, MPI_DOUBLE, &xEdgetypeN);
     MPI_Type_commit(&xEdgetypeN);
-    MPI_Type_hvector(2, 1, (nyn-1)*nzn*sizeof(double), xEdgetypeN, &xEdgetypeN2);
+    MPI_Type_create_hvector(2, 1, (nyn-1)*nzn*sizeof(double), xEdgetypeN, &xEdgetypeN2);
     MPI_Type_commit(&xEdgetypeN2);
 
     //corner used to communicate in x direction
