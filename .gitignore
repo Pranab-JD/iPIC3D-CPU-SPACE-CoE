@@ -1,5 +1,10 @@
 build/
+build_cs/
+CI/build/
 .cproject
 .project
 .settings
 Debug*
+.vscode/
+inputfiles/weak_*
+inputfiles/strong_*
