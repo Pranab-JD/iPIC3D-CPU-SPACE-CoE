@@ -1,0 +1,30 @@
+name: CI Pipeline  # Name of the pipeline
+
+on:
+  push:            # Triggers the workflow on every push
+    branches:
+      - main       # Specify branch(es) where the workflow runs
+
+jobs:
+  build-job:
+    runs-on: ubuntu-latest  # GitHub-hosted runner environment
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2  # Check out the code from the repository
+      - name: Build job
+        run: ../../CI/build.sh  # Run the build script
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifact
+          path: ./build/iPIC3D  # Specify the path to the artifact
+          retention-days: 30  # Expire artifacts after 30 days
+
+  unit-test-job:
+    runs-on: ubuntu-latest
+    needs: build-job  # Ensure the build-job completes before starting the test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run Unit Tests
+        run: ../../CI/test.sh  # Run the test script
