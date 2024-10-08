@@ -90,9 +90,9 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,
     initial_error = normP(r, xkrylovlen,&fieldcomm);
 
     if (itr == 0) {
-      if (is_output_thread())
-        printf("Initial residual: %g norm b vector (source) = %g\n",
-          initial_error, normb);
+    //   if (is_output_thread())
+    //     printf("Initial residual: %g norm b vector (source) = %g\n",
+    //       initial_error, normb);
         //cout << "Initial residual: " << initial_error << " norm b vector (source) = " << normb << endl;
       rho_tol = initial_error * tol;
 
@@ -205,7 +205,7 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,
     if (initial_error <= rho_tol) {
       if (is_output_thread())
       {
-        printf("GMRES converged at restart # %d; iteration #%d with error: %g\n",
+        printf("GMRES converged at restart %d; iteration %d with error: %g\n",
           itr, k,  initial_error / rho_tol * tol);
         //cout << "GMRES converged at restart # " << itr << "; iteration #" << k << " with error: " << initial_error / rho_tol * tol << endl;
       }

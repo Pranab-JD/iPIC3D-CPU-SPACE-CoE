@@ -57,7 +57,7 @@ int main(int argc, char **argv)
             time_loop.start();
 
             if (KCode.get_myrank() == 0)
-                printf("\n================ Cycle %d ================ \n",i);
+                printf("================ Cycle %d ================ \n",i);
 
             timeTasks.resetCycle();
             
@@ -92,11 +92,11 @@ int main(int argc, char **argv)
             if(MPIdata::get_rank() == 0)
             {
                 std::cout << std::endl << "LeXInt timer (cummulative) " << std::endl;
-                std::cout << "Electric field     : " << time_EF.total() << std::endl;
-                std::cout << "Particle mover     : " << time_PM.total() << std::endl;
-                std::cout << "Magnetic field     : " << time_MF.total() << std::endl;
-                std::cout << "Moment gatherer    : " << time_MG.total() << std::endl;
-                std::cout << "Cycle time         : " << time_loop.total() << std::endl << std::endl;
+                std::cout << "Electric field     : " << time_EF.total() << " s" << std::endl;
+                std::cout << "Particle mover     : " << time_PM.total() << " s" << std::endl;
+                std::cout << "Magnetic field     : " << time_MF.total() << " s" << std::endl;
+                std::cout << "Moment gatherer    : " << time_MG.total() << " s" << std::endl;
+                std::cout << "Cycle time         : " << time_loop.total() << " s" << std::endl << std::endl;
             }
         }
 

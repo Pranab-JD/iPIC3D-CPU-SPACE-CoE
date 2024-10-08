@@ -29,6 +29,8 @@
 #include "errors.h"
 #include "Collective.h"
 #include "string.h" // for strcmp
+#include <iostream>
+#include <iomanip>
 
 /** implementation of declarations in utility/TimeTasks.h **/
 
@@ -276,7 +278,7 @@ void TimeTasks::print_cycle_times(int cycle,
     double communtot=0.;
     double allredtot=0.;
     double sndrcvtot=0.;
-    fprintf(file, "%s_|total  comput commun task\n", reduce_mode);
+    fprintf(file, "Total        Computation   Communication      Module\n", reduce_mode);
     assert_eq(FIELDS+2,MOMENTS);
     for(int e=FIELDS; e<=MOMENTS; e++)
     {
@@ -286,7 +288,7 @@ void TimeTasks::print_cycle_times(int cycle,
       communtot += commun[e];
       allredtot += allred[e];
       sndrcvtot += sndrcv[e];
-      fprintf(file, "%s_|%6.3f %6.3f %6.3f %s\n",
+      fprintf(file, "%s%6.8f    %6.8f     %6.8f       %s\n",
         reduce_mode,
         tskdur[e],
         comput,
@@ -301,13 +303,13 @@ void TimeTasks::print_cycle_times(int cycle,
     }
 
     // report total times
-    fprintf(file, "%s_|%6.3f %6.3f %6.3f %s\n",
+    fprintf(file, "%s%6.8f    %6.8f     %6.8f       %s\n",
       reduce_mode,
       tskdurtot,
       computtot,
       communtot,
       //loccomtot,
-      "[total times]");
+      "Total");
 
    
     fflush(file);
@@ -358,8 +360,8 @@ void TimeTasks::print_cycle_times(int cycle)
   //print_cycle_times(cycle, task_duration, "main");
   //printf0("=== times for cycle %d (maximum over all processes) ===\n", cycle);
   //print_cycle_times(cycle, task_duration, "max");
-  printf0("=== times for cycle %d (averaged over all processes) ===\n", cycle);
-  print_cycle_times(cycle, task_duration, "avg");
+  printf0("\nRuntimes for cycle %d (averaged over all processes)\n", cycle);
+  print_cycle_times(cycle, task_duration, "");
   //printf0("=== times for cycle %d (minimum over all processes) ===\n", cycle);
   //print_cycle_times(cycle, task_duration, "min");
   if(!MPIdata::get_rank()) fflush(stdout);
@@ -370,10 +372,10 @@ void TimeTasks::print_tasks_total_times(){
     if(MPIdata::get_rank()) return;
     FILE* file = stdout;
     fprintf(file, "------------------------------------------\n\n");
-    for(int e=FIELDS; e<=MOMENTS; e++){
-      fprintf(file, "Task Total[%s]:%6.3fs\n",
-        get_taskname(e),
-        tasksTotalTime[e]);
+
+    for(int e=FIELDS; e<=MOMENTS; e++)
+    {
+      fprintf(file, "Time for %s  : %6.6fs\n", get_taskname(e), tasksTotalTime[e]);
     }
 }
 #endif
