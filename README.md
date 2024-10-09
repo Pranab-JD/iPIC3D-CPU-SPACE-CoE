@@ -16,23 +16,35 @@
                                                                          
 
 
+## Requirements
+  - gcc/g++ compiler
+  - cmake (minimum version 2.8)
+  - MPI
+  - HDF5 (optional)
+  - Paraview/Catalyst (optional)
 
+## Installation
+1. Download the code
+``` shell
+git clone https://github.com/Pranab-JD/iPIC3D-CPU-SPACE-CoE.git
+```
 
+2. Create build directory
+``` shell
+cd Parareal_Implicit && mkdir build && cd build
+```
 
-To install and run iPIC3D, you need: 
-   cmake (at least version 2.8), MPI and HDF5 (optional).
-
-# create a build directory
-  mkdir build && cd build
-  cmake /path/to/root/where/CMakeLists.txt/located
-
-# compile, if successful, you will find an executable named iPIC3D in build directory
-  make
-
-# run a test case: copy an inputfile named as testXXX.inp from /inputfiles to build directory
-# make sure you create an folder for output as specified in the input file
-# make sure no_of_proc = XLEN x YLEN x ZLEN as specified in the input file
-  mpiexec -n no_of_proc ./iPIC3D  inputfilename.inp
+3. Compile the code
+``` shell
+cmake ..
+make -j     # build with max # of threads - fast, recommended
+```
+4. Run
+``` shell
+# no_of_proc = XLEN x YLEN x ZLEN (as specified in the input file)
+mpirun -np no_of_proc ./iPIC3D  inputfilename.inp
+```
 
 # Citation
-# Markidis, Stefano, and Giovanni Lapenta. "Multi-scale simulations of plasma with iPIC3D." Mathematics and Computers in Simulation 80.7 (2010): 1509-1519.
+Markidis, Stefano and Giovanni Lapenta (2010), *Multi-scale simulations of plasma with iPIC3D*, Mathematics and Computers in Simulation, 80, 7, 1509-1519.
+[[DOI]](https://doi.org/10.1016/j.matcom.2009.08.038)
