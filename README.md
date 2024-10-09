@@ -1,21 +1,6 @@
-                                                                         
-          ,-.----.                           .--,-``-.                   
-          \    /  \      ,---,   ,----..    /   /     '.       ,---,     
-  ,--,    |   :    \  ,`--.' |  /   /   \  / ../        ;    .'  .' `\   
-,--.'|    |   |  .\ : |   :  : |   :     : \ ``\  .`-    ' ,---.'     \  
-|  |,     .   :  |: | :   |  ' .   |  ;. /  \___\/   \   : |   |  .`\  | 
-`--'_     |   |   \ : |   :  | .   ; /--`        \   :   | :   : |  '  | 
-,' ,'|    |   : .   / '   '  ; ;   | ;           /  /   /  |   ' '  ;  : 
-'  | |    ;   | |`-'  |   |  | |   : |           \  \   \  '   | ;  .  | 
-|  | :    |   | ;     '   :  ; .   | '___    ___ /   :   | |   | :  |  ' 
-'  : |__  :   ' |     |   |  ' '   ; : .'|  /   /\   /   : '   : | /  ;  
-|  | '.'| :   : :     '   :  | '   | '/  : / ,,/  ',-    . |   | '` ,/   
-;  :    ; |   | :     ;   |.'  |   :    /  \ ''\        ;  ;   :  .'     
-|  ,   /  `---'.|     '---'     \   \ .'    \   \     .'   |   ,.'       
- ---`-'     `---`                `---`       `--`-,,-'     '---'         
-                                                                         
+# iPIC3D                                                                         
 
-
+                                                                         
 ## Requirements
   - gcc/g++ compiler
   - cmake (minimum version 2.8)
@@ -31,7 +16,7 @@ git clone https://github.com/Pranab-JD/iPIC3D-CPU-SPACE-CoE.git
 
 2. Create build directory
 ``` shell
-cd Parareal_Implicit && mkdir build && cd build
+cd iPIC3D-CPU-SPACE-CoE && mkdir build && cd build
 ```
 
 3. Compile the code
