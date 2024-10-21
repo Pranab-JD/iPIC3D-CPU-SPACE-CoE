@@ -22,7 +22,7 @@ stages:          # List of stages for jobs, and their order of execution
 
 build-job:
   tags:
-    - iPIC3D-CPU-SPACE-CoE-Karolina
+    - iPIC3D-CPU-SPACE-CoE
   stage: build
   script:
     - ./CI/build.sh
@@ -35,7 +35,7 @@ build-job:
 
 unit-test-job:   # This job runs in the test stage.
   tags:
-    - iPIC3D-CPU-SPACE-CoE-Karolina
+    - iPIC3D-CPU-SPACE-CoE
   stage: test
   script:
     - ./CI/run.sh
