@@ -15,7 +15,7 @@ delta = 0.5
     
 #  %%%%%%%%%%%%%%%%%%% TIME %%%%%%%%%%%%%%%%%%
 dt = 0.1          # dt = time step   
-ncycles = 300     # cycles
+ncycles = 40     # cycles
 th = 1.0          # th =   decentering parameter
 
 #  %%%%%%%%%%%%%%%%%%% SMOOTH %%%%%%%%%%%%%%%%
@@ -57,11 +57,11 @@ rhoINJECT = 0.0   0.0    0.0  0.0
 TrackParticleID=  0  0  0  0
  
 # npcelx = number of particles per cell - Direction X 
-npcelx =   	  10  10  10  10 
+npcelx =   	  20  20  20  20 
 # npcely = number of particles per cell - Direction Y */
-npcely =   	  10  10  10  10 
+npcely =   	  20  20  20  20 
 # npcelz = number of particles per cell - Direction Z */
-npcelz =   	  10  10  10  10  
+npcelz =   	  20  20  20  20  
 
 
 # uth = thermal velocity for different species - Direction X  */
