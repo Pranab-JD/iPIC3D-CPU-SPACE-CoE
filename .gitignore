@@ -1,5 +1,6 @@
 build/
-build_cs/
+build_Grace/
+build_SR/
 CI/build/
 .cproject
 .project
