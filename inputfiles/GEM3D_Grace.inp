@@ -1,0 +1,125 @@
+SaveDirName = GEM3D
+RestartDirName = GEM3D
+
+# New flags:
+Case              = GEM          # Select the case
+PoissonCorrection = no           # Poisson correction
+WriteMethod       = pvtk         # parallel VTK
+SimulationName    = GEM3D        # Simulation name for the output
+
+#  %%%%%%%%%%%%%%%%%%% Magnetic Reconnection %%%%%%%%%%%%%%%%%%
+B0x = 0.0195
+B0y = 0.0
+B0z = 0.0
+delta = 0.5
+    
+#  %%%%%%%%%%%%%%%%%%% TIME %%%%%%%%%%%%%%%%%%
+dt = 0.1          # dt = time step   
+ncycles = 100     # cycles
+th = 1.0          # th =   decentering parameter
+
+#  %%%%%%%%%%%%%%%%%%% SMOOTH %%%%%%%%%%%%%%%%
+Smooth = 1.0      # Smoothing value (5-points stencil), 1.0 means no smoothing
+
+Lx = 40   # Lx = simulation box length - x direction    
+Ly = 40   # Ly = simulation box length - y direction   
+Lz = 30   # Lz = simulation box length - z direction
+
+nxc = 48  # nxc = number of cells - x direction        
+nyc = 48  # nyc = number of cells - y direction 
+nzc = 32  # nzc = number of cells - z direction 
+
+# %%%%%%%%%%%%%% MPI TOPOLOGY %%%%%%%%%%%%%%
+# number of MPI subdomains in each direction
+XLEN = 6
+YLEN = 6
+ZLEN = 4
+# topology of subdomains in each dimension (1=true, 0=false)
+PERIODICX = 1
+PERIODICY = 0
+PERIODICZ = 1
+
+# %%%%%%%%%%%%%% PARTICLES %%%%%%%%%%%%%%%%%
+#    ns = number of species
+#    0 = electrons
+#    1 = protons
+#    ...
+ns = 4
+
+# qom = charge to mass ratio for different species */
+qom =      -64.0  1.0  -64.0  1.0
+
+# Initial density (make sure that plasma is neutral)
+rhoINIT =   1.0   1.0    0.1  0.1
+rhoINJECT = 0.0   0.0    0.0  0.0
+
+# TrackParticleID[species] = 1=true, 0=false --> Assign ID to particles 
+TrackParticleID=  0  0  0  0
+ 
+# npcelx = number of particles per cell - Direction X 
+npcelx =   	  20  20  20  20 
+# npcely = number of particles per cell - Direction Y */
+npcely =   	  20  20  20  20 
+# npcelz = number of particles per cell - Direction Z */
+npcelz =   	  20  20  20  20  
+
+
+# uth = thermal velocity for different species - Direction X  */
+uth  = 	      0.045  0.0126  0.045  0.0126
+# vth = thermal velocity for different species - Direction Y */
+vth  = 	      0.045  0.0126  0.045  0.0126
+# wth = thermal velocity for different species - Direction Z */
+wth  = 	      0.045  0.0126  0.045  0.0126
+
+# u0 = drift velocity   - Direction X    */
+u0 =   	      0.0    0.0     0.0    0.0
+# v0 = drift velocity   - Direction Y    */
+v0 =   	      0.0    0.0     0.0    0.0
+# w0 = drift velocity   - Direction Z    */
+w0 =          0.0065 -0.0325 0.0    0.0 
+
+# &&&&&&&&&&&& boundary conditions &&&&&&&&&&&&&&&
+# PHI Electrostatic Potential     
+# 0,1 = Dirichilet boundary condition      
+# 2   = Neumann boundary condition
+bcPHIfaceXright = 1
+bcPHIfaceXleft  = 1
+bcPHIfaceYright = 1
+bcPHIfaceYleft  = 1
+bcPHIfaceZright = 1
+bcPHIfaceZleft  = 1
+    
+#    EM field boundary condition
+#    0 = perfect conductor
+#    1 = magnetic mirror
+
+bcEMfaceXright = 0
+bcEMfaceXleft =  0
+bcEMfaceYright = 0
+bcEMfaceYleft =  0
+bcEMfaceZright = 0
+bcEMfaceZleft =  0
+#    Particles Boundary condition
+#    0 = exit
+#    1 = perfect mirror
+#    2 = riemission
+#    Caveat: if your processor topology is set to be periodic in a direction automatically the boundary condition in that direction will be periodic*/
+bcPfaceXright = 1
+bcPfaceXleft =  1
+bcPfaceYright = 1
+bcPfaceYleft =  1
+bcPfaceZright = 1
+bcPfaceZleft =  1
+
+### ================================================== ###
+
+# %%%%%%%%%%%% Numerics options %%%%%%%%%%%%%%%
+verbose                = 1        # Print to video results
+Vinj                   = 0.0      # Velocity of the injection from the wall
+CGtol                  = 1E-8     # CG solver stopping criterium tolerance
+GMREStol               = 1E-8     # GMRES solver stopping criterium tolerance
+NiterMover             = 3        # mover predictor corrector iteration
+FieldOutputCycle       = 100      # Output for field
+ParticlesOutputCycle   = 1        # Output for particles (set to 1 to NOT save particles data)
+RestartOutputCycle     = 150000   # restart cycle
+DiagnosticsOutputCycle = 100      # Diagnostics cycle
