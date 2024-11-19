@@ -4,7 +4,7 @@
 ## Requirements
   - gcc/g++ compiler
   - cmake (minimum version 2.8)
-  - MPI
+  - MPI (OpenMPI or MPICH)
   - HDF5 (optional)
   - Paraview/Catalyst (optional)
 
