@@ -88,6 +88,10 @@ class Particles3D:public Particles3Dcomm {
     void mover_explicit(Field * EMf);
     /** mover with a Predictor-Corrector Scheme */
     void mover_PC(Field * EMf);
+    /** ECSIM velocity update **/
+    void ECSIM_velocity(Field * EMf);
+    /** ECSIM position update **/
+    void ECSIM_position(Field * EMf);
     /** array-of-structs version of mover_PC */
     void mover_PC_AoS(Field * EMf);
     /** Relativistic array-of-structs version of mover_PC with adaptive Subcycling and PC*/
