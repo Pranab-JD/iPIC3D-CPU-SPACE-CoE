@@ -3,7 +3,7 @@
 
 #  %%%%%%%%%%%%%%%%%%% Input/Output flags %%%%%%%%%%%%%%%%%%
 SaveDirName    = data            # Output directory
-RestartDirName = data/restart    # Restart directory (for WriteMethod=default)
+RestartDirName = data            # Restart directory (for WriteMethod=default)
 
 #  %%%%%%%%%%%%%%%%%%% Input/Output flags %%%%%%%%%%%%%%%%%%
 Case              = default                                 # Case [ GEM | Dipole | ... ]
