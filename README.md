@@ -24,6 +24,7 @@ cd iPIC3D-CPU-SPACE-CoE && mkdir build && cd build
 ``` shell
 cmake ..
 make -j     # -j = build with max # of threads - fast, recommended
+```
 
 4. Run
 ``` shell
