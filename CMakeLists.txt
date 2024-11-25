@@ -200,6 +200,9 @@ target_link_libraries(
   iPIC3D
   iPIC3Dlib
   stdc++fs
+  mericmpi
+  #msr
+  #freeipmi
   )
 
 if(NOT CMAKE_BUILD_TYPE)

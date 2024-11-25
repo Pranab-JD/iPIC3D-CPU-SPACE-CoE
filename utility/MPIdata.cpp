@@ -20,6 +20,8 @@
 
 #ifndef NO_MPI
   #include <mpi.h>
+  #include "meric.h"
+  #include <cstdio>
 #endif
 #include <assert.h>
 #include "MPIdata.h"
@@ -59,6 +61,8 @@ void MPIdata::init(int *argc, char ***argv) {
   /* Initialize the MPI API */
   MPI_Init(argc, argv);
 
+  MERIC_Init();
+
   MPI_Comm_dup(MPI_COMM_WORLD, &PIC_COMM);
   MPI_Comm_rank(PIC_COMM, &rank);
   MPI_Comm_size(PIC_COMM, &nprocs);
@@ -75,6 +79,9 @@ void MPIdata::exit(int code) {
 
 void MPIdata::finalize_mpi() {
  #ifndef NO_MPI
+//  printf("MPI_FINALIZE: utility/MPIdata.cpp\n");
+  MERIC_Close();
+
   MPI_Finalize();
  #endif
 }
