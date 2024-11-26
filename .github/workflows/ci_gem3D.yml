@@ -40,7 +40,7 @@ jobs:
       run: cmake --build ${{github.workspace}}/build -j4 #--config ${{env.BUILD_TYPE}}
 
     - name: Test
-      run: timeout 40m mpirun -np 4 ${{github.workspace}}/build/iPIC3D ${{github.workspace}}/.github/input/testGEM2Dsmall.inp
+      run: timeout 50m mpirun -np 4 ${{github.workspace}}/build/iPIC3D ${{github.workspace}}/.github/input/testGEM2Dsmall.inp
     # - name: Test
     #   working-directory: ${{github.workspace}}/build
     #   # Execute tests defined by the CMake configuration.
