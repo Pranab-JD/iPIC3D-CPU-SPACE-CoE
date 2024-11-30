@@ -681,52 +681,6 @@ void Particles3D::ECSIM_velocity(Field * EMf)
 
         const_arr4_double fieldForPcls = EMf->get_fieldForPcls();
 
-        // double ***Exth= asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getExth());
-        // double ***Eyth= asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getEyth());
-        // double ***Ezth= asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getEzth());
-        // double ***Ex_ext = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getEx_ext());
-        // double ***Ey_ext = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getEy_ext());
-        // double ***Ez_ext = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getEz_ext());
-        // double ***Bx = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getBx());
-        // double ***By = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getBy());
-        // double ***Bz = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getBz());
-        // double ***Bx_ext = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getBx_ext());
-        // double ***By_ext = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getBy_ext());
-        // double ***Bz_ext = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getBz_ext());
-
-        //  double ***Fpextx, ***Fpexty, ***Fpextz;
-        // std::complex<double> **aaF;
-        // std::complex<double> ac[3];
-        // double k0 = 2.0*M_PI/Lx;
-        // double kkv[6][3], kk[6][3];
-        // kkv[0][0] = 1.; kkv[0][1] = 0.; kkv[0][2] = 0.;
-        // kkv[1][0] = -1.; kkv[1][1] = 0.; kkv[1][2] = 0.;
-        // kkv[2][0] = 0.; kkv[2][1] = 1.; kkv[2][2] = 0.;
-        // kkv[3][0] = 0.; kkv[3][1] = -1.; kkv[3][2] = 0.;
-        // kkv[4][0] = 0.; kkv[4][1] = 0.; kkv[4][2] = 1.;
-        // kkv[5][0] = 0.; kkv[5][1] = 0.; kkv[5][2] = -1.;
-        // for (int ii=0; ii<6; ii++)
-        // for (int jj=0; jj<3; jj++)
-        //     kk[ii][jj] = kkv[ii][jj]*k0;
-
-        // if (EMf->getParticleExternalForce()) 
-        // {
-        //     //    Fpextx = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getFpextx(col, vct));
-        //     //    Fpexty = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getFpexty(col, vct));
-        //     //    Fpextz = asgArr3(double, grid->getNXN(), grid->getNYN(), grid->getNZN(), EMf->getFpextz(col, vct));
-        //     aaF = asgArr2(std::complex<double>, 6, 3, EMf->getaaF());
-        // }
-
-        // double Fext = EMf->getFext();
-        // if(Gravity)
-        // Fext /= qom;
-
-        const double inv_dx = 1.0 / dx, inv_dy = 1.0 / dy, inv_dz = 1.0 / dz;
-        // don't bother trying to push any particles simultaneously;
-        // MIC already does vectorization automatically, and trying
-        // to do it by hand only hurts performance.
-        // #pragma omp parallel for
-        // #pragma simd                    // this just slows things down (why?)
         for (int pidx = 0; pidx < getNOP(); pidx++) 
         {
             //* --------------------------------------- *//
@@ -735,16 +689,6 @@ void Particles3D::ECSIM_velocity(Field * EMf)
             const double xorig = getX(pidx);
             const double yorig = getY(pidx);
             const double zorig = getZ(pidx);
-
-            // // copy the positions
-            // double xp = x[rest];
-            // double yp = y[rest];
-            // double zp = z[rest];
-
-            // // Copy the velocities
-            // double up = u[rest];
-            // double vp = v[rest];
-            // double wp = w[rest];
 
             //* Copy particles' velocities
             const double uorig = getU(pidx);
@@ -758,10 +702,6 @@ void Particles3D::ECSIM_velocity(Field * EMf)
             double uavg;
             double vavg;
             double wavg;
-
-            // double uptilde;
-            // double vptilde;
-            // double wptilde;
 
             //* --------------------------------------- *//
 
@@ -795,235 +735,142 @@ void Particles3D::ECSIM_velocity(Field * EMf)
             const double eta1  = grid->getYN(iy) - yavg;
             const double zeta1 = grid->getZN(iz) - zavg;
 
-            // const double ixd = floor((xp - xstart) * inv_dx);
-            // const double iyd = floor((yp - ystart) * inv_dy);
-            // const double izd = floor((zp - zstart) * inv_dz);
-            
-            // int ix = 2 + int (ixd);
-            // int iy = 2 + int (iyd);
-            // int iz = 2 + int (izd);
-            // double xi[2], eta[2], zeta[2];
-            // xi  [0] = xp - grid->getXN(ix-1,iy  ,iz  );
-            // eta [0] = yp - grid->getYN(ix  ,iy-1,iz  );
-            // zeta[0] = zp - grid->getZN(ix  ,iy  ,iz-1);
-            // xi  [1] = grid->getXN(ix,iy,iz) - xp;
-            // eta [1] = grid->getYN(ix,iy,iz) - yp;
-            // zeta[1] = grid->getZN(ix,iy,iz) - zp;
+            double weights[8] ALLOC_ALIGNED;
+            const pfloat weight0 = invVOL*xi0;
+            const pfloat weight1 = invVOL*xi1;
+            const pfloat weight00 = weight0*eta0;
+            const pfloat weight01 = weight0*eta1;
+            const pfloat weight10 = weight1*eta0;
+            const pfloat weight11 = weight1*eta1;
+            weights[0] = weight00*zeta0;                            // weight000 = xi[0] * eta[0] * zeta[0] * invVOL
+            weights[1] = weight00*zeta1;                            // weight001 = xi[0] * eta[0] * zeta[1] * invVOL
+            weights[2] = weight01*zeta0;                            // weight010 = xi[0] * eta[1] * zeta[0] * invVOL
+            weights[3] = weight01*zeta1;                            // weight011 = xi[0] * eta[1] * zeta[1] * invVOL
+            weights[4] = weight10*zeta0;                            // weight100 = xi[1] * eta[0] * zeta[0] * invVOL
+            weights[5] = weight10*zeta1;                            // weight101 = xi[1] * eta[0] * zeta[1] * invVOL
+            weights[6] = weight11*zeta0;                            // weight110 = xi[1] * eta[1] * zeta[0] * invVOL
+            weights[7] = weight11*zeta1;                            // weight111 = xi[1] * eta[1] * zeta[1] * invVOL
 
             //* --------------------------------------- *//
 
-        //     double Exl = 0.0;
-        //     double Eyl = 0.0;
-        //     double Ezl = 0.0;
-        //     double Bxl = 0.0;
-        //     double Byl = 0.0;
-        //     double Bzl = 0.0;
-        //     double Fxl = 0.0;
-        //     double Fyl = 0.0;
-        //     double Fzl = 0.0;
+            const double* field_components[8];
+            get_field_components_for_cell(field_components, fieldForPcls, cx, cy, cz);
+
+            double sampled_field[8] ALLOC_ALIGNED;
+            for(int i=0;i<8;i++) 
+                sampled_field[i]=0;
+            
+            double& Bxl=sampled_field[0];
+            double& Byl=sampled_field[1];
+            double& Bzl=sampled_field[2];
+            double& Exl=sampled_field[0+DFIELD_3or4];
+            double& Eyl=sampled_field[1+DFIELD_3or4];
+            double& Ezl=sampled_field[2+DFIELD_3or4];
+            
+            const int num_field_components = 2*DFIELD_3or4;
+
+            for(int c = 0; c < 8; c++)
+            {
+                const double* field_components_c=field_components[c];
+                ASSUME_ALIGNED(field_components_c);
+                const double weights_c = weights[c];
+                
+                #pragma simd
+                for(int i=0; i<num_field_components; i++)
+                {
+                    sampled_field[i] += weights_c*field_components_c[i];
+                }
+            }
+
+            //* --------------------------------------- *//
+
+            const double qdto2mc = 0.5 * dt * qom/c;
+
+            const double Omx = qdto2mc*Bxl;
+            const double Omy = qdto2mc*Byl;
+            const double Omz = qdto2mc*Bzl;
+
+            const pfloat omsq = (Omx * Omx + Omy * Omy + Omz * Omz);
+            const pfloat denom = 1.0 / (1.0 + omsq);
+
+            //? Update (temporary) positions
+            double vbEx = uorig + qdto2mc*Exl;
+            double vbEy = vorig + qdto2mc*Eyl;
+            double vbEz = worig + qdto2mc*Ezl;
+
+            double edotb = vbEx * Omx + vbEy * Omy + vbEz * Omz;
+
+            uavg = (vbEx + (vbEy * Omz - vbEz * Omy + edotb * Omx)) * denom;
+            vavg = (vbEy + (vbEz * Omx - vbEx * Omz + edotb * Omy)) * denom;
+            wavg = (vbEz + (vbEx * Omy - vbEy * Omx + edotb * Omz)) * denom;
 
 
-        //     // ... so we expand things out instead
-        //     // 
-        //     const double weight000 = xi[0] * eta[0] * zeta[0] * invVOL;
-        //     const double weight001 = xi[0] * eta[0] * zeta[1] * invVOL;
-        //     const double weight010 = xi[0] * eta[1] * zeta[0] * invVOL;
-        //     const double weight011 = xi[0] * eta[1] * zeta[1] * invVOL;
-        //     const double weight100 = xi[1] * eta[0] * zeta[0] * invVOL;
-        //     const double weight101 = xi[1] * eta[0] * zeta[1] * invVOL;
-        //     const double weight110 = xi[1] * eta[1] * zeta[0] * invVOL;
-        //     const double weight111 = xi[1] * eta[1] * zeta[1] * invVOL;
+            //TODO: what is this?
+            //     #ifdef __JDOTE_TEST__
+            //     ubar[rest] = uptilde;
+            //     vbar[rest] = vptilde;
+            //     wbar[rest] = wptilde;
+            //     #endif
 
-                double weights[8] ALLOC_ALIGNED;
-                const pfloat weight0 = invVOL*xi0;
-                const pfloat weight1 = invVOL*xi1;
-                const pfloat weight00 = weight0*eta0;
-                const pfloat weight01 = weight0*eta1;
-                const pfloat weight10 = weight1*eta0;
-                const pfloat weight11 = weight1*eta1;
-                weights[0] = weight00*zeta0; // weight000
-                weights[1] = weight00*zeta1; // weight001
-                weights[2] = weight01*zeta0; // weight010
-                weights[3] = weight01*zeta1; // weight011
-                weights[4] = weight10*zeta0; // weight100
-                weights[5] = weight10*zeta1; // weight101
-                weights[6] = weight11*zeta0; // weight110
-                weights[7] = weight11*zeta1; // weight111
+            //TODO: what is this?
+            //     mirror(vct, xp, yp, zp, up, vp, wp,Bxl, Byl, Bzl);
 
-                //* --------------------------------------- *//
+            //? Update final velocities
+            fetchU(pidx) = 2.0 * uavg - uorig;
+            fetchV(pidx) = 2.0 * vavg - vorig;
+            fetchW(pidx) = 2.0 * wavg - worig;
 
-        //     // 
-        //     Bxl += weight000 * (Bx[ix][iy][iz]             + Fext*Bx_ext[ix][iy][iz]);
-        //     Bxl += weight001 * (Bx[ix][iy][iz - 1]         + Fext*Bx_ext[ix][iy][iz-1]);
-        //     Bxl += weight010 * (Bx[ix][iy - 1][iz]         + Fext*Bx_ext[ix][iy-1][iz]);
-        //     Bxl += weight011 * (Bx[ix][iy - 1][iz - 1]     + Fext*Bx_ext[ix][iy-1][iz-1]);
-        //     Bxl += weight100 * (Bx[ix - 1][iy][iz]         + Fext*Bx_ext[ix-1][iy][iz]);
-        //     Bxl += weight101 * (Bx[ix - 1][iy][iz - 1]     + Fext*Bx_ext[ix-1][iy][iz-1]);
-        //     Bxl += weight110 * (Bx[ix - 1][iy - 1][iz]     + Fext*Bx_ext[ix-1][iy-1][iz]);
-        //     Bxl += weight111 * (Bx[ix - 1][iy - 1][iz - 1] + Fext*Bx_ext[ix-1][iy-1][iz-1]);
-        //     // 
-        //     Byl += weight000 * (By[ix][iy][iz]             + Fext*By_ext[ix][iy][iz]);
-        //     Byl += weight001 * (By[ix][iy][iz - 1]         + Fext*By_ext[ix][iy][iz-1]);
-        //     Byl += weight010 * (By[ix][iy - 1][iz]         + Fext*By_ext[ix][iy-1][iz]);
-        //     Byl += weight011 * (By[ix][iy - 1][iz - 1]     + Fext*By_ext[ix][iy-1][iz-1]);
-        //     Byl += weight100 * (By[ix - 1][iy][iz]         + Fext*By_ext[ix-1][iy][iz]);
-        //     Byl += weight101 * (By[ix - 1][iy][iz - 1]     + Fext*By_ext[ix-1][iy][iz-1]);
-        //     Byl += weight110 * (By[ix - 1][iy - 1][iz]     + Fext*By_ext[ix-1][iy-1][iz]);
-        //     Byl += weight111 * (By[ix - 1][iy - 1][iz - 1] + Fext*By_ext[ix-1][iy-1][iz-1]);
-        //     // 
-        //     Bzl += weight000 * (Bz[ix][iy][iz]             + Fext*Bz_ext[ix][iy][iz]);
-        //     Bzl += weight001 * (Bz[ix][iy][iz - 1]         + Fext*Bz_ext[ix][iy][iz-1]);
-        //     Bzl += weight010 * (Bz[ix][iy - 1][iz]         + Fext*Bz_ext[ix][iy-1][iz]);
-        //     Bzl += weight011 * (Bz[ix][iy - 1][iz - 1]     + Fext*Bz_ext[ix][iy-1][iz-1]);
-        //     Bzl += weight100 * (Bz[ix - 1][iy][iz]         + Fext*Bz_ext[ix-1][iy][iz]);
-        //     Bzl += weight101 * (Bz[ix - 1][iy][iz - 1]     + Fext*Bz_ext[ix-1][iy][iz-1]);
-        //     Bzl += weight110 * (Bz[ix - 1][iy - 1][iz]     + Fext*Bz_ext[ix-1][iy-1][iz]);
-        //     Bzl += weight111 * (Bz[ix - 1][iy - 1][iz - 1] + Fext*Bz_ext[ix-1][iy-1][iz-1]);
-        //     // 
-        //     Exl += weight000 * (Exth[ix][iy][iz]             + Fext*Ex_ext[ix][iy][iz]);
-        //     Exl += weight001 * (Exth[ix][iy][iz - 1]         + Fext*Ex_ext[ix][iy][iz - 1]);
-        //     Exl += weight010 * (Exth[ix][iy - 1][iz]         + Fext*Ex_ext[ix][iy - 1][iz]);
-        //     Exl += weight011 * (Exth[ix][iy - 1][iz - 1]     + Fext*Ex_ext[ix][iy - 1][iz - 1]);
-        //     Exl += weight100 * (Exth[ix - 1][iy][iz]         + Fext*Ex_ext[ix - 1][iy][iz]);
-        //     Exl += weight101 * (Exth[ix - 1][iy][iz - 1]     + Fext*Ex_ext[ix - 1][iy][iz - 1]);
-        //     Exl += weight110 * (Exth[ix - 1][iy - 1][iz]     + Fext*Ex_ext[ix - 1][iy - 1][iz]);
-        //     Exl += weight111 * (Exth[ix - 1][iy - 1][iz - 1] + Fext*Ex_ext[ix - 1][iy - 1][iz - 1]);
-        //     //                                                                                    
-        //     Eyl += weight000 * (Eyth[ix][iy][iz]             + Fext*Ey_ext[ix][iy][iz]);
-        //     Eyl += weight001 * (Eyth[ix][iy][iz - 1]         + Fext*Ey_ext[ix][iy][iz - 1]);
-        //     Eyl += weight010 * (Eyth[ix][iy - 1][iz]         + Fext*Ey_ext[ix][iy - 1][iz]);
-        //     Eyl += weight011 * (Eyth[ix][iy - 1][iz - 1]     + Fext*Ey_ext[ix][iy - 1][iz - 1]);
-        //     Eyl += weight100 * (Eyth[ix - 1][iy][iz]         + Fext*Ey_ext[ix - 1][iy][iz]);
-        //     Eyl += weight101 * (Eyth[ix - 1][iy][iz - 1]     + Fext*Ey_ext[ix - 1][iy][iz - 1]);
-        //     Eyl += weight110 * (Eyth[ix - 1][iy - 1][iz]     + Fext*Ey_ext[ix - 1][iy - 1][iz]);
-        //     Eyl += weight111 * (Eyth[ix - 1][iy - 1][iz - 1] + Fext*Ey_ext[ix - 1][iy - 1][iz - 1]);
-        //     //                                                                                    
-        //     Ezl += weight000 * (Ezth[ix][iy][iz]             + Fext*Ez_ext[ix][iy][iz]);
-        //     Ezl += weight001 * (Ezth[ix][iy][iz - 1]         + Fext*Ez_ext[ix][iy][iz - 1]);
-        //     Ezl += weight010 * (Ezth[ix][iy - 1][iz]         + Fext*Ez_ext[ix][iy - 1][iz]);
-        //     Ezl += weight011 * (Ezth[ix][iy - 1][iz - 1]     + Fext*Ez_ext[ix][iy - 1][iz - 1]);
-        //     Ezl += weight100 * (Ezth[ix - 1][iy][iz]         + Fext*Ez_ext[ix - 1][iy][iz]);
-        //     Ezl += weight101 * (Ezth[ix - 1][iy][iz - 1]     + Fext*Ez_ext[ix - 1][iy][iz - 1]);
-        //     Ezl += weight110 * (Ezth[ix - 1][iy - 1][iz]     + Fext*Ez_ext[ix - 1][iy - 1][iz]);
-        //     Ezl += weight111 * (Ezth[ix - 1][iy - 1][iz - 1] + Fext*Ez_ext[ix - 1][iy - 1][iz - 1]);
+            //     if (CFL_Particle) 
+            //     {
+            //         //! Control: particles are not allowed to have velocities larger than dx/dt
+            //         double FAC = 0.4;
+            //         if (u[rest] > dx/dt) 
+            //         {
+            //             np_fast++;
+            //             u[rest] = FAC*dx/dt;
+            //         }
+            //         else if (u[rest] < -dx/dt) 
+            //         {
+            //             np_fast++;
+            //             u[rest] = -FAC*dx/dt;
+            //         }
 
-        //     if (EMf->getParticleExternalForce()) 
-        //     {
+            //         if (v[rest] > dy/dt) 
+            //         {
+            //             np_fast++;
+            //             v[rest] = FAC*dy/dt;
+            //         }
+            //         else if (v[rest] < -dy/dt) 
+            //         {
+            //             np_fast++;
+            //             v[rest] = -FAC*dy/dt;
+            //         }
 
-        //         // Initialize complex acceleration
-        //         for (int nn=0; nn<3; nn++) ac[nn] = 0.0 + 0.0i;
-        //         // Compute complex acc from aaFourier
-        //         for (int nn=0; nn<3; nn++)
-        //         for (int mm=0; mm<6; mm++) 
-        //         {
-        //             double kdotx = kk[mm][0]*xp + kk[mm][1]*yp + kk[mm][2]*zp;        
-        //             ac[nn] += aaF[mm][nn]*(std::cos(kdotx)+1i*std::sin(kdotx));
-        //         }
-        //         // Store real acceleration
-        //         Fxl = std::real(ac[0]);
-        //         Fyl = std::real(ac[1]);
-        //         Fzl = std::real(ac[2]);
-        //     }
+            //         if (grid->getNZN() > 3) 
+            //         {
+            //             if (w[rest] > dz/dt) 
+            //             {
+            //                 np_fast++;
+            //                 w[rest] = FAC*dz/dt;
+            //             }
+            //             else if (w[rest] < -dz/dt) 
+            //             {
+            //                 np_fast++;
+            //                 w[rest] = -FAC*dz/dt;
+            //             }
+            //         }
+            //     }
 
-        //         if (testpart) 
-        //         {
-        //             partEx[rest] = Exl;
-        //             partEy[rest] = Eyl;
-        //             partEz[rest] = Ezl;
-        //             partBx[rest] = Bxl;
-        //             partBy[rest] = Byl;
-        //             partBz[rest] = Bzl;
-        //         }
-
-        //     // 
-        //     // End of interpolation
-
-        //     double beta = 0.5*qom*dt;
-
-        //     double vbEx = up + beta*Exl + 0.5*dt*Fxl;
-        //     double vbEy = vp + beta*Eyl + 0.5*dt*Fyl;
-        //     double vbEz = wp + beta*Ezl + 0.5*dt*Fzl;
-
-        //     // V tilde = alpha*(v + beta*E)
-        //     // GL Jun3, 2023 division by c added
-        //     double omcx = beta * Bxl/c;
-        //     double omcy = beta * Byl/c;
-        //     double omcz = beta * Bzl/c;
-        //     double denom = 1.0 / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
-        //     double edotb = vbEx * omcx + vbEy * omcy + vbEz * omcz;
-        //     uptilde = (vbEx + (vbEy * omcz - vbEz * omcy + edotb * omcx)) * denom;
-        //     vptilde = (vbEy + (vbEz * omcx - vbEx * omcz + edotb * omcy)) * denom;
-        //     wptilde = (vbEz + (vbEx * omcy - vbEy * omcx + edotb * omcz)) * denom;
-
-
-        //     // update the velocity
-        //     up = 2.0 * uptilde - u[rest];
-        //     vp = 2.0 * vptilde - v[rest];
-        //     wp = 2.0 * wptilde - w[rest];
-
-        //     #ifdef __JDOTE_TEST__
-        //     ubar[rest] = uptilde;
-        //     vbar[rest] = vptilde;
-        //     wbar[rest] = wptilde;
-        //     #endif
-
-        //     mirror(vct, xp, yp, zp, up, vp, wp,Bxl, Byl, Bzl);
-
-        //     u[rest] = up;
-        //     v[rest] = vp;
-        //     w[rest] = wp;
-
-        //     if (CFL_Particle) 
-        //     {
-        //         //! Control: particles are not allowed to have velocities larger than dx/dt
-        //         double FAC = 0.4;
-        //         if (u[rest] > dx/dt) 
-        //         {
-        //             np_fast++;
-        //             u[rest] = FAC*dx/dt;
-        //         }
-        //         else if (u[rest] < -dx/dt) 
-        //         {
-        //             np_fast++;
-        //             u[rest] = -FAC*dx/dt;
-        //         }
-
-        //         if (v[rest] > dy/dt) 
-        //         {
-        //             np_fast++;
-        //             v[rest] = FAC*dy/dt;
-        //         }
-        //         else if (v[rest] < -dy/dt) 
-        //         {
-        //             np_fast++;
-        //             v[rest] = -FAC*dy/dt;
-        //         }
-
-        //         if (grid->getNZN() > 3) 
-        //         {
-        //             if (w[rest] > dz/dt) 
-        //             {
-        //                 np_fast++;
-        //                 w[rest] = FAC*dz/dt;
-        //             }
-        //             else if (w[rest] < -dz/dt) 
-        //             {
-        //                 np_fast++;
-        //                 w[rest] = -FAC*dz/dt;
-        //             }
-        //         }
-        //     }
-
-        //     if (EMf->getParticleExternalForce()) 
-        //     {
-        //         double vv = sqrt(up*up+vp*vp+wp*wp);
-        //         if (vv > 0.7) 
-        //         {
-        //             u[rest] = u[rest]*0.7/vv;
-        //             v[rest] = v[rest]*0.7/vv;
-        //             w[rest] = w[rest]*0.7/vv;
-        //         }
-        //     }
+            //     if (EMf->getParticleExternalForce()) 
+            //     {
+            //         double vv = sqrt(up*up+vp*vp+wp*wp);
+            //         if (vv > 0.7) 
+            //         {
+            //             u[rest] = u[rest]*0.7/vv;
+            //             v[rest] = v[rest]*0.7/vv;
+            //             w[rest] = w[rest]*0.7/vv;
+            //         }
+            //     }
         }
 
     }
