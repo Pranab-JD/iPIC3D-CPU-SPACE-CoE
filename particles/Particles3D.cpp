@@ -819,58 +819,6 @@ void Particles3D::ECSIM_velocity(Field * EMf)
             fetchU(pidx) = 2.0 * uavg - uorig;
             fetchV(pidx) = 2.0 * vavg - vorig;
             fetchW(pidx) = 2.0 * wavg - worig;
-
-            //     if (CFL_Particle) 
-            //     {
-            //         //! Control: particles are not allowed to have velocities larger than dx/dt
-            //         double FAC = 0.4;
-            //         if (u[rest] > dx/dt) 
-            //         {
-            //             np_fast++;
-            //             u[rest] = FAC*dx/dt;
-            //         }
-            //         else if (u[rest] < -dx/dt) 
-            //         {
-            //             np_fast++;
-            //             u[rest] = -FAC*dx/dt;
-            //         }
-
-            //         if (v[rest] > dy/dt) 
-            //         {
-            //             np_fast++;
-            //             v[rest] = FAC*dy/dt;
-            //         }
-            //         else if (v[rest] < -dy/dt) 
-            //         {
-            //             np_fast++;
-            //             v[rest] = -FAC*dy/dt;
-            //         }
-
-            //         if (grid->getNZN() > 3) 
-            //         {
-            //             if (w[rest] > dz/dt) 
-            //             {
-            //                 np_fast++;
-            //                 w[rest] = FAC*dz/dt;
-            //             }
-            //             else if (w[rest] < -dz/dt) 
-            //             {
-            //                 np_fast++;
-            //                 w[rest] = -FAC*dz/dt;
-            //             }
-            //         }
-            //     }
-
-            //     if (EMf->getParticleExternalForce()) 
-            //     {
-            //         double vv = sqrt(up*up+vp*vp+wp*wp);
-            //         if (vv > 0.7) 
-            //         {
-            //             u[rest] = u[rest]*0.7/vv;
-            //             v[rest] = v[rest]*0.7/vv;
-            //             w[rest] = w[rest]*0.7/vv;
-            //         }
-            //     }
         }
 
     }
@@ -880,7 +828,198 @@ void Particles3D::ECSIM_velocity(Field * EMf)
     // exit succcesfully (hopefully) 
 }
 
+void Particles3D::ECSIM_position(Field * EMf) 
+{
+    #pragma omp parallel
+    {
 
+        const double inv_dx = 1.0 / dx, inv_dy = 1.0 / dy, inv_dz = 1.0 / dz;
+        double correct_x = 1.0;
+        double correct_y = 1.0;
+        double correct_z = 1.0;
+        double ***R= asgArr3(double, grid->getNXC(), grid->getNYC(), grid->getNZC(), EMf->getResDiv(ns));
+
+        double dxp = 0.0;
+        double dyp = 0.0;
+        double dzp = 0.0;
+        double invSURF;
+        double weight00;
+        double weight01;
+        double weight10;
+        double weight11;
+
+        for (long long rest = 0; rest < nop; rest++) {
+            double xp = x[rest];
+            double yp = y[rest];
+            double zp = z[rest];
+            double gn = 1.0;
+            if (Relativistic) gn = sqrt(1.+(u[rest]*u[rest]+v[rest]*v[rest]+w[rest]*w[rest])/c/c);
+            double up = u[rest];
+            double vp = v[rest];
+            double wp = w[rest];
+            // Compute correction factor
+            // Find the cell the particle is in,
+            // the ghost cell has center -0.5, labelled in me memory 0
+            // the first active cell has center 0.5, labelled in memory 1
+
+            // find the cell center to the left of the particles
+            // a particle at 0.50001 should give center 0.5
+            // that is labelled as 1
+
+            //int ixc = int( floor((xp + 0.5 * dx) * inv_dx));
+            //int iyc = int( floor((yp + 0.5 * dy) * inv_dy));
+            //int izc = int( floor((zp + 0.5 * dz) * inv_dz));
+
+
+            // correction factor computed based on the node in between the
+            // two centers surrouding the particle
+            // the centers are ixc and ixc+1
+            // the node is ixn = ixc+1
+
+
+        //    bool CorrectCurrent= true;
+        //    if(CorrectCurrent){
+        //    correct_x = 1 - abs (xp / dx - (ixc+1));
+        //    correct_y = 1 - abs (yp / dy - (iyc+1));
+        //    correct_z = 1 - abs (zp / dz - (izc+1));
+        //    }
+
+            if (ChargeConserving) {
+            const double ixd = floor((xp - dx/2.0 - xstart) * inv_dx);
+            const double iyd = floor((yp - dy/2.0 - ystart) * inv_dy);
+            const double izd = floor((zp - dz/2.0 - zstart) * inv_dz);
+            int ix = 2 + int (ixd);
+            int iy = 2 + int (iyd);
+            int iz = 2 + int (izd);
+        
+            double xi[2], eta[2], zeta[2];
+        
+            // Difference along x
+            eta [0] = yp - grid->getYC(ix  ,iy-1,iz  );
+            zeta[0] = zp - grid->getZC(ix  ,iy  ,iz-1);
+            eta [1] = grid->getYC(ix,iy,iz) - yp;
+            zeta[1] = grid->getZC(ix,iy,iz) - zp;
+            invSURF = 1.0/(dy*dz);
+        
+            double RxP = 0.0;
+            double RxM = 0.0;
+        
+            weight00 = eta[0] * zeta[0] * invSURF;
+            weight01 = eta[0] * zeta[1] * invSURF;
+            weight10 = eta[1] * zeta[0] * invSURF;
+            weight11 = eta[1] * zeta[1] * invSURF;
+            //cout<< "weight  "<< weight00+ weight01 +weight10+weight11 << "   " <<endl;
+            //cout<< "R=    "<<  R[ix][iy][iz]<< "    "<<  R[ix][iy][iz-1]<<"    "<<  R[ix][iy-1][iz]<< "    "<<  R[ix][iy-1][iz-1]<< endl;
+        
+            RxP = weight00 * (R[ix][iy][iz]         );
+            RxP += weight01 * (R[ix][iy][iz - 1]     );
+            RxP += weight10 * (R[ix][iy - 1][iz]     );
+            RxP += weight11 * (R[ix][iy - 1][iz - 1] );
+        
+            RxM = weight00 * (R[ix - 1][iy][iz]         );
+            RxM += weight01 * (R[ix - 1][iy][iz - 1]     );
+            RxM += weight10 * (R[ix - 1][iy - 1][iz]     );
+            RxM += weight11 * (R[ix - 1][iy - 1][iz - 1] );
+            //
+            // Difference along y
+            //
+            xi  [0] = xp - grid->getXC(ix-1,iy  ,iz  );
+            zeta[0] = zp - grid->getZC(ix  ,iy  ,iz-1);
+            xi  [1] = grid->getXC(ix,iy,iz) - xp;
+            zeta[1] = grid->getZC(ix,iy,iz) - zp;
+            invSURF = 1.0/(dx*dz);
+        
+            double RyP = 0.0;
+            double RyM = 0.0;
+        
+            weight00 = xi[0] *  zeta[0] * invSURF;
+            weight01 = xi[0] *  zeta[1] * invSURF;
+            weight10 = xi[1] *  zeta[0] * invSURF;
+            weight11 = xi[1] *  zeta[1] * invSURF;
+        
+            //
+            RyP = weight00 * (R[ix][iy][iz]             );
+            RyP += weight01 * (R[ix][iy][iz - 1]         );
+            RyP += weight10 * (R[ix - 1][iy][iz]         );
+            RyP += weight11 * (R[ix - 1][iy][iz - 1]     );
+        
+            //
+            RyM = weight00 * (R[ix][iy-1][iz]             );
+            RyM += weight01 * (R[ix][iy-1][iz - 1]         );
+            RyM += weight10 * (R[ix - 1][iy-1][iz]         );
+            RyM += weight11 * (R[ix - 1][iy-1][iz - 1]     );
+            //
+        
+            //
+            // Difference along z
+            //
+        
+            double RzP = 0.0;
+            double RzM = 0.0;
+        
+            xi  [0] = xp - grid->getXC(ix-1,iy  ,iz  );
+            eta [0] = yp - grid->getYC(ix  ,iy-1,iz  );
+            xi  [1] = grid->getXC(ix,iy,iz) - xp;
+            eta [1] = grid->getYC(ix,iy,iz) - yp;
+            invSURF = 1.0/(dx*dy);
+        
+            weight00 = xi[0] * eta[0] * invSURF;
+            weight01 = xi[0] * eta[1] * invSURF;
+            weight10 = xi[1] * eta[0] * invSURF;
+            weight11 = xi[1] * eta[1] * invSURF;
+            //
+            RzP = weight00 * (R[ix][iy][iz]             );
+            RzP += weight01 * (R[ix][iy - 1][iz]         );
+            RzP += weight10 * (R[ix - 1][iy][iz]         );
+            RzP += weight11 * (R[ix - 1][iy - 1][iz]     );
+        
+            RzM = weight00 * (R[ix][iy][iz-1]             );
+            RzM += weight01 * (R[ix][iy - 1][iz-1]         );
+            RzM += weight10 * (R[ix - 1][iy][iz-1]         );
+            RzM += weight11 * (R[ix - 1][iy - 1][iz-1]     );
+            //
+            // End of interpolation
+        
+            dxp = 0.25 * (RxP - RxM) * dx;
+            //cout << RxP <<"   "<< RxM<< "   "<< dxp/dx << endl;
+            double limiter = 1.0;
+            dxp = -dxp / abs(dxp+1e-10) * min(abs(dxp),abs(up/gn*dt)/limiter);
+        
+            dyp = 0.25 * (RyP - RyM) * dy;
+            dyp = -dyp / abs(dyp+1e-10) * min(abs(dyp),abs(vp/gn*dt)/limiter);
+        
+            dzp = 0.25 * (RzP - RzM) * dz;
+            dzp = -dzp / abs(dzp+1e-10) * min(abs(dzp),abs(wp/gn*dt)/limiter);
+            }
+
+            //cout << xp << ";  " << ixc << ";  "<< correct_x << ";  " << correct_y << ";  "<< correct_z << endl;
+
+            // Update the positions with the new velocity
+            xp = x[rest] + up/gn * dt * correct_x + dxp;
+            yp = y[rest] + vp/gn * dt * correct_y + dyp;
+            zp = z[rest] + wp/gn * dt * correct_z + dzp;
+
+            if (Cylindrical == 1) {
+            double gamma = atan2(zp,xp);
+            xp=xp*cos(gamma)+zp*sin(gamma);
+            zp=0.0;
+            double uprot=up*cos(gamma)+wp*sin(gamma);
+            wp=-up*sin(gamma)+wp*cos(gamma);
+            up=uprot;
+            }
+
+            x[rest] = xp;
+            y[rest] = yp;
+            z[rest] = zp;
+            u[rest] = up;
+            v[rest] = vp;
+            w[rest] = wp;
+        }                             // END OF ALL THE PARTICLES
+
+        fixPosition();
+
+    }
+}
 
 //? ============================================================================= *//?
 
