@@ -433,6 +433,9 @@ class EMfields3D                // :public Field
     array3_double tempXC;
     array3_double tempYC;
     array3_double tempZC;
+    array3_double tempXC2;
+    array3_double tempYC2;
+    array3_double tempZC2;
     array3_double tempXN;
     array3_double tempYN;
     array3_double tempZN;
@@ -559,6 +562,9 @@ class EMfields3D                // :public Field
     double CGtol;
     /*! GMRES tolerance criterium for stopping iterations */
     double GMREStol;
+
+    //? Lambda damping
+    int damping;
 
 
     //MPI Derived Datatype for Center Halo Exchange

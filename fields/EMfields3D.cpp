@@ -139,9 +139,12 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
 
   // temporary arrays
   //
-  tempXC (nxc, nyc, nzc),
-  tempYC (nxc, nyc, nzc),
-  tempZC (nxc, nyc, nzc),
+    tempXC  (nxc, nyc, nzc),
+    tempYC  (nxc, nyc, nzc),
+    tempZC  (nxc, nyc, nzc),
+    tempXC2 (nxc, nyc, nzc),
+    tempYC2 (nxc, nyc, nzc),
+    tempZC2 (nxc, nyc, nzc),
   //
   tempXN (nxn, nyn, nzn),
   tempYN (nxn, nyn, nzn),
@@ -215,6 +218,21 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
   bcEMfaceYleft = col->getBcEMfaceYleft();
   bcEMfaceZright = col->getBcEMfaceZright();
   bcEMfaceZleft = col->getBcEMfaceZleft();
+
+
+   //* getLambdaDamping() == "zero"
+   //* Replaces the Maxwell equations with E=0 in the region where Lambda > Lambda_treshold
+   //* SET damping = -1
+
+   //* getLambdaDamping() == "yes"
+   //* Proper damping is done by introducing a "Lambda E" term in the Ampere's law that will damp "E"
+   //* SET damping = 1
+
+   //* For no damping, SET damping = 0
+
+    damping = 0;
+
+
   // GEM challenge parameters
   B0x = col->getB0x();
   B0y = col->getB0y();
@@ -3012,50 +3030,85 @@ void EMfields3D::set_fieldForPcls()
   }
 }
 
-/*! Calculate Magnetic field with the implicit solver: calculate B defined on nodes With E(n+ theta) computed, the magnetic field is evaluated from Faraday's law */
+//! Calculate Magnetic field with the implicit solver: calculate B defined on nodes With E(n+ theta) computed, the magnetic field is evaluated from Faraday's law !//
 void EMfields3D::calculateB()
 {
-  const Collective *col = &get_col();
-  const VirtualTopology3D *vct = &get_vct();
-  const Grid *grid = &get_grid();
+    const Collective *col = &get_col();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
 
-  if (vct->getCartesian_rank() == 0)
-    cout << "*** B CALCULATION ***" << endl;
+    if (vct->getCartesian_rank() == 0)
+        cout << "*** B CALCULATION ***" << endl;
 
-  // calculate the curl of Eth
-  grid->curlN2C(tempXC, tempYC, tempZC, Exth, Eyth, Ezth);
+    //? Compute curl of E_theta
+    grid->curlN2C(tempXC, tempYC, tempZC, Exth, Eyth, Ezth);
 
-  // update the magnetic field
-  addscale(-c * dt, 1, Bxc, tempXC, nxc, nyc, nzc);
-  addscale(-c * dt, 1, Byc, tempYC, nxc, nyc, nzc);
-  addscale(-c * dt, 1, Bzc, tempZC, nxc, nyc, nzc);
+    //? Compute curl of E_ext
+    //TODO: Is this needed? Not yet implemented? Figure out! - PJD
+    // if (col->getAddExternalCurlE()) 
+    // {
+    //     grid->curlN2C(tempXC2, tempYC2, tempZC2, Ex_ext, Ey_ext, Ez_ext);
+    // }
 
-  // communicate ghost 
-  communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct,this);
-  communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct,this);
-  communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct,this);
+    //TODO: Figure out! - PJD
+    // Smoother that conserves energy
+    // applySmoothing(Exth,Eyth,Ezth, nxn, nyn, nzn, vct, col);
 
-  // OpenBC:
-  OpenBoundaryInflowB(Bxc,Byc,Bzc,nxc,nyc,nzc);
+    //? Communicate ghost cells -- nodes for electric field
+    communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Byn, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
 
-  if (get_col().getCase()=="GEM")       		fixBcGEM();
-  if (get_col().getCase()=="GEMnoPert") 		fixBcGEM();
-  if (get_col().getCase()=="GEMDoubleHarris")      	fixBcGEM();
+    // TODO: Is this needed? Figure out! - PJD
+    bool fare;
+    // fare = col->getCurlCurl();
+    fare = false;
 
-  // interpolate C2N
-  grid->interpC2N(Bxn, Bxc);
-  grid->interpC2N(Byn, Byc);
-  grid->interpC2N(Bzn, Bzc);
+    //? Update magnetic field
+    if (fare && damping == 1) 
+    {
+        //TODO: Figure out! - PJD
+        addscale(-c * dt, 1, -c, Bxc, tempXC, LambdaC, nxc, nyc, nzc);
+        addscale(-c * dt, 1, -c, Byc, tempYC, LambdaC, nxc, nyc, nzc);
+        addscale(-c * dt, 1, -c, Bzc, tempZC, LambdaC, nxc, nyc, nzc);
+    }
+    else
+    {   
+        //? Second order formulation
+        addscale(-c * dt, 1, Bxc, tempXC, nxc, nyc, nzc);
+        addscale(-c * dt, 1, Byc, tempYC, nxc, nyc, nzc);
+        addscale(-c * dt, 1, Bzc, tempZC, nxc, nyc, nzc);
+        
+        //TODO: Not yet implemented? - PJD
+        // if (col->getAddExternalCurlE()) 
+        // {
+        //     addscale(-c * dt, 1, Bxc, tempXC2, nxc, nyc, nzc);
+        //     addscale(-c * dt, 1, Byc, tempYC2, nxc, nyc, nzc);
+        //     addscale(-c * dt, 1, Bzc, tempZC2, nxc, nyc, nzc);
+        // }
+    }
 
-  communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
-  communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
-  communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+    //? Communicate ghost cells -- centres formagnetic field
+    communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+    communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+    communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
-  if (get_col().getCase()=="ForceFree") 		fixBforcefree();
-  if (get_col().getCase()=="GEM")       		fixBnGEM();
-  if (get_col().getCase()=="GEMnoPert") 		fixBnGEM();
-  if (get_col().getCase()=="GEMDoubleHarris") 	        fixBnGEM();
+    //? OpenBC
+    OpenBoundaryInflowB(Bxc,Byc,Bzc,nxc,nyc,nzc);
 
+    if (get_col().getCase()=="GEM")       		    fixBcGEM();
+    if (get_col().getCase()=="GEMnoPert") 		    fixBcGEM();
+    if (get_col().getCase()=="GEMDoubleHarris")     fixBcGEM();
+
+    //? Interpolate on nodes from cell centres
+    grid->interpC2N(Bxn, Bxc);
+    grid->interpC2N(Byn, Byc);
+    grid->interpC2N(Bzn, Bzc);
+
+    if (get_col().getCase()=="ForceFree") 		    fixBforcefree();
+    if (get_col().getCase()=="GEM")       		    fixBnGEM();
+    if (get_col().getCase()=="GEMnoPert") 		    fixBnGEM();
+    if (get_col().getCase()=="GEMDoubleHarris") 	fixBnGEM();
 }
 
 /*! initialize EM field with transverse electric waves 1D and rotate anticlockwise (theta degrees) */
