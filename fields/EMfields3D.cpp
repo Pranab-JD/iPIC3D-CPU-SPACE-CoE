@@ -2097,96 +2097,105 @@ void phys2solver(double *vectSolver, const arr3_double vectPhys1, const arr3_dou
 /*! Calculate Electric field with the implicit solver: the Maxwell solver method is called here */
 void EMfields3D::calculateE(int cycle)
 {
-  const Collective *col = &get_col();
-  const VirtualTopology3D * vct = &get_vct();
-  const Grid *grid = &get_grid();
+    const Collective *col = &get_col();
+    const VirtualTopology3D * vct = &get_vct();
+    const Grid *grid = &get_grid();
 
-  if (vct->getCartesian_rank() == 0)
-    cout << "*** E CALCULATION ***" << endl;
+    if (vct->getCartesian_rank() == 0)
+        cout << "*** E CALCULATION ***" << endl;
 
-  array3_double divE     (nxc, nyc, nzc);
-  array3_double gradPHIX (nxn, nyn, nzn);
-  array3_double gradPHIY (nxn, nyn, nzn);
-  array3_double gradPHIZ (nxn, nyn, nzn);
+    array3_double divE     (nxc, nyc, nzc);
+    array3_double gradPHIX (nxn, nyn, nzn);
+    array3_double gradPHIY (nxn, nyn, nzn);
+    array3_double gradPHIZ (nxn, nyn, nzn);
 
-  double *xkrylov = new double[3 * (nxn - 2) * (nyn - 2) * (nzn - 2)];  // 3 E components, in serial
-  double *bkrylov = new double[3 * (nxn - 2) * (nyn - 2) * (nzn - 2)];  // 3 components
-  // set to zero all the stuff 
-  eqValue(0.0, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
+    //? X,Y,Z components for E
+    double *xkrylov = new double[3 * (nxn - 2) * (nyn - 2) * (nzn - 2)];
+    double *bkrylov = new double[3 * (nxn - 2) * (nyn - 2) * (nzn - 2)];
 
-  eqValue(0.0, bkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
-  eqValue(0.0, divE, nxc, nyc, nzc);
-  eqValue(0.0, tempC, nxc, nyc, nzc);
-  eqValue(0.0, gradPHIX, nxn, nyn, nzn);
-  eqValue(0.0, gradPHIY, nxn, nyn, nzn);
-  eqValue(0.0, gradPHIZ, nxn, nyn, nzn);
-  // Adjust E calculating laplacian(PHI) = div(E) -4*PI*rho DIVERGENCE CLEANING
-  // correct the e field regularly, to fulfill the Gussian law 
-  if (PoissonCorrection &&  cycle%PoissonCorrectionCycle == 0) {
-		double *xkrylovPoisson = new double[(nxc - 2) * (nyc - 2) * (nzc - 2)];
-		double *bkrylovPoisson = new double[(nxc - 2) * (nyc - 2) * (nzc - 2)];
-		eqValue(0.0, xkrylovPoisson, (nxc - 2) * (nyc - 2) * (nzc - 2));
+    //? Initialise all params with zeros 
+    eqValue(0.0, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
+    eqValue(0.0, bkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
+    eqValue(0.0, divE, nxc, nyc, nzc);
+    eqValue(0.0, tempC, nxc, nyc, nzc);
+    eqValue(0.0, gradPHIX, nxn, nyn, nzn);
+    eqValue(0.0, gradPHIY, nxn, nyn, nzn);
+    eqValue(0.0, gradPHIZ, nxn, nyn, nzn);
+  
+    // Adjust E calculating laplacian(PHI) = div(E) -4*PI*rho DIVERGENCE CLEANING
+    // correct the e field regularly, to fulfill the Gussian law 
+    //TODO: check for ECSim (later)
+    if (PoissonCorrection &&  cycle%PoissonCorrectionCycle == 0) 
+    {
+        double *xkrylovPoisson = new double[(nxc - 2) * (nyc - 2) * (nzc - 2)];
+        double *bkrylovPoisson = new double[(nxc - 2) * (nyc - 2) * (nzc - 2)];
+        eqValue(0.0, xkrylovPoisson, (nxc - 2) * (nyc - 2) * (nzc - 2));
 
-		grid->divN2C(divE, Ex, Ey, Ez);
-		scale(tempC, rhoc, -FourPI, nxc, nyc, nzc);
-		sum(divE, tempC, nxc, nyc, nzc);
-		// move to krylov space
-		phys2solver(bkrylovPoisson, divE, nxc, nyc, nzc);
-		// use conjugate gradient first
-		//if (!CG(xkrylovPoisson, (nxc - 2) * (nyc - 2) * (nzc - 2), bkrylovPoisson, 3000, CGtol, &Field::PoissonImage, this)) {
-		  	  //if (vct->getCartesian_rank() == 0)
-					//cout << "CG not Converged. Trying with GMRes. Consider to increase the number of the CG iterations" << endl;
-		  //eqValue(0.0, xkrylovPoisson, (nxc - 2) * (nyc - 2) * (nzc - 2));
-		  if (vct->getCartesian_rank() == 0) cout << "*** DIVERGENCE CLEANING using GMRes***" << endl;
-		  GMRES(&Field::PoissonImage, xkrylovPoisson, (nxc - 2) * (nyc - 2) * (nzc - 2), bkrylovPoisson, 20, 200, GMREStol, this);
+        grid->divN2C(divE, Ex, Ey, Ez);
+        scale(tempC, rhoc, -FourPI, nxc, nyc, nzc);
+        sum(divE, tempC, nxc, nyc, nzc);
+        // move to krylov space
+        phys2solver(bkrylovPoisson, divE, nxc, nyc, nzc);
 
-		//}
-		solver2phys(PHI, xkrylovPoisson, nxc, nyc, nzc);
-		communicateCenterBC(nxc, nyc, nzc, PHI, 2, 2, 2, 2, 2, 2, vct,this);
-		// calculate the gradient
-		grid->gradC2N(gradPHIX, gradPHIY, gradPHIZ, PHI);
-		// sub
-		sub(Ex, gradPHIX, nxn, nyn, nzn);
-		sub(Ey, gradPHIY, nxn, nyn, nzn);
-		sub(Ez, gradPHIZ, nxn, nyn, nzn);
+        if (vct->getCartesian_rank() == 0) 
+            cout << "*** DIVERGENCE CLEANING using GMRes***" << endl;
+        
+        GMRES(&Field::PoissonImage, xkrylovPoisson, (nxc - 2) * (nyc - 2) * (nzc - 2), bkrylovPoisson, 20, 200, GMREStol, this);
 
-		delete[]xkrylovPoisson;
-		delete[]bkrylovPoisson;
-  }                             // end of divergence cleaning
+        solver2phys(PHI, xkrylovPoisson, nxc, nyc, nzc);
+        communicateCenterBC(nxc, nyc, nzc, PHI, 2, 2, 2, 2, 2, 2, vct,this);
+        // calculate the gradient
+        grid->gradC2N(gradPHIX, gradPHIY, gradPHIZ, PHI);
+        // sub
+        sub(Ex, gradPHIX, nxn, nyn, nzn);
+        sub(Ey, gradPHIY, nxn, nyn, nzn);
+        sub(Ez, gradPHIZ, nxn, nyn, nzn);
 
-  if (vct->getCartesian_rank() == 0)
-    cout << "*** MAXWELL SOLVER ***" << endl;
-  // prepare the source 
-  MaxwellSource(bkrylov);
-  phys2solver(xkrylov, Ex, Ey, Ez, nxn, nyn, nzn);
-  // solver
-  GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2),
-    bkrylov, 20, 200, GMREStol, this);
-  // move from krylov space to physical space
-  solver2phys(Exth, Eyth, Ezth, xkrylov, nxn, nyn, nzn);
+        delete[]xkrylovPoisson;
+        delete[]bkrylovPoisson;
+    }                             // end of divergence cleaning
 
-  addscale(1 / th, -(1.0 - th) / th, Ex, Exth, nxn, nyn, nzn);
-  addscale(1 / th, -(1.0 - th) / th, Ey, Eyth, nxn, nyn, nzn);
-  addscale(1 / th, -(1.0 - th) / th, Ez, Ezth, nxn, nyn, nzn);
+    if (vct->getCartesian_rank() == 0)
+        cout << "*** MAXWELL SOLVER ***" << endl;
+    
+    //* Prepare the source 
+    MaxwellSource(bkrylov);
 
-  // apply to smooth to electric field 3 times
-  smoothE();
+    //* Move to Krylov space from physical space
+    phys2solver(xkrylov, Ex, Ey, Ez, nxn, nyn, nzn);
+    
+    //? Solve using GMRes
+    GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 20, 200, GMREStol, this);
+  
+    //* Move from Krylov space to physical space
+    solver2phys(Exth, Eyth, Ezth, xkrylov, nxn, nyn, nzn);
 
-  // communicate so the interpolation can have good values
-  communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
-  communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
-  communicateNodeBC(nxn, nyn, nzn, Ezth, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
-  communicateNodeBC(nxn, nyn, nzn, Ex,   col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
-  communicateNodeBC(nxn, nyn, nzn, Ey,   col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
-  communicateNodeBC(nxn, nyn, nzn, Ez,   col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
+    //? Communicate E theta so the interpolation can have good values
+    communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Ezth, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
 
-  // OpenBC Inflow: this needs to be integrate to Halo Exchange BC
-  OpenBoundaryInflowE(Exth, Eyth, Ezth, nxn, nyn, nzn);
-  OpenBoundaryInflowE(Ex, Ey, Ez, nxn, nyn, nzn);
+    //* Scale the electric field values
+    addscale(1 / th, -(1.0 - th) / th, Ex, Exth, nxn, nyn, nzn);
+    addscale(1 / th, -(1.0 - th) / th, Ey, Eyth, nxn, nyn, nzn);
+    addscale(1 / th, -(1.0 - th) / th, Ez, Ezth, nxn, nyn, nzn);
 
-  // deallocate temporary arrays
-  delete[]xkrylov;
-  delete[]bkrylov;
+    // TODO: is this needed? Smoothng in called in calculateB in ECSim - PJD
+    // apply to smooth to electric field 3 times
+    smoothE();
+
+    //? Communicate E
+    communicateNodeBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
+
+    //? OpenBC Inflow: this needs to be integrate to Halo Exchange BC
+    OpenBoundaryInflowE(Exth, Eyth, Ezth, nxn, nyn, nzn);
+    OpenBoundaryInflowB(Ex, Ey, Ez, nxn, nyn, nzn);
+
+    //* Deallocate temporary arrays
+    delete[]xkrylov;
+    delete[]bkrylov;
 }
 
 /*! Calculate sorgent for Maxwell solver */
@@ -3030,7 +3039,7 @@ void EMfields3D::set_fieldForPcls()
   }
 }
 
-//! Calculate Magnetic field with the implicit solver: calculate B defined on nodes With E(n+ theta) computed, the magnetic field is evaluated from Faraday's law !//
+//! Calculate magnetic field with the implicit solver: calculate B defined on nodes with E(n + theta) computed, the magnetic field is evaluated from Faraday's law !//
 void EMfields3D::calculateB()
 {
     const Collective *col = &get_col();
