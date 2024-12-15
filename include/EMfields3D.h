@@ -27,6 +27,7 @@
 #include "ipicfwd.h"
 #include "Alloc.h"
 #include "Basic.h"
+#include "Neighbouring_Nodes.h"
 
 
 /*! Electromagnetic fields and sources defined for each local grid, and for an implicit maxwell's solver @date May 2008 @par Copyright: (C) 2008 KUL @author Stefano Markidis, Giovanni Lapenta. @version 3.0 */
@@ -119,6 +120,8 @@ class EMfields3D                // :public Field
     void setZeroPrimaryMoments();
     /*! set to 0 all densities derived from primary moments */
     void setZeroDerivedMoments();
+    //! Set all elements of mass matrix to 0.0 !//
+    void setZeroMassMatrix();
     /*! Sum rhon over species */
     void sumOverSpecies();
     /*! Sum current over different species */
@@ -521,6 +524,20 @@ class EMfields3D                // :public Field
     array4_double pYZsn;
     array4_double pZZsn;
 
+    //! Mass matrix components, defined on nodes
+    array4_double Mxx;
+    array4_double Myy;
+    array4_double Mzz;
+    array4_double Mxy;
+    array4_double Myx;
+    array4_double Mxz;
+    array4_double Mzx;
+    array4_double Myz;
+    array4_double Mzy;
+
+    //* Object of class to handle which nodes have to be computed when the mass matrix is calculated
+    NeighbouringNodes NeNo;
+
     /*! Field Boundary Condition
       0 = Dirichlet Boundary Condition: specifies the
           value on the boundary of the domain
@@ -677,46 +694,63 @@ inline void EMfields3D::addPzz(double weight[][2][2], int X, int Y, int Z, int i
         pZZsn[is][X - i][Y - j][Z - k] += weight[i][j][k] * invVOL;
 }
 
-inline void get_field_components_for_cell(
-  const double* field_components[8],
-  const_arr4_double fieldForPcls,
-  int cx,int cy,int cz)
+//* Add an amount of current density to mass matrix at node X,Y *//
+// TODO: check this comment
+void EMfields3D::addMass(double value[3][3], int X, int Y, int Z, int ind) 
 {
-  // interface to the right of cell
-  const int ix = cx+1;
-  const int iy = cy+1;
-  const int iz = cz+1;
+    Mxx[ind][X][Y][Z] += value[0][0];
+    Mxy[ind][X][Y][Z] += value[0][1];
+    Mxz[ind][X][Y][Z] += value[0][2];
+    Myx[ind][X][Y][Z] += value[1][0];
+    Myy[ind][X][Y][Z] += value[1][1];
+    Myz[ind][X][Y][Z] += value[1][2];
+    Mzx[ind][X][Y][Z] += value[2][0];
+    Mzy[ind][X][Y][Z] += value[2][1];
+    Mzz[ind][X][Y][Z] += value[2][2];
+}
 
-  // is this faster?
-  //
-  //field_components[0] = fieldForPcls[ix][iy][iz]; // field000
-  //field_components[1] = fieldForPcls[ix][iy][cz]; // field001
-  //field_components[2] = fieldForPcls[ix][cy][iz]; // field010
-  //field_components[3] = fieldForPcls[ix][cy][cz]; // field011
-  //field_components[4] = fieldForPcls[cx][iy][iz]; // field100
-  //field_components[5] = fieldForPcls[cx][iy][cz]; // field101
-  //field_components[6] = fieldForPcls[cx][cy][iz]; // field110
-  //field_components[7] = fieldForPcls[cx][cy][cz]; // field111
-  //
-  // or is this?
-  //
-  // creating these aliases seems to accelerate this method (by about 30%?)
-  // on the Xeon host processor, suggesting deficiency in the optimizer.
-  //
-  arr3_double_get field0 = fieldForPcls[ix];
-  arr3_double_get field1 = fieldForPcls[cx];
-  arr2_double_get field00 = field0[iy];
-  arr2_double_get field01 = field0[cy];
-  arr2_double_get field10 = field1[iy];
-  arr2_double_get field11 = field1[cy];
-  field_components[0] = field00[iz]; // field000 
-  field_components[1] = field00[cz]; // field001 
-  field_components[2] = field01[iz]; // field010 
-  field_components[3] = field01[cz]; // field011 
-  field_components[4] = field10[iz]; // field100 
-  field_components[5] = field10[cz]; // field101 
-  field_components[6] = field11[iz]; // field110 
-  field_components[7] = field11[cz]; // field111 
+void EMfields3D::addMassXX(double value, int X, int Y, int Z, int ind) 
+{
+    Mxx[ind][X][Y][Z] += value;
+}
+
+inline void get_field_components_for_cell(const double* field_components[8], const_arr4_double fieldForPcls, int cx,int cy,int cz)
+{
+    // interface to the right of cell
+    const int ix = cx+1;
+    const int iy = cy+1;
+    const int iz = cz+1;
+
+    // is this faster?
+    //
+    //field_components[0] = fieldForPcls[ix][iy][iz]; // field000
+    //field_components[1] = fieldForPcls[ix][iy][cz]; // field001
+    //field_components[2] = fieldForPcls[ix][cy][iz]; // field010
+    //field_components[3] = fieldForPcls[ix][cy][cz]; // field011
+    //field_components[4] = fieldForPcls[cx][iy][iz]; // field100
+    //field_components[5] = fieldForPcls[cx][iy][cz]; // field101
+    //field_components[6] = fieldForPcls[cx][cy][iz]; // field110
+    //field_components[7] = fieldForPcls[cx][cy][cz]; // field111
+    //
+    // or is this?
+    //
+    // creating these aliases seems to accelerate this method (by about 30%?)
+    // on the Xeon host processor, suggesting deficiency in the optimizer.
+    //
+    arr3_double_get field0 = fieldForPcls[ix];
+    arr3_double_get field1 = fieldForPcls[cx];
+    arr2_double_get field00 = field0[iy];
+    arr2_double_get field01 = field0[cy];
+    arr2_double_get field10 = field1[iy];
+    arr2_double_get field11 = field1[cy];
+    field_components[0] = field00[iz]; // field000 
+    field_components[1] = field00[cz]; // field001 
+    field_components[2] = field01[iz]; // field010 
+    field_components[3] = field01[cz]; // field011 
+    field_components[4] = field10[iz]; // field100 
+    field_components[5] = field10[cz]; // field101 
+    field_components[6] = field11[iz]; // field110 
+    field_components[7] = field11[cz]; // field111 
 }
 
 typedef EMfields3D Field;

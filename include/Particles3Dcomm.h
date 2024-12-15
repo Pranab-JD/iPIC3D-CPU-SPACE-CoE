@@ -35,6 +35,7 @@ developers: Stefano Markidis, Giovanni Lapenta
 #include "aligned_vector.h"
 #include "Larray.h"
 #include "IDgenerator.h"
+#include "Neighbouring_Nodes.h"
 
 namespace BCparticles
 {
@@ -426,6 +427,9 @@ protected:
   double Q_removed;
   /** density of the injection of the particles */
   double Ninj;
+
+    //* Object of class to handle which nodes have to be computed when the mass matrix is calculated
+    NeighbouringNodes NeNo;
 
  protected:
 
