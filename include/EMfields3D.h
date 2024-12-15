@@ -361,6 +361,8 @@ class EMfields3D                // :public Field
     /*! Boundary electron speed */
     double ue0, ve0, we0;
 
+    //! ECSim - Mass matrix !//
+    double *mass_matrix;
 
     // KEEP IN MEMORY GUARD CELLS ARE INCLUDED
     /*! number of cells - X direction, including + 2 (guard cells) */

@@ -59,165 +59,168 @@ using namespace iPic3D;
 // initialized when subsequently used.
 //
 EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) : 
-  _col(*col),
-  _grid(*grid),
-  _vct(*vct),
-  nxc(grid->getNXC()),
-  nxn(grid->getNXN()),
-  nyc(grid->getNYC()),
-  nyn(grid->getNYN()),
-  nzc(grid->getNZC()),
-  nzn(grid->getNZN()),
-  dx(grid->getDX()),
-  dy(grid->getDY()),
-  dz(grid->getDZ()),
-  invVOL(grid->getInvVOL()),
-  xStart(grid->getXstart()),
-  xEnd(grid->getXend()),
-  yStart(grid->getYstart()),
-  yEnd(grid->getYend()),
-  zStart(grid->getZstart()),
-  zEnd(grid->getZend()),
-  Lx(col->getLx()),
-  Ly(col->getLy()),
-  Lz(col->getLz()),
-  ns(col->getNs()),
-  c(col->getC()),
-  dt(col->getDt()),
-  th(col->getTh()),
-  ue0(col->getU0(0)),
-  ve0(col->getV0(0)),
-  we0(col->getW0(0)),
-  x_center(col->getx_center()),
-  y_center(col->gety_center()),
-  z_center(col->getz_center()),
-  L_square(col->getL_square()),
-  delt (c*th*dt), // declared after these
-  //
-  // array allocation: nodes
-  //
-  fieldForPcls  (nxn, nyn, nzn, 2*DFIELD_3or4),
-  Ex   (nxn, nyn, nzn),
-  Ey   (nxn, nyn, nzn),
-  Ez   (nxn, nyn, nzn),
-  Exth (nxn, nyn, nzn),
-  Eyth (nxn, nyn, nzn),
-  Ezth (nxn, nyn, nzn),
-  Bxn  (nxn, nyn, nzn),
-  Byn  (nxn, nyn, nzn),
-  Bzn  (nxn, nyn, nzn),
-  rhon (nxn, nyn, nzn),
-  Jx   (nxn, nyn, nzn),
-  Jy   (nxn, nyn, nzn),
-  Jz   (nxn, nyn, nzn),
-  Jxh  (nxn, nyn, nzn),
-  Jyh  (nxn, nyn, nzn),
-  Jzh  (nxn, nyn, nzn),
-  //
-  // species-specific quantities
-  //
-  rhons (ns, nxn, nyn, nzn),
-  rhocs (ns, nxc, nyc, nzc),
-  Jxs   (ns, nxn, nyn, nzn),
-  Jys   (ns, nxn, nyn, nzn),
-  Jzs   (ns, nxn, nyn, nzn),
-  pXXsn (ns, nxn, nyn, nzn),
-  pXYsn (ns, nxn, nyn, nzn),
-  pXZsn (ns, nxn, nyn, nzn),
-  pYYsn (ns, nxn, nyn, nzn),
-  pYZsn (ns, nxn, nyn, nzn),
-  pZZsn (ns, nxn, nyn, nzn),
+    _col(*col),
+    _grid(*grid),
+    _vct(*vct),
+    nxc(grid->getNXC()),
+    nxn(grid->getNXN()),
+    nyc(grid->getNYC()),
+    nyn(grid->getNYN()),
+    nzc(grid->getNZC()),
+    nzn(grid->getNZN()),
+    dx(grid->getDX()),
+    dy(grid->getDY()),
+    dz(grid->getDZ()),
+    invVOL(grid->getInvVOL()),
+    xStart(grid->getXstart()),
+    xEnd(grid->getXend()),
+    yStart(grid->getYstart()),
+    yEnd(grid->getYend()),
+    zStart(grid->getZstart()),
+    zEnd(grid->getZend()),
+    Lx(col->getLx()),
+    Ly(col->getLy()),
+    Lz(col->getLz()),
+    ns(col->getNs()),
+    c(col->getC()),
+    dt(col->getDt()),
+    th(col->getTh()),
+    ue0(col->getU0(0)),
+    ve0(col->getV0(0)),
+    we0(col->getW0(0)),
+    x_center(col->getx_center()),
+    y_center(col->gety_center()),
+    z_center(col->getz_center()),
+    L_square(col->getL_square()),
+    delt (c*th*dt), // declared after these
 
-  // array allocation: central points 
-  //
-  PHI  (nxc, nyc, nzc),
-  Bxc  (nxc, nyc, nzc),
-  Byc  (nxc, nyc, nzc),
-  Bzc  (nxc, nyc, nzc),
-  rhoc (nxc, nyc, nzc),
-  rhoh (nxc, nyc, nzc),
+    //! Allocate arrays for data on nodes !//
+    //? (nxn, nyn, nzn) --> nodes; (nxc, nyc, nzc) --> cell centres
+    fieldForPcls  (nxn, nyn, nzn, 2*DFIELD_3or4),
+    Ex   (nxn, nyn, nzn),
+    Ey   (nxn, nyn, nzn),
+    Ez   (nxn, nyn, nzn),
+    Exth (nxn, nyn, nzn),
+    Eyth (nxn, nyn, nzn),
+    Ezth (nxn, nyn, nzn),
+    Bxn  (nxn, nyn, nzn),
+    Byn  (nxn, nyn, nzn),
+    Bzn  (nxn, nyn, nzn),
+    rhon (nxn, nyn, nzn),
+    Jx   (nxn, nyn, nzn),
+    Jy   (nxn, nyn, nzn),
+    Jz   (nxn, nyn, nzn),
+    Jxh  (nxn, nyn, nzn),
+    Jyh  (nxn, nyn, nzn),
+    Jzh  (nxn, nyn, nzn),
 
-  // temporary arrays
-  //
+    //! Species-specific quantities
+    rhons (ns, nxn, nyn, nzn),
+    rhocs (ns, nxc, nyc, nzc),      //* Data defined on cell centres
+    Jxs   (ns, nxn, nyn, nzn),
+    Jys   (ns, nxn, nyn, nzn),
+    Jzs   (ns, nxn, nyn, nzn),
+    pXXsn (ns, nxn, nyn, nzn),
+    pXYsn (ns, nxn, nyn, nzn),
+    pXZsn (ns, nxn, nyn, nzn),
+    pYYsn (ns, nxn, nyn, nzn),
+    pYZsn (ns, nxn, nyn, nzn),
+    pZZsn (ns, nxn, nyn, nzn),
+
+    //! Allocate arrays for data on cell centres !//
+    PHI  (nxc, nyc, nzc),
+    Bxc  (nxc, nyc, nzc),
+    Byc  (nxc, nyc, nzc),
+    Bzc  (nxc, nyc, nzc),
+    rhoc (nxc, nyc, nzc),
+    rhoh (nxc, nyc, nzc),
+
+    //? Temporary arrays
     tempXC  (nxc, nyc, nzc),
     tempYC  (nxc, nyc, nzc),
     tempZC  (nxc, nyc, nzc),
     tempXC2 (nxc, nyc, nzc),
     tempYC2 (nxc, nyc, nzc),
     tempZC2 (nxc, nyc, nzc),
-  //
-  tempXN (nxn, nyn, nzn),
-  tempYN (nxn, nyn, nzn),
-  tempZN (nxn, nyn, nzn),
-  tempC  (nxc, nyc, nzc),
-  tempX  (nxn, nyn, nzn),
-  tempY  (nxn, nyn, nzn),
-  tempZ  (nxn, nyn, nzn),
-  temp2X (nxn, nyn, nzn),
-  temp2Y (nxn, nyn, nzn),
-  temp2Z (nxn, nyn, nzn),
-  imageX (nxn, nyn, nzn),
-  imageY (nxn, nyn, nzn),
-  imageZ (nxn, nyn, nzn),
-  Dx (nxn, nyn, nzn),
-  Dy (nxn, nyn, nzn),
-  Dz (nxn, nyn, nzn),
-  vectX (nxn, nyn, nzn),
-  vectY (nxn, nyn, nzn),
-  vectZ (nxn, nyn, nzn),
-  divC  (nxc, nyc, nzc),
-  //arr (nxc-2,nyc-2,nzc-2),
-  // B_ext and J_ext should not be allocated unless used.
-  Bx_ext(nxn,nyn,nzn),
-  By_ext(nxn,nyn,nzn),
-  Bz_ext(nxn,nyn,nzn),
-  Bx_tot(nxn,nyn,nzn),
-  By_tot(nxn,nyn,nzn),
-  Bz_tot(nxn,nyn,nzn),
-  Jx_ext(nxn,nyn,nzn),
-  Jy_ext(nxn,nyn,nzn),
-  Jz_ext(nxn,nyn,nzn) 
-{
-  // External imposed fields
-  //
-  B1x = col->getB1x();
-  B1y = col->getB1y();
-  B1z = col->getB1z();
-  //if(B1x!=0. || B1y !=0. || B1z!=0.)
-  //{
-  //  eprintf("This functionality has not yet been implemented");
-  //}
-  Bx_ext.setall(0.);
-  By_ext.setall(0.);
-  Bz_ext.setall(0.);
-  Bx_tot.setall(0.);
-  By_tot.setall(0.);
-  Bz_tot.setall(0.);
-  //
-  PoissonCorrection = false;
-  if (col->getPoissonCorrection()=="yes"){
-	  PoissonCorrection = true;
-	  PoissonCorrectionCycle = col->getPoissonCorrectionCycle();
-  }
-  CGtol = col->getCGtol();
-  GMREStol = col->getGMREStol();
-  qom = new double[ns];
-  for (int i = 0; i < ns; i++)
-    qom[i] = col->getQOM(i);
-  // boundary conditions: PHI and EM fields
-  bcPHIfaceXright = col->getBcPHIfaceXright();
-  bcPHIfaceXleft  = col->getBcPHIfaceXleft();
-  bcPHIfaceYright = col->getBcPHIfaceYright();
-  bcPHIfaceYleft  = col->getBcPHIfaceYleft();
-  bcPHIfaceZright = col->getBcPHIfaceZright();
-  bcPHIfaceZleft  = col->getBcPHIfaceZleft();
 
-  bcEMfaceXright = col->getBcEMfaceXright();
-  bcEMfaceXleft = col->getBcEMfaceXleft();
-  bcEMfaceYright = col->getBcEMfaceYright();
-  bcEMfaceYleft = col->getBcEMfaceYleft();
-  bcEMfaceZright = col->getBcEMfaceZright();
-  bcEMfaceZleft = col->getBcEMfaceZleft();
+    tempXN (nxn, nyn, nzn),
+    tempYN (nxn, nyn, nzn),
+    tempZN (nxn, nyn, nzn),
+    tempC  (nxc, nyc, nzc),
+    tempX  (nxn, nyn, nzn),
+    tempY  (nxn, nyn, nzn),
+    tempZ  (nxn, nyn, nzn),
+    temp2X (nxn, nyn, nzn),
+    temp2Y (nxn, nyn, nzn),
+    temp2Z (nxn, nyn, nzn),
+    
+    imageX (nxn, nyn, nzn),
+    imageY (nxn, nyn, nzn),
+    imageZ (nxn, nyn, nzn),
+    Dx (nxn, nyn, nzn),
+    Dy (nxn, nyn, nzn),
+    Dz (nxn, nyn, nzn),
+    vectX (nxn, nyn, nzn),
+    vectY (nxn, nyn, nzn),
+    vectZ (nxn, nyn, nzn),
+    divC  (nxc, nyc, nzc),
+
+    //! B_ext and J_ext should not be allocated unless used.
+    Bx_ext(nxn,nyn,nzn),
+    By_ext(nxn,nyn,nzn),
+    Bz_ext(nxn,nyn,nzn),
+    Bx_tot(nxn,nyn,nzn),
+    By_tot(nxn,nyn,nzn),
+    Bz_tot(nxn,nyn,nzn),
+    Jx_ext(nxn,nyn,nzn),
+    Jy_ext(nxn,nyn,nzn),
+    Jz_ext(nxn,nyn,nzn)
+
+{ 
+    //! =============== Constructor =============== !//
+  
+    //? External fields
+    B1x = col->getB1x();
+    B1y = col->getB1y();
+    B1z = col->getB1z();
+    //if(B1x!=0. || B1y !=0. || B1z!=0.)
+    //{
+    //  eprintf("This functionality has not yet been implemented");
+    //}
+    Bx_ext.setall(0.);
+    By_ext.setall(0.);
+    Bz_ext.setall(0.);
+    Bx_tot.setall(0.);
+    By_tot.setall(0.);
+    Bz_tot.setall(0.);
+
+    PoissonCorrection = false;
+    if (col->getPoissonCorrection()=="yes")
+    {
+        PoissonCorrection = true;
+        PoissonCorrectionCycle = col->getPoissonCorrectionCycle();
+    }
+    CGtol = col->getCGtol();
+    GMREStol = col->getGMREStol();
+    
+    qom = new double[ns];
+    for (int i = 0; i < ns; i++)
+        qom[i] = col->getQOM(i);
+    
+    //? boundary conditions: PHI and EM fields
+    bcPHIfaceXright = col->getBcPHIfaceXright();
+    bcPHIfaceXleft  = col->getBcPHIfaceXleft();
+    bcPHIfaceYright = col->getBcPHIfaceYright();
+    bcPHIfaceYleft  = col->getBcPHIfaceYleft();
+    bcPHIfaceZright = col->getBcPHIfaceZright();
+    bcPHIfaceZleft  = col->getBcPHIfaceZleft();
+
+    bcEMfaceXright  = col->getBcEMfaceXright();
+    bcEMfaceXleft   = col->getBcEMfaceXleft();
+    bcEMfaceYright  = col->getBcEMfaceYright();
+    bcEMfaceYleft   = col->getBcEMfaceYleft();
+    bcEMfaceZright  = col->getBcEMfaceZright();
+    bcEMfaceZleft   = col->getBcEMfaceZleft();
 
 
    //* getLambdaDamping() == "zero"
@@ -232,65 +235,67 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
 
     damping = 0;
 
+    //? GEM challenge parameters
+    B0x = col->getB0x();
+    B0y = col->getB0y();
+    B0z = col->getB0z();
+    delta = col->getDelta();
+    Smooth = col->getSmooth();
+    SmoothNiter = col->getSmoothNiter();
+    
+    rhoINIT = new double[ns];               //* Background density (GEM)
+    DriftSpecies = new bool[ns];
+    for (int i = 0; i < ns; i++) 
+    {
+        rhoINIT[i] = col->getRHOinit(i);
+        if ((fabs(col->getW0(i)) != 0) || (fabs(col->getU0(i)) != 0)) //* GEM and LHDI
+            DriftSpecies[i] = true;
+        else
+            DriftSpecies[i] = false;
+    }
 
-  // GEM challenge parameters
-  B0x = col->getB0x();
-  B0y = col->getB0y();
-  B0z = col->getB0z();
-  delta = col->getDelta();
-  Smooth = col->getSmooth();
-  SmoothNiter = col->getSmoothNiter();
-  // get the density background for the gem Challange
-  rhoINIT = new double[ns];
-  DriftSpecies = new bool[ns];
-  for (int i = 0; i < ns; i++) {
-    rhoINIT[i] = col->getRHOinit(i);
-    if ((fabs(col->getW0(i)) != 0) || (fabs(col->getU0(i)) != 0)) // GEM and LHDI
-      DriftSpecies[i] = true;
+    FourPI = 16 * atan(1.0);
+    restart1 = col->getRestart_status();
+
+    //! Mass Matrix (dyadic product of a vector)
+    mass_matrix = new double[3];
+    mass_matrix[0] = 0.0;
+    mass_matrix[1] = 1.0;
+    mass_matrix[2] = 0.0;
+
+    if(Parameters::get_VECTORIZE_MOMENTS())
+    {
+        //* In this case particles are sorted and there is no need for each thread to sum moments in a separate array.
+        sizeMomentsArray = 1;
+    }
     else
-      DriftSpecies[i] = false;
-  }
-  /*! parameters for GEM challenge */
-  FourPI = 16 * atan(1.0);
-  /*! Restart */
-  restart1 = col->getRestart_status();
-
-  if(Parameters::get_VECTORIZE_MOMENTS())
-  {
-    // In this case particles are sorted
-    // and there is no need for each thread
-    // to sum moments in a separate array.
-    sizeMomentsArray = 1;
-  }
-  else
-  {
-    sizeMomentsArray = omp_get_max_threads();
-  }
-  moments10Array = new Moments10*[sizeMomentsArray];
-  for(int i=0;i<sizeMomentsArray;i++)
-  {
-    moments10Array[i] = new Moments10(nxn,nyn,nzn);
-  }
+    {
+        sizeMomentsArray = omp_get_max_threads();
+    }
     
+    moments10Array = new Moments10*[sizeMomentsArray];
+    for(int i = 0; i < sizeMomentsArray; i++)
+    {
+        moments10Array[i] = new Moments10(nxn, nyn, nzn);
+    }
     
-    
-    //Define MPI Derived Data types for Center Halo Exchange
-    //For face exchange on X dir
+    //! Define MPI Derived Data types for Center Halo Exchange
+    //? For face exchange on X dir
     MPI_Type_vector((nyc-2),(nzc-2),nzc, MPI_DOUBLE, &yzFacetypeC);
     MPI_Type_commit(&yzFacetypeC);
     
-    //For face exchange on Y dir
+    //? For face exchange on Y dir
     MPI_Type_create_hvector((nxc-2),(nzc-2),(nzc*nyc*sizeof(double)), MPI_DOUBLE, &xzFacetypeC);
     MPI_Type_commit(&xzFacetypeC);
 
     MPI_Type_vector((nyc-2), 1, nzc, MPI_DOUBLE, &yEdgetypeC);
     MPI_Type_commit(&yEdgetypeC);
     
-    //For face exchangeg on Z dir
+    //? For face exchangeg on Z dir
     MPI_Type_create_hvector((nxc-2), 1, (nzc*nyc*sizeof(double)), yEdgetypeC, &xyFacetypeC);
     MPI_Type_commit(&xyFacetypeC);
     
-    //2 yEdgeType can be merged into one message
+    //? 2 yEdgeType can be merged into one message
     MPI_Type_create_hvector(2, 1,(nzc-1)*sizeof(double), yEdgetypeC, &yEdgetypeC2);
     MPI_Type_commit(&yEdgetypeC2);
     
@@ -305,31 +310,29 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     MPI_Type_create_hvector(2, 1, (nyc-1)*nzc*sizeof(double), xEdgetypeC, &xEdgetypeC2);
     MPI_Type_commit(&xEdgetypeC2);
     
-    //corner used to communicate in x direction
+    //* corner used to communicate in x direction
     int blocklengthC[]={1,1,1,1};
     int displacementsC[]={0,nzc-1,(nyc-1)*nzc,nyc*nzc-1};
     MPI_Type_indexed(4, blocklengthC, displacementsC, MPI_DOUBLE, &cornertypeC);
     MPI_Type_commit(&cornertypeC);
 
-
-
-    //Define MPI Derived Data types for Node Halo Exchange
-    //For face exchange on X dir
+    //! Define MPI Derived Data types for Node Halo Exchange
+    //? For face exchange on X dir
     MPI_Type_vector((nyn-2),(nzn-2),nzn, MPI_DOUBLE, &yzFacetypeN);
     MPI_Type_commit(&yzFacetypeN);
 
-    //For face exchange on Y dir
+    //? For face exchange on Y dir
     MPI_Type_create_hvector((nxn-2),(nzn-2),(nzn*nyn*sizeof(double)), MPI_DOUBLE, &xzFacetypeN);
     MPI_Type_commit(&xzFacetypeN);
 
     MPI_Type_vector((nyn-2), 1, nzn, MPI_DOUBLE, &yEdgetypeN);
     MPI_Type_commit(&yEdgetypeN);
 
-    //For face exchangeg on Z dir
+    //? For face exchangeg on Z dir
     MPI_Type_create_hvector((nxn-2), 1, (nzn*nyn*sizeof(double)), yEdgetypeN, &xyFacetypeN);
     MPI_Type_commit(&xyFacetypeN);
 
-    //2 yEdgeType can be merged into one message
+    //? 2 yEdgeType can be merged into one message
     MPI_Type_create_hvector(2, 1,(nzn-1)*sizeof(double), yEdgetypeN, &yEdgetypeN2);
     MPI_Type_commit(&yEdgetypeN2);
 
@@ -344,45 +347,46 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     MPI_Type_create_hvector(2, 1, (nyn-1)*nzn*sizeof(double), xEdgetypeN, &xEdgetypeN2);
     MPI_Type_commit(&xEdgetypeN2);
 
-    //corner used to communicate in x direction
+    //* corner used to communicate in x direction
     int blocklengthN[]={1,1,1,1};
     int displacementsN[]={0,nzn-1,(nyn-1)*nzn,nyn*nzn-1};
     MPI_Type_indexed(4, blocklengthN, displacementsN, MPI_DOUBLE, &cornertypeN);
     MPI_Type_commit(&cornertypeN);
 
-    if (col->getWriteMethod() == "pvtk" || col->getWriteMethod() == "nbcvtk"){
-    	//test Endian
+    //! Write data to files
+    if (col->getWriteMethod() == "pvtk" || col->getWriteMethod() == "nbcvtk")
+    {
+    	//* Test Endian
     	int TestEndian = 1;
     	lEndFlag =*(char*)&TestEndian;
 
-    	 //create process file view
-		  int  size[3], subsize[3], start[3];
+        //* Create process file view
+        int  size[3], subsize[3], start[3];
 
-		  //3D subarray - reverse X, Z
-		  subsize[0] = nzc-2; subsize[1] = nyc-2; subsize[2] = nxc-2;
-		  size[0] = (nzc-2)*vct->getZLEN();size[1] = (nyc-2)*vct->getYLEN();size[2] = (nxc-2)*vct->getXLEN();
-		  start[0]= vct->getCoordinates(2)*subsize[0];
-		  start[1]= vct->getCoordinates(1)*subsize[1];
-		  start[2]= vct->getCoordinates(0)*subsize[2];
+        //* 3D subarray - reverse X, Z
+        subsize[0] = nzc-2; subsize[1] = nyc-2; subsize[2] = nxc-2;
+        size[0] = (nzc-2)*vct->getZLEN();size[1] = (nyc-2)*vct->getYLEN();size[2] = (nxc-2)*vct->getXLEN();
+        start[0]= vct->getCoordinates(2)*subsize[0];
+        start[1]= vct->getCoordinates(1)*subsize[1];
+        start[2]= vct->getCoordinates(0)*subsize[2];
 
-		  MPI_Type_contiguous(3,MPI_FLOAT, &xyzcomp);
-		  MPI_Type_commit(&xyzcomp);
+        MPI_Type_contiguous(3,MPI_FLOAT, &xyzcomp);
+        MPI_Type_commit(&xyzcomp);
 
-		  MPI_Type_create_subarray(3, size, subsize, start,MPI_ORDER_C, xyzcomp, &procviewXYZ);
-		  MPI_Type_commit(&procviewXYZ);
+        MPI_Type_create_subarray(3, size, subsize, start,MPI_ORDER_C, xyzcomp, &procviewXYZ);
+        MPI_Type_commit(&procviewXYZ);
 
-		  MPI_Type_create_subarray(3, size, subsize, start,MPI_ORDER_C, MPI_FLOAT, &procview);
-		  MPI_Type_commit(&procview);
+        MPI_Type_create_subarray(3, size, subsize, start,MPI_ORDER_C, MPI_FLOAT, &procview);
+        MPI_Type_commit(&procview);
 
-		  subsize[0] = nxc-2; subsize[1] =nyc-2; subsize[2] = nzc-2;
-		  size[0]    = nxc;	  size[1] 	 =nyc;	 size[2] 	= nzc;
-		  start[0]	 = 1;	  start[1]	 =1;	 start[2]	= 1;
-		  MPI_Type_create_subarray(3, size, subsize, start,MPI_ORDER_C, MPI_FLOAT, &ghosttype);
-		  MPI_Type_commit(&ghosttype);
-
+        subsize[0] = nxc-2; subsize[1] =nyc-2; subsize[2] = nzc-2;
+        size[0]    = nxc;	  size[1] 	 =nyc;	 size[2] 	= nzc;
+        start[0]	 = 1;	  start[1]	 =1;	 start[2]	= 1;
+        MPI_Type_create_subarray(3, size, subsize, start,MPI_ORDER_C, MPI_FLOAT, &ghosttype);
+        MPI_Type_commit(&ghosttype);
     }
-
 }
+
 void EMfields3D::freeDataType(){
     MPI_Type_free(&yzFacetypeC);
     MPI_Type_free(&xzFacetypeC);
@@ -1442,23 +1446,23 @@ void EMfields3D::sumMoments_AoS_intr(const Particles3Dcomm* part)
 }
 
 inline void compute_moments(double velmoments[10], double weights[8],
-  int i,
-  double const * const x,
-  double const * const y,
-  double const * const z,
-  double const * const u,
-  double const * const v,
-  double const * const w,
-  double const * const q,
-  double xstart,
-  double ystart,
-  double zstart,
-  double inv_dx,
-  double inv_dy,
-  double inv_dz,
-  int cx,
-  int cy,
-  int cz)
+                            int i,
+                            double const * const x,
+                            double const * const y,
+                            double const * const z,
+                            double const * const u,
+                            double const * const v,
+                            double const * const w,
+                            double const * const q,
+                            double xstart,
+                            double ystart,
+                            double zstart,
+                            double inv_dx,
+                            double inv_dy,
+                            double inv_dz,
+                            int cx,
+                            int cy,
+                            int cz)
 {
   ALIGNED(x);
   ALIGNED(y);
@@ -1537,25 +1541,25 @@ inline void compute_moments(double velmoments[10], double weights[8],
   weights[7] = weight11*w1z; // weight111
 }
 
-// add particle to moments
+//? Add particle to moments
 inline void add_moments_for_pcl(double momentsAcc[8][10],
-  int i,
-  double const * const x,
-  double const * const y,
-  double const * const z,
-  double const * const u,
-  double const * const v,
-  double const * const w,
-  double const * const q,
-  double xstart,
-  double ystart,
-  double zstart,
-  double inv_dx,
-  double inv_dy,
-  double inv_dz,
-  int cx,
-  int cy,
-  int cz)
+                                int i,
+                                double const * const x,
+                                double const * const y,
+                                double const * const z,
+                                double const * const u,
+                                double const * const v,
+                                double const * const w,
+                                double const * const q,
+                                double xstart,
+                                double ystart,
+                                double zstart,
+                                double inv_dx,
+                                double inv_dy,
+                                double inv_dz,
+                                int cx,
+                                int cy,
+                                int cz)
 {
   double velmoments[10];
   double weights[8];
@@ -1577,28 +1581,27 @@ inline void add_moments_for_pcl(double momentsAcc[8][10],
 }
 
 
-// vectorized version of previous method
-// 
+//? Vectorized version of adding particle to moments
 inline void add_moments_for_pcl_vec(double momentsAccVec[8][10][8],
-  double velmoments[10][8], double weights[8][8],
-  int i,
-  int imod,
-  double const * const x,
-  double const * const y,
-  double const * const z,
-  double const * const u,
-  double const * const v,
-  double const * const w,
-  double const * const q,
-  double xstart,
-  double ystart,
-  double zstart,
-  double inv_dx,
-  double inv_dy,
-  double inv_dz,
-  int cx,
-  int cy,
-  int cz)
+                                    double velmoments[10][8], double weights[8][8],
+                                    int i,
+                                    int imod,
+                                    double const * const x,
+                                    double const * const y,
+                                    double const * const z,
+                                    double const * const u,
+                                    double const * const v,
+                                    double const * const w,
+                                    double const * const q,
+                                    double xstart,
+                                    double ystart,
+                                    double zstart,
+                                    double inv_dx,
+                                    double inv_dy,
+                                    double inv_dz,
+                                    int cx,
+                                    int cy,
+                                    int cz)
 {
   ALIGNED(x);
   ALIGNED(y);
@@ -2182,7 +2185,7 @@ void EMfields3D::calculateE(int cycle)
 
     // TODO: is this needed? Smoothng in called in calculateB in ECSim - PJD
     // apply to smooth to electric field 3 times
-    smoothE();
+    // smoothE();
 
     //? Communicate E
     communicateNodeBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
@@ -2456,34 +2459,90 @@ void EMfields3D::PIdot(arr3_double PIdotX, arr3_double PIdotY, arr3_double PIdot
       }
 }
 /*! Calculate MU dot (vectX, vectY, vectZ) */
-void EMfields3D::MUdot(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ,
-  const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
+void EMfields3D::MUdot(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
 {
-  const Grid *grid = &get_grid();
-  double beta, edotb, omcx, omcy, omcz, denom;
-  for (int i = 1; i < nxn - 1; i++)
-    for (int j = 1; j < nyn - 1; j++)
-      for (int k = 1; k < nzn - 1; k++) {
-        MUdotX[i][j][k] = 0.0;
-        MUdotY[i][j][k] = 0.0;
-        MUdotZ[i][j][k] = 0.0;
-      }
-  for (int is = 0; is < ns; is++) {
-    beta = .5 * qom[is] * dt / c;
+    const Grid *grid = &get_grid();
+    
+    //? Initialise all arrays with zeros
     for (int i = 1; i < nxn - 1; i++)
-      for (int j = 1; j < nyn - 1; j++)
-        for (int k = 1; k < nzn - 1; k++) {
-          omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
-          omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
-          omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
-          edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
-          denom = FourPI / 2 * delt * dt / c * qom[is] * rhons[is][i][j][k] / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
-          MUdotX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
-          MUdotY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
-          MUdotZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
-        }
-  }
+        for (int j = 1; j < nyn - 1; j++)
+            for (int k = 1; k < nzn - 1; k++) 
+            {
+                MUdotX[i][j][k] = 0.0;
+                MUdotY[i][j][k] = 0.0;
+                MUdotZ[i][j][k] = 0.0;
+            }
+
+    double beta, edotb, omcx, omcy, omcz, denom;
+
+    for (int is = 0; is < ns; is++) 
+    {
+        beta = .5 * qom[is] * dt / c;
+        
+        for (int i = 1; i < nxn - 1; i++)
+            for (int j = 1; j < nyn - 1; j++)
+                for (int k = 1; k < nzn - 1; k++) 
+                {
+                    omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
+                    omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
+                    omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
+                    edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
+                    denom = FourPI / 2 * delt * dt / c * qom[is] * rhons[is][i][j][k] / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
+                    MUdotX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
+                    MUdotY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
+                    MUdotZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
+                }
+    }
 }
+
+//! Compute MU dot using mass matrix  !//
+void EMfields3D::MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ,
+                                   arr3_double tempX, arr3_double tempY, arr3_double tempZ,
+                                   const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
+{
+    const Grid *grid = &get_grid();
+    
+    //? Initialise all arrays with zeros
+    eqValue(0.0, MUdotX, nxn, nyn, nzn);
+    eqValue(0.0, MUdotY, nxn, nyn, nzn);
+    eqValue(0.0, MUdotZ, nxn, nyn, nzn);
+
+    double beta, edotb, omcx, omcy, omcz, denom;
+
+    //? Iterate over each species
+    for (int is = 0; is < ns; is++) 
+    {
+        beta = 0.5 * qom[is] * dt/c;
+        
+        for (int i = 1; i < nxn - 1; i++)
+            for (int j = 1; j < nyn - 1; j++)
+                for (int k = 1; k < nzn - 1; k++) 
+                {
+                    omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
+                    omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
+                    omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
+                    edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
+                    denom = FourPI / 2 * delt * dt / c * qom[is] * rhons[is][i][j][k] / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
+                    tempX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
+                    tempY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
+                    tempZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
+                }
+
+        for (int i = 1; i < nxn - 1; i++)
+            for (int j = 1; j < nyn - 1; j++)
+                for (int k = 1; k < nzn - 1; k++)
+                    for (int ix = -1; ix < 2; ix++)
+                        for (int iy = -1; iy < 2; iy++)
+                            for (int iz = -1; iz < 2; iz++) 
+                            {
+                                MUdotX.fetch(i,j,k) += tempX.fetch(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+                                MUdotY.fetch(i,j,k) += tempY.fetch(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+                                MUdotZ.fetch(i,j,k) += tempZ.fetch(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+                            }
+    }
+}
+
+
 /* Interpolation smoothing: Smoothing (vector must already have ghost cells) TO MAKE SMOOTH value as to be different from 1.0 type = 0 --> center based vector ; type = 1 --> node based vector ; */
 void EMfields3D::smooth(arr3_double vector, int type)
 {
@@ -2958,8 +3017,7 @@ void EMfields3D::ConstantChargeOpenBC()
 
 }
 
-void EMfields3D::ConstantChargePlanet(double R,
-  double x_center, double y_center, double z_center)
+void EMfields3D::ConstantChargePlanet(double R, double x_center, double y_center, double z_center)
 {
   const Grid *grid = &get_grid();
 
@@ -3020,9 +3078,6 @@ void EMfields3D::ConstantChargePlanet2DPlaneXZ(double R,  double x_center,double
 }
 
 /*! Populate the field data used to push particles */
-// 
-// 
-//
 void EMfields3D::set_fieldForPcls()
 {
   #pragma omp parallel for collapse(3)
@@ -3148,8 +3203,8 @@ void EMfields3D::initEM_rotate(double B, double theta)
 }
 
 /*!Add a periodic perturbation in rho exp i(kx - \omega t); deltaBoB is the ratio (Delta B / B0) * */
-void EMfields3D::AddPerturbationRho(double deltaBoB, double kx, double ky, double Bx_mod, double By_mod, double Bz_mod, double ne_mod, double ne_phase, double ni_mod, double ni_phase, double B0, Grid * grid) {
-
+void EMfields3D::AddPerturbationRho(double deltaBoB, double kx, double ky, double Bx_mod, double By_mod, double Bz_mod, double ne_mod, double ne_phase, double ni_mod, double ni_phase, double B0, Grid * grid) 
+{
   double alpha;
   alpha = deltaBoB * B0 / sqrt(Bx_mod * Bx_mod + By_mod * By_mod + Bz_mod * Bz_mod);
 
@@ -3165,7 +3220,6 @@ void EMfields3D::AddPerturbationRho(double deltaBoB, double kx, double ky, doubl
   for (int is = 0; is < ns; is++)
     grid->interpN2C(rhocs, is, rhons);
 }
-
 
 /*!Add a periodic perturbation exp i(kx - \omega t); deltaBoB is the ratio (Delta B / B0) * */
 void EMfields3D::AddPerturbation(double deltaBoB, double kx, double ky, double Ex_mod, double Ex_phase, double Ey_mod, double Ey_phase, double Ez_mod, double Ez_phase, double Bx_mod, double Bx_phase, double By_mod, double By_phase, double Bz_mod, double Bz_phase, double B0, Grid * grid) {
@@ -3198,7 +3252,6 @@ void EMfields3D::AddPerturbation(double deltaBoB, double kx, double ky, double E
   grid->interpN2C(Bzc, Bzn);
 
 }
-
 
 /*! Calculate hat rho hat, Jx hat, Jy hat, Jz hat */
 void EMfields3D::calculateHatFunctions()
@@ -3316,25 +3369,6 @@ void EMfields3D::communicateGhostP2G(int ns)
   communicateNode_P(nxn, nyn, nzn, moment8, vct, this);
   communicateNode_P(nxn, nyn, nzn, moment9, vct, this);
 }
-
-/*! communicate ghost for grid -> Particles interpolation */
-//void EMfields3D::communicateGhostMomentsX()
-//{
-//  const VirtualTopology3D * vct = &get_vct();
-//  timeTasks_set_communicating();
-//  
-//  // start communication of moments in the X direction
-//  for(int is=0; is<ns; i++)
-//  {
-//    for(int im=0; im<10; im++)
-//    {
-//      // copy data from faces into buffers
-//      // send buffer data right and left
-//    }
-//  }
-//
-//  // receive and parse communication
-//}
 
 void EMfields3D::setZeroDerivedMoments()
 {
