@@ -101,15 +101,20 @@ class EMfields3D                // :public Field
     void fixBnGEM();
     /*! fix B on the boundary for gem challange */
     void fixBforcefree();
-
-    /*! Calculate the three components of Pi(implicit pressure) cross image vector */
-    void PIdot(arr3_double PIdotX, arr3_double PIdotY, arr3_double PIdotZ,
-      const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int ns);
-    /*! Calculate the three components of mu (implicit permeattivity) cross image vector */
-    void MUdot(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ,
-      const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ);
     /*! Calculate rho hat, Jx hat, Jy hat, Jz hat */
     void calculateHatFunctions();
+
+    //* Calculate the three components of Pi(implicit pressure) cross image vector -- Not needed for ECSim *//
+    void PIdot(arr3_double PIdotX, arr3_double PIdotY, arr3_double PIdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int ns);
+
+    //* Calculate the three components of mu (implicit permeattivity) cross image vector -- Not needed for ECSim *//
+    void MUdot(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ);
+    
+    //* Calculate the three components of mu (implicit permeattivity) cross image vector using mass matrix *//
+    void MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, arr3_double tempX, arr3_double tempY, arr3_double tempZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
+    
+    //* Compute the product of mass matrix with vector "V = (Vx, Vy, Vz)"
+    void mass_matrix_times_vector(double* MEx, double* MEy, double* MEz, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int i, int j, int k)
 
 
     /*! communicate ghost for densities and interp rho from node to center */
@@ -237,7 +242,7 @@ class EMfields3D                // :public Field
     arr4_double getRHOns(){return rhons;}
     arr4_double getRHOcs(){return rhocs;}
 
-
+    //? Extenal electric field components (defined on nodes)
     double getBx_ext(int X, int Y, int Z) const{return Bx_ext.get(X,Y,Z);}
     double getBy_ext(int X, int Y, int Z) const{return By_ext.get(X,Y,Z);}
     double getBz_ext(int X, int Y, int Z) const{return Bz_ext.get(X,Y,Z);}
@@ -246,8 +251,30 @@ class EMfields3D                // :public Field
     arr3_double getBy_ext() { return By_ext; }
     arr3_double getBz_ext() { return Bz_ext; }
 
+    //? Extenal magnetic field components (defined on nodes)
+    double getBx_ext(int X, int Y, int Z) const{return Bx_ext.get(X,Y,Z);}
+    double getBy_ext(int X, int Y, int Z) const{return By_ext.get(X,Y,Z);}
+    double getBz_ext(int X, int Y, int Z) const{return Bz_ext.get(X,Y,Z);}
+    
+    arr3_double getBx_ext() { return Bx_ext; }
+    arr3_double getBy_ext() { return By_ext; }
+    arr3_double getBz_ext() { return Bz_ext; }
 
-    //B_tot = B + B_ext
+    //? Extenal current components (defined on nodes)
+    arr3_double getJx_ext() { return Jx_ext; }
+    arr3_double getJy_ext() { return Jy_ext; }
+    arr3_double getJz_ext() { return Jz_ext; }
+
+    //? Extenal magnetic field components (defined at cell centres)
+    double getBxc_ext(int X, int Y, int Z) const{return Bxc_ext.get(X,Y,Z);}
+    double getByc_ext(int X, int Y, int Z) const{return Byc_ext.get(X,Y,Z);}
+    double getBzc_ext(int X, int Y, int Z) const{return Bzc_ext.get(X,Y,Z);}
+
+    arr3_double getBxc_ext() { return Bxc_ext; }
+    arr3_double getByc_ext() { return Byc_ext; }
+    arr3_double getBzc_ext() { return Bzc_ext; }
+
+    //* B_tot = B + B_ext (defined on nodes)
     arr3_double getBxTot() { addscale(1.0,Bxn,Bx_ext,Bx_tot,nxn,nyn,nzn); return Bx_tot; }
     arr3_double getByTot() { addscale(1.0,Byn,By_ext,By_tot,nxn,nyn,nzn); return By_tot; }
     arr3_double getBzTot() { addscale(1.0,Bzn,Bz_ext,Bz_tot,nxn,nyn,nzn); return Bz_tot; }
@@ -294,6 +321,8 @@ class EMfields3D                // :public Field
     double getBenergy();
     /*! get bulk kinetic energy */
     double getBulkEnergy(int is);
+
+    bool getPCnonzero();
 
     /*! fetch array for summing moments of thread i */
     Moments10& fetch_moments10Array(int i){
@@ -452,6 +481,9 @@ class EMfields3D                // :public Field
     array3_double temp2X;
     array3_double temp2Y;
     array3_double temp2Z;
+    array3_double temp3X;
+    array3_double temp3Y;
+    array3_double temp3Z;
     /*! and some for MaxwellImage */
     array3_double imageX;
     array3_double imageY;
@@ -483,29 +515,41 @@ class EMfields3D                // :public Field
     /*! SPECIES: charge density for each species, defined on central points of the cell */
     array4_double rhocs;
 
+    array3_double Phic;
+
+    //* Divergence of electric and magnetic field
+    array3_double divE;
+    array3_double divB;
+
     // current density defined on nodes
-    //
     array3_double Jx;
     array3_double Jy;
     array3_double Jz;
 
     // implicit current density defined on nodes
-    //
     array3_double Jxh;
     array3_double Jyh;
     array3_double Jzh;
 
     // species-specific current densities defined on nodes
-    //
     array4_double Jxs;
     array4_double Jys;
     array4_double Jzs;
 
-    // magnetic field components defined on nodes
-    //
+    // external electric field components defined on nodes
+    array3_double   Ex_ext;
+    array3_double   Ey_ext;
+    array3_double   Ez_ext;
+
+    // external magnetic field components defined on nodes
     array3_double   Bx_ext;
     array3_double   By_ext;
     array3_double   Bz_ext;
+
+    // external magnetic field components defined on nodes
+    array3_double   Bxc_ext;
+    array3_double   Byc_ext;
+    array3_double   Bzc_ext;
 
     array3_double   Bx_tot;
     array3_double   By_tot;
@@ -584,6 +628,9 @@ class EMfields3D                // :public Field
 
     //? Lambda damping
     int damping;
+
+    bool PCnonzero;
+
 
 
     //MPI Derived Datatype for Center Halo Exchange
