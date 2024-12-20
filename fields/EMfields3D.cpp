@@ -2250,35 +2250,13 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     eqValue(0.0, temp3Y, nxn, nyn, nzn);
     eqValue(0.0, temp3Z, nxn, nyn, nzn);
 
-    //? --------------------------------------------------------- ?//
-
-    //! In ipic, not in ecsim
-
-    // if (get_col().getCase()=="ForceFree") 		fixBforcefree();
-    // if (get_col().getCase()=="GEM")       		fixBnGEM();
-    // if (get_col().getCase()=="GEMnoPert") 		fixBnGEM();
-    // if (get_col().getCase()=="GEMDoubleHarris") fixBnGEM();
-
-    // //* OpenBC
-    // OpenBoundaryInflowB(Bxc,Byc,Bzc,nxc,nyc,nzc);
-
-    // if (get_col().getCase()=="GEM")       		fixBcGEM();
-    // if (get_col().getCase()=="GEMnoPert") 		fixBcGEM();
-    // if (get_col().getCase()=="GEMDoubleHarris") fixBcGEM();
-
-    //? --------------------------------------------------------- ?//
-
     //* Valid for second-order formulation
     communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
     communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
     communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
-    //* prepare curl of B for known term of Maxwell solver: for the source term
+    //* Prepare curl of B for known term of Maxwell solver: for the source term
     grid->curlC2N(temp2X, temp2Y, temp2Z, Bxc, Byc, Bzc);
-    
-    // scale(temp2X, Jxh, -FourPI / c, nxn, nyn, nzn);
-    // scale(temp2Y, Jyh, -FourPI / c, nxn, nyn, nzn);
-    // scale(temp2Z, Jzh, -FourPI / c, nxn, nyn, nzn);
 
     //TODO: To be implemented (getAddExternalCurlB) - PJD
     if (col->getAddExternalCurlB()) 
@@ -2306,33 +2284,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     //! -- end of dipole SOURCE version using J_ext*/
 
     //? --------------------------------------------------------- ?//
-
-    //! In ipic, not in ecsim
-
-    //   sum(temp2X, tempXN, nxn, nyn, nzn);
-    //   sum(temp2Y, tempYN, nxn, nyn, nzn);
-    //   sum(temp2Z, tempZN, nxn, nyn, nzn);
-    //   scale(temp2X, delt, nxn, nyn, nzn);
-    //   scale(temp2Y, delt, nxn, nyn, nzn);
-    //   scale(temp2Z, delt, nxn, nyn, nzn);
-
-    //   communicateCenterBC_P(nxc, nyc, nzc, rhoh, 2, 2, 2, 2, 2, 2, vct, this);
-    //   grid->gradC2N(tempX, tempY, tempZ, rhoh);
-
-    //   scale(tempX, -delt * delt * FourPI, nxn, nyn, nzn);
-    //   scale(tempY, -delt * delt * FourPI, nxn, nyn, nzn);
-    //   scale(tempZ, -delt * delt * FourPI, nxn, nyn, nzn);
-    //   // sum E, past values
-    //   sum(tempX, Ex, nxn, nyn, nzn);
-    //   sum(tempY, Ey, nxn, nyn, nzn);
-    //   sum(tempZ, Ez, nxn, nyn, nzn);
-    //   // sum curl(B) + jhat part
-    //   sum(tempX, temp2X, nxn, nyn, nzn);
-    //   sum(tempY, temp2Y, nxn, nyn, nzn);
-    //   sum(tempZ, temp2Z, nxn, nyn, nzn);
-
-    //? --------------------------------------------------------- ?//
-
 
     communicateNodeBC(nxn, nyn, nzn, Jxh, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, Jyh, 2, 2, 2, 2, 2, 2, vct, this);
@@ -2364,41 +2315,55 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     communicateNodeBC(nxn, nyn, nzn, temp3Y, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, temp3Z, 2, 2, 2, 2, 2, 2, vct, this);
 
-    //TODO: To be implemented - PJD
-    // if (col->getRemoveDivE() == "ipic") 
+    //TODO: To be implemented: getRemoveDivE() - PJD
+    if (col->getRemoveDivE() == "ipic") 
+    {
+        //*  Add smoothed grad(4pi rhoc)
+        grid->interpN2C(rhoc, rhon);
+        communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct, this);
+
+        grid->divN2C(tempC, temp3X, temp3Y, temp3Z);
+        communicateCenterBC(nxc, nyc, nzc, tempC, 2, 2, 2, 2, 2, 2, vct, this);
+
+        scale(tempC, (1.0 - weight_curlcurl)*FourPI*th*dt, nxc, nyc, nzc);
+        addscale(-(1.0 - weight_curlcurl)*FourPI, tempC, rhoc, nxc, nyc, nzc);
+
+        //TODO: Where is getSmooth() defined in old iPIC3D?
+
+        //! Next step: Do this !//
+        // TODO: Implement applySmoothing_dir and applySmoothing!!
+        if (col->getSmoothType() == "directional")
+            applySmoothing_dir(tempC, nxc, nyc,  nzc, vct, col, -1,col->getSmooth());
+        else
+            applySmoothing(tempC, nxc, nyc,  nzc, vct, col, -1,col->getSmooth());
+        
+        communicateCenterBC(nxc, nyc, nzc, tempC, 1, 1, 1, 1, 1, 1, vct, this);
+        
+        grid->gradC2N(temp2X, temp2Y, temp2Z, tempC);
+        
+        addscale(c*th*dt*c*th*dt, tempX, temp2X, nxn, nyn, nzn);
+        addscale(c*th*dt*c*th*dt, tempY, temp2Y, nxn, nyn, nzn);
+        addscale(c*th*dt*c*th*dt, tempZ, temp2Z, nxn, nyn, nzn);
+    }
 
     addscale(1, tempX, Ex, nxn, nyn, nzn);
     addscale(1, tempY, Ey, nxn, nyn, nzn);
     addscale(1, tempZ, Ez, nxn, nyn, nzn);
 
-    //? --------------------------------------------------------- ?//
+    //? Add contribution of Eext to the changes in B
+    //TODO: To be implemented (getAddExternalCurlE()) - PJD
+    if (col->getAddExternalCurlE()) 
+    {
+        grid->lapN2N(temp2X, Ex_ext, this);
+        grid->lapN2N(temp2Y, Ey_ext, this);
+        grid->lapN2N(temp2Z, Ez_ext, this);
 
-    //! In ipic, not in ecsim
+        addscale(c*th*dt*c*th*dt, tempX, temp2X, nxn, nyn, nzn);
+        addscale(c*th*dt*c*th*dt, tempY, temp2Y, nxn, nyn, nzn);
+        addscale(c*th*dt*c*th*dt, tempZ, temp2Z, nxn, nyn, nzn);
+    }
 
-    // Boundary condition in the known term
-    // boundary condition: Xleft
-    // if (vct->getXleft_neighbor() == MPI_PROC_NULL && bcEMfaceXleft == 0)  // perfect conductor
-    // perfectConductorLeftS(tempX, tempY, tempZ, 0);
-    // // boundary condition: Xright
-    // if (vct->getXright_neighbor() == MPI_PROC_NULL && bcEMfaceXright == 0)  // perfect conductor
-    // perfectConductorRightS(tempX, tempY, tempZ, 0);
-    // // boundary condition: Yleft
-    // if (vct->getYleft_neighbor() == MPI_PROC_NULL && bcEMfaceYleft == 0)  // perfect conductor
-    // perfectConductorLeftS(tempX, tempY, tempZ, 1);
-    // // boundary condition: Yright
-    // if (vct->getYright_neighbor() == MPI_PROC_NULL && bcEMfaceYright == 0)  // perfect conductor
-    // perfectConductorRightS(tempX, tempY, tempZ, 1);
-    // // boundary condition: Zleft
-    // if (vct->getZleft_neighbor() == MPI_PROC_NULL && bcEMfaceZleft == 0)  // perfect conductor
-    // perfectConductorLeftS(tempX, tempY, tempZ, 2);
-    // // boundary condition: Zright
-    // if (vct->getZright_neighbor() == MPI_PROC_NULL && bcEMfaceZright == 0)  // perfect conductor
-    // perfectConductorRightS(tempX, tempY, tempZ, 2);
-
-    //? --------------------------------------------------------- ?//
-
-
-    // Poisson correction
+    //* Poisson correction
     if (col->getPoissonCorrection() == "yes" and PCnonzero == true) 
     {
         //* Compute gradient        
@@ -2406,11 +2371,49 @@ void EMfields3D::MaxwellSource(double *bkrylov)
         
         //TODO: To be implemented (BC_E_Poisson) - PJD
         BC_E_Poisson(vct, temp2X, temp2Y, temp2Z);
+        
         addscale(-th, tempX, temp2X, nxn, nyn, nzn);  
         addscale(-th, tempY, temp2Y, nxn, nyn, nzn);  
         addscale(-th, tempZ, temp2Z, nxn, nyn, nzn);  
     }
 
+    //* Langdon correction (simpler alternative to divergence cleaning); A.B. Lagndon. CPC 70 447-450 (1992)
+    if (col->getLangdonCorrection() != 0) 
+    {
+        double Langdon_Correction = col->getLangdonCorrection();
+
+        if (vct->getCartesian_rank() == 0) 
+            printf("--> Langdon correction\n");
+         
+        grid->divN2C(tempC, Ex, Ey, Ez);
+        grid->interpN2C(rhoc, rhon);
+
+        communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct, this);
+
+        addscale(-4*M_PI, tempC, rhoc, nxc, nyc, nzc); 
+        scale(tempC, Langdon_Correction, nxc, nyc, nzc); 
+
+        grid->gradC2N(temp2X, temp2Y, temp2Z, tempC);
+        
+        addscale(dt, tempX, temp2X, nxn, nyn, nzn);
+        addscale(dt, tempY, temp2Y, nxn, nyn, nzn);
+        addscale(dt, tempZ, temp2Z, nxn, nyn, nzn);
+    }
+
+    // TODO: WTF is this? Do we need this? - PJD
+    // fixBC_Source (vct, col, tempX, tempY, tempZ);
+    // if (col->getCase() == "Dipole") 
+    //     fixBC_PlanetSource (vct, col, grid, tempX , tempY , tempZ);
+
+    //* Sets f = source to zero in the Lambda region
+    //TODO: To be implemented - PJD
+    // if (damping==1) 
+    // {
+    //     mask(tempX, Lambda_treshold, Lambda, nxn, nyn, nzn);
+    //     mask(tempY, Lambda_treshold, Lambda, nxn, nyn, nzn);
+    //     mask(tempZ, Lambda_treshold, Lambda, nxn, nyn, nzn);
+    // }
+    
     //* Physical space --> Krylov space
     phys2solver(bkrylov, tempX, tempY, tempZ, nxn, nyn, nzn);
 }
