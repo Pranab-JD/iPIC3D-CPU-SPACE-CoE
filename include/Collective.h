@@ -191,6 +191,15 @@ class Collective
     bool particle_output_is_off()const;
     bool testparticle_output_is_off()const;
     bool field_output_is_off()const;
+
+    //? ECSim functions
+    bool Collective::getAddExternalCurlB() { return AddExternalCurlB; }
+    bool Collective::getAddExternalCurlE() { return AddExternalCurlE; }
+    bool Collective::getEnergyConservingSmoothing() { return EnergyConservingSmoothing; }
+    bool Collective::getCurlCurl() { return CurlCurl; }
+    bool Collective::getExactMM() { return ExactMM; }
+    string Collective::getRemoveDivE() { return RemoveDivE; }
+    double Collective::getLangdonCorrection(){return LangdonCorrection;}
     
     /*! Boundary condition selection for BCFace for the electric field components */
     int bcEx[6], bcEy[6], bcEz[6];
@@ -415,6 +424,22 @@ class Collective
     int DiagnosticsOutputCycle;
     /*! Call Finalize() at end of program execution (true by default) */
     bool CallFinalize;
+
+    /** AddExternalCurlB */
+    bool AddExternalCurlB;
+    /** AddExternalCurlE */
+    bool AddExternalCurlE;
+    /** EnergyConservingSmoothing */
+    bool EnergyConservingSmoothing;
+    /** Remove the div(E) term from the Maxwell equations */
+    string RemoveDivE;
+    /** Determines whether to use cur(curl) or -del2 + grad(div) */
+    bool CurlCurl;
+    /** Exact MAss Matrix Formulation */
+    bool ExactMM;
+    /*! Langdon correction flag */
+    double LangdonCorrection;
+
 };
 typedef Collective CollectiveIO;
 

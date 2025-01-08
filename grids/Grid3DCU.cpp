@@ -342,7 +342,7 @@ void Grid3DCU::curlN2C(arr3_double curlXC, arr3_double curlYC, arr3_double curlZ
 }
 
 /** calculate laplacian on nodes, given a scalar field defined on nodes */
-void Grid3DCU::lapN2N(arr3_double lapN, const_arr3_double scFieldN,EMfields3D *EMf)const
+void Grid3DCU::lapN2N(arr3_double lapN, const_arr3_double scFieldN, EMfields3D *EMf)const
 {
     const VirtualTopology3D *vct = &get_vct();
 

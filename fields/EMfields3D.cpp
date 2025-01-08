@@ -177,10 +177,10 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     Dx     (nxn, nyn, nzn),
     Dy     (nxn, nyn, nzn),
     Dz     (nxn, nyn, nzn),
-    vectX (nxn, nyn, nzn),
-    vectY (nxn, nyn, nzn),
-    vectZ (nxn, nyn, nzn),
-    divC  (nxc, nyc, nzc),
+    vectX  (nxn, nyn, nzn),
+    vectY  (nxn, nyn, nzn),
+    vectZ  (nxn, nyn, nzn),
+    divC   (nxc, nyc, nzc),
 
     //! B_ext and J_ext should not be allocated unless used.
     Bx_ext(nxn,nyn,nzn),
@@ -404,7 +404,8 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     }
 }
 
-void EMfields3D::freeDataType(){
+void EMfields3D::freeDataType()
+{
     MPI_Type_free(&yzFacetypeC);
     MPI_Type_free(&xzFacetypeC);
     MPI_Type_free(&xyFacetypeC);
@@ -427,7 +428,8 @@ void EMfields3D::freeDataType(){
     MPI_Type_free(&zEdgetypeN2);
     MPI_Type_free(&cornertypeN);
 
-    if (_col.getWriteMethod() == "pvtk" || _col.getWriteMethod() == "nbcvtk"){
+    if (_col.getWriteMethod() == "pvtk" || _col.getWriteMethod() == "nbcvtk")
+    {
         MPI_Type_free(&procview);
         MPI_Type_free(&xyzcomp);
         MPI_Type_free(&procviewXYZ);
@@ -435,7 +437,7 @@ void EMfields3D::freeDataType(){
     }
 }
 
-// This was Particles3Dcomm::interpP2G()
+//? This was Particles3Dcomm::interpP2G()
 void EMfields3D::sumMomentsOld(const Particles3Dcomm& pcls)
 {
   const Grid *grid = &get_grid();
@@ -2081,39 +2083,48 @@ void EMfields3D::sumMoments_vectorized_AoS(const Particles3Dcomm* part)
 }
 
 /** method to convert a 1D field in a 3D field not considering guard cells*/
-void solver2phys(arr3_double vectPhys, double *vectSolver, int nx, int ny, int nz) {
-  for (int i = 1; i < nx - 1; i++)
-    for (int j = 1; j < ny - 1; j++)
-      for (int k = 1; k < nz - 1; k++)
-        vectPhys[i][j][k] = *vectSolver++;
+void solver2phys(arr3_double vectPhys, double *vectSolver, int nx, int ny, int nz) 
+{
+    for (int i = 1; i < nx - 1; i++)
+        for (int j = 1; j < ny - 1; j++)
+            for (int k = 1; k < nz - 1; k++)
+                vectPhys[i][j][k] = *vectSolver++;
 
 }
+
 /** method to convert a 1D field in a 3D field not considering guard cells*/
-void solver2phys(arr3_double vectPhys1, arr3_double vectPhys2, arr3_double vectPhys3, double *vectSolver, int nx, int ny, int nz) {
-  for (int i = 1; i < nx - 1; i++)
-    for (int j = 1; j < ny - 1; j++)
-      for (int k = 1; k < nz - 1; k++) {
-        vectPhys1[i][j][k] = *vectSolver++;
-        vectPhys2[i][j][k] = *vectSolver++;
-        vectPhys3[i][j][k] = *vectSolver++;
-      }
+void solver2phys(arr3_double vectPhys1, arr3_double vectPhys2, arr3_double vectPhys3, double *vectSolver, int nx, int ny, int nz) 
+{
+    for (int i = 1; i < nx - 1; i++)
+        for (int j = 1; j < ny - 1; j++)
+            for (int k = 1; k < nz - 1; k++) 
+            {
+                vectPhys1[i][j][k] = *vectSolver++;
+                vectPhys2[i][j][k] = *vectSolver++;
+                vectPhys3[i][j][k] = *vectSolver++;
+            }
 }
+
 /** method to convert a 3D field in a 1D field not considering guard cells*/
-void phys2solver(double *vectSolver, const arr3_double vectPhys, int nx, int ny, int nz) {
-  for (int i = 1; i < nx - 1; i++)
-    for (int j = 1; j < ny - 1; j++)
-      for (int k = 1; k < nz - 1; k++)
-        *vectSolver++ = vectPhys.get(i,j,k);
+void phys2solver(double *vectSolver, const arr3_double vectPhys, int nx, int ny, int nz) 
+{
+    for (int i = 1; i < nx - 1; i++)
+        for (int j = 1; j < ny - 1; j++)
+            for (int k = 1; k < nz - 1; k++)
+                *vectSolver++ = vectPhys.get(i,j,k);
 }
+
 /** method to convert a 3D field in a 1D field not considering guard cells*/
-void phys2solver(double *vectSolver, const arr3_double vectPhys1, const arr3_double vectPhys2, const arr3_double vectPhys3, int nx, int ny, int nz) {
-  for (int i = 1; i < nx - 1; i++)
-    for (int j = 1; j < ny - 1; j++)
-      for (int k = 1; k < nz - 1; k++) {
-        *vectSolver++ = vectPhys1.get(i,j,k);
-        *vectSolver++ = vectPhys2.get(i,j,k);
-        *vectSolver++ = vectPhys3.get(i,j,k);
-      }
+void phys2solver(double *vectSolver, const arr3_double vectPhys1, const arr3_double vectPhys2, const arr3_double vectPhys3, int nx, int ny, int nz) 
+{
+    for (int i = 1; i < nx - 1; i++)
+        for (int j = 1; j < ny - 1; j++)
+            for (int k = 1; k < nz - 1; k++) 
+            {
+                *vectSolver++ = vectPhys1.get(i,j,k);
+                *vectSolver++ = vectPhys2.get(i,j,k);
+                *vectSolver++ = vectPhys3.get(i,j,k);
+            }
 }
 /*! Calculate Electric field with the implicit solver: the Maxwell solver method is called here */
 void EMfields3D::calculateE(int cycle)
@@ -2222,18 +2233,15 @@ void EMfields3D::calculateE(int cycle)
 //! Calculate sorgent for Maxwell solver !//
 void EMfields3D::MaxwellSource(double *bkrylov)
 {
-    //TODO: Cylindrical coordinates not implemented - PJD
+    //! Cylindrical coordinates not implemented - PJD
 
     const Collective *col = &get_col();
     const VirtualTopology3D * vct = &get_vct();
     const Grid *grid = &get_grid();
 
-    double cthdt = c*th*dt;
     double weight_curlcurl = 0.5;
-
-    //TODO: To be implemented - PJD
-    // if (col->getRemoveDivE() == "no")   weight_curlcurl = 1.0;
-    // if (col->getRemoveDivE() == "ipic") weight_curlcurl = 0.0;
+    if (col->getRemoveDivE() == "no")   weight_curlcurl = 1.0;
+    if (col->getRemoveDivE() == "ipic") weight_curlcurl = 0.0;
 
     //* Temporary arrays
     eqValue(0.0, tempC, nxc, nyc, nzc);
@@ -2258,7 +2266,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     //* Prepare curl of B for known term of Maxwell solver: for the source term
     grid->curlC2N(temp2X, temp2Y, temp2Z, Bxc, Byc, Bzc);
 
-    //TODO: To be implemented (getAddExternalCurlB) - PJD
     if (col->getAddExternalCurlB()) 
     {
         //* Dipole SOURCE version using J_ext
@@ -2277,12 +2284,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
         addscale(1.0, temp2Z, Jz_ext, nxn, nyn, nzn);
     }
 
-    //! -- dipole SOURCE version using J_ext,This is not initialized, causing program crash over 2048 processes
-    //   addscale(-FourPI/c,temp2X,Jx_ext,nxn,nyn,nzn);
-    //   addscale(-FourPI/c,temp2Y,Jy_ext,nxn,nyn,nzn);
-    //   addscale(-FourPI/c,temp2Z,Jz_ext,nxn,nyn,nzn);
-    //! -- end of dipole SOURCE version using J_ext*/
-
     //? --------------------------------------------------------- ?//
 
     communicateNodeBC(nxn, nyn, nzn, Jxh, 2, 2, 2, 2, 2, 2, vct, this);
@@ -2291,7 +2292,7 @@ void EMfields3D::MaxwellSource(double *bkrylov)
 
     //* Energy Conserving Smoothing
     // TODO: Implement this - PJD
-    applySmoothing(Jxh, Jyh, Jzh, nxn, nyn, nzn, vct, col);
+    // applySmoothing(Jxh, Jyh, Jzh, nxn, nyn, nzn, vct, col);
 
     for (int i = 0; i < nxn - 0; i++)
         for (int j = 0; j<nyn - 0; j++) 
@@ -2315,10 +2316,9 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     communicateNodeBC(nxn, nyn, nzn, temp3Y, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, temp3Z, 2, 2, 2, 2, 2, 2, vct, this);
 
-    //TODO: To be implemented: getRemoveDivE() - PJD
     if (col->getRemoveDivE() == "ipic") 
     {
-        //*  Add smoothed grad(4pi rhoc)
+        //*  Add smoothed grad (4pi rhoc)
         grid->interpN2C(rhoc, rhon);
         communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct, this);
 
@@ -2350,8 +2350,7 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     addscale(1, tempY, Ey, nxn, nyn, nzn);
     addscale(1, tempZ, Ez, nxn, nyn, nzn);
 
-    //? Add contribution of Eext to the changes in B
-    //TODO: To be implemented (getAddExternalCurlE()) - PJD
+    //? Add contribution of E_ext to the change in B
     if (col->getAddExternalCurlE()) 
     {
         grid->lapN2N(temp2X, Ex_ext, this);
@@ -2400,19 +2399,10 @@ void EMfields3D::MaxwellSource(double *bkrylov)
         addscale(dt, tempZ, temp2Z, nxn, nyn, nzn);
     }
 
-    // TODO: WTF is this? Do we need this? - PJD
+    // TODO: Do we need this? Ask Fabio - PJD
     // fixBC_Source (vct, col, tempX, tempY, tempZ);
     // if (col->getCase() == "Dipole") 
     //     fixBC_PlanetSource (vct, col, grid, tempX , tempY , tempZ);
-
-    //* Sets f = source to zero in the Lambda region
-    //TODO: To be implemented - PJD
-    // if (damping==1) 
-    // {
-    //     mask(tempX, Lambda_treshold, Lambda, nxn, nyn, nzn);
-    //     mask(tempY, Lambda_treshold, Lambda, nxn, nyn, nzn);
-    //     mask(tempZ, Lambda_treshold, Lambda, nxn, nyn, nzn);
-    // }
     
     //* Physical space --> Krylov space
     phys2solver(bkrylov, tempX, tempY, tempZ, nxn, nyn, nzn);
@@ -2484,84 +2474,155 @@ void EMfields3D::MaxwellSource(double *bkrylov)
 // 
 void EMfields3D::MaxwellImage(double *im, double* vector)
 {
-  const Collective *col = &get_col();
-  const VirtualTopology3D *vct = &get_vct();
-  const Grid *grid = &get_grid();
+    const Collective *col = &get_col();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
 
-  eqValue(0.0, im, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
-  eqValue(0.0, imageX, nxn, nyn, nzn);
-  eqValue(0.0, imageY, nxn, nyn, nzn);
-  eqValue(0.0, imageZ, nxn, nyn, nzn);
-  eqValue(0.0, tempX, nxn, nyn, nzn);
-  eqValue(0.0, tempY, nxn, nyn, nzn);
-  eqValue(0.0, tempZ, nxn, nyn, nzn);
-  eqValue(0.0, Dx, nxn, nyn, nzn);
-  eqValue(0.0, Dy, nxn, nyn, nzn);
-  eqValue(0.0, Dz, nxn, nyn, nzn);
-  // move from krylov space to physical space
-  solver2phys(vectX, vectY, vectZ, vector, nxn, nyn, nzn);
-  grid->lapN2N(imageX, vectX,this);
-  grid->lapN2N(imageY, vectY,this);
-  grid->lapN2N(imageZ, vectZ,this);
-  neg(imageX, nxn, nyn, nzn);
-  neg(imageY, nxn, nyn, nzn);
-  neg(imageZ, nxn, nyn, nzn);
-  // grad(div(mu dot E(n + theta)) mu dot E(n + theta) = D
-  MUdot(Dx, Dy, Dz, vectX, vectY, vectZ);
-  grid->divN2C(divC, Dx, Dy, Dz);
-  // communicate you should put BC 
-  // think about the Physics 
-  // communicateCenterBC(nxc,nyc,nzc,divC,1,1,1,1,1,1,vct);
-  
+    int dim = 3*(nxn - 2) * (nyn - 2) * (nzn - 2);
+    eqValue(0.0, im, dim);
 
-  communicateCenterBC(nxc, nyc, nzc, divC, 2, 2, 2, 2, 2, 2, vct, this);
+    // eqValue(0.0, im, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
+    // eqValue(0.0, imageX, nxn, nyn, nzn);
+    // eqValue(0.0, imageY, nxn, nyn, nzn);
+    // eqValue(0.0, imageZ, nxn, nyn, nzn);
+    // eqValue(0.0, tempX, nxn, nyn, nzn);
+    // eqValue(0.0, tempY, nxn, nyn, nzn);
+    // eqValue(0.0, tempZ, nxn, nyn, nzn);
+    // eqValue(0.0, Dx, nxn, nyn, nzn);
+    // eqValue(0.0, Dy, nxn, nyn, nzn);
+    // eqValue(0.0, Dz, nxn, nyn, nzn);
 
-  grid->gradC2N(tempX, tempY, tempZ, divC);
+    //? Move from Krylov space to physical space
+    solver2phys(vectX, vectY, vectZ, vector, nxn, nyn, nzn);
 
-  // -lap(E(n +theta)) - grad(div(mu dot E(n + theta))
-  sub(imageX, tempX, nxn, nyn, nzn);
-  sub(imageY, tempY, nxn, nyn, nzn);
-  sub(imageZ, tempZ, nxn, nyn, nzn);
+    double weight_curlcurl = 0.5;
+    if (col->getRemoveDivE() == "no")   weight_curlcurl = 1.0;
+    if (col->getRemoveDivE() == "ipic") weight_curlcurl = 0.0;
+    
+    communicateNodeBC(nxn, nyn, nzn, vectX, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, vectY, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, vectZ, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
 
-  // scale delt*delt
-  scale(imageX, delt * delt, nxn, nyn, nzn);
-  scale(imageY, delt * delt, nxn, nyn, nzn);
-  scale(imageZ, delt * delt, nxn, nyn, nzn);
+    if (col->getCurlCurl()) 
+    {
+        //? curl(curl(E)) is computed using finite differences
+        grid->curlN2C(tempXC, tempYC, tempZC, vectX, vectY, vectZ);
+        communicateCenterBC(nxc, nyc, nzc, tempXC, 1, 1, 1, 1, 1, 1, vct, this);
+        communicateCenterBC(nxc, nyc, nzc, tempYC, 1, 1, 1, 1, 1, 1, vct, this);
+        communicateCenterBC(nxc, nyc, nzc, tempZC, 1, 1, 1, 1, 1, 1, vct, this);    
+        grid->curlC2N(imageX, imageY, imageZ, tempXC, tempYC, tempZC);
+    }
+    else 
+    {
+        //? curl(curl(E)) = - Laplacian(E) + grad(div(E))
+        grid->lapN2N(imageX, vectX, vct);
+        grid->lapN2N(imageY, vectY, vct);
+        grid->lapN2N(imageZ, vectZ, vct);
 
-  // -lap(E(n +theta)) - grad(div(mu dot E(n + theta)) + eps dot E(n + theta)
-  sum(imageX, Dx, nxn, nyn, nzn);
-  sum(imageY, Dy, nxn, nyn, nzn);
-  sum(imageZ, Dz, nxn, nyn, nzn);
-  sum(imageX, vectX, nxn, nyn, nzn);
-  sum(imageY, vectY, nxn, nyn, nzn);
-  sum(imageZ, vectZ, nxn, nyn, nzn);
+        //? computes minus the laplacian
+        scale(imageX, -1,  nxn, nyn, nzn);
+        scale(imageY, -1,  nxn, nyn, nzn);
+        scale(imageZ, -1,  nxn, nyn, nzn);
+    
+        //? computes gradient of divergence in two steps
+        if (col->getRemoveDivE() == "no" || col->getRemoveDivE() == "ipic" ) 
+        {
+            grid->divN2C(tempC, vectX, vectY, vectZ);
+            communicateCenterBC(nxc, nyc, nzc, tempC, 1, 1, 1, 1, 1, 1, vct, this);
+            grid->gradC2N(temp2X, temp2Y, temp2Z, tempC);
+    
+            //* Add grad(div) with Laplacian
+            addscale(weight_curlcurl, imageX, temp2X, nxn, nyn, nzn);
+            addscale(weight_curlcurl, imageY, temp2Y, nxn, nyn, nzn);
+            addscale(weight_curlcurl, imageZ, temp2Z, nxn, nyn, nzn);
+        }
+    }
+    
+    //* multiply by factor
+    scale(imageX, c*th*dt*c*th*dt, nxn, nyn, nzn);
+    scale(imageY, c*th*dt*c*th*dt, nxn, nyn, nzn);
+    scale(imageZ, c*th*dt*c*th*dt, nxn, nyn, nzn);
 
-  // boundary condition: Xleft
-  if (vct->getXleft_neighbor() == MPI_PROC_NULL && bcEMfaceXleft == 0)  // perfect conductor
-    perfectConductorLeft(imageX, imageY, imageZ, vectX, vectY, vectZ, 0);
-  // boundary condition: Xright
-  if (vct->getXright_neighbor() == MPI_PROC_NULL && bcEMfaceXright == 0)  // perfect conductor
-    perfectConductorRight(imageX, imageY, imageZ, vectX, vectY, vectZ, 0);
-  // boundary condition: Yleft
-  if (vct->getYleft_neighbor() == MPI_PROC_NULL && bcEMfaceYleft == 0)  // perfect conductor
-    perfectConductorLeft(imageX, imageY, imageZ, vectX, vectY, vectZ, 1);
-  // boundary condition: Yright
-  if (vct->getYright_neighbor() == MPI_PROC_NULL && bcEMfaceYright == 0)  // perfect conductor
-    perfectConductorRight(imageX, imageY, imageZ, vectX, vectY, vectZ, 1);
-  // boundary condition: Zleft
-  if (vct->getZleft_neighbor() == MPI_PROC_NULL && bcEMfaceZleft == 0)  // perfect conductor
-    perfectConductorLeft(imageX, imageY, imageZ, vectX, vectY, vectZ, 2);
-  // boundary condition: Zright
-  if (vct->getZright_neighbor() == MPI_PROC_NULL && bcEMfaceZright == 0)  // perfect conductor
-    perfectConductorRight(imageX, imageY, imageZ, vectX, vectY, vectZ, 2);
+    addscale(1, imageX, vectX, nxn, nyn, nzn);
+    addscale(1, imageY, vectY, nxn, nyn, nzn);
+    addscale(1, imageZ, vectZ, nxn, nyn, nzn);
 
-  // OpenBC
-  OpenBoundaryInflowEImage(imageX, imageY, imageZ, vectX, vectY, vectZ, nxn, nyn, nzn);
+    //TODO: To be implemented later -- PJD
+    // if (col->getEnergyConservingSmoothing())
+    //     applySmoothing(vectX,vectY,vectZ, nxn, nyn, nzn, vct, col);
 
-  // move from physical space to krylov space
-  phys2solver(im, imageX, imageY, imageZ, nxn, nyn, nzn);
+    if (col->getExactMM()) 
+    {
+        if (vct->getCartesian_rank() == 0)
+            cout << "*** M.E from exact mass matrix ***" << endl;
 
+        for (int i=1; i<nxn-1; i++) 
+            for (int j=1; j<nyn-1; j++) 
+                for (int k=1; k<nzn-1; k++) 
+                {
+                    double MEx, MEy, MEz;
+                    
+                    mass_matrix_times_vector(&MEx, &MEy, &MEz, vectX, vectY, vectZ, i, j, k);
+                    
+                    temp2X.fetch(i, j, k) = dt*th*FourPI*MEx;
+                    temp2Y.fetch(i, j, k) = dt*th*FourPI*MEy;
+                    temp2Z.fetch(i, j, k) = dt*th*FourPI*MEz;
+                }
 
+        communicateNodeBC(nxn, nyn, nzn, temp2X, 2, 2, 2, 2, 2, 2, vct, this);
+        communicateNodeBC(nxn, nyn, nzn, temp2Y, 2, 2, 2, 2, 2, 2, vct, this);
+        communicateNodeBC(nxn, nyn, nzn, temp2Z, 2, 2, 2, 2, 2, 2, vct, this);
+
+        //TODO: Energy conserving smoothing: To be implemented -- PJD
+        // applySmoothing(temp2X,temp2Y,temp2Z, nxn, nyn, nzn, vct, col);
+
+        for (int i=1; i<nxn-1; i++)
+            for (int j=1; j<nyn-1; j++)
+                for (int k=1; k<nzn-1; k++) 
+                {
+                    double invV = grid->getInvVOL(i, j, k);
+                    temp2X.fetch(i, j, k) *= invV;
+                    temp2Y.fetch(i, j, k) *= invV;
+                    temp2Z.fetch(i, j, k) *= invV;
+                }
+
+        addscale(1.0, imageX, temp2X, nxn, nyn, nzn);
+        addscale(1.0, imageY, temp2Y, nxn, nyn, nzn);
+        addscale(1.0, imageZ, temp2Z, nxn, nyn, nzn);
+
+        if (col->getRemoveDivE() == "ipic") 
+        {
+            grid->divN2C(tempC, temp2X, temp2Y, temp2Z);
+            communicateCenterBC(nxc, nyc, nzc, tempC, 1, 1, 1, 1, 1, 1, vct, this);
+            grid->gradC2N(temp2X, temp2Y, temp2Z, tempC);
+
+            //* Add dt*th*FourPI*grad(div(M*E))
+            double factor = -c*th*dt*c*th*dt*(1.0 - weight_curlcurl);
+            addscale(factor, imageX, temp2X, nxn, nyn, nzn);
+            addscale(factor, imageY, temp2Y, nxn, nyn, nzn);
+            addscale(factor, imageZ, temp2Z, nxn, nyn, nzn);
+        }
+    }
+    else 
+    {
+        if (vct->getCartesian_rank() == 0)
+            cout << "*** M.E from approximate mass matrix ***" << endl;
+
+        //? Add mass matrix applied to E but using the poor man approximation
+        MUdot_mass_matrix(temp3X, temp3Y, temp3Z, temp2X, temp2Y, temp2Z, vectX, vectY, vectZ, grid);
+        
+        addscale(1.0, imageX, temp3X, nxn, nyn, nzn);
+        addscale(1.0, imageY, temp3Y, nxn, nyn, nzn);
+        addscale(1.0, imageZ, temp3Z, nxn, nyn, nzn);
+    }
+
+    //TODO: What is this? Ask Fabio -- To be implemented -- PJD
+    // fixBC_Image(vct, imageX, imageY, imageZ, vectX, vectY, vectZ);
+    // if (col->getCase() == "Dipole")
+    //   fixBC_PlanetImage (vct, col, grid, imageX, imageY, imageZ, vectX, vectY, vectZ);
+
+    //? Move from physical space to Krylov space
+    phys2solver(im, imageX, imageY, imageZ, nxn, nyn, nzn);
 }
 
 //* Calculate PI dot (vectX, vectY, vectZ) -- Not needed for ECSim *//
@@ -2721,9 +2782,9 @@ void EMfields3D::MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_
                         for (int iy = -1; iy < 2; iy++)
                             for (int iz = -1; iz < 2; iz++) 
                             {
-                                MUdotX.fetch(i,j,k) += tempX.fetch(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
-                                MUdotY.fetch(i,j,k) += tempY.fetch(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
-                                MUdotZ.fetch(i,j,k) += tempZ.fetch(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+                                MUdotX.fetch(i,j,k) += tempX.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+                                MUdotY.fetch(i,j,k) += tempY.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+                                MUdotZ.fetch(i,j,k) += tempZ.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
                             }
     }
 }
@@ -2732,51 +2793,59 @@ void EMfields3D::MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_
 /* Interpolation smoothing: Smoothing (vector must already have ghost cells) TO MAKE SMOOTH value as to be different from 1.0 type = 0 --> center based vector ; type = 1 --> node based vector ; */
 void EMfields3D::smooth(arr3_double vector, int type)
 {
-  if(Smooth==1.0) return;
-  const VirtualTopology3D *vct = &get_vct();
-  const Grid *grid = &get_grid();
+    //? No smoothing
+    if(Smooth == 1.0) return;
+    
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
 
-  double alpha   = Smooth;
-  double beta3D  = (1-alpha)/6.0;
-  double beta2D  = (1-alpha)/4.0;
-  int nx, ny, nz;
-  switch (type) {
-  	  case (0):
-			   nx = grid->getNXC();
-			   ny = grid->getNYC();
-			   nz = grid->getNZC();
-			   break;
-  	  case (1):
-			   nx = grid->getNXN();
-			   ny = grid->getNYN();
-			   nz = grid->getNZN();
-			   break;
-  }
-  double ***temp = newArr3(double, nx, ny, nz);
-  for (int icount = 1; icount < SmoothNiter + 1; icount++) {
-      switch (type) {
+    double alpha   = Smooth;
+    double beta3D  = (1-alpha)/6.0;
+    double beta2D  = (1-alpha)/4.0;
+    int nx, ny, nz;
+
+    switch (type) 
+    {
         case (0):
-          communicateCenterBoxStencilBC_P(nx, ny, nz, vector, 2, 2, 2, 2, 2, 2, vct, this);
-          break;
+            nx = grid->getNXC();
+            ny = grid->getNYC();
+            nz = grid->getNZC();
+            break;
         case (1):
-          communicateNodeBoxStencilBC_P(nx, ny, nz, vector, 2, 2, 2, 2, 2, 2, vct, this);
-          break;
-      }
+            nx = grid->getNXN();
+            ny = grid->getNYN();
+            nz = grid->getNZN();
+            break;
+    }
 
-      for (int i = 1; i < nx - 1; i++)
-        for (int j = 1; j < ny - 1; j++)
-          for (int k = 1; k < nz - 1; k++)
-            temp[i][j][k] = alpha * vector[i][j][k] + beta3D * (vector[i - 1][j][k] + vector[i + 1][j][k] + vector[i][j - 1][k] + vector[i][j + 1][k] + vector[i][j][k - 1] + vector[i][j][k + 1]);
-          //temp[i][j][k] = alpha * vector[i][j][k] + beta2D * (vector[i - 1][j][k] + vector[i + 1][j][k] + vector[i][j][k - 1] + vector[i][j][k + 1]);//2D smooth in XZ dimension
-          //temp[i][j][k] = alpha * vector[i][j][k] + beta2D * (vector[i - 1][j][k] + vector[i + 1][j][k] + vector[i][j-1][k] + vector[i][j+1][k]);//2D smooth in XY dimension
+    double ***temp = newArr3(double, nx, ny, nz);
 
-      for (int i = 1; i < nx - 1; i++)
-        for (int j = 1; j < ny - 1; j++)
-          for (int k = 1; k < nz - 1; k++)
-            vector[i][j][k] = temp[i][j][k];
+    for (int icount = 1; icount < SmoothNiter + 1; icount++) 
+    {
+        switch (type) 
+        {
+            case (0):
+                communicateCenterBoxStencilBC_P(nx, ny, nz, vector, 2, 2, 2, 2, 2, 2, vct, this);
+                break;
+            case (1):
+                communicateNodeBoxStencilBC_P(nx, ny, nz, vector, 2, 2, 2, 2, 2, 2, vct, this);
+                break;
+        }
 
-  }
-  delArr3(temp, nx, ny);
+        for (int i = 1; i < nx - 1; i++)
+            for (int j = 1; j < ny - 1; j++)
+                for (int k = 1; k < nz - 1; k++)
+                    temp[i][j][k] = alpha * vector[i][j][k] + beta3D * (vector[i - 1][j][k] + vector[i + 1][j][k] + vector[i][j - 1][k] + vector[i][j + 1][k] + vector[i][j][k - 1] + vector[i][j][k + 1]);
+                    //temp[i][j][k] = alpha * vector[i][j][k] + beta2D * (vector[i - 1][j][k] + vector[i + 1][j][k] + vector[i][j][k - 1] + vector[i][j][k + 1]);//2D smooth in XZ dimension
+                    //temp[i][j][k] = alpha * vector[i][j][k] + beta2D * (vector[i - 1][j][k] + vector[i + 1][j][k] + vector[i][j-1][k] + vector[i][j+1][k]);//2D smooth in XY dimension
+
+        for (int i = 1; i < nx - 1; i++)
+            for (int j = 1; j < ny - 1; j++)
+                for (int k = 1; k < nz - 1; k++)
+                vector[i][j][k] = temp[i][j][k];
+    }
+
+    delArr3(temp, nx, ny);
 }
 
 /* Interpolation smoothing: Smoothing (vector must already have ghost cells)
@@ -2844,7 +2913,106 @@ void EMfields3D::smoothE()
 /* SPECIES: Interpolation smoothing TO MAKE SMOOTH value as to be different from 1.0 type = 0 --> center based vector type = 1 --> node based vector */
 void EMfields3D::smooth(double value, arr4_double vector, int is, int type)
 {
-  eprintf("Smoothing for Species not implemented in 3D");
+    eprintf("Smoothing for Species not implemented in 3D");
+}
+
+void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz, int dir, double smooth);
+{
+    const Collective *col = &get_col();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
+
+    //? Initialise temporary arrays with zeros
+    eqValue(0.0, tempX, nxn, nyn, nzn);
+    
+    int bc[6];
+
+    if (dir == 0)      
+        for (int i=0; i<6; i++) 
+            bc[i] = col->bcEx[i];
+    else if (dir == 1) 
+        for (int i=0; i<6; i++) 
+            bc[i] = col->bcEy[i];
+    else if (dir == 2) 
+        for (int i=0; i<6; i++) 
+            bc[i] = col->bcEz[i];
+
+    if (smooth != 1.0)
+    {    
+        //TODO: What is Nvolte? -- PJD
+        for (int icount = 1; icount < Nvolte + 1; icount++) 
+        {
+            // double alpha;
+            communicateNodeBoxStencilBC(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
+
+            if (col->getNdim() == 1) 
+            {   
+                //* 1D: smoothing only in the x 
+                double alpha = (1.0 - smooth) / 2;
+                
+                //TODO: iteration variables are different: nx. ny, nz or nxn, nyn, nzn? - Ask Fabio
+                for (int i = 1; i < nx - 1; i++)
+                    for (int j = 1; j < ny - 1; j++)
+                        for (int k = 1; k < nzn - 1; k++)
+                            tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k));
+
+                for (int i = 1; i < nxn - 1; i++)
+                    for (int j = 1; j < nyn - 1; j++)
+                        for (int k = 1; k < nzn - 1; k++)
+                            data.fetch(i, j, k) = tempX.get(i, 0, 0);
+            } 
+            else if (col->getNdim() == 2) 
+            { 
+                //* 2D: smoothing only in x and y
+                double alpha = (1.0 - smooth) / 4;
+                
+                for (int i = 1; i < nx - 1; i++)
+                    for (int j = 1; j < ny - 1; j++)
+                        for (int k = 1; k < nzn - 1; k++)
+                            tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
+                                                                                       + data.get(i, j - 1, k) + data.get(i, j + 1, k));
+                
+                for (int i = 1; i < nxn - 1; i++)
+                    for (int j = 1; j < nyn - 1; j++)
+                        for (int k = 1; k < nzn - 1; k++)
+                            data.fetch(i, j, k) = tempX.get(i, j, 0);
+            } 
+            else 
+            { 
+                //* 3D: smoothing only in x and y
+                //TODO: X, Y, & Z - Ask Fabio
+                double alpha = (1.0 - smooth) / 6;
+
+                for (int i = 1; i < nx - 1; i++)
+                    for (int j = 1; j < ny - 1; j++)
+                        for (int k = 1; k < nz - 1; k++) 
+                            tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
+                                                                                       + data.get(i, j - 1, k) + data.get(i, j + 1, k)
+                                                                                       + data.get(i, j, k - 1) + data.get(i, j, k + 1));
+                
+                for (int i = 1; i < nxn - 1; i++)
+                    for (int j = 1; j < nyn - 1; j++)
+                        for (int k = 1; k < nzn - 1; k++)
+                            data.fetch(i, j, k) = tempX.get(i, j, k);
+            }
+        }
+    }
+}
+
+void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, arr3_double data_Z, int nx, int ny, int nz);
+{
+    int current_cycle = col->getCurrent_cycle();
+    int smooth_cycle = col->getSmoothCycle();
+    double smooth = col->getSmooth();
+
+    //! Directional smoothing is not yet implemented
+    if (smooth_cycle > 0 and current_cycle % smooth_cycle == 0) 
+    {
+        //* Default: average with all the neighbours (6 neighbours in 3D, 4 in 2D and 2 in 1D)
+        applySmoothing(data_X, nx, ny, nz, 0, smooth);
+        applySmoothing(data_Y, nx, ny, nz, 1, smooth);
+        applySmoothing(data_Z, nx, ny, nz, 2, smooth);
+    }
 }
 
 /*! fix the B boundary when running gem , This assume non-periodic condition on Y dimension*/
@@ -3311,7 +3479,7 @@ void EMfields3D::calculateB()
 
     // TODO: Is this needed? Figure out! - PJD
     bool fare;
-    // fare = col->getCurlCurl();
+    fare = col->getCurlCurl();
     fare = false;
 
     //? Update magnetic field

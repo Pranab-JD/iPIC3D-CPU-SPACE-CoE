@@ -37,161 +37,176 @@
 // order must agree with Enum in Collective.h
 static const char *enumNames[] =
 {
-  "default",
-  "initial",
-  "final",
-  // used by ImplSusceptMode
-  "explPredict",
-  "implPredict",
-  // marker for last enumerated symbol of this class
-  "NUMBER_OF_ENUMS",
-  "INVALID_ENUM"
+    "default",
+    "initial",
+    "final",
+    // used by ImplSusceptMode
+    "explPredict",
+    "implPredict",
+    // marker for last enumerated symbol of this class
+    "NUMBER_OF_ENUMS",
+    "INVALID_ENUM"
 };
 
-int Collective::read_enum_parameter(const char* option_name, const char* default_value,
-  const ConfigFile& config)
+int Collective::read_enum_parameter(const char* option_name, const char* default_value, const ConfigFile& config)
 {
-  string enum_name = config.read < string >(option_name,default_value);
-  // search the list (could use std::map)
-  //
-  for(int i=0;i<NUMBER_OF_ENUMS;i++)
-  {
-    if(!strcmp(enum_name.c_str(),enumNames[i]))
-      return i;
-  }
-  // could not find enum, so issue error and quit.
-  if(!MPIdata::get_rank())
-  {
-    eprintf("in input file %s there is an invalid option %s\n",
-      inputfile.c_str(), enum_name.c_str());
-  }
-  MPIdata::exit(1);
-  // this is a better way
-  return INVALID_ENUM;
+    string enum_name = config.read < string >(option_name,default_value);
+    
+    // search the list (could use std::map)
+    for(int i=0;i<NUMBER_OF_ENUMS;i++)
+    {
+        if(!strcmp(enum_name.c_str(),enumNames[i]))
+        return i;
+    }
+
+    // could not find enum, so issue error and quit.
+    if(!MPIdata::get_rank())
+    {
+        eprintf("in input file %s there is an invalid option %s\n",
+        inputfile.c_str(), enum_name.c_str());
+    }
+
+    MPIdata::exit(1);
+
+    // this is a better way
+    return INVALID_ENUM;
 }
 
 const char* Collective::get_name_of_enum(int in)
 {
-  assert_ge(in, 0);
-  assert_lt(in, NUMBER_OF_ENUMS);
-  return enumNames[in];
+    assert_ge(in, 0);
+    assert_lt(in, NUMBER_OF_ENUMS);
+    return enumNames[in];
 }
 
 /*! Read the input file from text file and put the data in a collective wrapper: if it's a restart read from input file basic sim data and load particles and EM field from restart file */
-void Collective::ReadInput(string inputfile) {
-  using namespace std;
-  int test_verbose;
-  // Loading the input file 
-  ConfigFile config(inputfile);
-  // the following variables are ALWAYS taken from inputfile, even if restarting 
-  {
-
-#ifdef BATSRUS
-    if(RESTART1)
+void Collective::ReadInput(string inputfile) 
+{
+    using namespace std;
+    int test_verbose;
+    // Loading the input file 
+    ConfigFile config(inputfile);
+    // the following variables are ALWAYS taken from inputfile, even if restarting 
     {
-      cout<<" The fluid interface can not handle RESTART yet, aborting!\n"<<flush;
-      abort();
+
+        #ifdef BATSRUS
+            if(RESTART1)
+            {
+                cout<<" The fluid interface can not handle RESTART yet, aborting!\n"<<flush;
+                abort();
+            }
+        #endif
+
+        dt      = config.read<double>    ("dt");
+        ncycles = config.read<int>       ("ncycles");
+        th      = config.read<double>    ("th", 1.0);
+
+        Smooth          = config.read<double>    ("Smooth",1.0);
+        SmoothNiter     = config.read<int>       ("SmoothNiter",6);
+
+        SaveDirName     = config.read<string>    ("SaveDirName","data");
+        RestartDirName  = config.read<string>    ("RestartDirName","data");
+        ns              = config.read<int>       ("ns");
+        nstestpart      = config.read<int>       ("nsTestPart", 0);
+        NpMaxNpRatio    = config.read<double>    ("NpMaxNpRatio",1.5);
+        assert_ge(NpMaxNpRatio, 1.);
+
+        // mode parameters for second order in time
+        PushWithBatTime = config.read<double>    ("PushWithBatTime",0);
+        PushWithEatTime = config.read<double>    ("PushWithEatTime",1);
+        ImplSusceptTime = config.read<double>    ("ImplSusceptTime",0);
+        ImplSusceptMode = read_enum_parameter("ImplSusceptMode", "initial",config);
+        
+        switch(ImplSusceptMode)
+        {
+            // values not yet supported:
+            case explPredict:
+            case implPredict:
+            default:
+                unsupported_value_error(ImplSusceptMode);
+            // supported values:
+            case initial:
+                ;
+        }
+        
+        // GEM Challenge 
+        B0x = config.read<double>("B0x",0.0);
+        B0y = config.read<double>("B0y",0.0);
+        B0z = config.read<double>("B0z",0.0);
+
+        // Earth parameters
+        B1x = 0.0;
+        B1y = 0.0;
+        B1z = 0.0;
+        B1x = config.read<double>("B1x",0.0);
+        B1y = config.read<double>("B1y",0.0);
+        B1z = config.read<double>("B1z",0.0);
+
+        delta = config.read < double >("delta",0.5);
+
+        Case              = config.read<string>("Case");
+        wmethod           = config.read<string>("WriteMethod");
+        SimName           = config.read<string>("SimulationName");
+        
+        PoissonCorrection       = config.read<string>   ("PoissonCorrection");
+        PoissonCorrectionCycle  = config.read<int>      ("PoissonCorrectionCycle",10);
+        
+        RemoveDivE                  = config.read<string>("RemoveDivE","no");
+        AddExternalCurlB            = config.read<bool>  ("AddExternalCurlB",false);
+        AddExternalCurlE            = config.read<bool>  ("AddExternalCurlE",false);
+        EnergyConservingSmoothing   = config.read<bool>  ("EnergyConservingSmoothing",false);
+        LangdonCorrection           = config.read<double>("LangdonCorrection", 0);
+        CurlCurl                    = config.read<bool>  ("CurlCurl",false);
+        ExactMM                     = config.read<bool>  ("ExactMM",true);
+
+        rhoINIT = std::make_unique<double[]>(ns);
+        array_double rhoINIT0 = config.read < array_double > ("rhoINIT");
+        rhoINIT[0] = rhoINIT0.a;
+        if (ns > 1)
+        rhoINIT[1] = rhoINIT0.b;
+        if (ns > 2)
+        rhoINIT[2] = rhoINIT0.c;
+        if (ns > 3)
+        rhoINIT[3] = rhoINIT0.d;
+        if (ns > 4)
+        rhoINIT[4] = rhoINIT0.e;
+        if (ns > 5)
+        rhoINIT[5] = rhoINIT0.f;
+
+        rhoINJECT =std::make_unique<double[]>(ns);
+        array_double rhoINJECT0 = config.read<array_double>( "rhoINJECT" );
+        rhoINJECT[0]=rhoINJECT0.a;
+        if (ns > 1)
+        rhoINJECT[1]=rhoINJECT0.b;
+        if (ns > 2)
+        rhoINJECT[2]=rhoINJECT0.c;
+        if (ns > 3)
+        rhoINJECT[3]=rhoINJECT0.d;
+        if (ns > 4)
+        rhoINJECT[4]=rhoINJECT0.e;
+        if (ns > 5)
+        rhoINJECT[5]=rhoINJECT0.f;
+
+        // take the tolerance of the solvers
+        CGtol = config.read < double >("CGtol",1e-3);
+        GMREStol = config.read < double >("GMREStol",1e-3);
+        NiterMover = config.read < int >("NiterMover",3);
+        // take the injection of the particless
+        Vinj = config.read < double >("Vinj",0.0);
+
+        // take the output cycles
+        FieldOutputCycle = config.read < int >("FieldOutputCycle",100);
+        ParticlesOutputCycle = config.read < int >("ParticlesOutputCycle",0);
+        FieldOutputTag     =   config.read <string>("FieldOutputTag","");
+        ParticlesOutputTag =   config.read <string>("ParticlesOutputTag","");
+        MomentsOutputTag   =   config.read <string>("MomentsOutputTag","");
+        TestParticlesOutputCycle = config.read < int >("TestPartOutputCycle",0);
+        testPartFlushCycle = config.read < int >("TestParticlesOutputCycle",10);
+        RestartOutputCycle = config.read < int >("RestartOutputCycle",5000);
+        DiagnosticsOutputCycle = config.read < int >("DiagnosticsOutputCycle", FieldOutputCycle);
+        ParaviewScriptPath     =   config.read <string>("ParaviewScriptPath", "");
+        CallFinalize = config.read < bool >("CallFinalize", true);
     }
-#endif
-
-    dt = config.read < double >("dt");
-    ncycles = config.read < int >("ncycles");
-    th = config.read < double >("th",1.0);
-
-    Smooth = config.read < double >("Smooth",1.0);
-    SmoothNiter = config.read < int >("SmoothNiter",6);
-
-    SaveDirName = config.read < string > ("SaveDirName","data");
-    RestartDirName = config.read < string > ("RestartDirName","data");
-    ns = config.read < int >("ns");
-    nstestpart = config.read < int >("nsTestPart", 0);
-    NpMaxNpRatio = config.read < double >("NpMaxNpRatio",1.5);
-    assert_ge(NpMaxNpRatio, 1.);
-    // mode parameters for second order in time
-    PushWithBatTime = config.read < double >("PushWithBatTime",0);
-    PushWithEatTime = config.read < double >("PushWithEatTime",1);
-    ImplSusceptTime = config.read < double >("ImplSusceptTime",0);
-    ImplSusceptMode = read_enum_parameter("ImplSusceptMode", "initial",config);
-    switch(ImplSusceptMode)
-    {
-      // values not yet supported:
-      case explPredict:
-      case implPredict:
-      default:
-        unsupported_value_error(ImplSusceptMode);
-      // supported values:
-      case initial:
-        ;
-    }
-    // GEM Challenge 
-    B0x = config.read <double>("B0x",0.0);
-    B0y = config.read <double>("B0y",0.0);
-    B0z = config.read <double>("B0z",0.0);
-
-    // Earth parameters
-    B1x = 0.0;
-    B1y = 0.0;
-    B1z = 0.0;
-    B1x = config.read <double>("B1x",0.0);
-    B1y = config.read <double>("B1y",0.0);
-    B1z = config.read <double>("B1z",0.0);
-
-    delta = config.read < double >("delta",0.5);
-
-    Case              = config.read<string>("Case");
-    wmethod           = config.read<string>("WriteMethod");
-    SimName           = config.read<string>("SimulationName");
-    PoissonCorrection = config.read<string>("PoissonCorrection");
-    PoissonCorrectionCycle = config.read<int>("PoissonCorrectionCycle",10);
-
-    rhoINIT = std::make_unique<double[]>(ns);
-    array_double rhoINIT0 = config.read < array_double > ("rhoINIT");
-    rhoINIT[0] = rhoINIT0.a;
-    if (ns > 1)
-      rhoINIT[1] = rhoINIT0.b;
-    if (ns > 2)
-      rhoINIT[2] = rhoINIT0.c;
-    if (ns > 3)
-      rhoINIT[3] = rhoINIT0.d;
-    if (ns > 4)
-      rhoINIT[4] = rhoINIT0.e;
-    if (ns > 5)
-      rhoINIT[5] = rhoINIT0.f;
-
-    rhoINJECT =std::make_unique<double[]>(ns);
-    array_double rhoINJECT0 = config.read<array_double>( "rhoINJECT" );
-    rhoINJECT[0]=rhoINJECT0.a;
-    if (ns > 1)
-      rhoINJECT[1]=rhoINJECT0.b;
-    if (ns > 2)
-      rhoINJECT[2]=rhoINJECT0.c;
-    if (ns > 3)
-      rhoINJECT[3]=rhoINJECT0.d;
-    if (ns > 4)
-      rhoINJECT[4]=rhoINJECT0.e;
-    if (ns > 5)
-      rhoINJECT[5]=rhoINJECT0.f;
-
-    // take the tolerance of the solvers
-    CGtol = config.read < double >("CGtol",1e-3);
-    GMREStol = config.read < double >("GMREStol",1e-3);
-    NiterMover = config.read < int >("NiterMover",3);
-    // take the injection of the particless
-    Vinj = config.read < double >("Vinj",0.0);
-
-    // take the output cycles
-    FieldOutputCycle = config.read < int >("FieldOutputCycle",100);
-    ParticlesOutputCycle = config.read < int >("ParticlesOutputCycle",0);
-    FieldOutputTag     =   config.read <string>("FieldOutputTag","");
-    ParticlesOutputTag =   config.read <string>("ParticlesOutputTag","");
-    MomentsOutputTag   =   config.read <string>("MomentsOutputTag","");
-    TestParticlesOutputCycle = config.read < int >("TestPartOutputCycle",0);
-    testPartFlushCycle = config.read < int >("TestParticlesOutputCycle",10);
-    RestartOutputCycle = config.read < int >("RestartOutputCycle",5000);
-    DiagnosticsOutputCycle = config.read < int >("DiagnosticsOutputCycle", FieldOutputCycle);
-    ParaviewScriptPath     =   config.read <string>("ParaviewScriptPath", "");
-    CallFinalize = config.read < bool >("CallFinalize", true);
-  }
 
   //read everything from input file, if restart is true, overwrite the setting - bug fixing
 
