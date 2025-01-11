@@ -111,9 +111,10 @@ class Collective
     double getPushWithBatTime()const{ return PushWithBatTime; }
     double getPushWithEatTime()const{ return PushWithEatTime; }
     double getImplSusceptTime()const{ return ImplSusceptTime; }
-    int getImplSusceptMode()const{ return ImplSusceptMode; }
     double getSmooth()const{ return (Smooth); }
-    int    getSmoothNiter()const{return SmoothNiter;}
+    int getImplSusceptMode()const{ return ImplSusceptMode; }
+    int getSmoothNiter()const{ return SmoothNiter; }
+    int getNvolte()const{ return (Nvolte); }
     int getNcycles()const{ return (ncycles); }
     int getNs()const{ return (ns); }
     int getNsTestPart()const{ return (nstestpart); }
@@ -234,6 +235,7 @@ class Collective
     /*! Smoothing value */
     double Smooth;
     int SmoothNiter;
+    int Nvolte;
     /*! number of time cycles */
     int ncycles;
     /*! physical space dimensions */

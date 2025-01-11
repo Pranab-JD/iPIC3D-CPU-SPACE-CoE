@@ -259,6 +259,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     delta = col->getDelta();
     Smooth = col->getSmooth();
     SmoothNiter = col->getSmoothNiter();
+    Nvolte = col->getNvolte();
     
     rhoINIT = new double[ns];               //* Background density (GEM)
     DriftSpecies = new bool[ns];
@@ -2156,8 +2157,8 @@ void EMfields3D::calculateE(int cycle)
   
     // Adjust E calculating laplacian(PHI) = div(E) -4*PI*rho DIVERGENCE CLEANING
     // correct the e field regularly, to fulfill the Gussian law 
-    //TODO: check for ECSim (later)
-    if (PoissonCorrection &&  cycle%PoissonCorrectionCycle == 0) 
+    //TODO: Check if this is needed for ECSim; Ask Fabio
+    if (PoissonCorrection && cycle%PoissonCorrectionCycle == 0) 
     {
         double *xkrylovPoisson = new double[(nxc - 2) * (nyc - 2) * (nzc - 2)];
         double *bkrylovPoisson = new double[(nxc - 2) * (nyc - 2) * (nzc - 2)];
@@ -2203,18 +2204,14 @@ void EMfields3D::calculateE(int cycle)
     solver2phys(Exth, Eyth, Ezth, xkrylov, nxn, nyn, nzn);
 
     //? Communicate E theta so the interpolation can have good values
-    communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Ezth, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0], col->bcEy[1], col->bcEy[2], col->bcEy[3], col->bcEy[4], col->bcEy[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Ezth, col->bcEz[0], col->bcEz[1], col->bcEz[2], col->bcEz[3], col->bcEz[4], col->bcEz[5], vct, this);
 
     //* Scale the electric field values
-    addscale(1 / th, -(1.0 - th) / th, Ex, Exth, nxn, nyn, nzn);
-    addscale(1 / th, -(1.0 - th) / th, Ey, Eyth, nxn, nyn, nzn);
-    addscale(1 / th, -(1.0 - th) / th, Ez, Ezth, nxn, nyn, nzn);
-
-    // TODO: is this needed? Smoothng in called in calculateB in ECSim - PJD
-    // apply to smooth to electric field 3 times
-    // smoothE();
+    addscale(1/th, -(1.0 - th)/th, Ex, Exth, nxn, nyn, nzn);
+    addscale(1/th, -(1.0 - th)/th, Ey, Eyth, nxn, nyn, nzn);
+    addscale(1/th, -(1.0 - th)/th, Ez, Ezth, nxn, nyn, nzn);
 
     //? Communicate E
     communicateNodeBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
@@ -2222,8 +2219,9 @@ void EMfields3D::calculateE(int cycle)
     communicateNodeBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
 
     //? OpenBC Inflow: this needs to be integrate to Halo Exchange BC
-    OpenBoundaryInflowE(Exth, Eyth, Ezth, nxn, nyn, nzn);
-    OpenBoundaryInflowB(Ex, Ey, Ez, nxn, nyn, nzn);
+    //TODO: Is this implemented? Ask Andong/Stefano
+    // OpenBoundaryInflowE(Exth, Eyth, Ezth, nxn, nyn, nzn);
+    // OpenBoundaryInflowB(Ex, Ey, Ez, nxn, nyn, nzn);
 
     //* Deallocate temporary arrays
     delete[]xkrylov;
@@ -2248,9 +2246,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     eqValue(0.0, tempX, nxn, nyn, nzn);
     eqValue(0.0, tempY, nxn, nyn, nzn);
     eqValue(0.0, tempZ, nxn, nyn, nzn);
-    // eqValue(0.0, tempXN, nxn, nyn, nzn);
-    // eqValue(0.0, tempYN, nxn, nyn, nzn);
-    // eqValue(0.0, tempZN, nxn, nyn, nzn);
     eqValue(0.0, temp2X, nxn, nyn, nzn);
     eqValue(0.0, temp2Y, nxn, nyn, nzn);
     eqValue(0.0, temp2Z, nxn, nyn, nzn);
@@ -2290,9 +2285,8 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     communicateNodeBC(nxn, nyn, nzn, Jyh, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, Jzh, 2, 2, 2, 2, 2, 2, vct, this);
 
-    //* Energy Conserving Smoothing
-    // TODO: Implement this - PJD
-    // applySmoothing(Jxh, Jyh, Jzh, nxn, nyn, nzn, vct, col);
+    //* Energy-conserving smoothing
+    energy_conserve_smooth(Jxh, Jyh, Jzh, nxn, nyn, nzn);
 
     for (int i = 0; i < nxn - 0; i++)
         for (int j = 0; j<nyn - 0; j++) 
@@ -2328,17 +2322,9 @@ void EMfields3D::MaxwellSource(double *bkrylov)
         scale(tempC, (1.0 - weight_curlcurl)*FourPI*th*dt, nxc, nyc, nzc);
         addscale(-(1.0 - weight_curlcurl)*FourPI, tempC, rhoc, nxc, nyc, nzc);
 
-        //TODO: Where is getSmooth() defined in old iPIC3D?
-
-        //! Next step: Do this !//
-        // TODO: Implement applySmoothing_dir and applySmoothing!!
-        if (col->getSmoothType() == "directional")
-            applySmoothing_dir(tempC, nxc, nyc,  nzc, vct, col, -1,col->getSmooth());
-        else
-            applySmoothing(tempC, nxc, nyc,  nzc, vct, col, -1,col->getSmooth());
+        energy_conserve_smooth(tempC, nxc, nyc, nzc, -1, col->getSmooth());
         
-        communicateCenterBC(nxc, nyc, nzc, tempC, 1, 1, 1, 1, 1, 1, vct, this);
-        
+        communicateCenterBC(nxc, nyc, nzc, tempC, 1, 1, 1, 1, 1, 1, vct, this);        
         grid->gradC2N(temp2X, temp2Y, temp2Z, tempC);
         
         addscale(c*th*dt*c*th*dt, tempX, temp2X, nxn, nyn, nzn);
@@ -2363,18 +2349,18 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     }
 
     //* Poisson correction
-    if (col->getPoissonCorrection() == "yes" and PCnonzero == true) 
-    {
-        //* Compute gradient        
-        grid->gradC2N(temp2X, temp2Y, temp2Z, Phic);
+    // if (col->getPoissonCorrection() == "yes" and PCnonzero == true) 
+    // {
+    //     //* Compute gradient        
+    //     grid->gradC2N(temp2X, temp2Y, temp2Z, Phic);
         
-        //TODO: To be implemented (BC_E_Poisson) - PJD
-        BC_E_Poisson(vct, temp2X, temp2Y, temp2Z);
+    //     //TODO: To be implemented (BC_E_Poisson) - PJD
+    //     BC_E_Poisson(vct, temp2X, temp2Y, temp2Z);
         
-        addscale(-th, tempX, temp2X, nxn, nyn, nzn);  
-        addscale(-th, tempY, temp2Y, nxn, nyn, nzn);  
-        addscale(-th, tempZ, temp2Z, nxn, nyn, nzn);  
-    }
+    //     addscale(-th, tempX, temp2X, nxn, nyn, nzn);  
+    //     addscale(-th, tempY, temp2Y, nxn, nyn, nzn);  
+    //     addscale(-th, tempZ, temp2Z, nxn, nyn, nzn);  
+    // }
 
     //* Langdon correction (simpler alternative to divergence cleaning); A.B. Lagndon. CPC 70 447-450 (1992)
     if (col->getLangdonCorrection() != 0) 
@@ -2408,70 +2394,47 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     phys2solver(bkrylov, tempX, tempY, tempZ, nxn, nyn, nzn);
 }
 
-/*! Mapping of Maxwell image to give to solver */
+//*! Mapping of Maxwell image to give to solver !//
 //
-// In the field solver, there is one layer of ghost cells.  The
-// nodes on the ghost cells define two outer layers of nodes: the
-// outermost nodes are clearly in the interior of the neighboring
-// subdomain and can naturally be referred to as "ghost nodes",
-// but the second-outermost layer is on the boundary between
-// subdomains and thus does not clearly belong to any one process.
+// In the field solver, there is one layer of ghost cells. The nodes on the ghost cells define two outer layers of nodes: the
+// outermost nodes are clearly in the interior of the neighboring subdomain and can naturally be referred to as "ghost nodes",
+// but the second-outermost layer is on the boundary between subdomains and thus does not clearly belong to any one process.
 // Refer to these shared nodes as "boundary nodes".
 //
-// To compute the laplacian, we first compute the gradient
-// at the center of each cell by differencing the values at
-// the corners of the cell.  We then compute the laplacian
-// (i.e. the divergence of the gradient) at each node by
-// differencing the cell-center values in the cells sharing
-// the node.
+// To compute the laplacian, we first compute the gradient at the center of each cell by differencing the values at
+// the corners of the cell. We then compute the Laplacian (i.e. the divergence of the gradient) at each node by
+// differencing the cell-center values in the cells sharing the node. 
 //
-// The laplacian is required to be defined on all boundary
-// and interior nodes.  
+// The laplacian is required to be defined on all boundary and interior nodes.  
 // 
-// In the krylov solver, we make no attempt to use or to
-// update the (outer) ghost nodes, and we assume (presumably
-// correctly) that the boundary nodes are updated identically
-// by all processes that share them.  Therefore, we must
-// communicate gradient values in the ghost cells.  The
-// subsequent computation of the divergence requires that
+// In the krylov solver, we make no attempt to use or to update the (outer) ghost nodes, and we assume (presumably
+// correctly) that the boundary nodes are updated identically by all processes that share them. sTherefore, we must
+// communicate gradient values in the ghost cells. The subsequent computation of the divergence requires that
 // this boundary communication first complete.
 //
-// An alternative way would be to communicate outer ghost node
-// values after each update of Eth.  In this case, there would
-// be no need for the 10=3*3+1 boundary communications in the body
-// of MaxwellImage() entailed in the calls to lapN2N plus the
-// call needed prior to the call to gradC2N.  Of course,
-// we would then need to communicate the 3 components of the
-// electric field for the outer ghost nodes prior to each call
-// to MaxwellImage().  This second alternative would thus reduce
-// communication by over a factor of 3.  Essentially, we would
-// replace the cost of communicating cell-centered differences
+// An alternative way would be to communicate outer ghost node values after each update of Eth. In this case, there would
+// be no need for the 10=3*3+1 boundary communications in the body of MaxwellImage() entailed in the calls to lapN2N plus the
+// call needed prior to the call to gradC2N. Of course, we would then need to communicate the 3 components of the
+// electric field for the outer ghost nodes prior to each call to MaxwellImage().  This second alternative would thus reduce
+// communication by over a factor of 3. Essentially, we would replace the cost of communicating cell-centered differences
 // for ghost cell values with the cost of directly computing them.
 //
-// Also, while this second method does not increase the potential
-// to avoid exposing latency, it can make it easier to do so.
+// Also, while this second method does not increase the potential to avoid exposing latency, it can make it easier to do so.
 //
 // Another change that I would propose: define:
-//
 //   array4_double physical_vector(3,nxn,nyn,nzn);
 //   arr3_double vectX = physical_vector[0];
 //   arr3_double vectY = physical_vector[1];
 //   arr3_double vectZ = physical_vector[2];
 //   vector = &physical_vector[0][0][0][0];
 //
-// It is currently the case that boundary nodes are
-// duplicated in "vector" and therefore receive a weight
-// that is twice, four times, or eight times as much as
-// other nodes in the Krylov inner product.  The definitions
-// above would imply that ghost nodes also appear in the
-// inner product.  To avoid this issue, we could simply zero
-// ghost nodes before returning to the Krylov solver.  With
-// the definitions above, phys2solver() would simply zero
-// the ghost nodes and solver2phys() would populate them via
-// communication.  Note that it would also be possible, if
-// desired, to give duplicated nodes equal weight by
-// rescaling their values in these two methods.
-// 
+// It is currently the case that boundary nodes are duplicated in "vector" and therefore receive a weight
+// that is twice, four times, or eight times as much as other nodes in the Krylov inner product. The definitions
+// above would imply that ghost nodes also appear in the inner product. To avoid this issue, we could simply zero
+// ghost nodes before returning to the Krylov solver. With the definitions above, phys2solver() would simply zero
+// the ghost nodes and solver2phys() would populate them via communication. Note that it would also be possible, if
+// desired, to give duplicated nodes equal weight by rescaling their values in these two methods.
+
 void EMfields3D::MaxwellImage(double *im, double* vector)
 {
     const Collective *col = &get_col();
@@ -2716,7 +2679,7 @@ void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz,
     *MEz = resZ;
 }
 
-//TODO: Implement this correctly
+//TODO: Seems like this is not used (RhoImage, computeRhotilde, fixCharge)
 double EMfields3D::productMassEV(double ***vX, int i, int j, int k)
 {
     const Grid *grid = &get_grid();
@@ -3015,95 +2978,111 @@ void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, 
     }
 }
 
-/*! fix the B boundary when running gem , This assume non-periodic condition on Y dimension*/
+//? B boundary for GEM (cell centres) - this assumes non-periodic boundaries along Y ?//
 void EMfields3D::fixBcGEM()
 {
-  const VirtualTopology3D *vct = &get_vct();
-  const Grid *grid = &get_grid();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
 
-  if (vct->getYright_neighbor() == MPI_PROC_NULL) {
-    for (int i = 0; i < nxc; i++)
-      for (int k = 0; k < nzc; k++) {
-        Bxc[i][nyc - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
-        Bxc[i][nyc - 2][k] = Bxc[i][nyc - 1][k];
-        Bxc[i][nyc - 3][k] = Bxc[i][nyc - 1][k];
-        Byc[i][nyc - 1][k] = B0y;
-        Bzc[i][nyc - 1][k] = B0z;
-        Bzc[i][nyc - 2][k] = B0z;
-        Bzc[i][nyc - 3][k] = B0z;
-      }
-  }
-  if (vct->getYleft_neighbor() == MPI_PROC_NULL) {
-    for (int i = 0; i < nxc; i++)
-      for (int k = 0; k < nzc; k++) {
-        Bxc[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
-        Bxc[i][1][k] = Bxc[i][0][k];
-        Bxc[i][2][k] = Bxc[i][0][k];
-        Byc[i][0][k] = B0y;
-        Bzc[i][0][k] = B0z;
-        Bzc[i][1][k] = B0z;
-        Bzc[i][2][k] = B0z;
-      }
-  }
+    if (vct->getYright_neighbor() == MPI_PROC_NULL) 
+    {
+        for (int i = 0; i < nxc; i++)
+            for (int k = 0; k < nzc; k++) 
+            {
+                Bxc[i][nyc - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
+                Bxc[i][nyc - 2][k] = Bxc[i][nyc - 1][k];
+                Bxc[i][nyc - 3][k] = Bxc[i][nyc - 1][k];
+                Byc[i][nyc - 1][k] = B0y;
+                Bzc[i][nyc - 1][k] = B0z;
+                Bzc[i][nyc - 2][k] = B0z;
+                Bzc[i][nyc - 3][k] = B0z;
+            }
+    }
+    
+    if (vct->getYleft_neighbor() == MPI_PROC_NULL) 
+    {
+        for (int i = 0; i < nxc; i++)
+            for (int k = 0; k < nzc; k++) 
+            {
+                Bxc[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
+                Bxc[i][1][k] = Bxc[i][0][k];
+                Bxc[i][2][k] = Bxc[i][0][k];
+                Byc[i][0][k] = B0y;
+                Bzc[i][0][k] = B0z;
+                Bzc[i][1][k] = B0z;
+                Bzc[i][2][k] = B0z;
+            }
+    }
 }
 
+//? B boundary for GEM (nodes) - this assumes non-periodic boundaries along Y ?//
 void EMfields3D::fixBnGEM()
 {
-  const VirtualTopology3D *vct = &get_vct();
-  const Grid *grid = &get_grid();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
 
-  if (vct->getYright_neighbor() == MPI_PROC_NULL) {
-    for (int i = 0; i < nxn; i++)
-      for (int k = 0; k < nzn; k++) {
-        Bxn[i][nyn - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
-        Bxn[i][nyn - 2][k] = Bxn[i][nyn - 1][k];
-        Bxn[i][nyn - 3][k] = Bxn[i][nyn - 1][k];
-        Byn[i][nyn - 1][k] = B0y;
-        Bzn[i][nyn - 1][k] = B0z;
-        Bzn[i][nyn - 2][k] = B0z;
-        Bzn[i][nyn - 3][k] = B0z;
-      }
-  }
-  if (vct->getYleft_neighbor() == MPI_PROC_NULL) {
-    for (int i = 0; i < nxn; i++)
-      for (int k = 0; k < nzn; k++) {
-        Bxn[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
-        Bxn[i][1][k] = Bxn[i][0][k];
-        Bxn[i][2][k] = Bxn[i][0][k];
-        Byn[i][0][k] = B0y;
-        Bzn[i][0][k] = B0z;
-        Bzn[i][1][k] = B0z;
-        Bzn[i][2][k] = B0z;
-      }
-  }
+    if (vct->getYright_neighbor() == MPI_PROC_NULL) 
+    {
+        for (int i = 0; i < nxn; i++)
+            for (int k = 0; k < nzn; k++) 
+            {
+                Bxn[i][nyn - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
+                Bxn[i][nyn - 2][k] = Bxn[i][nyn - 1][k];
+                Bxn[i][nyn - 3][k] = Bxn[i][nyn - 1][k];
+                Byn[i][nyn - 1][k] = B0y;
+                Bzn[i][nyn - 1][k] = B0z;
+                Bzn[i][nyn - 2][k] = B0z;
+                Bzn[i][nyn - 3][k] = B0z;
+            }
+    }
+
+    if (vct->getYleft_neighbor() == MPI_PROC_NULL) 
+    {
+        for (int i = 0; i < nxn; i++)
+            for (int k = 0; k < nzn; k++) 
+            {
+                Bxn[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
+                Bxn[i][1][k] = Bxn[i][0][k];
+                Bxn[i][2][k] = Bxn[i][0][k];
+                Byn[i][0][k] = B0y;
+                Bzn[i][0][k] = B0z;
+                Bzn[i][1][k] = B0z;
+                Bzn[i][2][k] = B0z;
+            }
+    }
 }
 
-/*! fix the B boundary when running forcefree */
+//? B boundary for forcefree ?//
 void EMfields3D::fixBforcefree()
 {
-  const VirtualTopology3D *vct = &get_vct();
-  const Grid *grid = &get_grid();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
 
-  if (vct->getYright_neighbor() == MPI_PROC_NULL) {
-    for (int i = 0; i < nxc; i++)
-      for (int k = 0; k < nzc; k++) {
-        Bxc[i][nyc - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
-        Byc[i][nyc - 1][k] = B0y;
-        Bzc[i][nyc - 1][k] = B0z / cosh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);;
-        Bzc[i][nyc - 2][k] = B0z / cosh((grid->getYC(i, nyc - 2, k) - Ly / 2) / delta);;
-        Bzc[i][nyc - 3][k] = B0z / cosh((grid->getYC(i, nyc - 3, k) - Ly / 2) / delta);
-      }
-  }
-  if (vct->getYleft_neighbor() == MPI_PROC_NULL) {
-    for (int i = 0; i < nxc; i++)
-      for (int k = 0; k < nzc; k++) {
-        Bxc[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
-        Byc[i][0][k] = B0y;
-        Bzc[i][0][k] = B0z / cosh((grid->getYC(i, 0, k) - Ly / 2) / delta);
-        Bzc[i][1][k] = B0z / cosh((grid->getYC(i, 1, k) - Ly / 2) / delta);
-        Bzc[i][2][k] = B0z / cosh((grid->getYC(i, 2, k) - Ly / 2) / delta);
-      }
-  }
+    if (vct->getYright_neighbor() == MPI_PROC_NULL) 
+    {
+        for (int i = 0; i < nxc; i++)
+            for (int k = 0; k < nzc; k++) 
+            {
+                Bxc[i][nyc - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
+                Byc[i][nyc - 1][k] = B0y;
+                Bzc[i][nyc - 1][k] = B0z / cosh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);;
+                Bzc[i][nyc - 2][k] = B0z / cosh((grid->getYC(i, nyc - 2, k) - Ly / 2) / delta);;
+                Bzc[i][nyc - 3][k] = B0z / cosh((grid->getYC(i, nyc - 3, k) - Ly / 2) / delta);
+            }
+    }
+
+    if (vct->getYleft_neighbor() == MPI_PROC_NULL) 
+    {
+        for (int i = 0; i < nxc; i++)
+            for (int k = 0; k < nzc; k++) 
+            {
+                Bxc[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
+                Byc[i][0][k] = B0y;
+                Bzc[i][0][k] = B0z / cosh((grid->getYC(i, 0, k) - Ly / 2) / delta);
+                Bzc[i][1][k] = B0z / cosh((grid->getYC(i, 1, k) - Ly / 2) / delta);
+                Bzc[i][2][k] = B0z / cosh((grid->getYC(i, 2, k) - Ly / 2) / delta);
+            }
+    }
 }
 
 // This method assumes mirror boundary conditions;
@@ -3462,71 +3441,40 @@ void EMfields3D::calculateB()
     grid->curlN2C(tempXC, tempYC, tempZC, Exth, Eyth, Ezth);
 
     //? Compute curl of E_ext
-    //TODO: Is this needed? Not yet implemented? Figure out! - PJD
-    // if (col->getAddExternalCurlE()) 
-    // {
-    //     grid->curlN2C(tempXC2, tempYC2, tempZC2, Ex_ext, Ey_ext, Ez_ext);
-    // }
+    if (col->getAddExternalCurlE()) 
+        grid->curlN2C(tempXC2, tempYC2, tempZC2, Ex_ext, Ey_ext, Ez_ext);
 
-    //TODO: Figure out! - PJD
-    // Smoother that conserves energy
-    // applySmoothing(Exth,Eyth,Ezth, nxn, nyn, nzn, vct, col);
+    energy_conserve_smooth(Exth, Eyth, Ezth, nxn, nyn, nzn);
 
-    //? Communicate ghost cells -- nodes for electric field
-    communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Byn, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Ezth, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
 
-    // TODO: Is this needed? Figure out! - PJD
-    bool fare;
-    fare = col->getCurlCurl();
-    fare = false;
+    // TODO: To be implemented along with damping - PJD
+    // bool fare;
+    // fare = col->getCurlCurl();
+    // fare = false;
 
-    //? Update magnetic field
-    if (fare && damping == 1) 
+    //? Update magnetic field: Second order formulation
+    addscale(-c * dt, 1, Bxc, tempXC, nxc, nyc, nzc);
+    addscale(-c * dt, 1, Byc, tempYC, nxc, nyc, nzc);
+    addscale(-c * dt, 1, Bzc, tempZC, nxc, nyc, nzc);
+    
+    if (col->getAddExternalCurlE()) 
     {
-        //TODO: Figure out! - PJD
-        addscale(-c * dt, 1, -c, Bxc, tempXC, LambdaC, nxc, nyc, nzc);
-        addscale(-c * dt, 1, -c, Byc, tempYC, LambdaC, nxc, nyc, nzc);
-        addscale(-c * dt, 1, -c, Bzc, tempZC, LambdaC, nxc, nyc, nzc);
-    }
-    else
-    {   
-        //? Second order formulation
-        addscale(-c * dt, 1, Bxc, tempXC, nxc, nyc, nzc);
-        addscale(-c * dt, 1, Byc, tempYC, nxc, nyc, nzc);
-        addscale(-c * dt, 1, Bzc, tempZC, nxc, nyc, nzc);
-        
-        //TODO: Not yet implemented? - PJD
-        // if (col->getAddExternalCurlE()) 
-        // {
-        //     addscale(-c * dt, 1, Bxc, tempXC2, nxc, nyc, nzc);
-        //     addscale(-c * dt, 1, Byc, tempYC2, nxc, nyc, nzc);
-        //     addscale(-c * dt, 1, Bzc, tempZC2, nxc, nyc, nzc);
-        // }
+        addscale(-c * dt, 1, Bxc, tempXC2, nxc, nyc, nzc);
+        addscale(-c * dt, 1, Byc, tempYC2, nxc, nyc, nzc);
+        addscale(-c * dt, 1, Bzc, tempZC2, nxc, nyc, nzc);
     }
 
-    //? Communicate ghost cells -- centres formagnetic field
+    //? Communicate ghost cells -- centres for magnetic field
     communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
     communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
     communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
-    //? OpenBC
-    OpenBoundaryInflowB(Bxc,Byc,Bzc,nxc,nyc,nzc);
-
-    if (get_col().getCase()=="GEM")       		    fixBcGEM();
-    if (get_col().getCase()=="GEMnoPert") 		    fixBcGEM();
-    if (get_col().getCase()=="GEMDoubleHarris")     fixBcGEM();
-
-    //? Interpolate on nodes from cell centres
-    grid->interpC2N(Bxn, Bxc);
-    grid->interpC2N(Byn, Byc);
-    grid->interpC2N(Bzn, Bzc);
-
-    if (get_col().getCase()=="ForceFree") 		    fixBforcefree();
-    if (get_col().getCase()=="GEM")       		    fixBnGEM();
-    if (get_col().getCase()=="GEMnoPert") 		    fixBnGEM();
-    if (get_col().getCase()=="GEMDoubleHarris") 	fixBnGEM();
+    // TODO: Implement this
+    //? Boundary conditions for magnetic field
+    fixBC_B(vct, col);
 }
 
 /*! initialize EM field with transverse electric waves 1D and rotate anticlockwise (theta degrees) */

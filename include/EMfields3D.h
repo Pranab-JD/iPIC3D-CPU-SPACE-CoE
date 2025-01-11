@@ -33,13 +33,13 @@
 /*! Electromagnetic fields and sources defined for each local grid, and for an implicit maxwell's solver @date May 2008 @par Copyright: (C) 2008 KUL @author Stefano Markidis, Giovanni Lapenta. @version 3.0 */
 
 // dimension of vectors used in fieldForPcls
-const int DFIELD_3or4=4; // 4 pads with garbage but is needed for alignment
+const int DFIELD_3or4 = 4; // 4 pads with garbage but is needed for alignment
 
 class Particles3Dcomm;
 class Moments10;
 class EMfields3D                // :public Field
 {
-  public:
+public:
     /*! constructor */
     EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct);
     /*! destructor */
@@ -96,11 +96,23 @@ class EMfields3D                // :public Field
     void ConstantChargeOpenBCv2();
     /*! Calculate Magnetic field with the implicit solver: calculate B defined on nodes With E(n+ theta) computed, the magnetic field is evaluated from Faraday's law */
     void calculateB();
-    /*! fix B on the boundary for gem challange */
+
+    //? ---------- Boundary Conditions ---------- ?//
+    
+    //* B boundary for GEM (cell centres) - this assumes non-periodic boundaries along Y *//
     void fixBcGEM();
+    
+    //* B boundary for GEM (nodes) - this assumes non-periodic boundaries along Y *//
     void fixBnGEM();
-    /*! fix B on the boundary for gem challange */
+    
+    //* B boundary for forcefree *//
     void fixBforcefree();
+
+    //* Boundary conditions for magnetic field *//
+    void fixBC_B();
+
+    //? ----------------------------------------- ?//
+
     /*! Calculate rho hat, Jx hat, Jy hat, Jz hat */
     void calculateHatFunctions();
 
@@ -111,12 +123,12 @@ class EMfields3D                // :public Field
     void MUdot(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ);
     
     //* Calculate the three components of mu (implicit permeattivity) cross image vector using mass matrix *//
-    void MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, arr3_double tempX, arr3_double tempY, arr3_double tempZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
+    void MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, arr3_double tempX, arr3_double tempY, arr3_double tempZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ);
     
     //* Compute the product of mass matrix with vector "V = (Vx, Vy, Vz)"
-    void mass_matrix_times_vector(double* MEx, double* MEy, double* MEz, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int i, int j, int k)
+    void mass_matrix_times_vector(double* MEx, double* MEy, double* MEz, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int i, int j, int k);
 
-    //* Energy-Conserving smoothing
+    //* Energy-conserving smoothing
     void energy_conserve_smooth(arr3_double data, int nx, int ny, int nz, int dir, double smooth);
     void energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, arr3_double data_Z, int nx, int ny, int nz);
 
@@ -338,7 +350,6 @@ class EMfields3D                // :public Field
     /*! print electromagnetic fields info */
     void print(void) const;
     
-    
     //get MPI Derived Datatype
     MPI_Datatype getYZFacetype(bool isCenterFlag){return isCenterFlag ?yzFacetypeC : yzFacetypeN;}
     MPI_Datatype getXZFacetype(bool isCenterFlag){return isCenterFlag ?xzFacetypeC : xzFacetypeN;}
@@ -351,8 +362,6 @@ class EMfields3D                // :public Field
     MPI_Datatype getZEdgetype2(bool isCenterFlag){return  isCenterFlag ?zEdgetypeC2 : zEdgetypeN2;}
     MPI_Datatype getCornertype(bool isCenterFlag){return  isCenterFlag ?cornertypeC : cornertypeN;}
 
-
-
     MPI_Datatype getProcview(){return  procview;}
     MPI_Datatype getXYZeType(){return xyzcomp;}
     MPI_Datatype getProcviewXYZ(){return  procviewXYZ;}
@@ -361,17 +370,19 @@ class EMfields3D                // :public Field
     void freeDataType();
     bool isLittleEndian(){return lEndFlag;};
 
-  public: // accessors
+public: // accessors
     const Collective& get_col()const{return _col;}
     const Grid& get_grid()const{return _grid;};
     const VirtualTopology3D& get_vct()const{return _vct;}
-    /* ********************************* // VARIABLES ********************************* */
+
+    //* ********************************* VARIABLES ********************************* *//
     
-  private:
-    // access to global data
+private:
+    //? access to global data
     const Collective& _col;
     const Grid& _grid;
     const VirtualTopology3D&_vct;
+    
     /*! light speed */
     double c;
     /* 4*PI for normalization */
@@ -383,6 +394,8 @@ class EMfields3D                // :public Field
     /*! Smoothing value */
     double Smooth;
     int SmoothNiter;
+    int Nvolte;
+
     /*! delt = c*th*dt */
     double delt;
     /*! number of particles species */
@@ -624,17 +637,19 @@ class EMfields3D                // :public Field
     /*! RESTART BOOLEAN */
     int restart1;
 
-    /*! CG tolerance criterium for stopping iterations */
-    double CGtol;
-    /*! GMRES tolerance criterium for stopping iterations */
-    double GMREStol;
+    
+    double CGtol;                               //* CG tolerance criterium for stopping iterations
+    double GMREStol;                            //* GMRES tolerance criterium for stopping iterations
 
     //? Lambda damping
     int damping;
-
     bool PCnonzero;
 
-
+    double Fext;
+    double Fzro;
+    bool Fpext;
+    
+    double u_bulk, v_bulk, w_bulk;              //* Bulk velocity along X, Y, Z, respectively for the Lagrangian reference frame
 
     //MPI Derived Datatype for Center Halo Exchange
     MPI_Datatype yzFacetypeC;
@@ -664,14 +679,11 @@ class EMfields3D                // :public Field
     MPI_Datatype  procviewXYZ,xyzcomp,procview,ghosttype;
     bool lEndFlag;
     
-    void OpenBoundaryInflowB(arr3_double vectorX, arr3_double vectorY, arr3_double vectorZ,
-
-      int nx, int ny, int nz);
-    void OpenBoundaryInflowE(arr3_double vectorX, arr3_double vectorY, arr3_double vectorZ,
-      int nx, int ny, int nz);
-    void OpenBoundaryInflowEImage(arr3_double imageX, arr3_double imageY, arr3_double imageZ,
-      const_arr3_double vectorX, const_arr3_double vectorY, const_arr3_double vectorZ,
-      int nx, int ny, int nz);
+    void OpenBoundaryInflowB(arr3_double vectorX, arr3_double vectorY, arr3_double vectorZ, int nx, int ny, int nz);
+    void OpenBoundaryInflowE(arr3_double vectorX, arr3_double vectorY, arr3_double vectorZ, int nx, int ny, int nz);
+    void OpenBoundaryInflowEImage(arr3_double imageX, arr3_double imageY, arr3_double imageZ, 
+                                 const_arr3_double vectorX, const_arr3_double vectorY, const_arr3_double vectorZ,
+                                 int nx, int ny, int nz);
 };
 
 inline void EMfields3D::addRho(double weight[][2][2], int X, int Y, int Z, int is) {

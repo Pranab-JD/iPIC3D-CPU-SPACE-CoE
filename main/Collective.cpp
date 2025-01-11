@@ -101,8 +101,9 @@ void Collective::ReadInput(string inputfile)
         ncycles = config.read<int>       ("ncycles");
         th      = config.read<double>    ("th", 1.0);
 
-        Smooth          = config.read<double>    ("Smooth",1.0);
+        Smooth          = config.read<double>    ("Smooth",1.0);            //1.0 means no smoothing
         SmoothNiter     = config.read<int>       ("SmoothNiter",6);
+        config.readInto(Nvolte, "Nvolte",0);
 
         SaveDirName     = config.read<string>    ("SaveDirName","data");
         RestartDirName  = config.read<string>    ("RestartDirName","data");
