@@ -84,271 +84,295 @@ c_Solver::~c_Solver()
   delete my_clock;
 }
 
-int c_Solver::Init(int argc, char **argv) {
-  #if defined(__MIC__)
-  assert_eq(DVECWIDTH,8);
-  #endif
-  // get MPI data
-  //
-  // c_Solver is not a singleton, so the following line was pulled out.
-  //MPIdata::init(&argc, &argv);
-  //
-  // initialized MPI environment
-  // nprocs = number of processors
-  // myrank = rank of tha process*/
-  Parameters::init_parameters();
-  //mpi = &MPIdata::instance();
-  nprocs = MPIdata::get_nprocs();
-  myrank = MPIdata::get_rank();
+int c_Solver::Init(int argc, char **argv) 
+{
+    #if defined(__MIC__)
+        assert_eq(DVECWIDTH,8);
+    #endif
 
-  col = new Collective(argc, argv); // Every proc loads the parameters of simulation from class Collective
-  restart_cycle = col->getRestartOutputCycle();
-  SaveDirName = col->getSaveDirName();
-  RestartDirName = col->getRestartDirName();
-  restart_status = col->getRestart_status();
-  ns = col->getNs();            // get the number of particle species involved in simulation
-  first_cycle = col->getLast_cycle() + 1; // get the last cycle from the restart
-  // initialize the virtual cartesian topology
-  vct = new VCtopology3D(*col);
-  // Check if we can map the processes into a matrix ordering defined in Collective.cpp
-  if (nprocs != vct->getNprocs()) {
-    if (myrank == 0) {
-      cerr << "Error: " << nprocs << " processes cant be mapped into " << vct->getXLEN() << "x" << vct->getYLEN() << "x" << vct->getZLEN() << " matrix: Change XLEN,YLEN, ZLEN in method VCtopology3D.init()" << endl;
-      MPIdata::instance().finalize_mpi();
-      return (1);
+    Parameters::init_parameters();
+    //mpi = &MPIdata::instance();
+    nprocs = MPIdata::get_nprocs();
+    myrank = MPIdata::get_rank();
+
+    col = new Collective(argc, argv);               // Every proc loads the parameters of simulation from class Collective
+    restart_cycle   = col->getRestartOutputCycle();
+    SaveDirName     = col->getSaveDirName();
+    RestartDirName  = col->getRestartDirName();
+    restart_status  = col->getRestart_status();
+    ns              = col->getNs();                 // get the number of species of particles involved in simulation
+    first_cycle     = col->getLast_cycle() + 1;     // get the last cycle from the restart
+
+    vct = new VCtopology3D(*col);
+
+    //? Check if we can map the processes into a matrix ordering defined in Collective.cpp
+    if (nprocs != vct->getNprocs()) 
+    {
+        if (myrank == 0) 
+        {
+            cerr << "Error: " << nprocs << " processes cant be mapped as " << vct->getXLEN() << "x" << vct->getYLEN() << "x" << vct->getZLEN() << ". Change XLEN, YLEN, & ZLEN in input file. " << endl;
+            MPIdata::instance().finalize_mpi();
+            return (1);
+        }
     }
-  }
-  // We create a new communicator with a 3D virtual Cartesian topology
+
+    // We create a new communicator with a 3D virtual Cartesian topology
     vct->setup_vctopology(MPIdata::get_PicGlobalComm());
-  {
-    stringstream num_proc_ss;
-    num_proc_ss << vct->getCartesian_rank();
-    num_proc_str = num_proc_ss.str();
-  }
-  // initialize the central cell index
-
-#ifdef BATSRUS
-  // set index offset for each processor
-  col->setGlobalStartIndex(vct);
-#endif
-
-  // Print the initial settings to stdout and a file
-  if (myrank == 0) {
-    //check and create the output directory
-    checkOutputFolder(SaveDirName);
-    MPIdata::instance().Print();
-    vct->Print();
-    col->Print();
-    col->save();
-  }
-  // Create the local grid
-  grid = new Grid3DCU(col, vct);  // Create the local grid
-  EMf = new EMfields3D(col, grid, vct);  // Create Electromagnetic Fields Object
-
-  if      (col->getCase()=="GEMnoPert") 		EMf->initGEMnoPert();
-  else if (col->getCase()=="ForceFree") 		EMf->initForceFree();
-  else if (col->getCase()=="GEM")       		EMf->initGEM();
-  else if (col->getCase()=="GEMDoubleHarris")  	        EMf->initGEMDoubleHarris();
-#ifdef BATSRUS
-  else if (col->getCase()=="BATSRUS")   		EMf->initBATSRUS();
-#endif
-  else if (col->getCase()=="Dipole")    		EMf->initDipole();
-  else if (col->getCase()=="Dipole2D")  		EMf->initDipole2D();
-  else if (col->getCase()=="NullPoints")             	EMf->initNullPoints();
-  else if (col->getCase()=="TaylorGreen")               EMf->initTaylorGreen();
-  else if (col->getCase()=="RandomCase") {
-    EMf->initRandomField();
-    if (myrank==0) {
-      cout << "Case is " << col->getCase() <<"\n";
-      cout <<"total # of particle per cell is " << col->getNpcel(0) << "\n";
+    {
+        stringstream num_proc_ss;
+        num_proc_ss << vct->getCartesian_rank();
+        num_proc_str = num_proc_ss.str();
     }
-  }
-  else {
-    if (myrank==0) {
-      cout << " =========================================================== " << endl;
-      cout << " WARNING: The case '" << col->getCase() << "' was not recognized. " << endl;
-      cout << "          Runing simulation with the default initialization. " << endl;
-      cout << " =========================================================== " << endl;
+    
+    // initialize the central cell index
+    #ifdef BATSRUS
+        // set index offset for each processor
+        col->setGlobalStartIndex(vct);
+    #endif
+
+    //* Print initial settings to stdout and file
+    if (myrank == 0) 
+    {
+        //* Create output directory
+        checkOutputFolder(SaveDirName);
+        MPIdata::instance().Print();
+        vct->Print();
+        col->Print();
+        col->save();
     }
-    EMf->init();
-  }
 
-  // Allocation of particles
-  part = (Particles3D*) malloc(sizeof(Particles3D)*ns);
-  for (int i = 0; i < ns; i++)
-  {
-    new(&part[i]) Particles3D(i,col,vct,grid);
-  }
+    //* Create local grid
+    grid = new Grid3DCU(col, vct);          // Create the local grid
+    EMf = new EMfields3D(col, grid, vct);   // Create Electromagnetic Fields Object
 
-  // Initial Condition for PARTICLES if you are not starting from RESTART
-  if (restart_status == 0) {
+    if      (col->getCase()=="GEMnoPert") 		EMf->initGEMnoPert();
+    else if (col->getCase()=="ForceFree") 		EMf->initForceFree();
+    else if (col->getCase()=="GEM")       		EMf->initGEM();
+    else if (col->getCase()=="GEMDoubleHarris") EMf->initGEMDoubleHarris();
+    else if (col->getCase()=="Dipole")    		EMf->initDipole();
+    else if (col->getCase()=="Dipole2D")  		EMf->initDipole2D();
+    else if (col->getCase()=="NullPoints")      EMf->initNullPoints();
+    else if (col->getCase()=="TaylorGreen")     EMf->initTaylorGreen();
+    #ifdef BATSRUS
+        else if (col->getCase()=="BATSRUS")   	EMf->initBATSRUS();
+    #endif
+    else if (col->getCase()=="RandomCase") 
+    {
+        EMf->initRandomField();
+        if (myrank==0) 
+        {
+            cout << "Case is " << col->getCase() <<"\n";
+            cout <<"total # of particle per cell is " << col->getNpcel(0) << "\n";
+        }
+    }
+    else 
+    {
+    if (myrank==0) 
+        {
+            cout << " =========================================================== " << endl;
+            cout << " WARNING: The case '" << col->getCase() << "' was not recognized. " << endl;
+            cout << "          Runing simulation with the default initialization. " << endl;
+            cout << " =========================================================== " << endl;
+        }
+
+        EMf->init();
+    }
+
+    //? Allocation of particles
+    part = (Particles3D*) malloc(sizeof(Particles3D)*ns);
     for (int i = 0; i < ns; i++)
     {
-      if      (col->getCase()=="ForceFree") 		part[i].force_free(EMf);
-#ifdef BATSRUS
-      else if (col->getCase()=="BATSRUS")   		part[i].MaxwellianFromFluid(EMf,col,i);
-#endif
-      else if (col->getCase()=="NullPoints")    	part[i].maxwellianNullPoints(EMf);
-      else if (col->getCase()=="TaylorGreen")           part[i].maxwellianNullPoints(EMf); // Flow is initiated from the current prescribed on the grid.
-      else if (col->getCase()=="GEMDoubleHarris")  	part[i].maxwellianDoubleHarris(EMf);
-      else                                  		part[i].maxwellian(EMf);
-      part[i].reserve_remaining_particle_IDs();
+        new(&part[i]) Particles3D(i,col,vct,grid);
     }
-  }
 
-  //allocate test particles if any
-  nstestpart = col->getNsTestPart();
-  if(nstestpart>0){
-	  testpart = (Particles3D*) malloc(sizeof(Particles3D)*nstestpart);
-	  for (int i = 0; i < nstestpart; i++)
-	  {
-	     new(&testpart[i]) Particles3D(i+ns,col,vct,grid);//species id for test particles is increased by ns
-	     testpart[i].pitch_angle_energy(EMf);
-	   }
-  }
+    //? Initial Condition for particles (if NOT starting from RESTART)
+    if (restart_status == 0) 
+    {
+        for (int i = 0; i < ns; i++)
+        {
+            if      (col->getCase()=="ForceFree") 		part[i].force_free(EMf);
+            #ifdef BATSRUS
+                else if (col->getCase()=="BATSRUS")   	part[i].MaxwellianFromFluid(EMf,col,i);
+            #endif
+            else if (col->getCase()=="NullPoints")    	part[i].maxwellianNullPoints(EMf);
+            else if (col->getCase()=="TaylorGreen")     part[i].maxwellianNullPoints(EMf); // Flow is initiated from the current prescribed on the grid.
+            else if (col->getCase()=="GEMDoubleHarris") part[i].maxwellianDoubleHarris(EMf);
+            else                                  		part[i].maxwellian(EMf);
+            
+            part[i].reserve_remaining_particle_IDs();
+        }
+    }
 
-  if ( Parameters::get_doWriteOutput()){
-		#ifndef NO_HDF5
-	  	if(col->getWriteMethod() == "shdf5" || col->getCallFinalize() || restart_cycle>0 ||
-			  (col->getWriteMethod()=="pvtk" && !col->particle_output_is_off()) )
-		{
-			  outputWrapperFPP = new OutputWrapperFPP;
-			  fetch_outputWrapperFPP().init_output_files(col,vct,grid,EMf,part,ns,testpart,nstestpart);
-		}
-		#endif
-	  if(!col->field_output_is_off()){
-		  if(col->getWriteMethod()=="pvtk"){
-			  if(!(col->getFieldOutputTag()).empty())
-				  fieldwritebuffer = newArr4(float,(grid->getNZN()-3),grid->getNYN()-3,grid->getNXN()-3,3);
-			  if(!(col->getMomentsOutputTag()).empty())
-				  momentwritebuffer=newArr3(float,(grid->getNZN()-3), grid->getNYN()-3, grid->getNXN()-3);
-		  }
-		  else if(col->getWriteMethod()=="nbcvtk"){
-		    momentreqcounter=0;
-		    fieldreqcounter = 0;
-			  if(!(col->getFieldOutputTag()).empty())
-				  fieldwritebuffer = newArr4(float,(grid->getNZN()-3)*4,grid->getNYN()-3,grid->getNXN()-3,3);
-			  if(!(col->getMomentsOutputTag()).empty())
-				  momentwritebuffer=newArr3(float,(grid->getNZN()-3)*14, grid->getNYN()-3, grid->getNXN()-3);
-		  }
-	  }
-  }
-  Ke = new double[ns];
-  BulkEnergy = new double[ns];
-  momentum = new double[ns];
-  cq = SaveDirName + "/ConservedQuantities.txt";
-  if (myrank == 0) {
-    ofstream my_file(cq.c_str());
-    my_file.close();
-  }
-  
+    //? Allocate test particles (if any)
+    nstestpart = col->getNsTestPart();
+    if(nstestpart>0)
+    {
+        testpart = (Particles3D*) malloc(sizeof(Particles3D)*nstestpart);
+        for (int i = 0; i < nstestpart; i++)
+        {
+            new(&testpart[i]) Particles3D(i+ns,col,vct,grid);//species id for test particles is increased by ns
+            testpart[i].pitch_angle_energy(EMf);
+        }
+    }
 
-  Qremoved = new double[ns];
+    if (Parameters::get_doWriteOutput())
+    {
+        #ifndef NO_HDF5
+        if(col->getWriteMethod() == "shdf5" || col->getCallFinalize() || restart_cycle>0 || (col->getWriteMethod()=="pvtk" && !col->particle_output_is_off()) )
+        {
+            outputWrapperFPP = new OutputWrapperFPP;
+            fetch_outputWrapperFPP().init_output_files(col,vct,grid,EMf,part,ns,testpart,nstestpart);
+        }
+        #endif
 
-#ifdef USE_CATALYST
-  Adaptor::Initialize(col, \
-		  (int)(grid->getXstart()/grid->getDX()), \
-		  (int)(grid->getYstart()/grid->getDY()), \
-		  (int)(grid->getZstart()/grid->getDZ()), \
-		  grid->getNXN(),
-		  grid->getNYN(),
-		  grid->getNZN(),
-		  grid->getDX(),
-		  grid->getDY(),
-		  grid->getDZ());
-#endif
+        if(!col->field_output_is_off())
+        {
+            if(col->getWriteMethod()=="pvtk")
+            {
+                if(!(col->getFieldOutputTag()).empty())
+                    fieldwritebuffer = newArr4(float,(grid->getNZN()-3),grid->getNYN()-3,grid->getNXN()-3,3);
+                if(!(col->getMomentsOutputTag()).empty())
+                    momentwritebuffer=newArr3(float,(grid->getNZN()-3), grid->getNYN()-3, grid->getNXN()-3);
+            }
+            else if(col->getWriteMethod()=="nbcvtk")
+            {
+                momentreqcounter=0;
+                fieldreqcounter = 0;
+                
+                if(!(col->getFieldOutputTag()).empty())
+                    fieldwritebuffer = newArr4(float,(grid->getNZN()-3)*4,grid->getNYN()-3,grid->getNXN()-3,3);
+                if(!(col->getMomentsOutputTag()).empty())
+                    momentwritebuffer=newArr3(float,(grid->getNZN()-3)*14, grid->getNYN()-3, grid->getNXN()-3);
+            }
+        }
+    }
 
-  my_clock = new Timing(myrank);
+    Ke = new double[ns];
+    BulkEnergy = new double[ns];
+    momentum = new double[ns];
+    cq = SaveDirName + "/ConservedQuantities.txt";
+    if (myrank == 0) 
+    {
+        ofstream my_file(cq.c_str());
+        my_file.close();
+    }
 
-  return 0;
+    Qremoved = new double[ns];
+
+    #ifdef USE_CATALYST
+    Adaptor::Initialize(col, \
+                        (int)(grid->getXstart()/grid->getDX()), \
+                        (int)(grid->getYstart()/grid->getDY()), \
+                        (int)(grid->getZstart()/grid->getDZ()), \
+                        grid->getNXN(),
+                        grid->getNYN(),
+                        grid->getNZN(),
+                        grid->getDX(),
+                        grid->getDY(),
+                        grid->getDZ());
+    #endif
+
+    my_clock = new Timing(myrank);
+
+    return 0;
 }
 
-void c_Solver::CalculateMoments() {
+void c_Solver::CalculateMoments() 
+{
+    timeTasks_set_main_task(TimeTasks::MOMENTS);
 
-  timeTasks_set_main_task(TimeTasks::MOMENTS);
+    pad_particle_capacities();
 
-  pad_particle_capacities();
-
-  // vectorized assumes that particles are sorted by mesh cell
-  if(Parameters::get_VECTORIZE_MOMENTS())
-  {
-    switch(Parameters::get_MOMENTS_TYPE())
+    // vectorized; assumes that particles are sorted by mesh cell
+    if(Parameters::get_VECTORIZE_MOMENTS())
     {
-      case Parameters::SoA:
-        // since particles are sorted,
-        // we can vectorize interpolation of particles to grid
-        convertParticlesToSoA();
-        sortParticles();
-        EMf->sumMoments_vectorized(part);
-        break;
-      case Parameters::AoS:
-        convertParticlesToAoS();
-        sortParticles();
-        EMf->sumMoments_vectorized_AoS(part);
-        break;
-      default:
-        unsupported_value_error(Parameters::get_MOMENTS_TYPE());
+        switch(Parameters::get_MOMENTS_TYPE())
+        {
+            case Parameters::SoA:
+            // since particles are sorted,we can vectorize interpolation of particles to grid
+            convertParticlesToSoA();
+            sortParticles();
+            EMf->sumMoments_vectorized(part);
+            break;
+            
+            case Parameters::AoS:
+            convertParticlesToAoS();
+            sortParticles();
+            EMf->sumMoments_vectorized_AoS(part);
+            break;
+            
+            default:
+            unsupported_value_error(Parameters::get_MOMENTS_TYPE());
+        }
     }
-  }
-  else
-  {
-    if(Parameters::get_SORTING_PARTICLES())
-      sortParticles();
-    switch(Parameters::get_MOMENTS_TYPE())
+    else
     {
-      case Parameters::SoA:
-        EMf->setZeroPrimaryMoments();
-        convertParticlesToSoA();
-        EMf->sumMoments(part);
-        break;
-      case Parameters::AoS:
-        EMf->setZeroPrimaryMoments(); // clear the data to 0
-        convertParticlesToAoS(); // convert 
-        EMf->sumMoments_AoS(part); // sum up the 10 densities of each particles of each species
-        // then calculate the weight according to their position
-        // map the 10 momentum to the grid(node) with the weight
+        if(Parameters::get_SORTING_PARTICLES())
+            sortParticles();
         
-        break;
-      case Parameters::AoSintr:
-        EMf->setZeroPrimaryMoments();
-        convertParticlesToAoS();
-        EMf->sumMoments_AoS_intr(part);
-        break;
-      default:
-        unsupported_value_error(Parameters::get_MOMENTS_TYPE());
+        switch(Parameters::get_MOMENTS_TYPE())
+        {
+            case Parameters::SoA:
+            EMf->setZeroPrimaryMoments();
+            convertParticlesToSoA();
+            EMf->sumMoments(part);
+            break;
+            
+            case Parameters::AoS:
+            EMf->setZeroPrimaryMoments();   // clear the data to 0
+            convertParticlesToAoS();        // convert 
+            EMf->sumMoments_AoS(part);      // sum up the 10 densities of each particles of each species
+            // then calculate the weight according to their position; map the 10 momentum to the grid(node) with the weight
+            break;
+            
+            case Parameters::AoSintr:
+            EMf->setZeroPrimaryMoments();
+            convertParticlesToAoS();
+            EMf->sumMoments_AoS_intr(part);
+            break;
+            
+            default:
+            unsupported_value_error(Parameters::get_MOMENTS_TYPE());
+        }
     }
-  }
 
-  EMf->setZeroDerivedMoments();
-  // sum all over the species
-  EMf->sumOverSpecies();
-  // Fill with constant charge the planet
-  if (col->getCase()=="Dipole") {
-    EMf->ConstantChargePlanet(col->getL_square(),col->getx_center(),col->gety_center(),col->getz_center());
-  }else if(col->getCase()=="Dipole2D") {
-	EMf->ConstantChargePlanet2DPlaneXZ(col->getL_square(),col->getx_center(),col->getz_center());
-  }
-  // Set a constant charge in the OpenBC boundaries
-  //EMf->ConstantChargeOpenBC();
-  // calculate densities on centers from nodes
-  EMf->interpDensitiesN2C();
-  // calculate the hat quantities for the implicit method
-  EMf->calculateHatFunctions();
+    EMf->setZeroDerivedMoments();
+    
+    // sum all over the species
+    EMf->sumOverSpecies();
+    
+    // Fill with constant charge the planet
+    if (col->getCase()=="Dipole") 
+    {
+        EMf->ConstantChargePlanet(col->getL_square(),col->getx_center(),col->gety_center(),col->getz_center());
+    }
+    else if(col->getCase()=="Dipole2D") 
+    {
+        EMf->ConstantChargePlanet2DPlaneXZ(col->getL_square(),col->getx_center(),col->getz_center());
+    }
+
+    // calculate densities on centers from nodes
+    EMf->interpDensitiesN2C();
+    
+    // calculate the hat quantities for the implicit method
+    EMf->calculateHatFunctions();
 }
 
 //! MAXWELL SOLVER for Efield
-void c_Solver::CalculateField(int cycle) {
-  timeTasks_set_main_task(TimeTasks::FIELDS);
+void c_Solver::CalculateField(int cycle) 
+{
+    timeTasks_set_main_task(TimeTasks::FIELDS);
 
-  // calculate the E field
-  EMf->calculateE(cycle);
+    // calculate the E field
+    EMf->calculateE(cycle);
 }
 
 //! MAXWELL SOLVER for Bfield (assuming Efield has already been calculated)
-void c_Solver::CalculateB() {
-  timeTasks_set_main_task(TimeTasks::FIELDS);
-  // calculate the B field
-  EMf->calculateB();
+void c_Solver::CalculateB() 
+{
+    timeTasks_set_main_task(TimeTasks::FIELDS);
+    // calculate the B field
+    EMf->calculateB();
 }
 
 /*  -------------- */
@@ -356,126 +380,125 @@ void c_Solver::CalculateB() {
 /*  -------------- */
 bool c_Solver::ParticlesMover()
 {
-  // move all species of particles
-  {
-    timeTasks_set_main_task(TimeTasks::PARTICLES);
-    // Should change this to add background field
-    EMf->set_fieldForPcls();
-
-    pad_particle_capacities();
-
-    for (int i = 0; i < ns; i++)  // move each species
+    // move all species of particles
     {
-      // #pragma omp task inout(part[i]) in(grid) target_device(booster)
-      // should merely pass EMf->get_fieldForPcls() rather than EMf.
-      // use the Predictor Corrector scheme to move particles
-      switch(Parameters::get_MOVER_TYPE())
-      {
-        case Parameters::SoA:
-          part[i].mover_PC(EMf);
-          break;
-        case Parameters::AoS:
-          part[i].mover_PC_AoS(EMf);
-          break;
-        case Parameters::AoS_Relativistic:
-        	part[i].mover_PC_AoS_Relativistic(EMf);
-        	break;
-        case Parameters::AoSintr:
-          part[i].mover_PC_AoS_vec_intr(EMf);
-          break;
-        case Parameters::AoSvec:
-          part[i].mover_PC_AoS_vec(EMf);
-          break;
-        default:
-          unsupported_value_error(Parameters::get_MOVER_TYPE());
-      }
+        timeTasks_set_main_task(TimeTasks::PARTICLES);
+        // Should change this to add background field
+        EMf->set_fieldForPcls();
 
-	  //Should integrate BC into separate_and_send_particles
-	  part[i].openbc_particles_outflow();
-	  part[i].separate_and_send_particles();
+        pad_particle_capacities();
 
+        for (int i = 0; i < ns; i++)  // move each species
+        {
+            //* Use Predictor-Corrector scheme to move particles
+            switch(Parameters::get_MOVER_TYPE())
+            {
+                case Parameters::SoA:
+                part[i].mover_PC(EMf);
+                break;
+                
+                case Parameters::AoS:
+                part[i].mover_PC_AoS(EMf);
+                break;
+                
+                case Parameters::AoS_Relativistic:
+                part[i].mover_PC_AoS_Relativistic(EMf);
+                break;
+                
+                case Parameters::AoSintr:
+                part[i].mover_PC_AoS_vec_intr(EMf);
+                break;
+                
+                case Parameters::AoSvec:
+                part[i].mover_PC_AoS_vec(EMf);
+                break;
+                
+                default:
+                unsupported_value_error(Parameters::get_MOVER_TYPE());
+            }
+
+            //* Should integrate BC into separate_and_send_particles
+            part[i].openbc_particles_outflow();
+            part[i].separate_and_send_particles();
+        }
+
+        //* Communicate each species
+        for (int i = 0; i < ns; i++)  
+            part[i].recommunicate_particles_until_done(1);
     }
 
-
-    for (int i = 0; i < ns; i++)  // communicate each species
+    //? Repopulate the buffer zone at the edge
+    for (int i=0; i < ns; i++) 
     {
-      //part[i].communicate_particles();
-      part[i].recommunicate_particles_until_done(1);
+        if (col->getRHOinject(i)>0.0)
+            art[i].repopulate_particles();
     }
-  }
 
-  /* -------------------------------------- */
-  /* Repopulate the buffer zone at the edge */
-  /* -------------------------------------- */
+    //? Remove particles from depopulation area
+    if (col->getCase()=="Dipole") 
+    {
+        for (int i=0; i < ns; i++)
+            Qremoved[i] = part[i].deleteParticlesInsideSphere(col->getL_square(), col->getx_center(), col->gety_center(), col->getz_center());
+    }
+    else if (col->getCase()=="Dipole2D") 
+    {
+        for (int i=0; i < ns; i++)
+            Qremoved[i] = part[i].deleteParticlesInsideSphere2DPlaneXZ(col->getL_square(), col->getx_center(), col->getz_center());
+    }
 
-  for (int i=0; i < ns; i++) {
-    if (col->getRHOinject(i)>0.0)
-      part[i].repopulate_particles();
-  }
+    //? Test Particles mover
+    for (int i = 0; i < nstestpart; i++)  // move each species
+    {
+        switch(Parameters::get_MOVER_TYPE())
+        {
+            case Parameters::SoA:
+                testpart[i].mover_PC(EMf);
+            break;
+            
+            case Parameters::AoS:
+                testpart[i].mover_PC_AoS(EMf);
+            break;
+            
+            case Parameters::AoS_Relativistic:
+                testpart[i].mover_PC_AoS_Relativistic(EMf);
+            break;
+            
+            case Parameters::AoSintr:
+                testpart[i].mover_PC_AoS_vec_intr(EMf);
+            break;
+            
+            case Parameters::AoSvec:
+                testpart[i].mover_PC_AoS_vec(EMf);
+            break;
+            
+            default:
+                unsupported_value_error(Parameters::get_MOVER_TYPE());
+        }
 
-  /* --------------------------------------- */
-  /* Remove particles from depopulation area */
-  /* --------------------------------------- */
-  if (col->getCase()=="Dipole") {
-    for (int i=0; i < ns; i++)
-      Qremoved[i] = part[i].deleteParticlesInsideSphere(col->getL_square(),col->getx_center(),col->gety_center(),col->getz_center());
-  }else if (col->getCase()=="Dipole2D") {
-	for (int i=0; i < ns; i++)
-	  Qremoved[i] = part[i].deleteParticlesInsideSphere2DPlaneXZ(col->getL_square(),col->getx_center(),col->getz_center());
-  }
+        testpart[i].openbc_delete_testparticles();
+        testpart[i].separate_and_send_particles();
+    }
 
+    for (int i = 0; i < nstestpart; i++)
+        testpart[i].recommunicate_particles_until_done(1);
 
-  /* --------------------------------------- */
-  /* Test Particles mover 					 */
-  /* --------------------------------------- */
-  for (int i = 0; i < nstestpart; i++)  // move each species
-  {
-	switch(Parameters::get_MOVER_TYPE())
-	{
-	  case Parameters::SoA:
-		  testpart[i].mover_PC(EMf);
-		break;
-	  case Parameters::AoS:
-		  testpart[i].mover_PC_AoS(EMf);
-		break;
-	  case Parameters::AoS_Relativistic:
-		  testpart[i].mover_PC_AoS_Relativistic(EMf);
-		break;
-	  case Parameters::AoSintr:
-		  testpart[i].mover_PC_AoS_vec_intr(EMf);
-		break;
-	  case Parameters::AoSvec:
-		  testpart[i].mover_PC_AoS_vec(EMf);
-		break;
-	  default:
-		unsupported_value_error(Parameters::get_MOVER_TYPE());
-	}
-
-	testpart[i].openbc_delete_testparticles();
-	testpart[i].separate_and_send_particles();
-  }
-
-  for (int i = 0; i < nstestpart; i++)
-  {
-	  testpart[i].recommunicate_particles_until_done(1);
-  }
-
-  return (false);
+    return (false);
 }
 
-void c_Solver::WriteOutput(int cycle) {
+void c_Solver::WriteOutput(int cycle) 
+{
+    #ifdef USE_CATALYST
+        Adaptor::CoProcess(col->getDt()*cycle, cycle, EMf);
+    #endif
 
-#ifdef USE_CATALYST
-  Adaptor::CoProcess(col->getDt()*cycle, cycle, EMf);
-#endif
+    WriteConserved(cycle);
+    WriteRestart(cycle);
 
-  WriteConserved(cycle);
-  WriteRestart(cycle);
+    if(!Parameters::get_doWriteOutput())  return;
 
-  if(!Parameters::get_doWriteOutput())  return;
-
-
-  if (col->getWriteMethod() == "nbcvtk"){//Non-blocking collective MPI-IO
+//! Non-blocking collective MPI-IO
+  if (col->getWriteMethod() == "nbcvtk")
+  {
 
 	  if(!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle) ){
 		  if(!(col->getFieldOutputTag()).empty()){
@@ -584,75 +607,46 @@ void c_Solver::WriteOutput(int cycle) {
 
 void c_Solver::WriteRestart(int cycle)
 {
-#ifndef NO_HDF5
-  if (restart_cycle>0 && cycle%restart_cycle==0){
-	  convertParticlesToSynched();
-	  fetch_outputWrapperFPP().append_restart(cycle);
-  }
-#endif
+    #ifndef NO_HDF5
+        if (restart_cycle>0 && cycle%restart_cycle==0)
+        {
+            convertParticlesToSynched();
+            fetch_outputWrapperFPP().append_restart(cycle);
+        }
+    #endif
 }
 
-// write the conserved quantities
-void c_Solver::WriteConserved(int cycle) {
-  if(col->getDiagnosticsOutputCycle() > 0 && cycle % col->getDiagnosticsOutputCycle() == 0)
-  {
-    Eenergy = EMf->getEenergy();
-    Benergy = EMf->getBenergy();
-    TOTenergy = 0.0;
-    TOTmomentum = 0.0;
-    for (int is = 0; is < ns; is++) {
-      Ke[is] = part[is].getKe();
-      BulkEnergy[is] = EMf->getBulkEnergy(is);
-      TOTenergy += Ke[is];
-      momentum[is] = part[is].getP();
-      TOTmomentum += momentum[is];
+//? Write conserved quantities
+void c_Solver::WriteConserved(int cycle) 
+{
+    if(col->getDiagnosticsOutputCycle() > 0 && cycle % col->getDiagnosticsOutputCycle() == 0)
+    {
+        Eenergy = EMf->getEenergy();
+        Benergy = EMf->getBenergy();
+        TOTenergy = 0.0;
+        TOTmomentum = 0.0;
+        
+        for (int is = 0; is < ns; is++) 
+        {
+            Ke[is] = part[is].getKe();
+            BulkEnergy[is] = EMf->getBulkEnergy(is);
+            TOTenergy += Ke[is];
+            momentum[is] = part[is].getP();
+            TOTmomentum += momentum[is];
+        }
+        
+        if (myrank == (nprocs-1)) 
+        {
+            ofstream my_file(cq.c_str(), fstream::app);
+            if(cycle == 0) my_file << "\t" << "\t" << "\t" << "Total_Energy" << "\t" << "Momentum" << "\t" << "Eenergy" << "\t" << "Benergy" << "\t" << "Kenergy" << "\t" << "Kenergy(species)" << "\t" << "BulkEnergy(species)" << endl;
+            my_file << cycle << "\t" << "\t" << (Eenergy + Benergy + TOTenergy) << "\t" << TOTmomentum << "\t" << Eenergy << "\t" << Benergy << "\t" << TOTenergy;
+            for (int is = 0; is < ns; is++) my_file << "\t" << Ke[is];
+            for (int is = 0; is < ns; is++) my_file << "\t" << BulkEnergy[is];
+            my_file << endl;
+            my_file.close();
+        }
     }
-    if (myrank == (nprocs-1)) {
-      ofstream my_file(cq.c_str(), fstream::app);
-      if(cycle == 0)my_file << "\t" << "\t" << "\t" << "Total_Energy" << "\t" << "Momentum" << "\t" << "Eenergy" << "\t" << "Benergy" << "\t" << "Kenergy" << "\t" << "Kenergy(species)" << "\t" << "BulkEnergy(species)" << endl;
-      my_file << cycle << "\t" << "\t" << (Eenergy + Benergy + TOTenergy) << "\t" << TOTmomentum << "\t" << Eenergy << "\t" << Benergy << "\t" << TOTenergy;
-      for (int is = 0; is < ns; is++) my_file << "\t" << Ke[is];
-      for (int is = 0; is < ns; is++) my_file << "\t" << BulkEnergy[is];
-      my_file << endl;
-      my_file.close();
-    }
-  }
 }
-/* write the conserved quantities
-void c_Solver::WriteConserved(int cycle) {
-  if(col->getDiagnosticsOutputCycle() > 0 && cycle % col->getDiagnosticsOutputCycle() == 0)
-  {
-	if(cycle==0)buf_counter=0;
-    Eenergy[buf_counter] = EMf->getEenergy();
-    Benergy[buf_counter] = EMf->getBenergy();
-    Kenergy[buf_counter] = 0.0;
-    TOTmomentum[buf_counter] = 0.0;
-    for (int is = 0; is < ns; is++) {
-      Ke[is] = part[is].getKe();
-      Kenergy[buf_counter] += Ke[is];
-      momentum[is] = part[is].getP();
-      TOTmomentum[buf_counter] += momentum[is];
-    }
-    outputcycle[buf_counter] = cycle;
-    buf_counter ++;
-
-    //Flush out result if this is the last cycle or the buffer is full
-    if(buf_counter==OUTPUT_BUFSIZE || cycle==(LastCycle()-1)){
-    	if (myrank == (nprocs-1)) {
-    		ofstream my_file(cq.c_str(), fstream::app);
-    		stringstream ss;
-      //if(cycle/OUTPUT_BUFSIZE == 0)
-      //my_file  << "Cycle" << "\t" << "Total_Energy" 				 << "\t" << "Momentum" << "\t" << "Eenergy" <<"\t" << "Benergy" << "\t" << "Kenergy" << endl;
-    		for(int bufid=0;bufid<OUTPUT_BUFSIZE;bufid++)
-    			ss << outputcycle[bufid] << "\t" << (Eenergy[bufid]+Benergy[bufid]+Kenergy[bufid])<< "\t" << TOTmomentum[bufid] << "\t" << Eenergy[bufid] << "\t" << Benergy[bufid] << "\t" << Kenergy[bufid] << endl;
-
-    		my_file << ss;
-    		my_file.close();
-    	}
-    	buf_counter = 0;
-    }
-  }
-}*/
 
 void c_Solver::WriteVelocityDistribution(int cycle)
 {
@@ -703,105 +697,108 @@ void c_Solver::WriteVirtualSatelliteTraces()
   my_file.close();
 }
 
-void c_Solver::WriteFields(int cycle) {
+void c_Solver::WriteFields(int cycle) 
+{
+    #ifndef NO_HDF5
+        if(col->field_output_is_off()) return;
 
-#ifndef NO_HDF5
-  if(col->field_output_is_off())   return;
-
-  if(cycle % (col->getFieldOutputCycle()) == 0 || cycle == first_cycle)
-  {
-	  if(!(col->getFieldOutputTag()).empty())
-		  	  fetch_outputWrapperFPP().append_output((col->getFieldOutputTag()).c_str(), cycle);//E+B+Js
-	  if(!(col->getMomentsOutputTag()).empty())
-		  	  fetch_outputWrapperFPP().append_output((col->getMomentsOutputTag()).c_str(), cycle);//rhos+pressure
-  }
-#endif
+        if(cycle % (col->getFieldOutputCycle()) == 0 || cycle == first_cycle)
+        {
+            //* E + B + Js
+            if(!(col->getFieldOutputTag()).empty())
+                fetch_outputWrapperFPP().append_output((col->getFieldOutputTag()).c_str(), cycle);      
+            
+            //* rhos + pressure
+            if(!(col->getMomentsOutputTag()).empty())
+                fetch_outputWrapperFPP().append_output((col->getMomentsOutputTag()).c_str(), cycle);
+        }
+    #endif
 }
 
 void c_Solver::WriteParticles(int cycle)
 {
-#ifndef NO_HDF5
-  if(col->particle_output_is_off() || cycle%(col->getParticlesOutputCycle())!=0) return;
+    #ifndef NO_HDF5
+        if(col->particle_output_is_off() || cycle%(col->getParticlesOutputCycle())!=0) return;
 
-  // this is a hack
-  for (int i = 0; i < ns; i++)
-    part[i].convertParticlesToSynched();
+        // this is a hack
+        for (int i = 0; i < ns; i++)
+            part[i].convertParticlesToSynched();
 
-  fetch_outputWrapperFPP().append_output((col->getPclOutputTag()).c_str(), cycle, 0);//"position + velocity + q "
-#endif
+        fetch_outputWrapperFPP().append_output((col->getPclOutputTag()).c_str(), cycle, 0);//"position + velocity + q "
+    #endif
 }
 
 void c_Solver::WriteTestParticles(int cycle)
 {
-#ifndef NO_HDF5
-  if(nstestpart == 0 || col->testparticle_output_is_off() || cycle%(col->getTestParticlesOutputCycle())!=0) return;
+    #ifndef NO_HDF5
+        if(nstestpart == 0 || col->testparticle_output_is_off() || cycle%(col->getTestParticlesOutputCycle())!=0) return;
 
-  // this is a hack
-  for (int i = 0; i < nstestpart; i++)
-    testpart[i].convertParticlesToSynched();
+        // this is a hack
+        for (int i = 0; i < nstestpart; i++)
+            testpart[i].convertParticlesToSynched();
 
-  fetch_outputWrapperFPP().append_output("testpartpos + testpartvel+ testparttag", cycle, 0); // + testpartcharge
-#endif
+        fetch_outputWrapperFPP().append_output("testpartpos + testpartvel+ testparttag", cycle, 0); // + testpartcharge
+    #endif
 }
 
-// This needs to be separated into methods that save particles
-// and methods that save field data
-//
-void c_Solver::Finalize() {
-  if (col->getCallFinalize() && Parameters::get_doWriteOutput())
-  {
-    #ifndef NO_HDF5
-    convertParticlesToSynched();
-    fetch_outputWrapperFPP().append_restart((col->getNcycles() + first_cycle) - 1);
-    #endif
-  }
+//* ============================================================================================== *//
 
-  // stop profiling
-  my_clock->stopTiming();
+// This needs to be separated into methods that save particles and methods that save field data
+void c_Solver::Finalize() 
+{
+    if (col->getCallFinalize() && Parameters::get_doWriteOutput())
+    {
+        #ifndef NO_HDF5
+            convertParticlesToSynched();
+            fetch_outputWrapperFPP().append_restart((col->getNcycles() + first_cycle) - 1);
+        #endif
+    }
+
+    // stop profiling
+    my_clock->stopTiming();
 }
 
 //! place the particles into new cells according to their current position
-void c_Solver::sortParticles() {
-
-  for(int species_idx=0; species_idx<ns; species_idx++)
-    part[species_idx].sort_particles_serial();
-
+void c_Solver::sortParticles() 
+{
+    for(int species_idx=0; species_idx<ns; species_idx++)
+        part[species_idx].sort_particles_serial();
 }
 
 void c_Solver::pad_particle_capacities()
 {
-  for (int i = 0; i < ns; i++)
-    part[i].pad_capacities();
+    for (int i = 0; i < ns; i++)
+        part[i].pad_capacities();
 
-  for (int i = 0; i < nstestpart; i++)
-    testpart[i].pad_capacities();
+    for (int i = 0; i < nstestpart; i++)
+        testpart[i].pad_capacities();
 }
 
 // convert particle to struct of arrays (assumed by I/O)
 void c_Solver::convertParticlesToSoA()
 {
-  for (int i = 0; i < ns; i++)
-    part[i].convertParticlesToSoA();
+    for (int i = 0; i < ns; i++)
+        part[i].convertParticlesToSoA();
 }
 
 // convert particle to array of structs (used in computing)
 void c_Solver::convertParticlesToAoS()
 {
-  for (int i = 0; i < ns; i++)
-    part[i].convertParticlesToAoS();
+    for (int i = 0; i < ns; i++)
+        part[i].convertParticlesToAoS();
 }
 
 // convert particle to array of structs (used in computing)
 void c_Solver::convertParticlesToSynched()
 {
-  for (int i = 0; i < ns; i++)
-    part[i].convertParticlesToSynched();
+    for (int i = 0; i < ns; i++)
+        part[i].convertParticlesToSynched();
 
-  for (int i = 0; i < nstestpart; i++)
-    testpart[i].convertParticlesToSynched();
+    for (int i = 0; i < nstestpart; i++)
+        testpart[i].convertParticlesToSynched();
 }
 
-
-int c_Solver::LastCycle() {
+int c_Solver::LastCycle() 
+{
     return (col->getNcycles() + first_cycle);
 }
