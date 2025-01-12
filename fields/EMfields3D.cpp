@@ -97,7 +97,8 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     delt (c*th*dt), // declared after these
 
     //! Allocate arrays for data on nodes !//
-    //? (nxn, nyn, nzn) --> nodes; (nxc, nyc, nzc) --> cell centres
+    //? (nxn, nyn, nzn) --> nodes 
+    //? (nxc, nyc, nzc) --> cell centres
     fieldForPcls  (nxn, nyn, nzn, 2*DFIELD_3or4),
     Ex   (nxn, nyn, nzn),
     Ey   (nxn, nyn, nzn),
@@ -183,17 +184,16 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     divC   (nxc, nyc, nzc),
 
     //! B_ext and J_ext should not be allocated unless used.
-    Bx_ext(nxn,nyn,nzn),
-    By_ext(nxn,nyn,nzn),
-    Bz_ext(nxn,nyn,nzn),
-    Bx_tot(nxn,nyn,nzn),
-    By_tot(nxn,nyn,nzn),
-    Bz_tot(nxn,nyn,nzn),
-    Jx_ext(nxn,nyn,nzn),
-    Jy_ext(nxn,nyn,nzn),
-    Jz_ext(nxn,nyn,nzn)
-
-{ 
+    Bx_ext(nxn, nyn, nzn),
+    By_ext(nxn, nyn, nzn),
+    Bz_ext(nxn, nyn, nzn),
+    Bx_tot(nxn, nyn, nzn),
+    By_tot(nxn, nyn, nzn),
+    Bz_tot(nxn, nyn, nzn),
+    Jx_ext(nxn, nyn, nzn),
+    Jy_ext(nxn, nyn, nzn),
+    Jz_ext(nxn, nyn, nzn)
+{
     //! =============== Constructor =============== !//
   
     //? External fields
@@ -219,6 +219,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     }
     CGtol = col->getCGtol();
     GMREStol = col->getGMREStol();
+    zeroCurrent = (col->getZeroCurrent() == 1 ? 1 : 0);
     
     qom = new double[ns];
     for (int i = 0; i < ns; i++)
@@ -238,7 +239,6 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     bcEMfaceYleft   = col->getBcEMfaceYleft();
     bcEMfaceZright  = col->getBcEMfaceZright();
     bcEMfaceZleft   = col->getBcEMfaceZleft();
-
 
    //* getLambdaDamping() == "zero"
    //* Replaces the Maxwell equations with E=0 in the region where Lambda > Lambda_treshold
@@ -2478,9 +2478,9 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     else 
     {
         //? curl(curl(E)) = - Laplacian(E) + grad(div(E))
-        grid->lapN2N(imageX, vectX, vct);
-        grid->lapN2N(imageY, vectY, vct);
-        grid->lapN2N(imageZ, vectZ, vct);
+        grid->lapN2N(imageX, vectX, this);
+        grid->lapN2N(imageY, vectY, this);
+        grid->lapN2N(imageZ, vectZ, this);
 
         //? computes minus the laplacian
         scale(imageX, -1,  nxn, nyn, nzn);
@@ -2543,10 +2543,9 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
             for (int j=1; j<nyn-1; j++)
                 for (int k=1; k<nzn-1; k++) 
                 {
-                    double invV = grid->getInvVOL(i, j, k);
-                    temp2X.fetch(i, j, k) *= invV;
-                    temp2Y.fetch(i, j, k) *= invV;
-                    temp2Z.fetch(i, j, k) *= invV;
+                    temp2X.fetch(i, j, k) *= invVOL;
+                    temp2Y.fetch(i, j, k) *= invVOL;
+                    temp2Z.fetch(i, j, k) *= invVOL;
                 }
 
         addscale(1.0, imageX, temp2X, nxn, nyn, nzn);
@@ -2572,7 +2571,7 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
             cout << "*** M.E from approximate mass matrix ***" << endl;
 
         //? Add mass matrix applied to E but using the poor man approximation
-        MUdot_mass_matrix(temp3X, temp3Y, temp3Z, temp2X, temp2Y, temp2Z, vectX, vectY, vectZ, grid);
+        MUdot_mass_matrix(temp3X, temp3Y, temp3Z, temp2X, temp2Y, temp2Z, vectX, vectY, vectZ);
         
         addscale(1.0, imageX, temp3X, nxn, nyn, nzn);
         addscale(1.0, imageY, temp3Y, nxn, nyn, nzn);
@@ -2680,30 +2679,30 @@ void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz,
 }
 
 //TODO: Seems like this is not used (RhoImage, computeRhotilde, fixCharge)
-double EMfields3D::productMassEV(double ***vX, int i, int j, int k)
-{
-    const Grid *grid = &get_grid();
-  double res = 0;
+// double EMfields3D::productMassEV(double ***vX, int i, int j, int k)
+// {
+//     const Grid *grid = &get_grid();
+//   double res = 0;
 
-  // First the nodes that have been computed in the node i,j,k
-  for (int g=0; g<NE_MASS; g++) {
-    int i1 = i + NeNo.getX(g);
-    int j1 = j + NeNo.getY(g);
-    int k1 = k + NeNo.getZ(g);
+//   // First the nodes that have been computed in the node i,j,k
+//   for (int g=0; g<NE_MASS; g++) {
+//     int i1 = i + NeNo.getX(g);
+//     int j1 = j + NeNo.getY(g);
+//     int k1 = k + NeNo.getZ(g);
 
-    double V1 = 1.0/grid->getInvVOLn(i1,j1,k1);
-    res += V1*vX[i1][j1][k1]*Mxx[g][i][j][k];
+//     double V1 = 1.0/grid->getInvVOLn(i1,j1,k1);
+//     res += V1*vX[i1][j1][k1]*Mxx[g][i][j][k];
                               
-    if (g == 0) continue;
-    int i2 = i - NeNo.getX(g);
-    int j2 = j - NeNo.getY(g);
-    int k2 = k - NeNo.getZ(g);
-    double V2 = 1.0/grid->getInvVOLn(i2,j2,k2);
-    res += V2*vX[i2][j2][k2]*Mxx[g][i2][j2][k2];
+//     if (g == 0) continue;
+//     int i2 = i - NeNo.getX(g);
+//     int j2 = j - NeNo.getY(g);
+//     int k2 = k - NeNo.getZ(g);
+//     double V2 = 1.0/grid->getInvVOLn(i2,j2,k2);
+//     res += V2*vX[i2][j2][k2]*Mxx[g][i2][j2][k2];
 
-  }
-  return res;
-}
+//   }
+//   return res;
+// }
 
 //? Compute MU dot using mass matrix ?//
 void EMfields3D::MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, 
@@ -2879,7 +2878,7 @@ void EMfields3D::smooth(double value, arr4_double vector, int is, int type)
     eprintf("Smoothing for Species not implemented in 3D");
 }
 
-void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz, int dir, double smooth);
+void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz, int dir, double smooth)
 {
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
@@ -2908,42 +2907,41 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
             // double alpha;
             communicateNodeBoxStencilBC(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
 
-            if (col->getNdim() == 1) 
-            {   
-                //* 1D: smoothing only in the x 
-                double alpha = (1.0 - smooth) / 2;
+            // if (col->getNdim() == 1) 
+            // {   
+            //     //* 1D: smoothing only in the x 
+            //     double alpha = (1.0 - smooth) / 2;
                 
-                //TODO: iteration variables are different: nx. ny, nz or nxn, nyn, nzn? - Ask Fabio
-                for (int i = 1; i < nx - 1; i++)
-                    for (int j = 1; j < ny - 1; j++)
-                        for (int k = 1; k < nzn - 1; k++)
-                            tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k));
+            //     //TODO: iteration variables are different: nx. ny, nz or nxn, nyn, nzn? - Ask Fabio
+            //     for (int i = 1; i < nx - 1; i++)
+            //         for (int j = 1; j < ny - 1; j++)
+            //             for (int k = 1; k < nzn - 1; k++)
+            //                 tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k));
 
-                for (int i = 1; i < nxn - 1; i++)
-                    for (int j = 1; j < nyn - 1; j++)
-                        for (int k = 1; k < nzn - 1; k++)
-                            data.fetch(i, j, k) = tempX.get(i, 0, 0);
-            } 
-            else if (col->getNdim() == 2) 
-            { 
-                //* 2D: smoothing only in x and y
-                double alpha = (1.0 - smooth) / 4;
+            //     for (int i = 1; i < nxn - 1; i++)
+            //         for (int j = 1; j < nyn - 1; j++)
+            //             for (int k = 1; k < nzn - 1; k++)
+            //                 data.fetch(i, j, k) = tempX.get(i, 0, 0);
+            // } 
+            // else if (col->getNdim() == 2) 
+            // { 
+            //     //* 2D: smoothing only in x and y
+            //     double alpha = (1.0 - smooth) / 4;
                 
-                for (int i = 1; i < nx - 1; i++)
-                    for (int j = 1; j < ny - 1; j++)
-                        for (int k = 1; k < nzn - 1; k++)
-                            tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
-                                                                                       + data.get(i, j - 1, k) + data.get(i, j + 1, k));
+            //     for (int i = 1; i < nx - 1; i++)
+            //         for (int j = 1; j < ny - 1; j++)
+            //             for (int k = 1; k < nzn - 1; k++)
+            //                 tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
+            //                                                                            + data.get(i, j - 1, k) + data.get(i, j + 1, k));
                 
-                for (int i = 1; i < nxn - 1; i++)
-                    for (int j = 1; j < nyn - 1; j++)
-                        for (int k = 1; k < nzn - 1; k++)
-                            data.fetch(i, j, k) = tempX.get(i, j, 0);
-            } 
-            else 
+            //     for (int i = 1; i < nxn - 1; i++)
+            //         for (int j = 1; j < nyn - 1; j++)
+            //             for (int k = 1; k < nzn - 1; k++)
+            //                 data.fetch(i, j, k) = tempX.get(i, j, 0);
+            // } 
+            // else 
             { 
                 //* 3D: smoothing only in x and y
-                //TODO: X, Y, & Z - Ask Fabio
                 double alpha = (1.0 - smooth) / 6;
 
                 for (int i = 1; i < nx - 1; i++)
@@ -2962,9 +2960,13 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
     }
 }
 
-void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, arr3_double data_Z, int nx, int ny, int nz);
+void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, arr3_double data_Z, int nx, int ny, int nz)
 {
-    int current_cycle = col->getCurrent_cycle();
+    const Collective *col = &get_col();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
+
+    int current_cycle = col->getCurrentCycle();
     int smooth_cycle = col->getSmoothCycle();
     double smooth = col->getSmooth();
 
@@ -2972,9 +2974,9 @@ void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, 
     if (smooth_cycle > 0 and current_cycle % smooth_cycle == 0) 
     {
         //* Default: average with all the neighbours (6 neighbours in 3D, 4 in 2D and 2 in 1D)
-        applySmoothing(data_X, nx, ny, nz, 0, smooth);
-        applySmoothing(data_Y, nx, ny, nz, 1, smooth);
-        applySmoothing(data_Z, nx, ny, nz, 2, smooth);
+        energy_conserve_smooth(data_X, nx, ny, nz, 0, smooth);
+        energy_conserve_smooth(data_Y, nx, ny, nz, 1, smooth);
+        energy_conserve_smooth(data_Z, nx, ny, nz, 2, smooth);
     }
 }
 
@@ -3474,7 +3476,7 @@ void EMfields3D::calculateB()
 
     // TODO: Implement this
     //? Boundary conditions for magnetic field
-    fixBC_B(vct, col);
+    // fixBC_B(vct, col);
 }
 
 /*! initialize EM field with transverse electric waves 1D and rotate anticlockwise (theta degrees) */
@@ -3680,22 +3682,22 @@ void EMfields3D::communicateGhostP2G(int ns)
 //*** Different initial configurations ***//
 
 //? Set all elements of mass matrix to 0
-void setZeroMassMatrix()
+void EMfields3D::setZeroMassMatrix()
 {
     for (int c = 0; c < NE_MASS; c++) 
         for (int i = 0; i < nxn; i++)
             for (int j = 0; j < nyn; j++)
                 for (int k = 0; k < nzn; k++) 
                 {
-                    Mxx[c][i][j][k] = 0.0;
-                    Mxy[c][i][j][k] = 0.0;
-                    Mxz[c][i][j][k] = 0.0;
-                    Myx[c][i][j][k] = 0.0;
-                    Myy[c][i][j][k] = 0.0;
-                    Myz[c][i][j][k] = 0.0;
-                    Mzx[c][i][j][k] = 0.0;
-                    Mzy[c][i][j][k] = 0.0;
-                    Mzz[c][i][j][k] = 0.0;
+                    Mxx.fetch(c, i, j, k) = 0.0;
+                    Mxy.fetch(c, i, j, k) = 0.0;
+                    Mxz.fetch(c, i, j, k) = 0.0;
+                    Myx.fetch(c, i, j, k) = 0.0;
+                    Myy.fetch(c, i, j, k) = 0.0;
+                    Myz.fetch(c, i, j, k) = 0.0;
+                    Mzx.fetch(c, i, j, k) = 0.0;
+                    Mzy.fetch(c, i, j, k) = 0.0;
+                    Mzz.fetch(c, i, j, k) = 0.0;
                 }
 }
 
@@ -3753,7 +3755,7 @@ void EMfields3D::setZeroDensities()
     setZeroPrimaryMoments();
 }
 
-//* SPECIES: Sum the charge density of different species on NODES *//
+//* Sum charge density of different species on NODES *//
 void EMfields3D::sumOverSpecies()
 {
     for (int is = 0; is < ns; is++)
@@ -3763,7 +3765,7 @@ void EMfields3D::sumOverSpecies()
                     rhon[i][j][k] += rhons[is][i][j][k];
 }
 
-//*SPECIES: Sum current density for different species //
+//* Sum current density for different species //
 void EMfields3D::sumOverSpeciesJ() 
 {
     for (int is = 0; is < ns; is++)
@@ -3775,6 +3777,35 @@ void EMfields3D::sumOverSpeciesJ()
                     Jy[i][j][k] += Jys[is][i][j][k];
                     Jz[i][j][k] += Jzs[is][i][j][k];
                 }
+}
+
+void EMfields3D::setZeroCurrent()
+{
+    const VirtualTopology3D *vct = &get_vct();
+
+    for (int k=1; k<nzn-1; k++) 
+        for (int j=1; j<nyn-1; j++) 
+            for (int i=1; i<nxn-1; i++) 
+            {
+                Jx_ext.fetch(i, j, k) = 0.0;
+                Jx_ext.fetch(i, j, k) = 0.0;
+                Jx_ext.fetch(i, j, k) = 0.0;
+
+                for (int s=0; s<ns; s++) 
+                {
+                    Jx_ext.fetch(i, j, k) -= Jxs.get(s, i, j, k);
+                    Jy_ext.fetch(i, j, k) -= Jys.get(s, i, j, k);
+                    Jz_ext.fetch(i, j, k) -= Jzs.get(s, i, j, k);
+                }
+            }
+
+    communicateInterp(nxn, nyn, nzn, Jx_ext, vct, this);
+    communicateInterp(nxn, nyn, nzn, Jy_ext, vct, this);
+    communicateInterp(nxn, nyn, nzn, Jz_ext, vct, this);
+  
+    communicateNode_P(nxn, nyn, nzn, Jx_ext, vct, this);
+    communicateNode_P(nxn, nyn, nzn, Jy_ext, vct, this);
+    communicateNode_P(nxn, nyn, nzn, Jz_ext, vct, this);
 }
 
 //* =========================================================================================================== *//
@@ -5605,9 +5636,9 @@ void EMfields3D::print(void) const {
 //*! Destructor !*//
 EMfields3D::~EMfields3D() 
 {
-  delete [] qom;
-  delete [] rhoINIT;
-  for(int i=0;i<sizeMomentsArray;i++) { delete moments10Array[i]; }
-  delete [] moments10Array;
-  freeDataType();
+    delete [] qom;
+    delete [] rhoINIT;
+    for(int i=0;i<sizeMomentsArray;i++) { delete moments10Array[i]; }
+    delete [] moments10Array;
+    freeDataType();
 }

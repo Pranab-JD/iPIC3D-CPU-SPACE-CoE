@@ -1,4 +1,5 @@
-/* iPIC3D was originally developed by Stefano Markidis and Giovanni Lapenta. 
+/* 
+ * iPIC3D was originally developed by Stefano Markidis and Giovanni Lapenta. 
  * This release was contributed by Alec Johnson and Ivy Bo Peng.
  * Publications that use results from iPIC3D need to properly cite  
  * 'S. Markidis, G. Lapenta, and Rizwan-uddin. "Multi-scale simulations of 
@@ -28,7 +29,6 @@
 #include "Alloc.h"
 #include "Basic.h"
 #include "Neighbouring_Nodes.h"
-
 
 /*! Electromagnetic fields and sources defined for each local grid, and for an implicit maxwell's solver @date May 2008 @par Copyright: (C) 2008 KUL @author Stefano Markidis, Giovanni Lapenta. @version 3.0 */
 
@@ -109,7 +109,7 @@ public:
     void fixBforcefree();
 
     //* Boundary conditions for magnetic field *//
-    void fixBC_B();
+    // void fixBC_B();
 
     //? ----------------------------------------- ?//
 
@@ -194,15 +194,12 @@ public:
 
     /*! Perfect conductor boundary conditions LEFT wall */
     void perfectConductorLeft(arr3_double imageX, arr3_double imageY, arr3_double imageZ,
-      const_arr3_double vectorX, const_arr3_double vectorY, const_arr3_double vectorZ,
-      int dir);
+                              const_arr3_double vectorX, const_arr3_double vectorY, const_arr3_double vectorZ,
+                              int dir);
     /*! Perfect conductor boundary conditions RIGHT wall */
-    void perfectConductorRight(
-      arr3_double imageX, arr3_double imageY, arr3_double imageZ,
-      const_arr3_double vectorX,
-      const_arr3_double vectorY,
-      const_arr3_double vectorZ,
-      int dir);
+    void perfectConductorRight(arr3_double imageX, arr3_double imageY, arr3_double imageZ,
+                               const_arr3_double vectorX, const_arr3_double vectorY, const_arr3_double vectorZ,
+                               int dir);
     /*! Perfect conductor boundary conditions for source LEFT wall */
     void perfectConductorLeftS(arr3_double vectorX, arr3_double vectorY, arr3_double vectorZ, int dir);
     /*! Perfect conductor boundary conditions for source RIGHT wall */
@@ -222,14 +219,13 @@ public:
     arr3_double getPHI() {return PHI;}
 
     // field components defined on nodes
-    //
     double getEx(int X, int Y, int Z) const { return Ex.get(X,Y,Z);}
     double getEy(int X, int Y, int Z) const { return Ey.get(X,Y,Z);}
     double getEz(int X, int Y, int Z) const { return Ez.get(X,Y,Z);}
     double getBx(int X, int Y, int Z) const { return Bxn.get(X,Y,Z);}
     double getBy(int X, int Y, int Z) const { return Byn.get(X,Y,Z);}
     double getBz(int X, int Y, int Z) const { return Bzn.get(X,Y,Z);}
-    //
+    
     const_arr4_pfloat get_fieldForPcls() { return fieldForPcls; }
     arr3_double getEx() { return Ex; }
     arr3_double getEy() { return Ey; }
@@ -238,35 +234,18 @@ public:
     arr3_double getBy() { return Byn; }
     arr3_double getBz() { return Bzn; }
 
-    
     //for parallel vtk
     arr3_double getBxc(){return Bxc;};
     arr3_double getByc(){return Byc;};
     arr3_double getBzc(){return Bzc;};
 
-
-    //arr3_double getRHOc() { return rhoc; }
-    //arr3_double getRHOn() { return rhon; }
-    //double getRHOc(int X, int Y, int Z) const { return rhoc.get(X,Y,Z);}
-    //double getRHOn(int X, int Y, int Z) const { return rhon.get(X,Y,Z);}
-
     // densities per species:
-    //
     double getRHOcs(int X,int Y,int Z,int is)const{return rhocs.get(is,X,Y,Z);}
     double getRHOns(int X,int Y,int Z,int is)const{return rhons.get(is,X,Y,Z);}
     arr4_double getRHOns(){return rhons;}
     arr4_double getRHOcs(){return rhocs;}
 
     //? Extenal electric field components (defined on nodes)
-    double getBx_ext(int X, int Y, int Z) const{return Bx_ext.get(X,Y,Z);}
-    double getBy_ext(int X, int Y, int Z) const{return By_ext.get(X,Y,Z);}
-    double getBz_ext(int X, int Y, int Z) const{return Bz_ext.get(X,Y,Z);}
-    
-    arr3_double getBx_ext() { return Bx_ext; }
-    arr3_double getBy_ext() { return By_ext; }
-    arr3_double getBz_ext() { return Bz_ext; }
-
-    //? Extenal magnetic field components (defined on nodes)
     double getBx_ext(int X, int Y, int Z) const{return Bx_ext.get(X,Y,Z);}
     double getBy_ext(int X, int Y, int Z) const{return By_ext.get(X,Y,Z);}
     double getBz_ext(int X, int Y, int Z) const{return Bz_ext.get(X,Y,Z);}
@@ -315,7 +294,6 @@ public:
     arr4_double getpZZsn() { return pZZsn; }
     double getpZZsn(int X,int Y,int Z,int is)const{return pZZsn.get(is,X,Y,Z);}
 
-
     double getJx(int X, int Y, int Z) const { return Jx.get(X,Y,Z);}
     double getJy(int X, int Y, int Z) const { return Jy.get(X,Y,Z);}
     double getJz(int X, int Y, int Z) const { return Jz.get(X,Y,Z);}
@@ -330,6 +308,9 @@ public:
     double getJys(int X,int Y,int Z,int is)const{return Jys.get(is,X,Y,Z);}
     double getJzs(int X,int Y,int Z,int is)const{return Jzs.get(is,X,Y,Z);}
 
+    void addMass(double value[3][3], int X, int Y, int Z, int ind);
+    void addMassXX(double value, int X, int Y, int Z, int ind);
+
     /*! get the electric field energy */
     double getEenergy();
     /*! get the magnetic field energy */
@@ -338,6 +319,8 @@ public:
     double getBulkEnergy(int is);
 
     bool getPCnonzero();
+
+    void setZeroCurrent();
 
     /*! fetch array for summing moments of thread i */
     Moments10& fetch_moments10Array(int i){
@@ -395,7 +378,7 @@ private:
     double Smooth;
     int SmoothNiter;
     int Nvolte;
-
+    int zeroCurrent;
     /*! delt = c*th*dt */
     double delt;
     /*! number of particles species */
@@ -476,10 +459,8 @@ private:
     array3_double Byn;
     array3_double Bzn;
 
-    // *************************************
-    // TEMPORARY ARRAY
-    // ************************************
-    /*!some temporary arrays (for calculate hat functions) */
+    //? ***************** TEMPORARY ARRAYS ***************** ?//
+
     array3_double tempXC;
     array3_double tempYC;
     array3_double tempZC;
@@ -489,7 +470,8 @@ private:
     array3_double tempXN;
     array3_double tempYN;
     array3_double tempZN;
-    /*! other temporary arrays (in MaxwellSource) */
+    
+    //* Temporary arrays for MaxwellSource() *//
     array3_double tempC;
     array3_double tempX;
     array3_double tempY;
@@ -500,7 +482,8 @@ private:
     array3_double temp3X;
     array3_double temp3Y;
     array3_double temp3Z;
-    /*! and some for MaxwellImage */
+
+    //* Temporary arrays for MaxwellImage() *//
     array3_double imageX;
     array3_double imageY;
     array3_double imageZ;
@@ -511,14 +494,12 @@ private:
     array3_double vectY;
     array3_double vectZ;
     array3_double divC;
-    //array3_double arr;
-    /* temporary arrays for summing moments */
+
+    //* Temporary arrays for summing moments *//
     int sizeMomentsArray;
     Moments10 **moments10Array;
 
-    // *******************************************************************************
-    // *********** SOURCES **
-    // *******************************************************************************
+    //? ***************** SOURCES ***************** ?//
 
     /*! Charge density, defined on central points of the cell */
     array3_double rhoc;
@@ -526,9 +507,9 @@ private:
     array3_double rhon;
     /*! Implicit charge density, defined on central points of the cell */
     array3_double rhoh;
-    /*! SPECIES: charge density for each species, defined on nodes */
+    /*! charge density for each species, defined on nodes */
     array4_double rhons;
-    /*! SPECIES: charge density for each species, defined on central points of the cell */
+    /*! charge density for each species, defined on central points of the cell */
     array4_double rhocs;
 
     array3_double Phic;
@@ -553,28 +534,28 @@ private:
     array4_double Jzs;
 
     // external electric field components defined on nodes
-    array3_double   Ex_ext;
-    array3_double   Ey_ext;
-    array3_double   Ez_ext;
+    array3_double Ex_ext;
+    array3_double Ey_ext;
+    array3_double Ez_ext;
 
     // external magnetic field components defined on nodes
-    array3_double   Bx_ext;
-    array3_double   By_ext;
-    array3_double   Bz_ext;
+    array3_double Bx_ext;
+    array3_double By_ext;
+    array3_double Bz_ext;
 
     // external magnetic field components defined on nodes
-    array3_double   Bxc_ext;
-    array3_double   Byc_ext;
-    array3_double   Bzc_ext;
+    array3_double Bxc_ext;
+    array3_double Byc_ext;
+    array3_double Bzc_ext;
 
-    array3_double   Bx_tot;
-    array3_double   By_tot;
-    array3_double   Bz_tot;
+    array3_double Bx_tot;
+    array3_double By_tot;
+    array3_double Bz_tot;
 
     // external current, defined on nodes
-    array3_double   Jx_ext;
-    array3_double   Jy_ext;
-    array3_double   Jz_ext;
+    array3_double Jx_ext;
+    array3_double Jy_ext;
+    array3_double Jz_ext;
 
     // pressure tensor components, defined on nodes
     array4_double pXXsn;
@@ -615,16 +596,13 @@ private:
     int bcPHIfaceZleft;
 
     /*! Boundary condition for electric field 0 = perfect conductor 1 = magnetic mirror */
-    //
     // boundary conditions for EM field
-    //
     int bcEMfaceXright;
     int bcEMfaceXleft;
     int bcEMfaceYright;
     int bcEMfaceYleft;
     int bcEMfaceZright;
     int bcEMfaceZleft;
-
 
     /*! GEM Challenge background ion */
     double *rhoINIT;
@@ -637,7 +615,6 @@ private:
     /*! RESTART BOOLEAN */
     int restart1;
 
-    
     double CGtol;                               //* CG tolerance criterium for stopping iterations
     double GMREStol;                            //* GMRES tolerance criterium for stopping iterations
 
@@ -783,22 +760,6 @@ inline void get_field_components_for_cell(const double* field_components[8], con
     const int iy = cy+1;
     const int iz = cz+1;
 
-    // is this faster?
-    //
-    //field_components[0] = fieldForPcls[ix][iy][iz]; // field000
-    //field_components[1] = fieldForPcls[ix][iy][cz]; // field001
-    //field_components[2] = fieldForPcls[ix][cy][iz]; // field010
-    //field_components[3] = fieldForPcls[ix][cy][cz]; // field011
-    //field_components[4] = fieldForPcls[cx][iy][iz]; // field100
-    //field_components[5] = fieldForPcls[cx][iy][cz]; // field101
-    //field_components[6] = fieldForPcls[cx][cy][iz]; // field110
-    //field_components[7] = fieldForPcls[cx][cy][cz]; // field111
-    //
-    // or is this?
-    //
-    // creating these aliases seems to accelerate this method (by about 30%?)
-    // on the Xeon host processor, suggesting deficiency in the optimizer.
-    //
     arr3_double_get field0 = fieldForPcls[ix];
     arr3_double_get field1 = fieldForPcls[cx];
     arr2_double_get field00 = field0[iy];

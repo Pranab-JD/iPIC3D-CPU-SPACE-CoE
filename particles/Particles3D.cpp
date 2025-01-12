@@ -975,15 +975,12 @@ void Particles3D::ECSIM_position(Field * EMf)
             }
 
             //cout << xp << ";  " << ixc << ";  "<< correct_x << ";  " << correct_y << ";  "<< correct_z << endl;
-            //TODO: can uorig, vorig ... be replaced with getU(pidx), getV(pidx) ...?
-            //? Update the positions with the new velocity
-            xorig = xavg + uorig/gn * dt * correct_x + dxp;
-            yorig = yavg + vorig/gn * dt * correct_y + dyp;
-            zorig = zavg + worig/gn * dt * correct_z + dzp;
 
-            fetchX(pidx) = xorig;
-            fetchY(pidx) = yorig;
-            fetchZ(pidx) = zorig;
+            //? Update the positions with the new velocity
+            fetchX(pidx) = xavg + uorig/gn * dt * correct_x + dxp;
+            fetchY(pidx) = yavg + vorig/gn * dt * correct_y + dyp;
+            fetchZ(pidx) = zavg + worig/gn * dt * correct_z + dzp;
+
             fetchU(pidx) = uorig;
             fetchV(pidx) = vorig;
             fetchW(pidx) = worig;

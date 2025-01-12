@@ -105,6 +105,8 @@ void Collective::ReadInput(string inputfile)
         SmoothNiter     = config.read<int>       ("SmoothNiter",6);
         config.readInto(Nvolte, "Nvolte",0);
 
+        SmoothCycle = config.read<int>("SmoothCycle", 1);
+
         SaveDirName     = config.read<string>    ("SaveDirName","data");
         RestartDirName  = config.read<string>    ("RestartDirName","data");
         ns              = config.read<int>       ("ns");
@@ -246,7 +248,6 @@ void Collective::ReadInput(string inputfile)
   y_center = config.read < double >("y_center",5.0);
   z_center = config.read < double >("z_center",5.0);
   L_square = config.read < double >("L_square",5.0);
-
 
   uth = std::make_unique<double[]>(ns);
   vth = std::make_unique<double[]>(ns);

@@ -431,7 +431,7 @@ bool c_Solver::ParticlesMover()
     for (int i=0; i < ns; i++) 
     {
         if (col->getRHOinject(i)>0.0)
-            art[i].repopulate_particles();
+            part[i].repopulate_particles();
     }
 
     //? Remove particles from depopulation area

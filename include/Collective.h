@@ -194,13 +194,18 @@ class Collective
     bool field_output_is_off()const;
 
     //? ECSim functions
-    bool Collective::getAddExternalCurlB() { return AddExternalCurlB; }
-    bool Collective::getAddExternalCurlE() { return AddExternalCurlE; }
-    bool Collective::getEnergyConservingSmoothing() { return EnergyConservingSmoothing; }
-    bool Collective::getCurlCurl() { return CurlCurl; }
-    bool Collective::getExactMM() { return ExactMM; }
-    string Collective::getRemoveDivE() { return RemoveDivE; }
-    double Collective::getLangdonCorrection(){return LangdonCorrection;}
+    bool getAddExternalCurlB()const { return AddExternalCurlB; }
+    bool getAddExternalCurlE()const { return AddExternalCurlE; }
+    bool getEnergyConservingSmoothing()const { return EnergyConservingSmoothing; }
+    bool getCurlCurl()const { return CurlCurl; }
+    bool getExactMM()const { return ExactMM; }
+    string getRemoveDivE()const { return RemoveDivE; }
+    double getLangdonCorrection()const { return LangdonCorrection; }
+
+    int getZeroCurrent() { return zeroCurrent; }
+    int getSmoothCycle()const { return SmoothCycle; }
+    int getCurrentCycle()const { return CurrentCycle; }
+    void setCurrentCycle(int cycle) { CurrentCycle = cycle; }
     
     /*! Boundary condition selection for BCFace for the electric field components */
     int bcEx[6], bcEy[6], bcEz[6];
@@ -236,6 +241,10 @@ class Collective
     double Smooth;
     int SmoothNiter;
     int Nvolte;
+    int zeroCurrent;
+    int CurrentCycle;
+    int SmoothCycle;
+
     /*! number of time cycles */
     int ncycles;
     /*! physical space dimensions */
@@ -381,7 +390,6 @@ class Collective
     /*! Boundary Condition EM Field: FaceZleft */
     int bcEMfaceZleft;
 
-
     /*! GEM Challenge parameters */
     /*! current sheet thickness */
     double delta;
@@ -392,7 +400,6 @@ class Collective
     double B1x;
     double B1y;
     double B1z;
-
 
     /*! boolean value for verbose results */
     //bool verbose;
