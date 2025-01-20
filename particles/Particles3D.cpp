@@ -673,14 +673,13 @@ void Particles3D::ECSIM_velocity(Field * EMf)
     {
         convertParticlesToSoA();
 
-        long np_fast = 0;
-
         #pragma omp master
         if (vct->getCartesian_rank() == 0) 
             cout << "*** ECSIM MOVER (velocities); species " << ns << endl;
 
         const_arr4_double fieldForPcls = EMf->get_fieldForPcls();
 
+        #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++) 
         {
             //* --------------------------------------- *//
@@ -728,6 +727,7 @@ void Particles3D::ECSIM_velocity(Field * EMf)
             const int cy = iy - 1;
             const int cz = iz - 1;
 
+            //* Compute weights of the particles
             const double xi0   = xavg - grid->getXN(ix-1);
             const double eta0  = yavg - grid->getYN(iy-1);
             const double zeta0 = zavg - grid->getZN(iz-1);
@@ -823,15 +823,14 @@ void Particles3D::ECSIM_velocity(Field * EMf)
 
     }
     //! End of #pragma omp parallel
-
-    //  if (np_fast > 0) printf("WARNING: %d particles in proc %d had a very large velocity. They have been fixed\n", np_fast, rank);
-    // exit succcesfully (hopefully) 
 }
 
 void Particles3D::ECSIM_position(Field * EMf) 
 {
     #pragma omp parallel
     {
+        convertParticlesToSoA();
+
         #pragma omp master
         if (vct->getCartesian_rank() == 0) 
             cout << "*** ECSIM MOVER (velocities); species " << ns << endl;
@@ -841,13 +840,14 @@ void Particles3D::ECSIM_position(Field * EMf)
         double correct_z = 1.0;
 
         //TODO: what is this?
-        double ***R= asgArr3(double, grid->getNXC(), grid->getNYC(), grid->getNZC(), EMf->getResDiv(ns));
+        double ***R = asgArr3(double, grid->getNXC(), grid->getNYC(), grid->getNZC(), EMf->getResDiv(ns));
 
         double dxp = 0.0;
         double dyp = 0.0;
         double dzp = 0.0;
         double invSURF;
 
+        #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++) 
         {
             //* --------------------------------------- *//
@@ -951,12 +951,12 @@ void Particles3D::ECSIM_position(Field * EMf)
                 double RzP = 0.0;
                 double RzM = 0.0;
 
-                RzP = weight00 * (R[ix][iy][iz]             );
+                RzP  = weight00 * (R[ix][iy][iz]             );
                 RzP += weight01 * (R[ix][iy - 1][iz]         );
                 RzP += weight10 * (R[ix - 1][iy][iz]         );
                 RzP += weight11 * (R[ix - 1][iy - 1][iz]     );
             
-                RzM = weight00 * (R[ix][iy][iz-1]             );
+                RzM  = weight00 * (R[ix][iy][iz-1]             );
                 RzM += weight01 * (R[ix][iy - 1][iz-1]         );
                 RzM += weight10 * (R[ix - 1][iy][iz-1]         );
                 RzM += weight11 * (R[ix - 1][iy - 1][iz-1]     );
