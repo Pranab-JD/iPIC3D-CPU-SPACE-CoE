@@ -41,11 +41,11 @@ namespace BCparticles
 {
     enum Enum
     {
-        EXIT = 0,
-        PERFECT_MIRROR = 1,
-        REEMISSION = 2,
-        OPENBCOut = 3,
-        OPENBCIn = 4
+        EXIT            = 0,
+        PERFECT_MIRROR  = 1,
+        REEMISSION      = 2,
+        OPENBCOut       = 3,
+        OPENBCIn        = 4
     };
 }
 
@@ -60,192 +60,172 @@ namespace BCparticles
 class Particles3Dcomm // :public Particles
 {
 public:
-  /** constructor */
-  Particles3Dcomm(int species, CollectiveIO * col,
-    VirtualTopology3D * vct, Grid * grid);
-  /** destructor */
-  ~Particles3Dcomm();
+    //! Constructor !//
+    Particles3Dcomm(int species, CollectiveIO * col, VirtualTopology3D * vct, Grid * grid);
+  
+    //! Destructor !//
+    ~Particles3Dcomm();
 
   /** interpolation method GRID->PARTICLE order 1: CIC */
   // This does not belong in this class and is no longer in use.
-  void interpP2G(Field * EMf);
+//   void interpP2G(Field * EMf);
 
- public: // handle boundary conditions
-  // apply boundary conditions to all particles at the
-  // end of a list of particles starting with index start
-  // 
-  // these are virtual so user can override these
-  // to provide arbitrary custom boundary conditions
-  virtual void apply_Xleft_BC(vector_SpeciesParticle& pcls, int start=0);
-  virtual void apply_Yleft_BC(vector_SpeciesParticle& pcls, int start=0);
-  virtual void apply_Zleft_BC(vector_SpeciesParticle& pcls, int start=0);
-  virtual void apply_Xrght_BC(vector_SpeciesParticle& pcls, int start=0);
-  virtual void apply_Yrght_BC(vector_SpeciesParticle& pcls, int start=0);
-  virtual void apply_Zrght_BC(vector_SpeciesParticle& pcls, int start=0);
- private: // handle boundary conditions
-  void apply_periodic_BC_global(vector_SpeciesParticle& pcl_list, int pstart);
-  bool test_pcls_are_in_nonperiodic_domain(const vector_SpeciesParticle& pcls)const;
-  bool test_pcls_are_in_domain(const vector_SpeciesParticle& pcls)const;
-  bool test_outside_domain(const SpeciesParticle& pcl)const;
-  bool test_outside_nonperiodic_domain(const SpeciesParticle& pcl)const;
-  bool test_Xleft_of_domain(const SpeciesParticle& pcl)
-  { return pcl.get_x() < 0.; }
-  bool test_Xrght_of_domain(const SpeciesParticle& pcl)
-  { return pcl.get_x() > Lx; }
-  bool test_Yleft_of_domain(const SpeciesParticle& pcl)
-  { return pcl.get_y() < 0.; }
-  bool test_Yrght_of_domain(const SpeciesParticle& pcl)
-  { return pcl.get_y() > Ly; }
-  bool test_Zleft_of_domain(const SpeciesParticle& pcl)
-  { return pcl.get_z() < 0.; }
-  bool test_Zrght_of_domain(const SpeciesParticle& pcl)
-  { return pcl.get_z() > Lz; }
-  void apply_nonperiodic_BCs_global(vector_SpeciesParticle&, int pstart);
-  bool test_all_pcls_are_in_subdomain();
-  void apply_BCs_globally(vector_SpeciesParticle& pcl_list);
-  void apply_BCs_locally(vector_SpeciesParticle& pcl_list,
-    int direction, bool apply_shift, bool do_apply_BCs);
- private: // communicate particles between processes
-  void flush_send();
-  bool send_pcl_to_appropriate_buffer(SpeciesParticle& pcl, int count[6]);
-  int handle_received_particles(int pclCommMode=0);
- public:
-  int separate_and_send_particles();
-  void recommunicate_particles_until_done(int min_num_iterations=3);
-  void communicate_particles();
-  void pad_capacities();
- private:
-  void resize_AoS(int nop);
-  void resize_SoA(int nop);
-  void copyParticlesToAoS();
-  void copyParticlesToSoA();
+public: 
+    //* Apply boundary conditions to all particles at the end of a list of particles starting with index start;
+    //* These are virtual so user can override these to provide arbitrary custom boundary conditions
+    virtual void apply_Xleft_BC(vector_SpeciesParticle& pcls, int start=0);
+    virtual void apply_Yleft_BC(vector_SpeciesParticle& pcls, int start=0);
+    virtual void apply_Zleft_BC(vector_SpeciesParticle& pcls, int start=0);
+    virtual void apply_Xrght_BC(vector_SpeciesParticle& pcls, int start=0);
+    virtual void apply_Yrght_BC(vector_SpeciesParticle& pcls, int start=0);
+    virtual void apply_Zrght_BC(vector_SpeciesParticle& pcls, int start=0);
 
- public:
-  void convertParticlesToSynched();
-  void convertParticlesToAoS();
-  void convertParticlesToSoA();
-  bool particlesAreSoA()const;
+    void computeMoments(Field * EMf);
 
-  /*! sort particles for vectorized push (needs to be parallelized) */
-  //void sort_particles_serial_SoA_by_xavg();
-  void sort_particles_serial();
-  void sort_particles_serial_AoS();
-  //void sort_particles_serial_SoA();
+private:
+    void apply_periodic_BC_global(vector_SpeciesParticle& pcl_list, int pstart);
+    bool test_pcls_are_in_nonperiodic_domain(const vector_SpeciesParticle& pcls)const;
+    bool test_pcls_are_in_domain(const vector_SpeciesParticle& pcls)const;
+    bool test_outside_domain(const SpeciesParticle& pcl)const;
+    bool test_outside_nonperiodic_domain(const SpeciesParticle& pcl)const;
+    bool test_Xleft_of_domain(const SpeciesParticle& pcl){ return pcl.get_x() < 0.; }
+    bool test_Xrght_of_domain(const SpeciesParticle& pcl){ return pcl.get_x() > Lx; }
+    bool test_Yleft_of_domain(const SpeciesParticle& pcl){ return pcl.get_y() < 0.; }
+    bool test_Yrght_of_domain(const SpeciesParticle& pcl){ return pcl.get_y() > Ly; }
+    bool test_Zleft_of_domain(const SpeciesParticle& pcl){ return pcl.get_z() < 0.; }
+    bool test_Zrght_of_domain(const SpeciesParticle& pcl){ return pcl.get_z() > Lz; }
+    void apply_nonperiodic_BCs_global(vector_SpeciesParticle&, int pstart);
+    bool test_all_pcls_are_in_subdomain();
+    void apply_BCs_globally(vector_SpeciesParticle& pcl_list);
+    void apply_BCs_locally(vector_SpeciesParticle& pcl_list, int direction, bool apply_shift, bool do_apply_BCs);
 
-  // get accessors for optional arrays
-  //
-  //Larray<SpeciesParticle>& fetch_pcls(){ return _pcls; }
-  //Larray<SpeciesParticle>& fetch_pclstmp(){ return _pclstmp; }
-
-  // particle creation methods
-  //
-  void reserve_remaining_particle_IDs()
-  {
-    // reserve remaining particle IDs starting from getNOP()
-    pclIDgenerator.reserve_particles_in_range(getNOP());
-  }
-  // create new particle
-  void create_new_particle(
-    double u, double v, double w, double q,
-    double x, double y, double z)
-  {
-    const double t = pclIDgenerator.generateID();
-    _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,t));
-  }
-  // add particle to the list
-  void add_new_particle(
-    double u, double v, double w, double q,
-    double x, double y, double z, double t)
-  {
-    _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,t));
-  }
-
-  void delete_particle(int pidx)
-  {
-    _pcls[pidx]=_pcls.back();
-    _pcls.pop_back();
-    //_pcls.delete_element(pidx);
-  }
-
-  // inline get accessors
-  //
-  double get_dx(){return dx;}
-  double get_dy(){return dy;}
-  double get_dz(){return dz;}
-  double get_invdx(){return inv_dx;}
-  double get_invdy(){return inv_dy;}
-  double get_invdz(){return inv_dz;}
-  double get_xstart(){return xstart;}
-  double get_ystart(){return ystart;}
-  double get_zstart(){return zstart;}
-  ParticleType::Type get_particleType()const { return particleType; }
-  const SpeciesParticle& get_pcl(int pidx)const{ return _pcls[pidx]; }
-  const vector_SpeciesParticle& get_pcl_list()const{ return _pcls; }
-  const SpeciesParticle* get_pclptr(int id)const{ return &(_pcls[id]); }
-  const double *getUall()  const { assert(particlesAreSoA()); return &u[0]; }
-  const double *getVall()  const { assert(particlesAreSoA()); return &v[0]; }
-  const double *getWall()  const { assert(particlesAreSoA()); return &w[0]; }
-  const double *getQall()  const { assert(particlesAreSoA()); return &q[0]; }
-  const double *getXall()  const { assert(particlesAreSoA()); return &x[0]; }
-  const double *getYall()  const { assert(particlesAreSoA()); return &y[0]; }
-  const double *getZall()  const { assert(particlesAreSoA()); return &z[0]; }
-  const double *getParticleIDall() const{assert(particlesAreSoA());return &t[0];  }
-  // accessors for particle with index indexPart
-  //
-  int getNOP()  const { return _pcls.size(); }
-  // set particle components
-  void setU(int i, double in){_pcls[i].set_u(in);}
-  void setV(int i, double in){_pcls[i].set_v(in);}
-  void setW(int i, double in){_pcls[i].set_w(in);}
-  void setQ(int i, double in){_pcls[i].set_q(in);}
-  void setX(int i, double in){_pcls[i].set_x(in);}
-  void setY(int i, double in){_pcls[i].set_y(in);}
-  void setZ(int i, double in){_pcls[i].set_z(in);}
-  void setT(int i, double in){_pcls[i].set_t(in);}
-  // fetch particle components
-  double& fetchU(int i){return _pcls[i].fetch_u();}
-  double& fetchV(int i){return _pcls[i].fetch_v();}
-  double& fetchW(int i){return _pcls[i].fetch_w();}
-  double& fetchQ(int i){return _pcls[i].fetch_q();}
-  double& fetchX(int i){return _pcls[i].fetch_x();}
-  double& fetchY(int i){return _pcls[i].fetch_y();}
-  double& fetchZ(int i){return _pcls[i].fetch_z();}
-  double& fetchT(int i){return _pcls[i].fetch_t();}
-  // get particle components
-  double getU(int i)const{return _pcls[i].get_u();}
-  double getV(int i)const{return _pcls[i].get_v();}
-  double getW(int i)const{return _pcls[i].get_w();}
-  double getQ(int i)const{return _pcls[i].get_q();}
-  double getX(int i)const{return _pcls[i].get_x();}
-  double getY(int i)const{return _pcls[i].get_y();}
-  double getZ(int i)const{return _pcls[i].get_z();}
-  double getT(int i)const{return _pcls[i].get_t();}
-  //int get_npmax() const {return npmax;}
-
-  // computed get access
-  //
-  /** return the Kinetic energy */
-  double getKe();
-  /** return the maximum kinetic energy */
-  double getMaxVelocity();
-  /** return energy distribution */
-  long long *getVelocityDistribution(int nBins, double maxVel);
-  /** return the momentum */
-  double getP();
-  /** Print particles info: positions, velocities */
-  void Print() const;
-  /** Print the number of particles of this subdomain */
-  void PrintNp() const;
+private: // communicate particles between processes
+    void flush_send();
+    bool send_pcl_to_appropriate_buffer(SpeciesParticle& pcl, int count[6]);
+    int handle_received_particles(int pclCommMode=0);
 
 public:
-  // accessors
-  //int get_ns()const{return ns;}
-  // return number of this species
-  int get_species_num()const{return ns;}
-  int get_numpcls_in_bucket(int cx, int cy, int cz)const
-  { return (*numpcls_in_bucket)[cx][cy][cz]; }
-  int get_bucket_offset(int cx, int cy, int cz)const
-  { return (*bucket_offset)[cx][cy][cz]; }
+    int separate_and_send_particles();
+    void recommunicate_particles_until_done(int min_num_iterations=3);
+    void communicate_particles();
+    void pad_capacities();
+
+private:
+    void resize_AoS(int nop);
+    void resize_SoA(int nop);
+    void copyParticlesToAoS();
+    void copyParticlesToSoA();
+
+public:
+    void convertParticlesToSynched();
+    void convertParticlesToAoS();
+    void convertParticlesToSoA();
+    bool particlesAreSoA()const;
+
+    //* sort particles for vectorized push (needs to be parallelized) *//
+    void sort_particles_serial();
+    void sort_particles_serial_AoS();
+
+    //* Particle creation methods
+    void reserve_remaining_particle_IDs()
+    {
+        // reserve remaining particle IDs starting from getNOP()
+        pclIDgenerator.reserve_particles_in_range(getNOP());
+    }
+
+    //* Create new particle
+    void create_new_particle(double u, double v, double w, double q,
+                             double x, double y, double z)
+    {
+        const double t = pclIDgenerator.generateID();
+        _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,t));
+    }
+
+    //* Add particle to the list
+    void add_new_particle(double u, double v, double w, double q,
+                          double x, double y, double z, double t)
+    {
+        _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,t));
+    }
+
+    void delete_particle(int pidx)
+    {
+        _pcls[pidx]=_pcls.back();
+        _pcls.pop_back();
+    }
+
+    // inline get accessors
+    double get_dx(){return dx;}
+    double get_dy(){return dy;}
+    double get_dz(){return dz;}
+    double get_invdx(){return inv_dx;}
+    double get_invdy(){return inv_dy;}
+    double get_invdz(){return inv_dz;}
+    double get_xstart(){return xstart;}
+    double get_ystart(){return ystart;}
+    double get_zstart(){return zstart;}
+    ParticleType::Type get_particleType()const { return particleType; }
+    const SpeciesParticle& get_pcl(int pidx)const{ return _pcls[pidx]; }
+    const vector_SpeciesParticle& get_pcl_list()const{ return _pcls; }
+    const SpeciesParticle* get_pclptr(int id)const{ return &(_pcls[id]); }
+    const double *getUall()  const { assert(particlesAreSoA()); return &u[0]; }
+    const double *getVall()  const { assert(particlesAreSoA()); return &v[0]; }
+    const double *getWall()  const { assert(particlesAreSoA()); return &w[0]; }
+    const double *getQall()  const { assert(particlesAreSoA()); return &q[0]; }
+    const double *getXall()  const { assert(particlesAreSoA()); return &x[0]; }
+    const double *getYall()  const { assert(particlesAreSoA()); return &y[0]; }
+    const double *getZall()  const { assert(particlesAreSoA()); return &z[0]; }
+    const double *getParticleIDall() const{assert(particlesAreSoA());return &t[0];  }
+  
+    //* accessors for particle with index indexPart
+    int getNOP()  const { return _pcls.size(); }
+    // set particle components
+    void setU(int i, double in){_pcls[i].set_u(in);}
+    void setV(int i, double in){_pcls[i].set_v(in);}
+    void setW(int i, double in){_pcls[i].set_w(in);}
+    void setQ(int i, double in){_pcls[i].set_q(in);}
+    void setX(int i, double in){_pcls[i].set_x(in);}
+    void setY(int i, double in){_pcls[i].set_y(in);}
+    void setZ(int i, double in){_pcls[i].set_z(in);}
+    void setT(int i, double in){_pcls[i].set_t(in);}
+    // fetch particle components
+    double& fetchU(int i){return _pcls[i].fetch_u();}
+    double& fetchV(int i){return _pcls[i].fetch_v();}
+    double& fetchW(int i){return _pcls[i].fetch_w();}
+    double& fetchQ(int i){return _pcls[i].fetch_q();}
+    double& fetchX(int i){return _pcls[i].fetch_x();}
+    double& fetchY(int i){return _pcls[i].fetch_y();}
+    double& fetchZ(int i){return _pcls[i].fetch_z();}
+    double& fetchT(int i){return _pcls[i].fetch_t();}
+    // get particle components
+    double getU(int i)const{return _pcls[i].get_u();}
+    double getV(int i)const{return _pcls[i].get_v();}
+    double getW(int i)const{return _pcls[i].get_w();}
+    double getQ(int i)const{return _pcls[i].get_q();}
+    double getX(int i)const{return _pcls[i].get_x();}
+    double getY(int i)const{return _pcls[i].get_y();}
+    double getZ(int i)const{return _pcls[i].get_z();}
+    double getT(int i)const{return _pcls[i].get_t();}
+
+    // computed get access
+    /** return the Kinetic energy */
+    double getKe();
+    /** return the maximum kinetic energy */
+    double getMaxVelocity();
+    /** return energy distribution */
+    long long *getVelocityDistribution(int nBins, double maxVel);
+    /** return the momentum */
+    double getP();
+    /** Print particles info: positions, velocities */
+    void Print() const;
+    /** Print the number of particles of this subdomain */
+    void PrintNp() const;
+
+public:
+
+    int get_species_num()const { return ns; }
+    int get_numpcls_in_bucket(int cx, int cy, int cz)const { return (*numpcls_in_bucket)[cx][cy][cz]; }
+    int get_bucket_offset(int cx, int cy, int cz)const { return (*bucket_offset)[cx][cy][cz]; }
 
 protected:
   // pointers to topology and grid information
@@ -441,6 +421,9 @@ protected:
   double umin;
   double vmin;
   double wmin;
+
+    //* Exact mass matrix
+    bool ComputeMM;
 };
 
 // find the particles with particular IDs and print them

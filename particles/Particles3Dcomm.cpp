@@ -68,505 +68,380 @@ static bool print_pcl_comm_counts = false;
 
 static void print_pcl(SpeciesParticle& pcl, int ns)
 {
-  dprintf("--- pcl spec %d ---", ns);
-  dprintf("u = %+6.4f", pcl.get_u());
-  dprintf("v = %+6.4f", pcl.get_v());
-  dprintf("w = %+6.4f", pcl.get_w());
-  dprintf("q = %+6.4f", pcl.get_q());
-  dprintf("x = %+6.4f", pcl.get_x());
-  dprintf("y = %+6.4f", pcl.get_y());
-  dprintf("z = %+6.4f", pcl.get_z());
-  dprintf("t = %5.0f", pcl.get_t());
+    dprintf("--- pcl spec %d ---", ns);
+    dprintf("u = %+6.4f", pcl.get_u());
+    dprintf("v = %+6.4f", pcl.get_v());
+    dprintf("w = %+6.4f", pcl.get_w());
+    dprintf("q = %+6.4f", pcl.get_q());
+    dprintf("x = %+6.4f", pcl.get_x());
+    dprintf("y = %+6.4f", pcl.get_y());
+    dprintf("z = %+6.4f", pcl.get_z());
+    dprintf("t = %5.0f", pcl.get_t());
 }
 
 static void print_pcls(vector_SpeciesParticle& pcls, int start, int ns)
 {
-  for(int pidx=start; pidx<pcls.size();pidx++)
-  {
-    dprintf("--- particle %d.%d ---", ns,pidx);
-    dprintf("u[%d] = %+6.4f", pidx, pcls[pidx].get_u());
-    dprintf("v[%d] = %+6.4f", pidx, pcls[pidx].get_v());
-    dprintf("w[%d] = %+6.4f", pidx, pcls[pidx].get_w());
-    dprintf("q[%d] = %+6.4f", pidx, pcls[pidx].get_q());
-    dprintf("x[%d] = %+6.4f", pidx, pcls[pidx].get_x());
-    dprintf("y[%d] = %+6.4f", pidx, pcls[pidx].get_y());
-    dprintf("z[%d] = %+6.4f", pidx, pcls[pidx].get_z());
-    dprintf("t[%d] = %5.0f", pidx, pcls[pidx].get_t());
-  }
+    for(int pidx = start; pidx < pcls.size(); pidx++)
+    {
+        dprintf("--- particle %d.%d ---", ns,pidx);
+        dprintf("u[%d] = %+6.4f", pidx, pcls[pidx].get_u());
+        dprintf("v[%d] = %+6.4f", pidx, pcls[pidx].get_v());
+        dprintf("w[%d] = %+6.4f", pidx, pcls[pidx].get_w());
+        dprintf("q[%d] = %+6.4f", pidx, pcls[pidx].get_q());
+        dprintf("x[%d] = %+6.4f", pidx, pcls[pidx].get_x());
+        dprintf("y[%d] = %+6.4f", pidx, pcls[pidx].get_y());
+        dprintf("z[%d] = %+6.4f", pidx, pcls[pidx].get_z());
+        dprintf("t[%d] = %5.0f", pidx, pcls[pidx].get_t());
+    }
 }
+
 void print_pcls(vector_SpeciesParticle& pcls, int ns, longid* id_list, int num_ids)
 {
-  dprintf("=== species %d, with %d pcls ===", ns, pcls.size());
-  for(int pidx=0; pidx<pcls.size();pidx++)
-  for(int i=0;i<num_ids;i++)
-  if(pcls[pidx].get_ID()==id_list[i])
-  {
-    dprintf("--- particle %d.%d ---", ns,pidx);
-    dprintf("u[%d] = %+6.4f", pidx, pcls[pidx].get_u());
-    dprintf("v[%d] = %+6.4f", pidx, pcls[pidx].get_v());
-    dprintf("w[%d] = %+6.4f", pidx, pcls[pidx].get_w());
-    dprintf("q[%d] = %+6.4f", pidx, pcls[pidx].get_q());
-    dprintf("x[%d] = %+6.4f", pidx, pcls[pidx].get_x());
-    dprintf("y[%d] = %+6.4f", pidx, pcls[pidx].get_y());
-    dprintf("z[%d] = %+6.4f", pidx, pcls[pidx].get_z());
-    dprintf("t[%d] = %5.0f", pidx, pcls[pidx].get_t());
-  }
+    dprintf("=== species %d, with %d pcls ===", ns, pcls.size());
+
+        for(int pidx=0; pidx<pcls.size();pidx++)
+            for(int i=0;i<num_ids;i++)
+                if(pcls[pidx].get_ID()==id_list[i])
+                {
+                    dprintf("--- particle %d.%d ---", ns,pidx);
+                    dprintf("u[%d] = %+6.4f", pidx, pcls[pidx].get_u());
+                    dprintf("v[%d] = %+6.4f", pidx, pcls[pidx].get_v());
+                    dprintf("w[%d] = %+6.4f", pidx, pcls[pidx].get_w());
+                    dprintf("q[%d] = %+6.4f", pidx, pcls[pidx].get_q());
+                    dprintf("x[%d] = %+6.4f", pidx, pcls[pidx].get_x());
+                    dprintf("y[%d] = %+6.4f", pidx, pcls[pidx].get_y());
+                    dprintf("z[%d] = %+6.4f", pidx, pcls[pidx].get_z());
+                    dprintf("t[%d] = %5.0f", pidx, pcls[pidx].get_t());
+                }
 }
 
-/** deallocate particles */
-Particles3Dcomm::~Particles3Dcomm() {
-  // extra xavg for sort
-  MPI_Comm_free(&mpi_comm);
-  delete numpcls_in_bucket;
-  delete numpcls_in_bucket_now;
-  delete bucket_offset;
-}
-/** constructor for a single species*/
-// was Particles3Dcomm::allocate()
-Particles3Dcomm::Particles3Dcomm(
-  int species_number,
-  CollectiveIO * col_,
-  VirtualTopology3D * vct_,
-  Grid * grid_)
- :
-  ns(species_number),
-  col(col_),
-  vct(vct_),
-  grid(grid_),
-  pclIDgenerator(),
-  particleType(ParticleType::AoS)
+//! Destructor: deallocate particles !//
+Particles3Dcomm::~Particles3Dcomm() 
 {
-  // communicators for particles
-  //
-  MPI_Comm_dup(vct->getParticleComm(), &mpi_comm);
-  //
-  // define connections
-  using namespace Direction;
-
-  sendXleft.init(Connection::null2self(vct->getXleft_neighbor_P(),XDN,XDN,mpi_comm));
-  sendXrght.init(Connection::null2self(vct->getXright_neighbor_P(),XUP,XUP,mpi_comm));
-  recvXleft.init(Connection::null2self(vct->getXleft_neighbor_P(),XUP,XDN,mpi_comm));
-  recvXrght.init(Connection::null2self(vct->getXright_neighbor_P(),XDN,XUP,mpi_comm));
-
-  sendYleft.init(Connection::null2self(vct->getYleft_neighbor_P(),YDN,YDN,mpi_comm));
-  sendYrght.init(Connection::null2self(vct->getYright_neighbor_P(),YUP,YUP,mpi_comm));
-  recvYleft.init(Connection::null2self(vct->getYleft_neighbor_P(),YUP,YDN,mpi_comm));
-  recvYrght.init(Connection::null2self(vct->getYright_neighbor_P(),YDN,YUP,mpi_comm));
-
-  sendZleft.init(Connection::null2self(vct->getZleft_neighbor_P(),ZDN,ZDN,mpi_comm));
-  sendZrght.init(Connection::null2self(vct->getZright_neighbor_P(),ZUP,ZUP,mpi_comm));
-  recvZleft.init(Connection::null2self(vct->getZleft_neighbor_P(),ZUP,ZDN,mpi_comm));
-  recvZrght.init(Connection::null2self(vct->getZright_neighbor_P(),ZDN,ZUP,mpi_comm));
-
-  recvXleft.post_recvs();
-  recvXrght.post_recvs();
-  recvYleft.post_recvs();
-  recvYrght.post_recvs();
-  recvZleft.post_recvs();
-  recvZrght.post_recvs();
-
-  // info from collectiveIO
-  isTestParticle = (get_species_num()>=col->getNs());
-  npcel  = col->getNpcel(get_species_num());
-  npcelx = col->getNpcelx(get_species_num());
-  npcely = col->getNpcely(get_species_num());
-  npcelz = col->getNpcelz(get_species_num());
-  qom    = col->getQOM(get_species_num());
-
-if( !isTestParticle ){
-  uth = col->getUth(get_species_num());
-  vth = col->getVth(get_species_num());
-  wth = col->getWth(get_species_num());
-  u0 = col->getU0(get_species_num());
-  v0 = col->getV0(get_species_num());
-  w0 = col->getW0(get_species_num());
-  //TrackParticleID = col->getTrackParticleID(get_species_num());
-  Ninj = col->getRHOinject(get_species_num());
-}else{
-	pitch_angle = col->getPitchAngle(get_species_num()-col->getNs());
-	energy = col->getEnergy(get_species_num()-col->getNs());
-	//TrackParticleID = true;
-}
-  dt = col->getDt();
-  Lx = col->getLx();
-  Ly = col->getLy();
-  Lz = col->getLz();
-  dx = grid->getDX();
-  dy = grid->getDY();
-  dz = grid->getDZ();
-  delta = col->getDelta();
-
-  c = col->getC();
-  // info for mover
-  NiterMover = col->getNiterMover();
-  // velocity of the injection from the wall
-  Vinj = col->getVinj();
-
-  //
-  // boundary condition for particles
-  //
-  bcPfaceXright = col->getBcPfaceXright();
-  bcPfaceXleft = col->getBcPfaceXleft();
-  bcPfaceYright = col->getBcPfaceYright();
-  bcPfaceYleft = col->getBcPfaceYleft();
-  bcPfaceZright = col->getBcPfaceZright();
-  bcPfaceZleft = col->getBcPfaceZleft();
-
-  // info from Grid
-  //
-  xstart = grid->getXstart();
-  xend = grid->getXend();
-  ystart = grid->getYstart();
-  yend = grid->getYend();
-  zstart = grid->getZstart();
-  zend = grid->getZend();
-  //
-  dx = grid->getDX();
-  dy = grid->getDY();
-  dz = grid->getDZ();
-  inv_dx = 1/dx;
-  inv_dy = 1/dy;
-  inv_dz = 1/dz;
-  //
-  nxn = grid->getNXN();
-  nyn = grid->getNYN();
-  nzn = grid->getNZN();
-  nxc = grid->getNXC();
-  nyc = grid->getNYC();
-  nzc = grid->getNZC();
-  assert_eq(nxc,nxn-1);
-  assert_eq(nyc,nyn-1);
-  assert_eq(nzc,nzn-1);
-  invVOL = grid->getInvVOL();
-
-  // info from VirtualTopology3D
-  //
-  cVERBOSE = vct->getcVERBOSE();
-
-  /////////////////////////////////
-  // preallocate space in arrays //
-  /////////////////////////////////
-  //
-  // determine number of particles to preallocate for this process.
-  //
-  // determine number of cells in this process
-  //
-  // we calculate in double precision to guard against overflow
-  double dNp = double(grid->get_num_cells_rr())*col->getNpcel(species_number);
-  double dNpmax = dNp * col->getNpMaxNpRatio();
-  // ensure that particle index will not overflow 32-bit
-  // representation as long as dmaxnop is respected.
-  assert_le(dNpmax,double(INT_MAX));
-  const int nop = dNp;
-  // initialize particle ID generator based on number of particles
-  // that will initially be produced.
-  pclIDgenerator.reserve_num_particles(nop);
-  // initialize each process with capacity for some extra particles
-  const int initial_capacity = roundup_to_multiple(nop*1.2,DVECWIDTH);
-  //
-  // SoA particle representation
-  //
-
-  // velocities
-  u.reserve(initial_capacity);
-  v.reserve(initial_capacity);
-  w.reserve(initial_capacity);
-  // charge
-  q.reserve(initial_capacity);
-  // positions
-  x.reserve(initial_capacity);
-  y.reserve(initial_capacity);
-  z.reserve(initial_capacity);
-  // subcycle time
-  t.reserve(initial_capacity);
-
-  //
-  // AoS particle representation
-  //
-  _pcls.reserve(initial_capacity);
-  particleType = ParticleType::AoS; // canonical representation
-
-  //
-  // allocate arrays for sorting particles
-  //
-  numpcls_in_bucket = new array3_int(nxc,nyc,nzc);
-  numpcls_in_bucket_now = new array3_int(nxc,nyc,nzc);
-  bucket_offset = new array3_int(nxc,nyc,nzc);
-  
-  assert_eq(sizeof(SpeciesParticle),64);
-
-  // if RESTART is true initialize the particle in allocate method
-  restart = col->getRestart_status();
-  if (restart != 0)
-  {
-  #ifdef NO_HDF5
-    eprintf("restart is supported only if compiling with HDF5");
-  #else
-    int species_number = get_species_num();
-    // prepare arrays to receive particles
-    particleType = ParticleType::SoA;
-    col->read_particles_restart(vct, species_number,u, v, w, q, x, y, z, t);
-    convertParticlesToAoS();
-  #endif
-  }
-
-  // set_velocity_caps()
-  //
-  umax = 0.95*col->getLx()/col->getDt();
-  vmax = 0.95*col->getLy()/col->getDt();
-  wmax = 0.95*col->getLz()/col->getDt();
-  umin = -umax;
-  vmin = -vmax;
-  wmin = -wmax;
-  // show velocity cap that will be applied
-  if(false && is_output_thread())
-  {
-    printf("species %d velocity cap: umax=%g,vmax=%g,wmax=%g\n",
-      ns, umax,vmax,wmax);
-  }
+    MPI_Comm_free(&mpi_comm);
+    delete numpcls_in_bucket;
+    delete numpcls_in_bucket_now;
+    delete bucket_offset;
 }
 
-// pad capacities so that aligned vectorization
-// does not result in an array overrun.
-//
-// this should usually be cheap (a no-op)
-//
+//! Constructor for a single species !//
+//* This was formerly Particles3Dcomm::allocate()
+Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, VirtualTopology3D * vct_, Grid * grid_):
+                                ns(species_number),
+                                col(col_),
+                                vct(vct_),
+                                grid(grid_),
+                                pclIDgenerator(),
+                                particleType(ParticleType::AoS)
+{
+    //* communicators for particles
+    MPI_Comm_dup(vct->getParticleComm(), &mpi_comm);
+    
+    //* define connections
+    using namespace Direction;
+
+    sendXleft.init(Connection::null2self(vct->getXleft_neighbor_P(),XDN,XDN,mpi_comm));
+    sendXrght.init(Connection::null2self(vct->getXright_neighbor_P(),XUP,XUP,mpi_comm));
+    recvXleft.init(Connection::null2self(vct->getXleft_neighbor_P(),XUP,XDN,mpi_comm));
+    recvXrght.init(Connection::null2self(vct->getXright_neighbor_P(),XDN,XUP,mpi_comm));
+
+    sendYleft.init(Connection::null2self(vct->getYleft_neighbor_P(),YDN,YDN,mpi_comm));
+    sendYrght.init(Connection::null2self(vct->getYright_neighbor_P(),YUP,YUP,mpi_comm));
+    recvYleft.init(Connection::null2self(vct->getYleft_neighbor_P(),YUP,YDN,mpi_comm));
+    recvYrght.init(Connection::null2self(vct->getYright_neighbor_P(),YDN,YUP,mpi_comm));
+
+    sendZleft.init(Connection::null2self(vct->getZleft_neighbor_P(),ZDN,ZDN,mpi_comm));
+    sendZrght.init(Connection::null2self(vct->getZright_neighbor_P(),ZUP,ZUP,mpi_comm));
+    recvZleft.init(Connection::null2self(vct->getZleft_neighbor_P(),ZUP,ZDN,mpi_comm));
+    recvZrght.init(Connection::null2self(vct->getZright_neighbor_P(),ZDN,ZUP,mpi_comm));
+
+    recvXleft.post_recvs();
+    recvXrght.post_recvs();
+    recvYleft.post_recvs();
+    recvYrght.post_recvs();
+    recvZleft.post_recvs();
+    recvZrght.post_recvs();
+
+    // info from collectiveIO
+    isTestParticle = (get_species_num()>=col->getNs());
+    npcel  = col->getNpcel(get_species_num());
+    npcelx = col->getNpcelx(get_species_num());
+    npcely = col->getNpcely(get_species_num());
+    npcelz = col->getNpcelz(get_species_num());
+    qom    = col->getQOM(get_species_num());
+
+    if(!isTestParticle)
+    {
+        uth = col->getUth(get_species_num());
+        vth = col->getVth(get_species_num());
+        wth = col->getWth(get_species_num());
+        u0 = col->getU0(get_species_num());
+        v0 = col->getV0(get_species_num());
+        w0 = col->getW0(get_species_num());
+        Ninj = col->getRHOinject(get_species_num());
+    }
+    else
+    {
+        pitch_angle = col->getPitchAngle(get_species_num()-col->getNs());
+        energy = col->getEnergy(get_species_num()-col->getNs());
+    }
+
+    dt = col->getDt();
+    Lx = col->getLx();
+    Ly = col->getLy();
+    Lz = col->getLz();
+    dx = grid->getDX();
+    dy = grid->getDY();
+    dz = grid->getDZ();
+    delta = col->getDelta();
+
+    c = col->getC();
+    NiterMover = col->getNiterMover();            // info for mover
+    Vinj = col->getVinj();                        // velocity of the injection from the wall
+
+    // boundary condition for particles
+    bcPfaceXright = col->getBcPfaceXright();
+    bcPfaceXleft = col->getBcPfaceXleft();
+    bcPfaceYright = col->getBcPfaceYright();
+    bcPfaceYleft = col->getBcPfaceYleft();
+    bcPfaceZright = col->getBcPfaceZright();
+    bcPfaceZleft = col->getBcPfaceZleft();
+
+    // info from Grid
+    xstart = grid->getXstart();
+    xend = grid->getXend();
+    ystart = grid->getYstart();
+    yend = grid->getYend();
+    zstart = grid->getZstart();
+    zend = grid->getZend();
+
+    dx = grid->getDX();
+    dy = grid->getDY();
+    dz = grid->getDZ();
+    inv_dx = 1/dx;
+    inv_dy = 1/dy;
+    inv_dz = 1/dz;
+
+    nxn = grid->getNXN();
+    nyn = grid->getNYN();
+    nzn = grid->getNZN();
+    nxc = grid->getNXC();
+    nyc = grid->getNYC();
+    nzc = grid->getNZC();
+    assert_eq(nxc,nxn-1);
+    assert_eq(nyc,nyn-1);
+    assert_eq(nzc,nzn-1);
+    invVOL = grid->getInvVOL();
+
+    // info from VirtualTopology3D
+    cVERBOSE = vct->getcVERBOSE();
+
+
+    //? Preallocate space in arrays ?//
+
+    // determine number of particles to preallocate for this process.
+    // determine number of cells in this process
+    // we calculate in double precision to guard against overflow
+
+    double dNp = double(grid->get_num_cells_rr())*col->getNpcel(species_number);
+    double dNpmax = dNp * col->getNpMaxNpRatio();
+    // ensure that particle index will not overflow 32-bit representation as long as dmaxnop is respected.
+    assert_le(dNpmax,double(INT_MAX));
+    const int nop = dNp;
+    // initialize particle ID generator based on number of particles that will initially be produced.
+    pclIDgenerator.reserve_num_particles(nop);
+    // initialize each process with capacity for some extra particles
+    const int initial_capacity = roundup_to_multiple(nop*1.2,DVECWIDTH);
+
+    //* SoA particle representation
+    // velocities
+    u.reserve(initial_capacity);
+    v.reserve(initial_capacity);
+    w.reserve(initial_capacity);
+    // charge
+    q.reserve(initial_capacity);
+    // positions
+    x.reserve(initial_capacity);
+    y.reserve(initial_capacity);
+    z.reserve(initial_capacity);
+    // subcycle time
+    t.reserve(initial_capacity);
+
+    // AoS particle representation
+    _pcls.reserve(initial_capacity);
+    particleType = ParticleType::AoS; // canonical representation
+
+    // allocate arrays for sorting particles
+    numpcls_in_bucket = new array3_int(nxc,nyc,nzc);
+    numpcls_in_bucket_now = new array3_int(nxc,nyc,nzc);
+    bucket_offset = new array3_int(nxc,nyc,nzc);
+
+    assert_eq(sizeof(SpeciesParticle),64);
+
+    //? if RESTART is true, initialize the particle in allocate method
+    restart = col->getRestart_status();
+    if (restart != 0)
+    {
+        #ifdef NO_HDF5
+            eprintf("restart is supported only if compiling with HDF5");
+        #else
+            int species_number = get_species_num();
+            // prepare arrays to receive particles
+            particleType = ParticleType::SoA;
+            col->read_particles_restart(vct, species_number,u, v, w, q, x, y, z, t);
+            convertParticlesToAoS();
+        #endif
+    }
+
+    //* set_velocity_caps()
+    umax = 0.95*col->getLx()/col->getDt();
+    vmax = 0.95*col->getLy()/col->getDt();
+    wmax = 0.95*col->getLz()/col->getDt();
+    umin = -umax;
+    vmin = -vmax;
+    wmin = -wmax;
+
+    if(false && is_output_thread())
+        printf("species %d velocity cap: umax=%g,vmax=%g,wmax=%g\n", ns, umax,vmax,wmax);
+
+    ComputeMM = col->getExactMM();
+
+}
+
+// pad capacities so that aligned vectorization does not result in an array overrun.
+// This should usually be cheap (a no-op)
 void Particles3Dcomm::pad_capacities()
 {
- #pragma omp master
- {
-  _pcls.reserve(roundup_to_multiple(_pcls.size(),DVECWIDTH));
-  u.reserve(roundup_to_multiple(u.size(),DVECWIDTH));
-  v.reserve(roundup_to_multiple(v.size(),DVECWIDTH));
-  w.reserve(roundup_to_multiple(w.size(),DVECWIDTH));
-  q.reserve(roundup_to_multiple(q.size(),DVECWIDTH));
-  x.reserve(roundup_to_multiple(x.size(),DVECWIDTH));
-  y.reserve(roundup_to_multiple(y.size(),DVECWIDTH));
-  z.reserve(roundup_to_multiple(z.size(),DVECWIDTH));
-  t.reserve(roundup_to_multiple(t.size(),DVECWIDTH));
- }
+    #pragma omp master
+    {
+        _pcls.reserve(roundup_to_multiple(_pcls.size(),DVECWIDTH));
+        u.reserve(roundup_to_multiple(u.size(),DVECWIDTH));
+        v.reserve(roundup_to_multiple(v.size(),DVECWIDTH));
+        w.reserve(roundup_to_multiple(w.size(),DVECWIDTH));
+        q.reserve(roundup_to_multiple(q.size(),DVECWIDTH));
+        x.reserve(roundup_to_multiple(x.size(),DVECWIDTH));
+        y.reserve(roundup_to_multiple(y.size(),DVECWIDTH));
+        z.reserve(roundup_to_multiple(z.size(),DVECWIDTH));
+        t.reserve(roundup_to_multiple(t.size(),DVECWIDTH));
+    }
 }
 
 void Particles3Dcomm::resize_AoS(int nop)
 {
- #pragma omp master
- {
-  const int padded_nop = roundup_to_multiple(nop,DVECWIDTH);
-  _pcls.reserve(padded_nop);
-  _pcls.resize(nop);
- }
+    #pragma omp master
+    {
+        const int padded_nop = roundup_to_multiple(nop,DVECWIDTH);
+        _pcls.reserve(padded_nop);
+        _pcls.resize(nop);
+    }
 }
 
 void Particles3Dcomm::resize_SoA(int nop)
 {
- #pragma omp master
- {
-  //
-  // allocate space for particles including padding
-  //
-  const int padded_nop = roundup_to_multiple(nop,DVECWIDTH);
-  //if(is_output_thread()) dprintf("allocating to hold %d", padded_nop);
-  u.reserve(padded_nop);
-  v.reserve(padded_nop);
-  w.reserve(padded_nop);
-  q.reserve(padded_nop);
-  x.reserve(padded_nop);
-  y.reserve(padded_nop);
-  z.reserve(padded_nop);
-  t.reserve(padded_nop);
-  //
-  // define size of particle data
-  //
-  u.resize(nop);
-  v.resize(nop);
-  w.resize(nop);
-  q.resize(nop);
-  x.resize(nop);
-  y.resize(nop);
-  z.resize(nop);
-  t.resize(nop);
-  //if(is_output_thread()) dprintf("done resizing to hold %d", nop);
- }
+    #pragma omp master
+    {
+        // allocate space for particles including padding
+        const int padded_nop = roundup_to_multiple(nop,DVECWIDTH);
+
+        u.reserve(padded_nop);
+        v.reserve(padded_nop);
+        w.reserve(padded_nop);
+        q.reserve(padded_nop);
+        x.reserve(padded_nop);
+        y.reserve(padded_nop);
+        z.reserve(padded_nop);
+        t.reserve(padded_nop);
+
+        // define size of particle data
+        u.resize(nop);
+        v.resize(nop);
+        w.resize(nop);
+        q.resize(nop);
+        x.resize(nop);
+        y.resize(nop);
+        z.resize(nop);
+        t.resize(nop);
+        //if(is_output_thread()) dprintf("done resizing to hold %d", nop);
+    }
 }
-// A much faster version of this is at EMfields3D::sumMoments
-//
-//void Particles3Dcomm::interpP2G(Field * EMf)
-//{
-//  const double inv_dx = 1.0 / dx;
-//  const double inv_dy = 1.0 / dy;
-//  const double inv_dz = 1.0 / dz;
-//  const double nxn = grid->getNXN();
-//  const double nyn = grid->getNYN();
-//  const double nzn = grid->getNZN();
-//  // assert_le(nop,(long long)INT_MAX); // else would need to use long long
-//  // to make memory use scale to a large number of threads we
-//  // could first apply an efficient parallel sorting algorithm
-//  // to the particles and then accumulate moments in smaller
-//  // subarrays.
-//  {
-//    for (int i = 0; i < nop; i++)
-//    {
-//      const int ix = 2 + int (floor((x[i] - xstart) * inv_dx));
-//      const int iy = 2 + int (floor((y[i] - ystart) * inv_dy));
-//      const int iz = 2 + int (floor((z[i] - zstart) * inv_dz));
-//      double temp[2][2][2];
-//      double xi[2], eta[2], zeta[2];
-//      xi[0] = x[i] - grid->getXN(ix - 1, iy, iz);
-//      eta[0] = y[i] - grid->getYN(ix, iy - 1, iz);
-//      zeta[0] = z[i] - grid->getZN(ix, iy, iz - 1);
-//      xi[1] = grid->getXN(ix, iy, iz) - x[i];
-//      eta[1] = grid->getYN(ix, iy, iz) - y[i];
-//      zeta[1] = grid->getZN(ix, iy, iz) - z[i];
-//      double weight[2][2][2];
-//      for (int ii = 0; ii < 2; ii++)
-//        for (int jj = 0; jj < 2; jj++)
-//          for (int kk = 0; kk < 2; kk++) {
-//            weight[ii][jj][kk] = q[i] * xi[ii] * eta[jj] * zeta[kk] * invVOL;
-//          }
-//      // add charge density
-//      EMf->addRho(weight, ix, iy, iz, ns);
-//      // add current density - X
-//      for (int ii = 0; ii < 2; ii++)
-//        for (int jj = 0; jj < 2; jj++)
-//          for (int kk = 0; kk < 2; kk++)
-//            temp[ii][jj][kk] = u[i] * weight[ii][jj][kk];
-//      EMf->addJx(temp, ix, iy, iz, ns);
-//      // add current density - Y
-//      for (int ii = 0; ii < 2; ii++)
-//        for (int jj = 0; jj < 2; jj++)
-//          for (int kk = 0; kk < 2; kk++)
-//            temp[ii][jj][kk] = v[i] * weight[ii][jj][kk];
-//      EMf->addJy(temp, ix, iy, iz, ns);
-//      // add current density - Z
-//      for (int ii = 0; ii < 2; ii++)
-//        for (int jj = 0; jj < 2; jj++)
-//          for (int kk = 0; kk < 2; kk++)
-//            temp[ii][jj][kk] = w[i] * weight[ii][jj][kk];
-//      EMf->addJz(temp, ix, iy, iz, ns);
-//      // Pxx - add pressure tensor
-//      for (int ii = 0; ii < 2; ii++)
-//        for (int jj = 0; jj < 2; jj++)
-//          for (int kk = 0; kk < 2; kk++)
-//            temp[ii][jj][kk] = u[i] * u[i] * weight[ii][jj][kk];
-//      EMf->addPxx(temp, ix, iy, iz, ns);
-//      // Pxy - add pressure tensor
-//      for (int ii = 0; ii < 2; ii++)
-//        for (int jj = 0; jj < 2; jj++)
-//          for (int kk = 0; kk < 2; kk++)
-//            temp[ii][jj][kk] = u[i] * v[i] * weight[ii][jj][kk];
-//      EMf->addPxy(temp, ix, iy, iz, ns);
-//      // Pxz - add pressure tensor
-//      for (int ii = 0; ii < 2; ii++)
-//        for (int jj = 0; jj < 2; jj++)
-//          for (int kk = 0; kk < 2; kk++)
-//            temp[ii][jj][kk] = u[i] * w[i] * weight[ii][jj][kk];
-//      EMf->addPxz(temp, ix, iy, iz, ns);
-//      // Pyy - add pressure tensor
-//      for (int ii = 0; ii < 2; ii++)
-//        for (int jj = 0; jj < 2; jj++)
-//          for (int kk = 0; kk < 2; kk++)
-//            temp[ii][jj][kk] = v[i] * v[i] * weight[ii][jj][kk];
-//      EMf->addPyy(temp, ix, iy, iz, ns);
-//      // Pyz - add pressure tensor
-//      for (int ii = 0; ii < 2; ii++)
-//        for (int jj = 0; jj < 2; jj++)
-//          for (int kk = 0; kk < 2; kk++)
-//            temp[ii][jj][kk] = v[i] * w[i] * weight[ii][jj][kk];
-//      EMf->addPyz(temp, ix, iy, iz, ns);
-//      // Pzz - add pressure tensor
-//      for (int ii = 0; ii < 2; ii++)
-//        for (int jj = 0; jj < 2; jj++)
-//          for (int kk = 0; kk < 2; kk++)
-//            temp[ii][jj][kk] = w[i] * w[i] * weight[ii][jj][kk];
-//      EMf->addPzz(temp, ix, iy, iz, ns);
-//    }
-//  }
-//  // communicate contribution from ghost cells 
-//  EMf->communicateGhostP2G(ns, vct);
-//}
 
-// returns true if particle was sent
-//
-// should vectorize this by comparing position vectors
-//
-inline bool Particles3Dcomm::send_pcl_to_appropriate_buffer(
-  SpeciesParticle& pcl, int count[6])
+//? returns true if particle was sent
+inline bool Particles3Dcomm::send_pcl_to_appropriate_buffer(SpeciesParticle& pcl, int count[6])
 {
-  int was_sent = true;
-  // put particle in appropriate communication buffer if exiting
-  if(pcl.get_x() < xstart)
-  {
-    sendXleft.send(pcl);
-    count[0]++;
-  }
-  else if(pcl.get_x() > xend)
-  {
-    sendXrght.send(pcl);
-    count[1]++;
-  }
-  else if(pcl.get_y() < ystart)
-  {
-    sendYleft.send(pcl);
-    count[2]++;
-  }
-  else if(pcl.get_y() > yend)
-  {
-    sendYrght.send(pcl);
-    count[3]++;
-  }
-  else if(pcl.get_z() < zstart)
-  {
-    sendZleft.send(pcl);
-    count[4]++;
-  }
-  else if(pcl.get_z() > zend)
-  {
-    sendZrght.send(pcl);
-    count[5]++;
-  }
-  else was_sent = false;
+    int was_sent = true;
+    
+    // put particle in appropriate communication buffer if exiting
+    if(pcl.get_x() < xstart)
+    {
+        sendXleft.send(pcl);
+        count[0]++;
+    }
+    else if(pcl.get_x() > xend)
+    {
+        sendXrght.send(pcl);
+        count[1]++;
+    }
+    else if(pcl.get_y() < ystart)
+    {
+        sendYleft.send(pcl);
+        count[2]++;
+    }
+    else if(pcl.get_y() > yend)
+    {
+        sendYrght.send(pcl);
+        count[3]++;
+    }
+    else if(pcl.get_z() < zstart)
+    {
+        sendZleft.send(pcl);
+        count[4]++;
+    }
+    else if(pcl.get_z() > zend)
+    {
+        sendZrght.send(pcl);
+        count[5]++;
+    }
+    else was_sent = false;
 
-  return was_sent;
+    return was_sent;
 }
 
 // flush sending particles.
-//
 void Particles3Dcomm::flush_send()
 {
-  sendXleft.send_complete();
-  sendXrght.send_complete();
-  sendYleft.send_complete();
-  sendYrght.send_complete();
-  sendZleft.send_complete();
-  sendZrght.send_complete();
+    sendXleft.send_complete();
+    sendXrght.send_complete();
+    sendYleft.send_complete();
+    sendYrght.send_complete();
+    sendZleft.send_complete();
+    sendZrght.send_complete();
 }
 
-void Particles3Dcomm::apply_periodic_BC_global(
-  vector_SpeciesParticle& pcl_list, int pstart)
+void Particles3Dcomm::apply_periodic_BC_global(vector_SpeciesParticle& pcl_list, int pstart)
 {
-  const double Lxinv = 1/Lx;
-  const double Lyinv = 1/Ly;
-  const double Lzinv = 1/Lz;
-  // apply shift to all periodic directions
-  for(int pidx=pstart;pidx<pcl_list.size();pidx++)
-  {
-    SpeciesParticle& pcl = pcl_list[pidx];
-    if(vct->getPERIODICX_P())
+    const double Lxinv = 1/Lx;
+    const double Lyinv = 1/Ly;
+    const double Lzinv = 1/Lz;
+    // apply shift to all periodic directions
+    for(int pidx=pstart;pidx<pcl_list.size();pidx++)
     {
-      double& x = pcl.fetch_x();
-      x = modulo(x, Lx, Lxinv);
+        SpeciesParticle& pcl = pcl_list[pidx];
+        if(vct->getPERIODICX_P())
+        {
+            double& x = pcl.fetch_x();
+            x = modulo(x, Lx, Lxinv);
+        }
+        if(vct->getPERIODICY_P())
+        {
+            double& y = pcl.fetch_y();
+            y = modulo(y, Ly, Lyinv);
+        }
+        if(vct->getPERIODICZ_P())
+        {
+            double& z = pcl.fetch_z();
+            z = modulo(z, Lz, Lzinv);
+        }
     }
-    if(vct->getPERIODICY_P())
-    {
-      double& y = pcl.fetch_y();
-      y = modulo(y, Ly, Lyinv);
-    }
-    if(vct->getPERIODICZ_P())
-    {
-      double& z = pcl.fetch_z();
-      z = modulo(z, Lz, Lzinv);
-    }
-  }
 }
 
 // routines for sorting list of particles
@@ -605,22 +480,6 @@ void Particles3Dcomm::apply_periodic_BC_global(
     } \
   } \
 }
-//  /* pidx increases and start_out decreases until they meet */ \
-//  for(int pidx=start;pidx<start_out;) \
-//  { \
-//    /* if condition is true, put the particle at the end of the list */ \
-//    if(condition(pcls[pidx])) \
-//    { \
-//      --start_out; \
-//      SpeciesParticle tmp_pcl = pcls[pidx]; \
-//      pcls[pidx] = pcls[start_out]; \
-//      pcls[start_out] = tmp_pcl; \
-//    } \
-//    else \
-//    { \
-//      pidx++; \
-//    } \
-//  } \
 
 // condition methods to use in sorting particles
 inline bool Particles3Dcomm::test_outside_domain(const SpeciesParticle& pcl)const
@@ -1058,8 +917,6 @@ int Particles3Dcomm::handle_received_particles(int pclCommMode)
 
   return num_pcls_resent;
 }
-
-
 
 // these methods should be made virtual
 // so that the user can override boundary conditions.
@@ -1554,7 +1411,6 @@ double Particles3Dcomm::getMaxVelocity() {
   return (maxVel);
 }
 
-
 /** get energy spectrum */
 //
 // this ignores the weight of the charges. -eaj
@@ -2006,3 +1862,252 @@ void Particles3Dcomm::convertParticlesToSoA()
   particleType = ParticleType::SoA;
 }
 
+void Particles3Dcomm::computeMoments(Field * EMf) 
+{
+    //TODO: External forces are to be implemented
+    double Fxl = 0.0, Fyl = 0.0, Fzl = 0.0;
+
+    #pragma omp parallel
+    {
+        convertParticlesToSoA();
+
+        #pragma omp for schedule(static)
+        for (int pidx = 0; pidx < getNOP(); pidx++) 
+        // for (long long ip = 0; ip < nop; ip++)
+        {
+            //* --------------------------------------- *//
+
+            //* Copy particles' positions
+            const double xorig = getX(pidx);
+            const double yorig = getY(pidx);
+            const double zorig = getZ(pidx);
+
+            //* Copy particles' velocities
+            const double uorig = getU(pidx);
+            const double vorig = getV(pidx);
+            const double worig = getW(pidx);
+            
+            double xavg = xorig;
+            double yavg = yorig;
+            double zavg = zorig;
+            
+            double uavg;
+            double vavg;
+            double wavg;
+
+            //* --------------------------------------- *//
+
+            //* Interpolation G-->P
+            const double ixd = floor((xavg - xstart) * inv_dx);
+            const double iyd = floor((yavg - ystart) * inv_dy);
+            const double izd = floor((zavg - zstart) * inv_dz);
+
+            //* Interface of index to right of cell
+            int ix = 2 + int(ixd);
+            int iy = 2 + int(iyd);
+            int iz = 2 + int(izd);
+
+            //* Use field data of closest cell in domain
+            if (ix < 1) ix = 1;
+            if (iy < 1) iy = 1;
+            if (iz < 1) iz = 1;
+            if (ix > nxc) ix = nxc;
+            if (iy > nyc) iy = nyc;
+            if (iz > nzc) iz = nzc;
+
+            //* Compute weights of the particles
+            const double xi0   = xavg - grid->getXN(ix-1);
+            const double eta0  = yavg - grid->getYN(iy-1);
+            const double zeta0 = zavg - grid->getZN(iz-1);
+            const double xi1   = grid->getXN(ix) - xavg;
+            const double eta1  = grid->getYN(iy) - yavg;
+            const double zeta1 = grid->getZN(iz) - zavg;
+
+            double weights[8] ALLOC_ALIGNED;
+            const pfloat weight0 = invVOL*xi0;
+            const pfloat weight1 = invVOL*xi1;
+            const pfloat weight00 = weight0*eta0;
+            const pfloat weight01 = weight0*eta1;
+            const pfloat weight10 = weight1*eta0;
+            const pfloat weight11 = weight1*eta1;
+            weights[0] = weight00*zeta0;                            // weight000 = xi[0] * eta[0] * zeta[0] * invVOL
+            weights[1] = weight00*zeta1;                            // weight001 = xi[0] * eta[0] * zeta[1] * invVOL
+            weights[2] = weight01*zeta0;                            // weight010 = xi[0] * eta[1] * zeta[0] * invVOL
+            weights[3] = weight01*zeta1;                            // weight011 = xi[0] * eta[1] * zeta[1] * invVOL
+            weights[4] = weight10*zeta0;                            // weight100 = xi[1] * eta[0] * zeta[0] * invVOL
+            weights[5] = weight10*zeta1;                            // weight101 = xi[1] * eta[0] * zeta[1] * invVOL
+            weights[6] = weight11*zeta0;                            // weight110 = xi[1] * eta[1] * zeta[0] * invVOL
+            weights[7] = weight11*zeta1;                            // weight111 = xi[1] * eta[1] * zeta[1] * invVOL
+
+            //* --------------------------------------- *//
+
+            const double* field_components[8];
+            get_field_components_for_cell(field_components, fieldForPcls, cx, cy, cz);
+
+            double sampled_field[8] ALLOC_ALIGNED;
+            for(int i=0;i<8;i++) 
+                sampled_field[i]=0;
+            
+            double& Bxl=sampled_field[0];
+            double& Byl=sampled_field[1];
+            double& Bzl=sampled_field[2];
+            double& Exl=sampled_field[0+DFIELD_3or4];
+            double& Eyl=sampled_field[1+DFIELD_3or4];
+            double& Ezl=sampled_field[2+DFIELD_3or4];
+            
+            const int num_field_components = 2*DFIELD_3or4;
+
+            for(int c = 0; c < 8; c++)
+            {
+                const double* field_components_c=field_components[c];
+                ASSUME_ALIGNED(field_components_c);
+                const double weights_c = weights[c];
+                
+                #pragma simd
+                for(int i=0; i<num_field_components; i++)
+                {
+                    
+                    sampled_field[i] += weights_c*field_components_c[i];
+                }
+            }
+
+            //TODO: External force to be implemented in sampled field
+            // Bxl += weight[i][j][k] * (Bx[ix-i][iy-j][iz-k] + Fext*Bx_ext[ix-i][iy-j][iz-k]);
+            // Byl += weight[i][j][k] * (By[ix-i][iy-j][iz-k] + Fext*By_ext[ix-i][iy-j][iz-k]);
+            // Bzl += weight[i][j][k] * (Bz[ix-i][iy-j][iz-k] + Fext*Bz_ext[ix-i][iy-j][iz-k]);
+
+            //TODO: External force to be implemented
+            // if (EMf->getParticleExternalForce()) 
+            // {
+            //     Fxl = 0.0;
+            //     Fyl = 0.0;
+            //     Fzl = 0.0;
+            //     for (int i=0; i<=1; i++)
+            //         for (int j=0; j<=1; j++)
+            //         for (int k=0; k<=1; k++) 
+            //         {
+            //             Fxl += weight[i][j][k] * Fpextx[ix-i][iy-j][iz-k];
+            //             Fyl += weight[i][j][k] * Fpexty[ix-i][iy-j][iz-k];
+            //             Fzl += weight[i][j][k] * Fpextz[ix-i][iy-j][iz-k];
+            //         }
+            // }
+
+            //* --------------------------------------- *//
+
+            //? Rotation matrix alpha
+            double Gamma = 1.0;
+
+            const double qdto2mc = 0.5 * dt * qom/c;
+
+            const double Omx = qdto2mc*Bxl/Gamma;
+            const double Omy = qdto2mc*Byl/Gamma;
+            const double Omz = qdto2mc*Bzl/Gamma;
+
+            const pfloat omsq = (Omx * Omx + Omy * Omy + Omz * Omz);
+            const pfloat denom = 1.0 / (1.0 + omsq)/Gamma;
+            
+            double alpha[3][3];
+            alpha[0][0] = ( 1.0 + (Omx*Omx))*denom;
+            alpha[0][1] = ( Omz + (Omx*Omy))*denom;
+            alpha[0][2] = (-Omy + (Omx*Omz))*denom;
+
+            alpha[1][0] = (-Omz + (Omx*Omy))*denom;
+            alpha[1][1] = ( 1.0 + (Omy*Omy))*denom;
+            alpha[1][2] = ( Omx + (Omy*Omz))*denom;
+
+            alpha[2][0] = ( Omy + (Omx*Omz))*denom;
+            alpha[2][1] = (-Omx + (Omy*Omz))*denom;
+            alpha[2][2] = ( 1.0 + (Omz*Omz))*denom;
+
+            double qau = q[pidx]*(alpha[0][0]*(u[pidx]+dt/2.*Fxl) + alpha[0][1]*(v[pidx]+dt/2.*Fyl) + alpha[0][2]*(w[pidx]+dt/2.*Fzl));
+            double qav = q[pidx]*(alpha[1][0]*(u[pidx]+dt/2.*Fxl) + alpha[1][1]*(v[pidx]+dt/2.*Fyl) + alpha[1][2]*(w[pidx]+dt/2.*Fzl));
+            double qaw = q[pidx]*(alpha[2][0]*(u[pidx]+dt/2.*Fxl) + alpha[2][1]*(v[pidx]+dt/2.*Fyl) + alpha[2][2]*(w[pidx]+dt/2.*Fzl));
+
+            //* --------------------------------------- *//
+
+            double temp[2][2][2];
+            // TODO: rectify weights reading
+            #ifndef _CHARGE_FROM_CURRENT_
+                //* add charge density               
+                for (int ii = 0; ii < 2; ii++)
+                    for (int jj = 0; jj < 2; jj++)
+                        for (int kk = 0; kk < 2; kk++)
+                            temp[ii][jj][kk] = q[pidx]* weight[ii][jj][kk];
+                EMf->addRho(temp, ix, iy, iz, ns);
+            #else 
+                if (ns == 1) 
+                {
+                    for (int ii = 0; ii < 2; ii++)
+                        for (int jj = 0; jj < 2; jj++)
+                            for (int kk = 0; kk < 2; kk++)
+                                temp[ii][jj][kk] = q[pidx]* weight[ii][jj][kk];
+                    EMf->addRho(temp, ix, iy, iz, ns);
+                }
+            #endif
+
+            // add implicit current density - X
+            for (int ii = 0; ii < 2; ii++)
+                for (int jj = 0; jj < 2; jj++)
+                    for (int kk = 0; kk < 2; kk++)
+                        temp[ii][jj][kk] = qau* weight[ii][jj][kk];
+            EMf->addJxh(temp, ix, iy, iz, ns);
+
+            // add implicit current density - Y
+            for (int ii = 0; ii < 2; ii++)
+                for (int jj = 0; jj < 2; jj++)
+                    for (int kk = 0; kk < 2; kk++)
+                        temp[ii][jj][kk] = qav* weight[ii][jj][kk];
+            EMf->addJyh(temp, ix, iy, iz, ns);
+
+            // add implicit current density - Z
+            for (int ii = 0; ii < 2; ii++)
+                for (int jj = 0; jj < 2; jj++)
+                    for (int kk = 0; kk < 2; kk++)
+                        temp[ii][jj][kk] = qaw* weight[ii][jj][kk];
+            EMf->addJzh(temp, ix, iy, iz, ns);
+
+            if(ComputeMM)
+            {
+                #pragma omp master
+                if (vct->getCartesian_rank() == 0)
+                    cout << "*** Computing Mass Matrix ***" << endl;
+                
+                // Mass Matrix (each node of the cell in which the particle is)
+                for (int i=0; i<2; i++) 
+                    for (int j=0; j<2; j++) 
+                        for (int k=0; k<2; k++) 
+                        {
+                            int ni = ix-i;
+                            int nj = iy-j;
+                            int nk = iz-k;
+
+                            // Only half of the possible nodes  (M is symmetric)
+                            for (int c=0; c<14; c++) 
+                            {
+                                int n2i = ni + NeNo.getX(c);
+                                int n2j = nj + NeNo.getY(c);
+                                int n2k = nk + NeNo.getZ(c);
+
+                                int i2 = ix - n2i;
+                                int j2 = iy - n2j;
+                                int k2 = iz - n2k;
+
+                                // Check if this node is one of the cell in which the particle is:
+                                if (i2>=0 && i2<2 && j2>=0 && j2<2 && k2>=0 && k2<2) 
+                                {
+                                    double qww = q[pidx]*beta*weight[i][j][k]*weight[i2][j2][k2];
+                                    double val[3][3];
+                                    
+                                    for (int ind1=0; ind1<3; ind1++)
+                                        for (int ind2=0; ind2<3; ind2++) 
+                                            val[ind1][ind2] = alpha[ind2][ind1]*qww;
+
+                                    EMf->addMass(val, ni, nj, nk, c);
+                                }
+                            }
+                        }
+
+            }
+        }
+    }
+}
