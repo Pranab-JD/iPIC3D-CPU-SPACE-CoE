@@ -142,10 +142,13 @@ public:
     void setZeroDerivedMoments();
     //! Set all elements of mass matrix to 0.0 !//
     void setZeroMassMatrix();
-    /*! Sum rhon over species */
+    /*! Sum rhon and J over species */
     void sumOverSpecies();
+        /*! Sum rhon over species */
+    void sumOverSpeciesRho();
     /*! Sum current over different species */
     void sumOverSpeciesJ();
+    void interpolateCenterSpecies(); 
     /*! Smoothing after the interpolation* */
     void smooth(arr3_double vector, int type);
     /*! SPECIES: Smoothing after the interpolation for species fields* */
@@ -219,36 +222,40 @@ public:
     arr3_double getPHI() {return PHI;}
 
     // field components defined on nodes
-    double getEx(int X, int Y, int Z) const { return Ex.get(X,Y,Z);}
-    double getEy(int X, int Y, int Z) const { return Ey.get(X,Y,Z);}
-    double getEz(int X, int Y, int Z) const { return Ez.get(X,Y,Z);}
-    double getBx(int X, int Y, int Z) const { return Bxn.get(X,Y,Z);}
-    double getBy(int X, int Y, int Z) const { return Byn.get(X,Y,Z);}
-    double getBz(int X, int Y, int Z) const { return Bzn.get(X,Y,Z);}
+    double getEx(int X, int Y, int Z) const { return Ex.get(X,Y,Z);  }
+    double getEy(int X, int Y, int Z) const { return Ey.get(X,Y,Z);  }
+    double getEz(int X, int Y, int Z) const { return Ez.get(X,Y,Z);  }
+    double getBx(int X, int Y, int Z) const { return Bxn.get(X,Y,Z); }
+    double getBy(int X, int Y, int Z) const { return Byn.get(X,Y,Z); }
+    double getBz(int X, int Y, int Z) const { return Bzn.get(X,Y,Z); }
     
     const_arr4_pfloat get_fieldForPcls() { return fieldForPcls; }
-    arr3_double getEx() { return Ex; }
-    arr3_double getEy() { return Ey; }
-    arr3_double getEz() { return Ez; }
+    arr3_double getEx() { return Ex;  }
+    arr3_double getEy() { return Ey;  }
+    arr3_double getEz() { return Ez;  }
     arr3_double getBx() { return Bxn; }
     arr3_double getBy() { return Byn; }
     arr3_double getBz() { return Bzn; }
 
     //for parallel vtk
-    arr3_double getBxc(){return Bxc;};
-    arr3_double getByc(){return Byc;};
-    arr3_double getBzc(){return Bzc;};
+    arr3_double getBxc() { return Bxc; };
+    arr3_double getByc() { return Byc; };
+    arr3_double getBzc() { return Bzc; };
 
-    // densities per species:
-    double getRHOcs(int X,int Y,int Z,int is)const{return rhocs.get(is,X,Y,Z);}
-    double getRHOns(int X,int Y,int Z,int is)const{return rhons.get(is,X,Y,Z);}
-    arr4_double getRHOns(){return rhons;}
-    arr4_double getRHOcs(){return rhocs;}
+    //* Densities (s --> of each species)
+    double getRHOcs(int X, int Y, int Z, int is) const { return rhocs.get(is, X, Y, Z); }
+    double getRHOns(int X, int Y, int Z, int is) const { return rhons.get(is, X, Y, Z); }
+    double getRHOc_avg(int X, int Y, int Z) const { return rhoc_avg.get(X, Y, Z); }
+    
+    arr4_double getRHOns() { return rhons; }
+    arr4_double getRHOcs() { return rhocs; }
+    arr3_double getRHOc_avg() { return rhoc_avg; }
+    arr3_double getRHOcs_avg(int is) { return rhocs_avg[is]; }
 
     //? Extenal electric field components (defined on nodes)
-    double getBx_ext(int X, int Y, int Z) const{return Bx_ext.get(X,Y,Z);}
-    double getBy_ext(int X, int Y, int Z) const{return By_ext.get(X,Y,Z);}
-    double getBz_ext(int X, int Y, int Z) const{return Bz_ext.get(X,Y,Z);}
+    double getBx_ext(int X, int Y, int Z) const { return Bx_ext.get(X,Y,Z); }
+    double getBy_ext(int X, int Y, int Z) const { return By_ext.get(X,Y,Z); }
+    double getBz_ext(int X, int Y, int Z) const { return Bz_ext.get(X,Y,Z); }
     
     arr3_double getBx_ext() { return Bx_ext; }
     arr3_double getBy_ext() { return By_ext; }
@@ -260,9 +267,9 @@ public:
     arr3_double getJz_ext() { return Jz_ext; }
 
     //? Extenal magnetic field components (defined at cell centres)
-    double getBxc_ext(int X, int Y, int Z) const{return Bxc_ext.get(X,Y,Z);}
-    double getByc_ext(int X, int Y, int Z) const{return Byc_ext.get(X,Y,Z);}
-    double getBzc_ext(int X, int Y, int Z) const{return Bzc_ext.get(X,Y,Z);}
+    double getBxc_ext(int X, int Y, int Z) const { return Bxc_ext.get(X,Y,Z); }
+    double getByc_ext(int X, int Y, int Z) const { return Byc_ext.get(X,Y,Z); }
+    double getBzc_ext(int X, int Y, int Z) const { return Bzc_ext.get(X,Y,Z); }
 
     arr3_double getBxc_ext() { return Bxc_ext; }
     arr3_double getByc_ext() { return Byc_ext; }
@@ -272,31 +279,27 @@ public:
     arr3_double getBxTot() { addscale(1.0,Bxn,Bx_ext,Bx_tot,nxn,nyn,nzn); return Bx_tot; }
     arr3_double getByTot() { addscale(1.0,Byn,By_ext,By_tot,nxn,nyn,nzn); return By_tot; }
     arr3_double getBzTot() { addscale(1.0,Bzn,Bz_ext,Bz_tot,nxn,nyn,nzn); return Bz_tot; }
-    double getBxTot(int X, int Y, int Z) const{return Bxn.get(X,Y,Z)+Bx_ext.get(X,Y,Z);;}
-    double getByTot(int X, int Y, int Z) const{return Byn.get(X,Y,Z)+By_ext.get(X,Y,Z);}
-    double getBzTot(int X, int Y, int Z) const{return Bzn.get(X,Y,Z)+Bz_ext.get(X,Y,Z);}
+    double getBxTot(int X, int Y, int Z) const { return Bxn.get(X,Y,Z) + Bx_ext.get(X,Y,Z); }
+    double getByTot(int X, int Y, int Z) const { return Byn.get(X,Y,Z) + By_ext.get(X,Y,Z); }
+    double getBzTot(int X, int Y, int Z) const { return Bzn.get(X,Y,Z) + Bz_ext.get(X,Y,Z); }
 
+    //* Pressure Tensor (not needed for ECSim)
     arr4_double getpXXsn() { return pXXsn; }
-    double getpXXsn(int X,int Y,int Z,int is)const{return pXXsn.get(is,X,Y,Z);}
-
     arr4_double getpXYsn() { return pXYsn; }
-    double getpXYsn(int X,int Y,int Z,int is)const{return pXYsn.get(is,X,Y,Z);}
-
     arr4_double getpXZsn() { return pXZsn; }
-    double getpXZsn(int X,int Y,int Z,int is)const{return pXZsn.get(is,X,Y,Z);}
-
     arr4_double getpYYsn() { return pYYsn; }
-    double getpYYsn(int X,int Y,int Z,int is)const{return pYYsn.get(is,X,Y,Z);}
-
     arr4_double getpYZsn() { return pYZsn; }
-    double getpYZsn(int X,int Y,int Z,int is)const{return pYZsn.get(is,X,Y,Z);}
-
     arr4_double getpZZsn() { return pZZsn; }
-    double getpZZsn(int X,int Y,int Z,int is)const{return pZZsn.get(is,X,Y,Z);}
+    double getpXXsn(int X, int Y, int Z, int is) const { return pXXsn.get(is,X,Y,Z); }
+    double getpXYsn(int X, int Y, int Z, int is) const { return pXYsn.get(is,X,Y,Z); }
+    double getpXZsn(int X, int Y, int Z, int is) const { return pXZsn.get(is,X,Y,Z); }
+    double getpYYsn(int X, int Y, int Z, int is) const { return pYYsn.get(is,X,Y,Z); }
+    double getpYZsn(int X, int Y, int Z, int is) const { return pYZsn.get(is,X,Y,Z); }
+    double getpZZsn(int X, int Y, int Z, int is) const { return pZZsn.get(is,X,Y,Z); }
 
-    double getJx(int X, int Y, int Z) const { return Jx.get(X,Y,Z);}
-    double getJy(int X, int Y, int Z) const { return Jy.get(X,Y,Z);}
-    double getJz(int X, int Y, int Z) const { return Jz.get(X,Y,Z);}
+    double getJx(int X, int Y, int Z) const { return Jx.get(X,Y,Z); }
+    double getJy(int X, int Y, int Z) const { return Jy.get(X,Y,Z); }
+    double getJz(int X, int Y, int Z) const { return Jz.get(X,Y,Z); }
     arr3_double getJx() { return Jx; }
     arr3_double getJy() { return Jy; }
     arr3_double getJz() { return Jz; }
@@ -304,12 +307,25 @@ public:
     arr4_double getJys() { return Jys; }
     arr4_double getJzs() { return Jzs; }
 
-    double getJxs(int X,int Y,int Z,int is)const{return Jxs.get(is,X,Y,Z);}
-    double getJys(int X,int Y,int Z,int is)const{return Jys.get(is,X,Y,Z);}
-    double getJzs(int X,int Y,int Z,int is)const{return Jzs.get(is,X,Y,Z);}
+    double getJxs(int X,int Y,int Z,int is) const { return Jxs.get(is,X,Y,Z); }
+    double getJys(int X,int Y,int Z,int is) const { return Jys.get(is,X,Y,Z); }
+    double getJzs(int X,int Y,int Z,int is) const { return Jzs.get(is,X,Y,Z); }
+
+    arr3_double getDivE() { return divE; }
+    arr3_double getDivB() { return divB; }
+    arr3_double getDivAverage() { return divE_average; }
+
+    //* Residual of DivE on cell centers *//
+    double getResDiv(int X, int Y, int Z, int is) const { return resdiv.get(is, X, Y, Z); }
+    arr3_double getResDiv(int is) { return resdiv[is]; }
 
     void addMass(double value[3][3], int X, int Y, int Z, int ind);
     void addMassXX(double value, int X, int Y, int Z, int ind);
+
+    void divergenceOfE(double ma);
+    void divergenceOfB();
+    void timeAveragedRho(double ma);
+    void timeAveragedDivE(double ma);
 
     /*! get the electric field energy */
     double getEenergy();
@@ -323,10 +339,11 @@ public:
     void setZeroCurrent();
 
     /*! fetch array for summing moments of thread i */
-    Moments10& fetch_moments10Array(int i){
-      assert_le(0,i);
-      assert_lt(i,sizeMomentsArray);
-      return *(moments10Array[i]);
+    Moments10& fetch_moments10Array(int i)
+    {
+        assert_le(0,i);
+        assert_lt(i,sizeMomentsArray);
+        return *(moments10Array[i]);
     }
     int get_sizeMomentsArray() { return sizeMomentsArray; }
 
@@ -435,26 +452,22 @@ private:
     // [This is the information transferred from cluster to booster].
     array4_pfloat fieldForPcls;
 
-    // Electric field components defined on nodes
-    //
+    //? Electric field components (defined on nodes)
     array3_double Ex;
     array3_double Ey;
     array3_double Ez;
 
-    // implicit electric field components defined on nodes
-    //
+    //? Implicit electric field components (defined on nodes)
     array3_double Exth;
     array3_double Eyth;
     array3_double Ezth;
 
-    // magnetic field components defined on central points between nodes
-    //
+    //? Magnetic field components (defined at cell centres)
     array3_double Bxc;
     array3_double Byc;
     array3_double Bzc;
 
-    // magnetic field components defined on nodes
-    //
+    //? Magnetic field components (defined on nodes)
     array3_double Bxn;
     array3_double Byn;
     array3_double Bzn;
@@ -511,12 +524,20 @@ private:
     array4_double rhons;
     /*! charge density for each species, defined on central points of the cell */
     array4_double rhocs;
+    //* Number of particles for N species (defined on nodes) *//
+    array4_double Nns;
+    //* Time averaged charge density (defined at centres) *//
+    array3_double rhoc_avg;
+    //* Time averaged charge density for each species (defined at centres) *//
+    array4_double rhocs_avg;
 
     array3_double Phic;
 
     //* Divergence of electric and magnetic field
     array3_double divE;
     array3_double divB;
+    array3_double divE_average;
+    array4_double resdiv;             // Residual divergence equation, defined on centers
 
     // current density defined on nodes
     array3_double Jx;

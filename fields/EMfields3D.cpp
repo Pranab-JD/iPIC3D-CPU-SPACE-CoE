@@ -183,6 +183,12 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     vectZ  (nxn, nyn, nzn),
     divC   (nxc, nyc, nzc),
 
+    //? Divergence comutations
+    divE        (nxc, nyc, nzc),
+    divB        (nxc, nyc, nzc),
+    divE_average(nxc, nyc, nzc),
+    resdiv      (ns, nxc, nyc, nzc),
+
     //! B_ext and J_ext should not be allocated unless used.
     Bx_ext(nxn, nyn, nzn),
     By_ext(nxn, nyn, nzn),
@@ -3624,8 +3630,8 @@ void EMfields3D::PoissonImage(double *image, double *vector)
 /*! interpolate charge density and pressure density from node to center */
 void EMfields3D::interpDensitiesN2C()
 {
-  // do we need communication or not really?
-  get_grid().interpN2C(rhoc, rhon);
+    // do we need communication or not really?
+    get_grid().interpN2C(rhoc, rhon);
 }
 
 /*! communicate ghost for grid -> Particles interpolation */
@@ -3677,9 +3683,48 @@ void EMfields3D::communicateGhostP2G(int ns)
   communicateNode_P(nxn, nyn, nzn, moment9, vct, this);
 }
 
-//* =========================================================================================================== *//
+//? Compute divergence of electric field
+void EMfields3D::divergenceOfE(double ma) 
+{
+    scale(resdiv, divE_average, -1.0/FourPI, ns, nxc, nyc, nzc);
+    addscale(1.0, resdiv, rhoc_avg, ns, nxc, nyc, nzc);
 
-//*** Different initial configurations ***//
+    for (int is = 0; is < ns; is++)
+        for (int i = 0; i < nxc; i++)
+            for (int j = 0; j < nyc; j++)
+                for (int k = 0; k < nzc; k++) 
+                    resdiv[is][i][j][k] = resdiv[is][i][j][k]/(rhocs_avg.get(is, i, j, k) - 1e-10) * ma;
+
+    //* Iterate over each species
+    for (int is = 0; is < ns; is++)
+        communicateCenterBC(nxc, nyc, nzc, resdiv[is], 2, 2, 2, 2, 2, 2, vct, this);
+}
+
+//? Compute divergence of magnetic field
+void EMfields3D::divergenceOfB() 
+{
+    grid->divC2N(divB, Bxc, Byc, Bzc);
+}
+
+void EMfields3D::timeAveragedRho(double ma) 
+{
+    //* rho_average = (1-ma)*rho_average + ma*rho
+    scale(rhoc_avg, (1-ma), nxc, nyc, nzc);
+    addscale(ma, rhoc_avg, rhoc, nxc, nyc, nzc);
+}
+
+void EMfields3D::timeAveragedDivE(double ma) 
+{
+    //* Boundary conditions - TBD later
+    // EMfields3D::BC_E_Poisson(vct,  Ex, Ey, Ez);
+    
+    grid->divN2C(divE, Ex, Ey, Ez);
+
+    scale(divE_average, (1.0-ma), nxc, nyc, nzc);
+    addscale(ma, divE_average, divE, nxc, nyc, nzc);
+}
+
+//* =========================================================================================================== *//
 
 //? Set all elements of mass matrix to 0
 void EMfields3D::setZeroMassMatrix()
@@ -3738,6 +3783,12 @@ void EMfields3D::setZeroPrimaryMoments()
                     Jxs  [kk][i][j][k] = 0.0;
                     Jys  [kk][i][j][k] = 0.0;
                     Jzs  [kk][i][j][k] = 0.0;
+                    Jxhs [kk][i][j][k] = 0.0;
+                    Jyhs [kk][i][j][k] = 0.0;
+                    Jzhs [kk][i][j][k] = 0.0;
+                    EFxs [kk][i][j][k] = 0.0;
+                    EFys [kk][i][j][k] = 0.0;
+                    EFzs [kk][i][j][k] = 0.0;
                     pXXsn[kk][i][j][k] = 0.0;
                     pXYsn[kk][i][j][k] = 0.0;
                     pXZsn[kk][i][j][k] = 0.0;
@@ -3753,10 +3804,41 @@ void EMfields3D::setZeroDensities()
 {
     setZeroDerivedMoments();
     setZeroPrimaryMoments();
+    setZeroMassMatrix();
+}
+
+void EMfields3D::setZeroRho(int i0) 
+{
+    //* Iterate over species
+    for (int i = i0; i < ns; i++) 
+    {
+        eqValue(0.0, rhons[i], nxn, nyn, nzn);
+        eqValue(0.0, rhocs[i], nxc, nyc, nzc);
+    }
+    eqValue(0.0, Nns, ns, nxn, nyn, nzn);
 }
 
 //* Sum charge density of different species on NODES *//
 void EMfields3D::sumOverSpecies()
+{
+    for (int is = 0; is < ns; is++)
+        for (int i = 0; i < nxn; i++)
+            for (int j = 0; j < nyn; j++)
+                for (int k = 0; k < nzn; k++)
+                {
+                    rhon[i][j][k] += rhons[is][i][j][k];
+                    Jx[i][j][k] += Jxs[is][i][j][k];
+                    Jy[i][j][k] += Jys[is][i][j][k];
+                    Jz[i][j][k] += Jzs[is][i][j][k];
+                }
+    
+    communicateNode_P(nxn, nyn, nzn, rhon, vct, this);
+    grid->interpN2C(rhoc, rhon);
+    communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct, this);
+}
+
+//* Sum mass and charge density of different species (on nodes) *//
+void EMfields3D::sumOverSpeciesRho()
 {
     for (int is = 0; is < ns; is++)
         for (int i = 0; i < nxn; i++)
@@ -3777,6 +3859,18 @@ void EMfields3D::sumOverSpeciesJ()
                     Jy[i][j][k] += Jys[is][i][j][k];
                     Jz[i][j][k] += Jzs[is][i][j][k];
                 }
+}
+
+void EMfields3D::interpolateCenterSpecies() 
+{
+    grid->interpN2C(rhoc, rhon);
+    communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct, this);
+
+    for (int is = 0; is < ns; is++) 
+    {
+        grid->interpN2C(rhoc_avg_sp[is], rhons[is]);
+        communicateCenterBC(nxc, nyc, nzc, rhoc_avg_sp[is], 2, 2, 2, 2, 2, 2, vct, this);
+    }
 }
 
 void EMfields3D::setZeroCurrent()
@@ -3898,7 +3992,7 @@ void EMfields3D::init()
 
 #ifdef BATSRUS
     /*! initiliaze EM for GEM challange */
-    void EMfields3D::initBATSRUS()
+void EMfields3D::initBATSRUS()
 {
   const Collective *col = &get_col();
   const Grid *grid = &get_grid();
