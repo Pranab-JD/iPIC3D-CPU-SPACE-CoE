@@ -62,19 +62,19 @@ int main(int argc, char **argv)
             timeTasks.resetCycle();
             
             time_EF.start();
-            KCode.CalculateField(i);        //* E field
+            KCode.ComputeEMFields(i);        //* E & B fields
             time_EF.stop();
             
             time_PM.start();
-            KCode.ParticlesMover();         //* Copute the new v and x for particles using the fields
+            KCode.ParticlesMover();         //* Compute the new v and x for particles using the fields
             time_PM.stop();
 
-            time_MF.start();
-            KCode.CalculateB();             //* B field
-            time_MF.stop();
+            // time_MF.start();
+            // KCode.CalculateB();             //* B field
+            // time_MF.stop();
 
             time_MG.start();
-            KCode.CalculateMoments();   //* Charge density, current density, and pressure tensor
+            KCode.CalculateMoments();       //* Charge density, current density, and pressure tensor
             time_MG.stop();
 
             //calculated from particles position and celocity, then mapped to node(grid) for further solving
@@ -92,9 +92,9 @@ int main(int argc, char **argv)
             if(MPIdata::get_rank() == 0)
             {
                 std::cout << std::endl << "LeXInt timer (cummulative) " << std::endl;
-                std::cout << "Electric field     : " << time_EF.total() << " s" << std::endl;
+                std::cout << "Field solver       : " << time_EF.total() << " s" << std::endl;
                 std::cout << "Particle mover     : " << time_PM.total() << " s" << std::endl;
-                std::cout << "Magnetic field     : " << time_MF.total() << " s" << std::endl;
+                // std::cout << "Magnetic field     : " << time_MF.total() << " s" << std::endl;
                 std::cout << "Moment gatherer    : " << time_MG.total() << " s" << std::endl;
                 std::cout << "Cycle time         : " << time_loop.total() << " s" << std::endl << std::endl;
             }

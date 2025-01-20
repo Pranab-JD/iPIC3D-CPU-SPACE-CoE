@@ -568,7 +568,7 @@ void communicateNodeBC_P(int nx, int ny, int nz, arr3_double _vector,
 }
 
 void communicateNode_P(int nx, int ny, int nz, double*** vector,
-  const VirtualTopology3D * vct, EMfields3D *EMf)
+                        const VirtualTopology3D * vct, EMfields3D *EMf)
 {
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false,false,false,true);
 }

@@ -63,9 +63,10 @@ namespace iPic3D {
 
     int Init(int argc, char **argv);
     void CalculateMoments();
-    void CalculateField(int cycle);
+    void ComputeE(int cycle);
     bool ParticlesMover();
     void CalculateB();
+    void ComputeEMFields(int cycle);
     //
     // output methods
     //

@@ -67,8 +67,6 @@ double norm2(const double *vect, int nx) {
   return (result);
 }
 
-
-
 /** method to calculate the parallel dot product */
 /*
 double norm2P(const arr3_double vect, int nx, int ny, int nz) {

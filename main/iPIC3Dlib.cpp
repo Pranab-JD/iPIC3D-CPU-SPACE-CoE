@@ -52,7 +52,6 @@
 #endif
 
 using namespace iPic3D;
-//MPIdata* iPic3D::c_Solver::mpi=0;
 
 c_Solver::~c_Solver()
 {
@@ -277,13 +276,16 @@ int c_Solver::Init(int argc, char **argv)
     return 0;
 }
 
+//* =================================== iPIC3D main computation =================================== *//
+
+//! Compute moments
 void c_Solver::CalculateMoments() 
 {
     timeTasks_set_main_task(TimeTasks::MOMENTS);
 
     pad_particle_capacities();
 
-    // vectorized; assumes that particles are sorted by mesh cell
+    //* Vectorised; assumes that particles are sorted by mesh cell
     if(Parameters::get_VECTORIZE_MOMENTS())
     {
         switch(Parameters::get_MOMENTS_TYPE())
@@ -336,51 +338,86 @@ void c_Solver::CalculateMoments()
         }
     }
 
-    EMf->setZeroDerivedMoments();
-    
-    // sum all over the species
-    EMf->sumOverSpecies();
-    
-    // Fill with constant charge the planet
-    if (col->getCase()=="Dipole") 
-    {
-        EMf->ConstantChargePlanet(col->getL_square(),col->getx_center(),col->gety_center(),col->getz_center());
-    }
-    else if(col->getCase()=="Dipole2D") 
-    {
-        EMf->ConstantChargePlanet2DPlaneXZ(col->getL_square(),col->getx_center(),col->getz_center());
-    }
+    EMf->setZeroDensities();
 
-    // calculate densities on centers from nodes
-    EMf->interpDensitiesN2C();
+    EMf->setZeroRho(0);
+
+    // TODO: Long function to be implemented - PJD
+    //? Interpolate Particles to grid (nodes)
+    for (int i = 0; i < ns; i++)
+		part[i].computeMoments(EMf, col,  grid, vct); 
     
-    // calculate the hat quantities for the implicit method
-    EMf->calculateHatFunctions();
+    //* Sum all over the species (mass and charge density)
+    EMf->sumOverSpecies();
+    EMf->interpolateCenterSpecies();
+
+    // TODO: These 2 lines are in both sumOverSpecies() and interpolateCenterSpecies(). Do we need these twice? - Ask Fabio
+    // TODO:    grid->interpN2C(rhoc, rhon);
+    // TODO:    communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct);
+    
+    // TODO: Implement these later -- need data from input files
+    // EMf->timeAveragedRho(col->getPoissonMArho());
+	// EMf->timeAveragedDivE(col->getPoissonMAdiv());
 }
 
-//! MAXWELL SOLVER for Efield
-void c_Solver::CalculateField(int cycle) 
+//! Compute electric field
+void c_Solver::ComputeE(int cycle) 
 {
     timeTasks_set_main_task(TimeTasks::FIELDS);
 
-    // calculate the E field
     EMf->calculateE(cycle);
 }
 
-//! MAXWELL SOLVER for Bfield (assuming Efield has already been calculated)
+//! Compute magnetic field (assuming electric field has already been calculated)
 void c_Solver::CalculateB() 
 {
     timeTasks_set_main_task(TimeTasks::FIELDS);
-    // calculate the B field
+
     EMf->calculateB();
 }
 
-/*  -------------- */
-/*!  Particle mover */
-/*  -------------- */
+//! Compute electromagnetic field (E and B needs to computed inside 1 function for ECSim)
+void c_Solver::ComputeEMFields(int cycle)
+{
+    //TODO: TBD later
+    // if (col->getLambdaDamping() == "piston")
+		// EMf->evolveLambda(vct, grid, col, piston);
+
+    //TODO: Only needed for the cases "Shock1D_DoublePiston" and "LangevinAntenna" - Should I implement this? Ask Fabio
+	//* Update external fields to n+1/2
+	// EMf->updateExternalFields(vct, grid, col, cycle); 
+
+    //TODO: Only needed for the cases "ForcedDynamo" - Should I implement this? Ask Fabio
+	//* Update particle external forces to n+1/2
+	// EMf->updateParticleExternalForces(vct, grid, col, cycle); 
+
+    //? Compute E and B fields
+    EMf->calculateE(cycle);
+    EMf->calculateB();
+
+    //TODO: TBD later
+    // Impose MHD Buffer Zone
+    // if (col->getCase()=="MHDUCLA" || col->getCase()=="AnnularHarris" || col->getCase()=="GEM" || col->getCase()=="Discontinuity" || col->getCase()=="ForceFree") 
+    // {
+    //     if (col->getLambdaField() == "yes")
+    //         EMf->setMHDBufferZone(grid, vct, col);
+    // }
+
+    //* Compute divergence of E and B and accessory variable
+	EMf->timeAveragedDivE(col->getPoissonMAdiv());
+	EMf->divergenceOfE(col->getPoissonMAres());
+	EMf->divergenceOfB();
+
+    //TODO: TBD later
+    // double dt = col->getDt();
+	// if (col->getTimeFile() != "none")
+	// 	EMf->updateReferenceStateFromFile(grid, col, vct, cycle * dt);
+}
+
+//! Compute positions and velocities of particles
 bool c_Solver::ParticlesMover()
 {
-    // move all species of particles
+    //? Move all species of particles
     {
         timeTasks_set_main_task(TimeTasks::PARTICLES);
         // Should change this to add background field
@@ -388,33 +425,34 @@ bool c_Solver::ParticlesMover()
 
         pad_particle_capacities();
 
-        for (int i = 0; i < ns; i++)  // move each species
+        //* Iterate over each species to update velocities
+        for (int i = 0; i < ns; i++)
+        {
+            switch(Parameters::get_MOVER_TYPE())
+            {
+                //? ECSim
+                case Parameters::SoA:
+                part[i].ECSIM_velocity(EMf)
+                break;
+                
+                default:
+                unsupported_value_error(Parameters::get_MOVER_TYPE());
+            }
+
+            //* Should integrate BC into separate_and_send_particles
+            part[i].openbc_particles_outflow();
+            part[i].separate_and_send_particles();
+        }
+
+        //* Iterate over each species to update positions
+        for (int i = 0; i < ns; i++)
         {
             //* Use Predictor-Corrector scheme to move particles
             switch(Parameters::get_MOVER_TYPE())
             {
                 case Parameters::SoA:
-                part[i].mover_PC(EMf);
+                part[i].ECSIM_position(EMf)
                 break;
-                
-                case Parameters::AoS:
-                part[i].mover_PC_AoS(EMf);
-                break;
-                
-                case Parameters::AoS_Relativistic:
-                part[i].mover_PC_AoS_Relativistic(EMf);
-                break;
-                
-                case Parameters::AoSintr:
-                part[i].mover_PC_AoS_vec_intr(EMf);
-                break;
-                
-                case Parameters::AoSvec:
-                part[i].mover_PC_AoS_vec(EMf);
-                break;
-                
-                default:
-                unsupported_value_error(Parameters::get_MOVER_TYPE());
             }
 
             //* Should integrate BC into separate_and_send_particles
@@ -446,29 +484,30 @@ bool c_Solver::ParticlesMover()
             Qremoved[i] = part[i].deleteParticlesInsideSphere2DPlaneXZ(col->getL_square(), col->getx_center(), col->getz_center());
     }
 
-    //? Test Particles mover
-    for (int i = 0; i < nstestpart; i++)  // move each species
+    //* =============== Test Particles =============== *//
+
+    for (int i = 0; i < nstestpart; i++)
     {
         switch(Parameters::get_MOVER_TYPE())
         {
             case Parameters::SoA:
-                testpart[i].mover_PC(EMf);
+                testpart[i].ECSIM_velocity(EMf);
             break;
             
-            case Parameters::AoS:
-                testpart[i].mover_PC_AoS(EMf);
-            break;
-            
-            case Parameters::AoS_Relativistic:
-                testpart[i].mover_PC_AoS_Relativistic(EMf);
-            break;
-            
-            case Parameters::AoSintr:
-                testpart[i].mover_PC_AoS_vec_intr(EMf);
-            break;
-            
-            case Parameters::AoSvec:
-                testpart[i].mover_PC_AoS_vec(EMf);
+            default:
+                unsupported_value_error(Parameters::get_MOVER_TYPE());
+        }
+
+        testpart[i].openbc_delete_testparticles();
+        testpart[i].separate_and_send_particles();
+    }
+
+    for (int i = 0; i < nstestpart; i++)
+    {
+        switch(Parameters::get_MOVER_TYPE())
+        {
+            case Parameters::SoA:
+                testpart[i].ECSIM_position(EMf);
             break;
             
             default:
@@ -482,8 +521,12 @@ bool c_Solver::ParticlesMover()
     for (int i = 0; i < nstestpart; i++)
         testpart[i].recommunicate_particles_until_done(1);
 
+    //* ============================================== *//
+
     return (false);
 }
+
+//* ===================================== WRITE DATA TO FILES ===================================== *//
 
 void c_Solver::WriteOutput(int cycle) 
 {
@@ -616,7 +659,6 @@ void c_Solver::WriteRestart(int cycle)
     #endif
 }
 
-//? Write conserved quantities
 void c_Solver::WriteConserved(int cycle) 
 {
     if(col->getDiagnosticsOutputCycle() > 0 && cycle % col->getDiagnosticsOutputCycle() == 0)
@@ -670,31 +712,33 @@ void c_Solver::WriteVelocityDistribution(int cycle)
 }
 
 // This seems to record values at a grid of sample points
-//
 void c_Solver::WriteVirtualSatelliteTraces()
 {
-  if(ns <= 2) return;
-  assert_eq(ns,4);
+    if(ns <= 2) return;
+    assert_eq(ns,4);
 
-  ofstream my_file(cqsat.c_str(), fstream::app);
-  const int nx0 = grid->get_nxc_r();
-  const int ny0 = grid->get_nyc_r();
-  const int nz0 = grid->get_nzc_r();
-  for (int isat = 0; isat < nsat; isat++) {
-    for (int jsat = 0; jsat < nsat; jsat++) {
-      for (int ksat = 0; ksat < nsat; ksat++) {
-        int index1 = 1 + isat * nx0 / nsat + nx0 / nsat / 2;
-        int index2 = 1 + jsat * ny0 / nsat + ny0 / nsat / 2;
-        int index3 = 1 + ksat * nz0 / nsat + nz0 / nsat / 2;
-        my_file << EMf->getBx(index1, index2, index3) << "\t" << EMf->getBy(index1, index2, index3) << "\t" << EMf->getBz(index1, index2, index3) << "\t";
-        my_file << EMf->getEx(index1, index2, index3) << "\t" << EMf->getEy(index1, index2, index3) << "\t" << EMf->getEz(index1, index2, index3) << "\t";
-        my_file << EMf->getJxs(index1, index2, index3, 0) + EMf->getJxs(index1, index2, index3, 2) << "\t" << EMf->getJys(index1, index2, index3, 0) + EMf->getJys(index1, index2, index3, 2) << "\t" << EMf->getJzs(index1, index2, index3, 0) + EMf->getJzs(index1, index2, index3, 2) << "\t";
-        my_file << EMf->getJxs(index1, index2, index3, 1) + EMf->getJxs(index1, index2, index3, 3) << "\t" << EMf->getJys(index1, index2, index3, 1) + EMf->getJys(index1, index2, index3, 3) << "\t" << EMf->getJzs(index1, index2, index3, 1) + EMf->getJzs(index1, index2, index3, 3) << "\t";
-        my_file << EMf->getRHOns(index1, index2, index3, 0) + EMf->getRHOns(index1, index2, index3, 2) << "\t";
-        my_file << EMf->getRHOns(index1, index2, index3, 1) + EMf->getRHOns(index1, index2, index3, 3) << "\t";
-      }}}
-  my_file << endl;
-  my_file.close();
+    ofstream my_file(cqsat.c_str(), fstream::app);
+    const int nx0 = grid->get_nxc_r();
+    const int ny0 = grid->get_nyc_r();
+    const int nz0 = grid->get_nzc_r();
+
+    for (int isat = 0; isat < nsat; isat++) 
+        for (int jsat = 0; jsat < nsat; jsat++) 
+            for (int ksat = 0; ksat < nsat; ksat++) 
+            {
+                int index1 = 1 + isat * nx0 / nsat + nx0 / nsat / 2;
+                int index2 = 1 + jsat * ny0 / nsat + ny0 / nsat / 2;
+                int index3 = 1 + ksat * nz0 / nsat + nz0 / nsat / 2;
+                my_file << EMf->getBx(index1, index2, index3) << "\t" << EMf->getBy(index1, index2, index3) << "\t" << EMf->getBz(index1, index2, index3) << "\t";
+                my_file << EMf->getEx(index1, index2, index3) << "\t" << EMf->getEy(index1, index2, index3) << "\t" << EMf->getEz(index1, index2, index3) << "\t";
+                my_file << EMf->getJxs(index1, index2, index3, 0) + EMf->getJxs(index1, index2, index3, 2) << "\t" << EMf->getJys(index1, index2, index3, 0) + EMf->getJys(index1, index2, index3, 2) << "\t" << EMf->getJzs(index1, index2, index3, 0) + EMf->getJzs(index1, index2, index3, 2) << "\t";
+                my_file << EMf->getJxs(index1, index2, index3, 1) + EMf->getJxs(index1, index2, index3, 3) << "\t" << EMf->getJys(index1, index2, index3, 1) + EMf->getJys(index1, index2, index3, 3) << "\t" << EMf->getJzs(index1, index2, index3, 1) + EMf->getJzs(index1, index2, index3, 3) << "\t";
+                my_file << EMf->getRHOns(index1, index2, index3, 0) + EMf->getRHOns(index1, index2, index3, 2) << "\t";
+                my_file << EMf->getRHOns(index1, index2, index3, 1) + EMf->getRHOns(index1, index2, index3, 3) << "\t";
+            }
+
+    my_file << endl;
+    my_file.close();
 }
 
 void c_Solver::WriteFields(int cycle) 
@@ -741,7 +785,7 @@ void c_Solver::WriteTestParticles(int cycle)
     #endif
 }
 
-//* ============================================================================================== *//
+//* =============================================================================================== *//
 
 // This needs to be separated into methods that save particles and methods that save field data
 void c_Solver::Finalize() 
