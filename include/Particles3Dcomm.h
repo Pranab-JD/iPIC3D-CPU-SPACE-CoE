@@ -228,202 +228,147 @@ public:
     int get_bucket_offset(int cx, int cy, int cz)const { return (*bucket_offset)[cx][cy][cz]; }
 
 protected:
-  // pointers to topology and grid information
-  // (should be const)
-  const Collective * col;
-  const VirtualTopology3D * vct;
-  const Grid * grid;
-  //
-  /** number of this species */
-  int ns;
-  /** maximum number of particles of this species on this domain. used for memory allocation */
-  //int npmax;
-  /** number of particles of this species on this domain */
-  //int nop; // see getNOP();
-  /** total number of particles */
-  //long long np_tot;
-  /** number of particles per cell */
-  int npcel;
-  /** number of particles per cell - X direction */
-  int npcelx;
-  /** number of particles per cell - Y direction */
-  int npcely;
-  /** number of particles per cell - Z direction */
-  int npcelz;
-  /** charge to mass ratio */
-  double qom;
-  /** recon thick */
-  double delta;
-  /** thermal velocity  - Direction X*/
-  double uth;
-  /** thermal velocity  - Direction Y*/
-  double vth;
-  /** thermal velocity  - Direction Z*/
-  double wth;
-  /** u0 Drift velocity - Direction X */
-  double u0;
-  /** v0 Drift velocity - Direction Y */
-  double v0;
-  /** w0 Drift velocity - Direction Z */
-  double w0;
-  // used to generate unique particle IDs
-  doubleIDgenerator pclIDgenerator;
+  
+    //* pointers to topology and grid information (should be const)
+    const Collective * col;
+    const VirtualTopology3D * vct;
+    const Grid * grid;
 
-  ParticleType::Type particleType;
-  //
-  // AoS representation
-  //
-  //Larray<SpeciesParticle> _pcls;
-  vector_SpeciesParticle _pcls;
-  //
-  // particles data
-  //
-  // SoA representation
-  //
-  // velocity components
-  vector_double u;
-  vector_double v;
-  vector_double w;
-  // charge
-  vector_double q;
-  // position
-  vector_double x;
-  vector_double y;
-  vector_double z;
-  // subcycle time
-  vector_double t;
-  // indicates whether this class is for tracking particles
-  //bool TrackParticleID;
-  bool isTestParticle;
-  double pitch_angle;
-  double energy;
+    //* Number of species */
+    int ns;
 
-  // structures for sorting particles
-  //
-  /** Average position data (used during particle push) **/
-  //
-  //Larray<double>& _xavg;
-  //Larray<double>& _yavg;
-  //Larray<double>& _zavg;
-  //
-  // alternate temporary storage for sorting particles
-  //
-  //Larray<SpeciesParticle> _pclstmp;
-  vector_SpeciesParticle _pclstmp;
-  //
-  // references for buckets for serial sort.
-  //
-  array3_int* numpcls_in_bucket;
-  array3_int* numpcls_in_bucket_now; // accumulator used during sorting
-  //array3_int* bucket_size; // maximum number of particles in bucket
-  array3_int* bucket_offset;
+    //* Number of particles per cell (total, X, Y, Z)
+    int npcel, npcelx, npcely, npcelz;
 
-  /** rank of processor in which particle is created (for ID) */
-  int BirthRank[2];
-  /** number of variables to be stored in buffer for communication for each particle  */
-  int nVar;
-  /** time step */
-  double dt;
-  //
-  // Copies of grid data (should just put pointer to Grid in this class)
-  //
-  /** Simulation domain lengths */
-  double xstart, xend, ystart, yend, zstart, zend, invVOL;
-  /** Lx = simulation box length - x direction   */
-  double Lx;
-  /** Ly = simulation box length - y direction   */
-  double Ly;
-  /** Lz = simulation box length - z direction   */
-  double Lz;
-  /** grid spacings */
-  double dx, dy, dz;
-  /** number of grid nodes */
-  int nxn, nyn, nzn;
-  /** number of grid cells */
-  int nxc, nyc, nzc;
-  // convenience values from grid
-  double inv_dx;
-  double inv_dy;
-  double inv_dz;
-  //
-  // Communication variables
-  //
-  /** buffers for communication */
-  //
-  // communicator for this specie
-  MPI_Comm mpi_comm;
-  // send buffers
-  //
-  BlockCommunicator<SpeciesParticle> sendXleft;
-  BlockCommunicator<SpeciesParticle> sendXrght;
-  BlockCommunicator<SpeciesParticle> sendYleft;
-  BlockCommunicator<SpeciesParticle> sendYrght;
-  BlockCommunicator<SpeciesParticle> sendZleft;
-  BlockCommunicator<SpeciesParticle> sendZrght;
-  //
-  // recv buffers
-  //
-  BlockCommunicator<SpeciesParticle> recvXleft;
-  BlockCommunicator<SpeciesParticle> recvXrght;
-  BlockCommunicator<SpeciesParticle> recvYleft;
-  BlockCommunicator<SpeciesParticle> recvYrght;
-  BlockCommunicator<SpeciesParticle> recvZleft;
-  BlockCommunicator<SpeciesParticle> recvZrght;
+    //* Charge to mass ratio
+    double qom;
 
-  /** bool for communication verbose */
-  bool cVERBOSE;
-  /** Boundary condition on particles:
-          <ul>
-          <li>0 = exit</li>
-          <li>1 = perfect mirror</li>
-          <li>2 = riemission</li>
-          <li>3 = periodic condition </li>
-          </ul>
-          */
-  /** Boundary Condition Particles: FaceXright */
-  int bcPfaceXright;
-  /** Boundary Condition Particles: FaceXleft */
-  int bcPfaceXleft;
-  /** Boundary Condition Particles: FaceYright */
-  int bcPfaceYright;
-  /** Boundary Condition Particles: FaceYleft */
-  int bcPfaceYleft;
-  /** Boundary Condition Particles: FaceYright */
-  int bcPfaceZright;
-  /** Boundary Condition Particles: FaceYleft */
-  int bcPfaceZleft;
-  //
-  // Other variables
-  //
-  /** speed of light in vacuum */
-  double c;
-  /** restart variable for loading particles from restart file */
-  int restart;
-  /** Number of iteration of the mover*/
-  int NiterMover;
-  /** velocity of the injection of the particles */
-  double Vinj;
-  /** removed charge from species */
-  double Q_removed;
-  /** density of the injection of the particles */
-  double Ninj;
+    //* Reconnection layer thickness
+    double delta;
+    
+    //* Thermal velocity (X, Y, Z)
+    double uth, vth, wth;
+
+    //* Drift velocity (X, Y, Z)
+    double u0, v0, w0;
+
+    // used to generate unique particle IDs
+    doubleIDgenerator pclIDgenerator;
+
+    //* Compute exact mass matrix
+    bool ComputeMM;
+
+    ParticleType::Type particleType;
+
+    // AoS representation
+    vector_SpeciesParticle _pcls;
+
+    // particles data
+    // SoA representation
+    //
+    // velocity components
+    vector_double u;
+    vector_double v;
+    vector_double w;
+    // charge
+    vector_double q;
+    // position
+    vector_double x;
+    vector_double y;
+    vector_double z;
+    // subcycle time
+    vector_double t;
+    // indicates whether this class is for tracking particles
+    //bool TrackParticleID;
+    bool isTestParticle;
+    double pitch_angle;
+    double energy;
+
+    //Larray<SpeciesParticle> _pclstmp;
+    vector_SpeciesParticle _pclstmp;
+
+    // references for buckets for serial sort.
+    array3_int* numpcls_in_bucket;
+    array3_int* numpcls_in_bucket_now; // accumulator used during sorting
+    //array3_int* bucket_size; // maximum number of particles in bucket
+    array3_int* bucket_offset;
+
+    /** rank of processor in which particle is created (for ID) */
+    int BirthRank[2];
+    /** number of variables to be stored in buffer for communication for each particle  */
+    int nVar;
+    /** time step */
+    double dt;
+
+    // Copies of grid data (should just put pointer to Grid in this class)
+    //* Simulation domain length
+    double xstart, xend, ystart, yend, zstart, zend, invVOL;
+    
+    //* Simulation box length
+    double Lx, Ly, Lz, dx, dy, dz;
+
+    //* Number of grid nodes and cells
+    int nxn, nyn, nzn, nxc, nyc, nzc;
+
+    // convenience values from grid
+    double inv_dx, inv_dy, inv_dz;
+
+    // Communication variables
+    /** buffers for communication */
+    MPI_Comm mpi_comm;
+
+    // send buffers
+    BlockCommunicator<SpeciesParticle> sendXleft;
+    BlockCommunicator<SpeciesParticle> sendXrght;
+    BlockCommunicator<SpeciesParticle> sendYleft;
+    BlockCommunicator<SpeciesParticle> sendYrght;
+    BlockCommunicator<SpeciesParticle> sendZleft;
+    BlockCommunicator<SpeciesParticle> sendZrght;
+
+    // recv buffers
+    BlockCommunicator<SpeciesParticle> recvXleft;
+    BlockCommunicator<SpeciesParticle> recvXrght;
+    BlockCommunicator<SpeciesParticle> recvYleft;
+    BlockCommunicator<SpeciesParticle> recvYrght;
+    BlockCommunicator<SpeciesParticle> recvZleft;
+    BlockCommunicator<SpeciesParticle> recvZrght;
+
+    /** bool for communication verbose */
+    bool cVERBOSE;
+    /** Boundary condition on particles:
+             <ul>
+            <li>0 = exit</li>
+            <li>1 = perfect mirror</li>
+            <li>2 = riemission</li>
+            <li>3 = periodic condition </li>
+            </ul>
+    */
+    //* Boundary Condition for Particles
+    int bcPfaceXright;
+    int bcPfaceXleft;
+    int bcPfaceYright;
+    int bcPfaceYleft;
+    int bcPfaceZright;
+    int bcPfaceZleft;
+
+    /** speed of light in vacuum */
+    double c;
+    /** restart variable for loading particles from restart file */
+    int restart;
+    /** Number of iteration of the mover*/
+    int NiterMover;
+    /** velocity of the injection of the particles */
+    double Vinj;
+    /** removed charge from species */
+    double Q_removed;
+    /** density of the injection of the particles */
+    double Ninj;
 
     //* Object of class to handle which nodes have to be computed when the mass matrix is calculated
     NeighbouringNodes NeNo;
 
- protected:
-
-  // limits to apply to particle velocity
-  //
-  double umax;
-  double vmax;
-  double wmax;
-  double umin;
-  double vmin;
-  double wmin;
-
-    //* Exact mass matrix
-    bool ComputeMM;
+    //* Limits to apply to particle velocity
+    double umin, umax, vmin, vmax, wmin, wmax;
 };
 
 // find the particles with particular IDs and print them

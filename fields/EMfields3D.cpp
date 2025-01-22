@@ -134,12 +134,18 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     Jxs   (ns, nxn, nyn, nzn),
     Jys   (ns, nxn, nyn, nzn),
     Jzs   (ns, nxn, nyn, nzn),
+    Jxhs  (ns, nxn, nyn, nzn),
+    Jyhs  (ns, nxn, nyn, nzn),
+    Jzhs  (ns, nxn, nyn, nzn),
     pXXsn (ns, nxn, nyn, nzn),
     pXYsn (ns, nxn, nyn, nzn),
     pXZsn (ns, nxn, nyn, nzn),
     pYYsn (ns, nxn, nyn, nzn),
     pYZsn (ns, nxn, nyn, nzn),
     pZZsn (ns, nxn, nyn, nzn),
+    EFxs  (ns, nxn, nyn, nzn),
+    EFys  (ns, nxn, nyn, nzn),
+    EFzs  (ns, nxn, nyn, nzn),
     
     //! Allocate arrays for data on cell centres !//
     PHI  (nxc, nyc, nzc),
@@ -149,6 +155,9 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     rhoc (nxc, nyc, nzc),
     rhoh (nxc, nyc, nzc),
     Phic (nxc, nyc, nzc),
+    Bxc_ext  (nxc, nyc, nzc),
+    Byc_ext  (nxc, nyc, nzc),
+    Bzc_ext  (nxc, nyc, nzc),
 
     //? Temporary arrays
     tempXC  (nxc, nyc, nzc),
@@ -157,20 +166,19 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     tempXC2 (nxc, nyc, nzc),
     tempYC2 (nxc, nyc, nzc),
     tempZC2 (nxc, nyc, nzc),
-
-    tempXN (nxn, nyn, nzn),
-    tempYN (nxn, nyn, nzn),
-    tempZN (nxn, nyn, nzn),
-    tempC  (nxc, nyc, nzc),
-    tempX  (nxn, nyn, nzn),
-    tempY  (nxn, nyn, nzn),
-    tempZ  (nxn, nyn, nzn),
-    temp2X (nxn, nyn, nzn),
-    temp2Y (nxn, nyn, nzn),
-    temp2Z (nxn, nyn, nzn),
-    temp3X (nxn, nyn, nzn),
-    temp3Y (nxn, nyn, nzn),
-    temp3Z (nxn, nyn, nzn),
+    tempXN  (nxn, nyn, nzn),
+    tempYN  (nxn, nyn, nzn),
+    tempZN  (nxn, nyn, nzn),
+    tempC   (nxc, nyc, nzc),
+    tempX   (nxn, nyn, nzn),
+    tempY   (nxn, nyn, nzn),
+    tempZ   (nxn, nyn, nzn),
+    temp2X  (nxn, nyn, nzn),
+    temp2Y  (nxn, nyn, nzn),
+    temp2Z  (nxn, nyn, nzn),
+    temp3X  (nxn, nyn, nzn),
+    temp3Y  (nxn, nyn, nzn),
+    temp3Z  (nxn, nyn, nzn),
     
     imageX (nxn, nyn, nzn),
     imageY (nxn, nyn, nzn),
@@ -183,11 +191,12 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     vectZ  (nxn, nyn, nzn),
     divC   (nxc, nyc, nzc),
 
-    //? Divergence comutations
+    //? Divergence
     divE        (nxc, nyc, nzc),
     divB        (nxc, nyc, nzc),
     divE_average(nxc, nyc, nzc),
     resdiv      (ns, nxc, nyc, nzc),
+    Nns         (ns, nxn, nyn, nzn),
 
     //! B_ext and J_ext should not be allocated unless used.
     Bx_ext(nxn, nyn, nzn),
@@ -198,7 +207,10 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     Bz_tot(nxn, nyn, nzn),
     Jx_ext(nxn, nyn, nzn),
     Jy_ext(nxn, nyn, nzn),
-    Jz_ext(nxn, nyn, nzn)
+    Jz_ext(nxn, nyn, nzn),
+    Ex_ext(nxn, nyn, nzn),
+    Ey_ext(nxn, nyn, nzn),
+    Ez_ext(nxn, nyn, nzn)
 {
     //! =============== Constructor =============== !//
   
@@ -2689,23 +2701,19 @@ void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz,
 // {
 //     const Grid *grid = &get_grid();
 //   double res = 0;
-
 //   // First the nodes that have been computed in the node i,j,k
 //   for (int g=0; g<NE_MASS; g++) {
 //     int i1 = i + NeNo.getX(g);
 //     int j1 = j + NeNo.getY(g);
 //     int k1 = k + NeNo.getZ(g);
-
 //     double V1 = 1.0/grid->getInvVOLn(i1,j1,k1);
 //     res += V1*vX[i1][j1][k1]*Mxx[g][i][j][k];
-                              
 //     if (g == 0) continue;
 //     int i2 = i - NeNo.getX(g);
 //     int j2 = j - NeNo.getY(g);
 //     int k2 = k - NeNo.getZ(g);
 //     double V2 = 1.0/grid->getInvVOLn(i2,j2,k2);
 //     res += V2*vX[i2][j2][k2]*Mxx[g][i2][j2][k2];
-
 //   }
 //   return res;
 // }
@@ -3686,6 +3694,8 @@ void EMfields3D::communicateGhostP2G(int ns)
 //? Compute divergence of electric field
 void EMfields3D::divergenceOfE(double ma) 
 {
+    const VirtualTopology3D * vct = &get_vct();
+
     scale(resdiv, divE_average, -1.0/FourPI, ns, nxc, nyc, nzc);
     addscale(1.0, resdiv, rhoc_avg, ns, nxc, nyc, nzc);
 
@@ -3696,13 +3706,15 @@ void EMfields3D::divergenceOfE(double ma)
                     resdiv[is][i][j][k] = resdiv[is][i][j][k]/(rhocs_avg.get(is, i, j, k) - 1e-10) * ma;
 
     //* Iterate over each species
-    for (int is = 0; is < ns; is++)
-        communicateCenterBC(nxc, nyc, nzc, resdiv[is], 2, 2, 2, 2, 2, 2, vct, this);
+    //TODO: Communication for 4D array is not included (not for all functions in ECSim) Why? - Ask Fabio
+    // for (int is = 0; is < ns; is++)
+        // communicateCenterBC(nxc, nyc, nzc, resdiv[is], 2, 2, 2, 2, 2, 2, vct, this);
 }
 
 //? Compute divergence of magnetic field
 void EMfields3D::divergenceOfB() 
 {
+    const Grid *grid = &get_grid();
     grid->divC2N(divB, Bxc, Byc, Bzc);
 }
 
@@ -3718,6 +3730,7 @@ void EMfields3D::timeAveragedDivE(double ma)
     //* Boundary conditions - TBD later
     // EMfields3D::BC_E_Poisson(vct,  Ex, Ey, Ez);
     
+    const Grid *grid = &get_grid();
     grid->divN2C(divE, Ex, Ey, Ez);
 
     scale(divE_average, (1.0-ma), nxc, nyc, nzc);
@@ -3779,7 +3792,7 @@ void EMfields3D::setZeroPrimaryMoments()
             for (int j = 0; j < nyn; j++)
                 for (int k = 0; k < nzn; k++) 
                 {
-                    rhons[kk][i][j][k] = 0.0;
+                    // rhons[kk][i][j][k] = 0.0;
                     Jxs  [kk][i][j][k] = 0.0;
                     Jys  [kk][i][j][k] = 0.0;
                     Jzs  [kk][i][j][k] = 0.0;
@@ -3810,10 +3823,11 @@ void EMfields3D::setZeroDensities()
 void EMfields3D::setZeroRho(int i0) 
 {
     //* Iterate over species
+    //TODO: How to get only the first element from array4_double? - PJD
     for (int i = i0; i < ns; i++) 
     {
-        eqValue(0.0, rhons[i], nxn, nyn, nzn);
-        eqValue(0.0, rhocs[i], nxc, nyc, nzc);
+        // eqValue(0.0, rhons[i], nxn, nyn, nzn);
+        // eqValue(0.0, rhocs[i], nxc, nyc, nzc);
     }
     eqValue(0.0, Nns, ns, nxn, nyn, nzn);
 }
@@ -3821,6 +3835,9 @@ void EMfields3D::setZeroRho(int i0)
 //* Sum charge density of different species on NODES *//
 void EMfields3D::sumOverSpecies()
 {
+    const Grid *grid = &get_grid();
+    const VirtualTopology3D * vct = &get_vct();
+
     for (int is = 0; is < ns; is++)
         for (int i = 0; i < nxn; i++)
             for (int j = 0; j < nyn; j++)
@@ -3863,14 +3880,18 @@ void EMfields3D::sumOverSpeciesJ()
 
 void EMfields3D::interpolateCenterSpecies() 
 {
+    const Grid *grid = &get_grid();
+    const VirtualTopology3D * vct = &get_vct();
+
     grid->interpN2C(rhoc, rhon);
     communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct, this);
 
-    for (int is = 0; is < ns; is++) 
-    {
-        grid->interpN2C(rhoc_avg_sp[is], rhons[is]);
-        communicateCenterBC(nxc, nyc, nzc, rhoc_avg_sp[is], 2, 2, 2, 2, 2, 2, vct, this);
-    }
+    //TODO: Communication for 4D array is not included (not for all functions in ECSim) Why? - Ask Fabio
+    // for (int is = 0; is < ns; is++) 
+    // {
+    //     grid->interpN2C(rhocs_avg[is], rhons[is]);
+    //     communicateCenterBC(nxc, nyc, nzc, rhocs_avg[is], 2, 2, 2, 2, 2, 2, vct, this);
+    // }
 }
 
 void EMfields3D::setZeroCurrent()

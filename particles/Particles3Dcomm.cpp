@@ -235,6 +235,7 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
 
     // info from VirtualTopology3D
     cVERBOSE = vct->getcVERBOSE();
+    ComputeMM = col->getExactMM();
 
 
     //? Preallocate space in arrays ?//
@@ -1571,137 +1572,6 @@ void Particles3Dcomm::sort_particles_serial_AoS()
   particleType = ParticleType::AoS;
 }
 
-//void Particles3Dcomm::sort_particles_parallel(
-//  double *xpos, double *ypos, double *zpos,
-//  Grid * grid, VirtualTopology3D * vct)
-//{
-//  // should change this to first communicate particles so that
-//  // they are in the correct process and all particles
-//  // lie in this subdomain.
-//
-//  // count the number of particles to go in each bucket
-//  numpcls_in_bucket.setall(0);
-//  #pragma omp parallel
-//  {
-//    const int thread_num = omp_get_thread_num();
-//    arr3_int numpcls_in_bucket_thr = fetch_numpcls_in_bucket_thr(thread_num);
-//    numpcls_in_bucket_thr.setall(0);
-//    // iterate through particles and count where they will go
-//    #pragma omp for // nowait
-//    for (int pidx = 0; pidx < nop; pidx++)
-//    {
-//      // get the cell indices of the particle
-//      // (should change this to use xavg[pidx])
-//      const pfloat xpos = xpos[pidx];
-//      const pfloat ypos = ypos[pidx];
-//      const pfloat zpos = zpos[pidx];
-//      int cx,cy,cz;
-//      get_safe_cell_for_pos(cx,cy,cz,xpos,ypos,zpos);
-//
-//      // need to allocate these
-//      //
-//      //xidx[pidx]=cx;
-//      //yidx[pidx]=cy;
-//      //zidx[pidx]=cz;
-//
-//      // increment the number of particles in bucket of this particle
-//      numpcls_in_bucket_thr[cx][cy][cz]++;
-//    }
-//    // reduce the thread buckets into the main bucket
-//    // #pragma omp critical (numpcls_in_bucket_reduction)
-//    {
-//      #pragma omp for collapse(2)
-//      for(int cx=0;cx<nxc;cx++)
-//      for(int cy=0;cy<nyc;cy++)
-//      for(int th=0;th<num_threads;th++)
-//      for(int cz=0;cz<nzc;cz++)
-//      {
-//        numpcls_in_bucket[cx][cy][cz]
-//          += get_numpcls_in_bucket_thr(th)[cx][cy][cz];
-//      }
-//    }
-//
-//    // compute prefix sum to determine initial position
-//    // of each bucket (could parallelize this)
-//    //
-//    int accpcls=0;
-//    #pragma omp critical (bucket_offset_reduction)
-//    for(int cx=0;cx<nxc;cx++)
-//    for(int cy=0;cy<nyc;cy++)
-//    for(int cz=0;cz<nzc;cz++)
-//    {
-//      bucket_offset[cx][cy][cz] = accpcls;
-//      accpcls += numpcls_in_bucket[cx][cy][cz];
-//    }
-//
-//    // cycle through the mesh cells mod 3
-//    // (or mod(2*N+1), where N is number of mesh cells
-//    // that a slow particle can move).
-//    // This ensures that slow particles can be moved
-//    // to their destinations without write conflicts
-//    // among threads.  But what about cache contention?
-//    //
-//    for(int cxmod3=0; cxmod3<3; cxmod3++)
-//    #pragma omp for collapse(2)
-//    for(int cx=cxmod3; cx<nxc; cx+=3)
-//    for(int cy=0; cy<nyc; cy++)
-//    for(int cz=0; cz<nzc; cz++)
-//    {
-//      // put the slow particles where they are supposed to go and
-//      // set aside the fast particles for separate processing.
-//      // (to vectorize would need to sort separately in each
-//      // dimension of space).
-//      //
-//      // problem: particles might have to be moved not because
-//      // they are fast but because of an overall shift in the
-//      // number of particles in a location, e.g. because of
-//      // particles flowing in from a jet. Need a different
-//      // approach, where memory is allocated for each cell.
-//      _numpcls_in_bucket = numpcls_in_bucket[cx][cy][cz];
-//      for(int pidx=bucket_offset[cx][cy][cz]; pidx<_numpcls_in_bucket; pidx++)
-//      {
-//        const int outcx = xidx[pidx];
-//        const int outcy = yidx[pidx];
-//        const int outcz = zidx[pidx];
-//        const int cxlower = outcx <= 0 ? 0 : outcx-1;
-//        const int cxupper = outcx >= (nxc-1) ? nxc-1 : outcx+1;
-//        const int lowerindex = bucket_offset[cxlower][cylower][czlower];
-//        const int upperoffset = bucket_offset[cxupper][cyupper][czupper];
-//        const int upperindex = upperoffset + numpcls_in_bucket[outcx][outcy][outcz];
-//        ...
-//      }
-//    }
-//    // (1) put fast particles that must be moved more than one
-//    // mesh cell at the end of the cell's list, and
-//    // (2) put slow particles in the correct location
-//
-//    // count the number of particles that need to be moved
-//    // more than one mesh cell and allocate a special buffer for them.
-//    // (could change to count number of particles that need
-//    // to move more than N mesh cells).
-//    //
-//    int numpcls_long_move_thr = 0;
-//    #pragma omp for // nowait
-//    for (int i = 0; i < nop; i++)
-//    {
-//      const int cx = xidx[pidx];
-//      const int cy = yidx[pidx];
-//      const int cz = zidx[pidx];
-//
-//      const int cxlower = cx <= 0 ? 0 : cx-1;
-//      const int cxupper = cx >= (nxc-1) ? nxc-1 : cx+1;
-//      const int lowerindex = bucket_offset[cxlower][cylower][czlower];
-//      const int upperoffset = bucket_offset[cxupper][cyupper][czupper];
-//      const int upperindex = upperoffset + numpcls_in_bucket[cx][cy][cz];
-//      if(i < lowerindex || i > upperindex)
-//      {
-//        numpcls_long_move_thr++;
-//      }
-//    }
-//  }
-//}
-//#endif
-
 // This can be called from within an omp parallel block
 void Particles3Dcomm::copyParticlesToSoA()
 {
@@ -1862,6 +1732,22 @@ void Particles3Dcomm::convertParticlesToSoA()
   particleType = ParticleType::SoA;
 }
 
+void Particles3Dcomm::calculateWeights(double weight[][2][2], double xp, double yp, double zp, int ix, int iy, int iz, Grid * grid) 
+{
+    double xi[2], eta[2], zeta[2];
+    xi[0] = xp - grid->getXN(ix - 1, iy, iz);
+    eta[0] = yp - grid->getYN(ix, iy - 1, iz);
+    zeta[0] = zp - grid->getZN(ix, iy, iz - 1);
+    xi[1] = grid->getXN(ix, iy, iz) - xp;
+    eta[1] = grid->getYN(ix, iy, iz) - yp;
+    zeta[1] = grid->getZN(ix, iy, iz) - zp;
+    
+    for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+            for (int k = 0; k < 2; k++)
+                weight[i][j][k] = xi[i] * eta[j] * zeta[k] * invVOL;
+}
+
 void Particles3Dcomm::computeMoments(Field * EMf) 
 {
     //TODO: External forces are to be implemented
@@ -1959,19 +1845,20 @@ void Particles3Dcomm::computeMoments(Field * EMf)
 
             for(int c = 0; c < 8; c++)
             {
-                const double* field_components_c=field_components[c];
+                const double* field_components_c = field_components[c];
                 ASSUME_ALIGNED(field_components_c);
                 const double weights_c = weights[c];
                 
                 #pragma simd
-                for(int i=0; i<num_field_components; i++)
+                for(int i = 0; i < num_field_components; i++)
                 {
-                    
-                    sampled_field[i] += weights_c*field_components_c[i];
+                    sampled_field[i] += weights_c * field_components_c[i];
                 }
+
+                //TODO: Add Fext*Bx_ext[ix-i][iy-j][iz-k]), Y, and Z
             }
 
-            //TODO: External force to be implemented in sampled field
+            //TODO: External force to be implemented in "sampled_field"
             // Bxl += weight[i][j][k] * (Bx[ix-i][iy-j][iz-k] + Fext*Bx_ext[ix-i][iy-j][iz-k]);
             // Byl += weight[i][j][k] * (By[ix-i][iy-j][iz-k] + Fext*By_ext[ix-i][iy-j][iz-k]);
             // Bzl += weight[i][j][k] * (Bz[ix-i][iy-j][iz-k] + Fext*Bz_ext[ix-i][iy-j][iz-k]);
@@ -2025,46 +1912,36 @@ void Particles3Dcomm::computeMoments(Field * EMf)
 
             //* --------------------------------------- *//
 
-            double temp[2][2][2];
-            // TODO: rectify weights reading
-            #ifndef _CHARGE_FROM_CURRENT_
-                //* add charge density               
-                for (int ii = 0; ii < 2; ii++)
-                    for (int jj = 0; jj < 2; jj++)
-                        for (int kk = 0; kk < 2; kk++)
-                            temp[ii][jj][kk] = q[pidx]* weight[ii][jj][kk];
-                EMf->addRho(temp, ix, iy, iz, ns);
+            double temp[8];
+            
+            //* Add charge density   
+            #ifndef _CHARGE_FROM_CURRENT_                
+                for (int ii = 0; ii < 8; ii++)
+                    temp[ii] = q[pidx] * weights[ii];
+                EMf->add_weighted_quantity(rhons, weights, ix, iy, iz, ns);
             #else 
-                if (ns == 1) 
+                if (ns == 1)        // TODO: What is this? Ask Fabio
                 {
-                    for (int ii = 0; ii < 2; ii++)
-                        for (int jj = 0; jj < 2; jj++)
-                            for (int kk = 0; kk < 2; kk++)
-                                temp[ii][jj][kk] = q[pidx]* weight[ii][jj][kk];
-                    EMf->addRho(temp, ix, iy, iz, ns);
+                    for (int ii = 0; ii < 8; ii++)
+                        temp[ii] = q[pidx] * weights[ii];
+                    EMf->add_weighted_quantity(rhons, weights, ix, iy, iz, ns);
                 }
             #endif
 
-            // add implicit current density - X
-            for (int ii = 0; ii < 2; ii++)
-                for (int jj = 0; jj < 2; jj++)
-                    for (int kk = 0; kk < 2; kk++)
-                        temp[ii][jj][kk] = qau* weight[ii][jj][kk];
-            EMf->addJxh(temp, ix, iy, iz, ns);
+            //* Add implicit current density - X
+            for (int ii = 0; ii < 8; ii++)
+                    temp[ii] = qau * weights[ii];
+            EMf->add_weighted_quantity(Jxhs, weights, ix, iy, iz, ns);
 
-            // add implicit current density - Y
-            for (int ii = 0; ii < 2; ii++)
-                for (int jj = 0; jj < 2; jj++)
-                    for (int kk = 0; kk < 2; kk++)
-                        temp[ii][jj][kk] = qav* weight[ii][jj][kk];
-            EMf->addJyh(temp, ix, iy, iz, ns);
+            //* Add implicit current density - Y
+            for (int ii = 0; ii < 8; ii++)
+                    temp[ii] = qav * weights[ii];
+            EMf->add_weighted_quantity(Jyhs, weights, ix, iy, iz, ns);
 
-            // add implicit current density - Z
-            for (int ii = 0; ii < 2; ii++)
-                for (int jj = 0; jj < 2; jj++)
-                    for (int kk = 0; kk < 2; kk++)
-                        temp[ii][jj][kk] = qaw* weight[ii][jj][kk];
-            EMf->addJzh(temp, ix, iy, iz, ns);
+            //* Add implicit current density - Z
+            for (int ii = 0; ii < 8; ii++)
+                    temp[ii] = qaw * weights[ii];
+            EMf->add_weighted_quantity(Jzhs, weights, ix, iy, iz, ns);
 
             if(ComputeMM)
             {
@@ -2081,7 +1958,7 @@ void Particles3Dcomm::computeMoments(Field * EMf)
                             int nj = iy-j;
                             int nk = iz-k;
 
-                            // Only half of the possible nodes  (M is symmetric)
+                            //* Only half of the possible nodes (M is symmetric)
                             for (int c=0; c<14; c++) 
                             {
                                 int n2i = ni + NeNo.getX(c);
@@ -2092,7 +1969,9 @@ void Particles3Dcomm::computeMoments(Field * EMf)
                                 int j2 = iy - n2j;
                                 int k2 = iz - n2k;
 
-                                // Check if this node is one of the cell in which the particle is:
+                                //* Check if this node is one of the cell where the particle is
+                                // TODO: What does this part do? Ask Fabio
+                                // TODO: weights is now a 1D array
                                 if (i2>=0 && i2<2 && j2>=0 && j2<2 && k2>=0 && k2<2) 
                                 {
                                     double qww = q[pidx]*beta*weight[i][j][k]*weight[i2][j2][k2];

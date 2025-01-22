@@ -83,40 +83,32 @@ void sub(arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz);
 void sub(arr3_double vect1, const arr3_double vect2, int nx, int ny);
 /** method to sum 4 vectors vector1 = alfa*vector1 + beta*vector2 + gamma*vector3 + delta*vector4 */
 void sum4(arr3_double vect1, double alfa, const arr3_double vect2, double beta, const arr3_double vect3, double gamma, const arr3_double vect4, double delta, const arr3_double vect5, int nx, int ny, int nz);
-/** method to calculate the scalar-vector product */
+
+//* vector = alfa * vector AND vector_1 = alfa * vector_2
 void scale(double *vect, double alfa, int n);
-/** method to calculate the scalar-vector product */
-void scale(arr3_double vect, double alfa, int nx, int ny);
-/** method to calculate the scalar-vector product */
-void scale(arr3_double vect, double alfa, int nx, int ny, int nz);
-///** method to calculate the scalar product */
-//inline void scale(double vect[][2][2], double alfa, int nx, int ny, int nz) {
-//  for (int i = 0; i < nx; i++)
-//    for (int j = 0; j < ny; j++)
-//      for (int k = 0; k < nz; k++)
-//        vect[i][j][k] *= alfa;
-//}
-/** method to calculate the scalar-vector product */
-void scale(arr3_double vect1, const arr3_double vect2, double alfa, int nx, int ny, int nz);
-/** method to calculate the scalar-vector product */
-void scale(arr3_double vect1, const arr3_double vect2, double alfa, int nx, int ny);
-/** method to calculate the scalar-vector product */
 void scale(double *vect1, const double *vect2, double alfa, int n);
-/** method to calculate vector1 = vector1 + alfa*vector2   */
-void addscale(double alfa, arr3_double vect1, arr3_double vect2, const arr3_double vect3, int nx, int ny, int nz);
-void addscale(double alfa, arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz);
-/** add scale for weights */
-void addscale(double alfa, double vect1[][2][2], double vect2[][2][2], int nx, int ny, int nz);
-/** method to calculate vector1 = vector1 + alfa*vector2   */
-void addscale(double alfa, arr3_double vect1, const arr3_double vect2, int nx, int ny);
-/** method to calculate vector1 = vector1 + alfa*vector2   */
+void scale(arr3_double vect, double alfa, int nx, int ny);
+void scale(arr3_double vect, double alfa, int nx, int ny, int nz);
+void scale(arr3_double vect1, const arr3_double vect2, double alfa, int nx, int ny);
+void scale(arr3_double vect1, const arr3_double vect2, double alfa, int nx, int ny, int nz);
+void scale(arr4_double vect1, const arr3_double vect2, double alfa, int ns, int nx, int ny, int nz);
+
+//* vector_1 = vector_1 + alfa*vector_2
 void addscale(double alfa, double *vect1, const double *vect2, int n);
-/** method to calculate vector1 = beta*vector1 + alfa*vector2   */
+void addscale(double alfa, arr3_double vect1, const arr3_double vect2, int nx, int ny);
+void addscale(double alfa, arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz);
+void addscale(double alfa, double vect1[][2][2], double vect2[][2][2], int nx, int ny, int nz);
+void addscale(double alfa, arr4_double vect1, const arr3_double vect2, int ns, int nx, int ny, int nz);
+void addscale(double alfa, arr4_double vect1, const arr4_double vect2, int ns, int nx, int ny, int nz);
+
+//* vector_3 = vector_1 + alfa*vector_2
+void addscale(double alfa, arr3_double vect1, arr3_double vect2, const arr3_double vect3, int nx, int ny, int nz);
+
+//* vector_1 = beta*vector_1 + alfa*vector_2
 void addscale(double alfa, double beta, double *vect1, const double *vect2, int n);
-/** method to calculate vector1 = beta*vector1 + alfa*vector2 */
-void addscale(double alfa, double beta, arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz);
-/** method to calculate vector1 = beta*vector1 + alfa*vector2 */
 void addscale(double alfa, double beta, arr3_double vect1, const arr3_double vect2, int nx, int ny);
+void addscale(double alfa, double beta, arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz);
+
 /** method to calculate vector1 = alfa*vector2 + beta*vector3 */
 void scaleandsum(arr3_double vect1, double alfa, double beta, const arr3_double vect2, const arr3_double vect3, int nx, int ny, int nz);
 /** method to calculate vector1 = alfa*vector2 + beta*vector3 with vector2 depending on species*/
@@ -148,15 +140,16 @@ inline void eq(double *vect1, double *vect2, int n){
   for (int i = 0; i < n; i++)
     vect1[i] = vect2[i];
 }
-/** method to set a vector to a Value */
+
+//* Set a vector (arr3_double/arr4_double) to a value */
 void eqValue(double value, arr3_double vect, int nx, int ny, int nz);
-//void eqValue(double value, double vect[][2][2], int nx, int ny, int nz);
-/** method to set a vector to a Value */
 void eqValue(double value, arr3_double vect, int nx, int ny);
-/** method to set a vector to a Value */
 void eqValue(double value, arr3_double vect, int nx);
-/** method to set a vector to a Value */
+void eqValue(double value, arr4_double vect, int ns, int nx, int ny, int nz);
+void eqValue(double value, arr4_double vect, int ns, int nx, int ny);
+void eqValue(double value, arr4_double vect, int ns, int nx);
 void eqValue(double value, double *vect, int n);
+
 /** method to put a column in a matrix 2D */
 void putColumn(double **Matrix, double *vect, int column, int n);
 /** method to get a column in a matrix 2D */

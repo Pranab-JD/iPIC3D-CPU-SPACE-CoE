@@ -172,99 +172,130 @@ void scale(double *vect, double alfa, int n) {
     vect[i] *= alfa;
 }
 
-/** method to calculate the scalar-vector product */
-void scale(arr3_double vect, double alfa, int nx, int ny) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      vect.fetch(i,j,0) *= alfa;
+//* vector = alfa * vector
+void scale(arr3_double vect, double alfa, int nx, int ny) 
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            vect.fetch(i,j,0) *= alfa;
 }
 
-
-/** method to calculate the scalar-vector product */
-void scale(arr3_double vect, double alfa, int nx, int ny, int nz) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      for (int k = 0; k < nz; k++)
-        vect.fetch(i,j,k) *= alfa;
-}
-/** method to calculate the scalar-vector product */
-void scale(arr3_double vect1, const arr3_double vect2, double alfa, int nx, int ny, int nz) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      for (int k = 0; k < nz; k++)
-        vect1.fetch(i,j,k) = vect2.get(i,j,k) * alfa;
+void scale(arr3_double vect, double alfa, int nx, int ny, int nz) 
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            for (int k = 0; k < nz; k++)
+                vect.fetch(i,j,k) *= alfa;
 }
 
-/** method to calculate the scalar-vector product */
-void scale(arr3_double vect1, const arr3_double vect2, double alfa, int nx, int ny) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      vect1.fetch(i,j,0) = vect2.get(i,j,0) * alfa;
+//* vector_1 = alfa * vector_2
+void scale(arr3_double vect1, const arr3_double vect2, double alfa, int nx, int ny, int nz)
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            for (int k = 0; k < nz; k++)
+                vect1.fetch(i,j,k) = vect2.get(i,j,k) * alfa;
 }
 
-/** method to calculate the scalar-vector product */
-void scale(double *vect1, const double *vect2, double alfa, int n) {
-  for (int i = 0; i < n; i++)
-    vect1[i] = vect2[i] * alfa;
+void scale(arr4_double vect1, const arr3_double vect2, double alfa, int ns, int nx, int ny, int nz)
+{
+    for (int is = 0; is < ns; is++)
+        for (int i = 0; i < nx; i++)
+            for (int j = 0; j < ny; j++)
+                for (int k = 0; k < nz; k++)
+                    vect1.fetch(is,i,j,k) = vect2.get(i,j,k) * alfa;
 }
 
-/** method to calculate vector1 = vector1 + alfa*vector2   */
-void addscale(double alfa, arr3_double vect1, arr3_double vect2, const arr3_double vect3, int nx, int ny, int nz){
-	  for (int i = 0; i < nx; i++)
+void scale(arr3_double vect1, const arr3_double vect2, double alfa, int nx, int ny) 
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            vect1.fetch(i,j,0) = vect2.get(i,j,0) * alfa;
+}
+
+void scale(double *vect1, const double *vect2, double alfa, int n) 
+{
+    for (int i = 0; i < n; i++)
+        vect1[i] = vect2[i] * alfa;
+}
+
+//* vector1 = vector1 + alfa*vector2
+void addscale(double alfa, arr3_double vect1, arr3_double vect2, const arr3_double vect3, int nx, int ny, int nz)
+{
+    for (int i = 0; i < nx; i++)
 	    for (int j = 0; j < ny; j++)
-	      for (int k = 0; k < nz; k++)
-	        vect3.fetch(i,j,k) = vect1.get(i,j,k) + alfa * vect2.get(i,j,k);
-}
-void addscale(double alfa, arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      for (int k = 0; k < nz; k++)
-        vect1.fetch(i,j,k) = vect1.get(i,j,k) + alfa * vect2.get(i,j,k);
-}
-/** add scale for weights */
-void addscale(double alfa, double vect1[][2][2], double vect2[][2][2], int nx, int ny, int nz) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      for (int k = 0; k < nz; k++)
-        vect1[i][j][k] = vect1[i][j][k] + alfa * vect2[i][j][k];
-
-}
-/** method to calculate vector1 = vector1 + alfa*vector2   */
-void addscale(double alfa, arr3_double vect1, const arr3_double vect2, int nx, int ny) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      vect1.fetch(i,j,0) += alfa * vect2.get(i,j,0);
-}
-/** method to calculate vector1 = vector1 + alfa*vector2   */
-void addscale(double alfa, double *vect1, const double *vect2, int n) {
-  for (int i = 0; i < n; i++)
-    vect1[i] += alfa * vect2[i];
-
-}
-/** method to calculate vector1 = beta*vector1 + alfa*vector2   */
-void addscale(double alfa, double beta, double *vect1, const double *vect2, int n) {
-  for (int i = 0; i < n; i++)
-    vect1[i] = vect1[i] * beta + alfa * vect2[i];
-
-}
-/** method to calculate vector1 = beta*vector1 + alfa*vector2 */
-void addscale(double alfa, double beta, arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz) {
-
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      for (int k = 0; k < nz; k++) {
-        vect1.fetch(i,j,k) = beta * vect1.get(i,j,k) + alfa * vect2.get(i,j,k);
-      }
-
-}
-/** method to calculate vector1 = beta*vector1 + alfa*vector2 */
-void addscale(double alfa, double beta, arr3_double vect1, const arr3_double vect2, int nx, int ny) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      vect1.fetch(i,j,0) = beta * vect1.get(i,j,0) + alfa * vect2.get(i,j,0);
-
+	        for (int k = 0; k < nz; k++)
+	            vect3.fetch(i,j,k) = vect1.get(i,j,k) + alfa * vect2.get(i,j,k);
 }
 
+void addscale(double alfa, arr4_double vect1, const arr3_double vect2, int ns, int nx, int ny, int nz)
+{
+    for (int is = 0; is < ns; is++)
+        for (int i = 0; i < nx; i++)
+            for (int j = 0; j < ny; j++)
+                for (int k = 0; k < nz; k++)
+                    vect1.fetch(is,i,j,k) = vect1.get(is,i,j,k) + alfa * vect2.get(i,j,k);
+}
+
+void addscale(double alfa, arr4_double vect1, const arr4_double vect2, int ns, int nx, int ny, int nz)
+{
+    for (int is = 0; is < ns; is++)
+        for (int i = 0; i < nx; i++)
+            for (int j = 0; j < ny; j++)
+                for (int k = 0; k < nz; k++)
+                    vect1.fetch(is,i,j,k) = vect1.get(is,i,j,k) + alfa * vect2.get(is,i,j,k);
+}
+
+void addscale(double alfa, arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz)
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            for (int k = 0; k < nz; k++)
+                vect1.fetch(i,j,k) = vect1.get(i,j,k) + alfa * vect2.get(i,j,k);
+}
+
+void addscale(double alfa, double vect1[][2][2], double vect2[][2][2], int nx, int ny, int nz)
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            for (int k = 0; k < nz; k++)
+                vect1[i][j][k] = vect1[i][j][k] + alfa * vect2[i][j][k];
+}
+
+void addscale(double alfa, arr3_double vect1, const arr3_double vect2, int nx, int ny) 
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            vect1.fetch(i,j,0) += alfa * vect2.get(i,j,0);
+}
+
+void addscale(double alfa, double *vect1, const double *vect2, int n) 
+{
+    for (int i = 0; i < n; i++)
+        vect1[i] += alfa * vect2[i];
+}
+
+//* vector1 = beta*vector1 + alfa*vector2 
+void addscale(double alfa, double beta, double *vect1, const double *vect2, int n) 
+{
+    for (int i = 0; i < n; i++)
+        vect1[i] = vect1[i] * beta + alfa * vect2[i];
+}
+
+void addscale(double alfa, double beta, arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz)
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            for (int k = 0; k < nz; k++)
+                vect1.fetch(i,j,k) = beta * vect1.get(i,j,k) + alfa * vect2.get(i,j,k);
+}
+
+void addscale(double alfa, double beta, arr3_double vect1, const arr3_double vect2, int nx, int ny)
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            vect1.fetch(i,j,0) = beta * vect1.get(i,j,0) + alfa * vect2.get(i,j,0);
+}
 
 /** method to calculate vector1 = alfa*vector2 + beta*vector3 */
 void scaleandsum(arr3_double vect1, double alfa, double beta, const arr3_double vect2, const arr3_double vect3, int nx, int ny, int nz) {
@@ -378,13 +409,7 @@ void eqValue(double value, arr3_double vect, int nx, int ny, int nz) {
         vect.fetch(i,j,k) = value;
 
 }
-//void eqValue(double value, double vect[][2][2], int nx, int ny, int nz) {
-//  for (int i = 0; i < nx; i++)
-//    for (int j = 0; j < ny; j++)
-//      for (int k = 0; k < nz; k++)
-//        vect[i][j][k] = value;
-//
-//}
+
 /** method to set a vector to a Value */
 void eqValue(double value, arr3_double vect, int nx, int ny) {
   for (int i = 0; i < nx; i++)
@@ -396,6 +421,30 @@ void eqValue(double value, arr3_double vect, int nx, int ny) {
 void eqValue(double value, arr3_double vect, int nx) {
   for (int i = 0; i < nx; i++)
     vect.fetch(i,0,0) = value;
+
+}
+/** method to set a vector to a Value */
+void eqValue(double value, arr4_double vect, int ns, int nx, int ny, int nz) {
+    for (int s = 0; s < ns; s++)
+        for (int i = 0; i < nx; i++)
+            for (int j = 0; j < ny; j++)
+                for (int k = 0; k < nz; k++)
+                    vect.fetch(s, i, j, k) = value;
+
+}
+/** method to set a vector to a Value */
+void eqValue(double value, arr4_double vect, int ns, int nx, int ny) {
+    for (int s = 0; s < ns; s++)
+        for (int i = 0; i < nx; i++)
+            for (int j = 0; j < ny; j++)
+                vect.fetch(s, i, j, 0) = value;
+
+}
+/** method to set a vector to a Value */
+void eqValue(double value, arr4_double vect, int ns, int nx) {
+    for (int s = 0; s < ns; s++)
+        for (int i = 0; i < nx; i++)
+            vect.fetch(s, i, 0, 0) = value;
 
 }
 /** method to set a vector to a Value */

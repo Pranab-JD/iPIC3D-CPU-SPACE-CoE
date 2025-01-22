@@ -502,18 +502,14 @@ void NBDerivedHaloComm(int nx, int ny, int nz, double ***vector,const VirtualTop
 
 
 void communicateNodeBC(int nx, int ny, int nz, arr3_double _vector,
-  int bcFaceXrght, int bcFaceXleft,
-  int bcFaceYrght, int bcFaceYleft,
-  int bcFaceZrght, int bcFaceZleft,
-  const VirtualTopology3D * vct, EMfields3D *EMf)
+                        int bcFaceXrght, int bcFaceXleft,
+                        int bcFaceYrght, int bcFaceYleft,
+                        int bcFaceZrght, int bcFaceZleft,
+                        const VirtualTopology3D * vct, EMfields3D *EMf)
 {
 	double ***vector=_vector.fetch_arr3();
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false,false,false,false);
-
-	  // ////////////////////////////////////////////////////////////////////////
-	  // ///////////////// APPLY the boundary conditions ////////////////////////
-	  // ////////////////////////////////////////////////////////////////////////
-	  BCface(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
+	BCface(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
 }
 
 void communicateNodeBoxStencilBC( int nx, int ny, int nz, arr3_double _vector,
@@ -522,49 +518,31 @@ void communicateNodeBoxStencilBC( int nx, int ny, int nz, arr3_double _vector,
 								  int bcFaceZrght, int bcFaceZleft,
 								  const VirtualTopology3D * vct, EMfields3D *EMf)
 {
-
-  double ***vector=_vector.fetch_arr3();
-
-  NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false,true,false,false);
-
-  // ////////////////////////////////////////////////////////////////////////
-  // ///////////////// APPLY the boundary conditions ////////////////////////
-  // ////////////////////////////////////////////////////////////////////////
-  BCface(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
-
+    double ***vector=_vector.fetch_arr3();
+    NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false,true,false,false);
+    BCface(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
 }
 
 void communicateNodeBoxStencilBC_P(int nx, int ny, int nz, arr3_double _vector,
-  int bcFaceXrght, int bcFaceXleft,
-  int bcFaceYrght, int bcFaceYleft,
-  int bcFaceZrght, int bcFaceZleft,
-  const VirtualTopology3D * vct, EMfields3D *EMf)
+                                    int bcFaceXrght, int bcFaceXleft,
+                                    int bcFaceYrght, int bcFaceYleft,
+                                    int bcFaceZrght, int bcFaceZleft,
+                                    const VirtualTopology3D * vct, EMfields3D *EMf)
 {
-
-  double ***vector=_vector.fetch_arr3();
-
-  NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false,true,false,true);
-
-  // ////////////////////////////////////////////////////////////////////////
-  // ///////////////// APPLY the boundary conditions ////////////////////////
-  // ////////////////////////////////////////////////////////////////////////
-  BCface_P(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
-
+    double ***vector=_vector.fetch_arr3();
+    NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false,true,false,true);
+    BCface_P(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
 }
 
 void communicateNodeBC_P(int nx, int ny, int nz, arr3_double _vector,
-  int bcFaceXrght, int bcFaceXleft,
-  int bcFaceYrght, int bcFaceYleft,
-  int bcFaceZrght, int bcFaceZleft,
-  const VirtualTopology3D * vct, EMfields3D *EMf)
+                        int bcFaceXrght, int bcFaceXleft,
+                        int bcFaceYrght, int bcFaceYleft,
+                        int bcFaceZrght, int bcFaceZleft,
+                        const VirtualTopology3D * vct, EMfields3D *EMf)
 {
 	double ***vector=_vector.fetch_arr3();
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false,false,false,true);
-
-	  // ////////////////////////////////////////////////////////////////////////
-	  // ///////////////// APPLY the boundary conditions ////////////////////////
-	  // ////////////////////////////////////////////////////////////////////////
-	  BCface_P(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
+	BCface_P(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
 }
 
 void communicateNode_P(int nx, int ny, int nz, double*** vector,
@@ -575,51 +553,36 @@ void communicateNode_P(int nx, int ny, int nz, double*** vector,
 
 
 void communicateCenterBC(int nx, int ny, int nz, arr3_double _vector,
-                                      int bcFaceXrght, int bcFaceXleft,
-                                      int bcFaceYrght, int bcFaceYleft,
-                                      int bcFaceZrght, int bcFaceZleft,
-                                      const VirtualTopology3D * vct, EMfields3D *EMf)
+                        int bcFaceXrght, int bcFaceXleft,
+                        int bcFaceYrght, int bcFaceYleft,
+                        int bcFaceZrght, int bcFaceZleft,
+                        const VirtualTopology3D * vct, EMfields3D *EMf)
 {
 	double ***vector=_vector.fetch_arr3();
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true, false,false,false);
-
-    // ////////////////////////////////////////////////////////////////////////
-    // ///////////////// APPLY the boundary conditions ////////////////////////
-    // ////////////////////////////////////////////////////////////////////////
     BCface(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
-
 }
 
-void communicateCenterBC_P(   int nx, int ny, int nz, arr3_double _vector,
-							  int bcFaceXrght, int bcFaceXleft,
-							  int bcFaceYrght, int bcFaceYleft,
-							  int bcFaceZrght, int bcFaceZleft,
-							  const VirtualTopology3D * vct, EMfields3D *EMf)
+void communicateCenterBC_P( int nx, int ny, int nz, arr3_double _vector,
+                            int bcFaceXrght, int bcFaceXleft,
+                            int bcFaceYrght, int bcFaceYleft,
+                            int bcFaceZrght, int bcFaceZleft,
+                            const VirtualTopology3D * vct, EMfields3D *EMf)
 {
-
-  double ***vector=_vector.fetch_arr3();
-  NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true, false,false,true);
-
-  // ////////////////////////////////////////////////////////////////////////
-  // ///////////////// APPLY the boundary conditions ////////////////////////
-  // ////////////////////////////////////////////////////////////////////////
-  BCface_P(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
+    double ***vector=_vector.fetch_arr3();
+    NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true, false,false,true);
+    BCface_P(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
 }
 
-void communicateCenterBoxStencilBC(   int nx, int ny, int nz, arr3_double _vector,
-									  int bcFaceXrght, int bcFaceXleft,
-									  int bcFaceYrght, int bcFaceYleft,
-									  int bcFaceZrght, int bcFaceZleft,
-									  const VirtualTopology3D * vct, EMfields3D *EMf)
+void communicateCenterBoxStencilBC( int nx, int ny, int nz, arr3_double _vector,
+                                    int bcFaceXrght, int bcFaceXleft,
+                                    int bcFaceYrght, int bcFaceYleft,
+                                    int bcFaceZrght, int bcFaceZleft,
+                                    const VirtualTopology3D * vct, EMfields3D *EMf)
 {
-  double ***vector=_vector.fetch_arr3();
-  NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true,true,false,false);
-
-  // ////////////////////////////////////////////////////////////////////////
-  // ///////////////// APPLY the boundary conditions ////////////////////////
-  // ////////////////////////////////////////////////////////////////////////
-  BCface(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
-
+    double ***vector=_vector.fetch_arr3();
+    NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true,true,false,false);
+    BCface(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
 }
 
 void communicateCenterBoxStencilBC_P( int nx, int ny, int nz, arr3_double _vector,
@@ -628,15 +591,9 @@ void communicateCenterBoxStencilBC_P( int nx, int ny, int nz, arr3_double _vecto
 									  int bcFaceZrght, int bcFaceZleft,
 									  const VirtualTopology3D * vct, EMfields3D *EMf)
 {
-
-  double ***vector=_vector.fetch_arr3();
-  NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true,true,false,true);
-
-  // ////////////////////////////////////////////////////////////////////////
-  // ///////////////// APPLY the boundary conditions ////////////////////////
-  // ////////////////////////////////////////////////////////////////////////
-  BCface_P(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
-
+    double ***vector=_vector.fetch_arr3();
+    NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true,true,false,true);
+    BCface_P(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
 }
 
 /** add the values of ghost cells faces to the 3D physical vector */
