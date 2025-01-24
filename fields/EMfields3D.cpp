@@ -109,13 +109,32 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     Bxn  (nxn, nyn, nzn),
     Byn  (nxn, nyn, nzn),
     Bzn  (nxn, nyn, nzn),
-    rhon (nxn, nyn, nzn),
+    Bxc  (nxc, nyc, nzc),
+    Byc  (nxc, nyc, nzc),
+    Bzc  (nxc, nyc, nzc),
     Jx   (nxn, nyn, nzn),
     Jy   (nxn, nyn, nzn),
     Jz   (nxn, nyn, nzn),
     Jxh  (nxn, nyn, nzn),
     Jyh  (nxn, nyn, nzn),
     Jzh  (nxn, nyn, nzn),
+    
+    //! B_ext and J_ext should not be allocated unless used.
+    Bxc_ext  (nxc, nyc, nzc),
+    Byc_ext  (nxc, nyc, nzc),
+    Bzc_ext  (nxc, nyc, nzc),
+    Bx_ext   (nxn, nyn, nzn),
+    By_ext   (nxn, nyn, nzn),
+    Bz_ext   (nxn, nyn, nzn),
+    Bx_tot   (nxn, nyn, nzn),
+    By_tot   (nxn, nyn, nzn),
+    Bz_tot   (nxn, nyn, nzn),
+    Jx_ext   (nxn, nyn, nzn),
+    Jy_ext   (nxn, nyn, nzn),
+    Jz_ext   (nxn, nyn, nzn),
+    Ex_ext   (nxn, nyn, nzn),
+    Ey_ext   (nxn, nyn, nzn),
+    Ez_ext   (nxn, nyn, nzn),
 
     //! Mass matrix quantities
     Mxx (NE_MASS, nxn, nyn, nzn),
@@ -129,47 +148,51 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     Mzy (NE_MASS, nxn, nyn, nzn),
 
     //! Species-specific quantities
-    rhons (ns, nxn, nyn, nzn),
-    rhocs (ns, nxc, nyc, nzc),      //* Data defined on cell centres
-    Jxs   (ns, nxn, nyn, nzn),
-    Jys   (ns, nxn, nyn, nzn),
-    Jzs   (ns, nxn, nyn, nzn),
-    Jxhs  (ns, nxn, nyn, nzn),
-    Jyhs  (ns, nxn, nyn, nzn),
-    Jzhs  (ns, nxn, nyn, nzn),
+    rhocs_avg (ns, nxn, nyn, nzn),
+    rhons     (ns, nxn, nyn, nzn),
+    rhocs     (ns, nxc, nyc, nzc),      //* Data defined on cell centres
+    Jxs       (ns, nxn, nyn, nzn),
+    Jys       (ns, nxn, nyn, nzn),
+    Jzs       (ns, nxn, nyn, nzn),
+    Jxhs      (ns, nxn, nyn, nzn),
+    Jyhs      (ns, nxn, nyn, nzn),
+    Jzhs      (ns, nxn, nyn, nzn),
+    EFxs      (ns, nxn, nyn, nzn),
+    EFys      (ns, nxn, nyn, nzn),
+    EFzs      (ns, nxn, nyn, nzn),
+    Nns       (ns, nxn, nyn, nzn),
+
     pXXsn (ns, nxn, nyn, nzn),
     pXYsn (ns, nxn, nyn, nzn),
     pXZsn (ns, nxn, nyn, nzn),
     pYYsn (ns, nxn, nyn, nzn),
     pYZsn (ns, nxn, nyn, nzn),
     pZZsn (ns, nxn, nyn, nzn),
-    EFxs  (ns, nxn, nyn, nzn),
-    EFys  (ns, nxn, nyn, nzn),
-    EFzs  (ns, nxn, nyn, nzn),
     
-    //! Allocate arrays for data on cell centres !//
-    PHI  (nxc, nyc, nzc),
-    Bxc  (nxc, nyc, nzc),
-    Byc  (nxc, nyc, nzc),
-    Bzc  (nxc, nyc, nzc),
-    rhoc (nxc, nyc, nzc),
-    rhoh (nxc, nyc, nzc),
-    Phic (nxc, nyc, nzc),
-    Bxc_ext  (nxc, nyc, nzc),
-    Byc_ext  (nxc, nyc, nzc),
-    Bzc_ext  (nxc, nyc, nzc),
+    //? Other arrays
+    PHI      (nxc, nyc, nzc),
+    rhoc_avg (nxc, nyc, nzc),
+    rhoc     (nxc, nyc, nzc),
+    rhoh     (nxc, nyc, nzc),
+    rhon     (nxn, nyn, nzn),
+    Phic     (nxc, nyc, nzc),
 
+    //? Divergence
+    divC        (nxc, nyc, nzc),
+    divE        (nxc, nyc, nzc),
+    divB        (nxc, nyc, nzc),
+    divE_average(nxc, nyc, nzc),
+    resdiv      (ns, nxc, nyc, nzc),
+    
     //? Temporary arrays
+    tempC   (nxc, nyc, nzc),
     tempXC  (nxc, nyc, nzc),
     tempYC  (nxc, nyc, nzc),
     tempZC  (nxc, nyc, nzc),
     tempXC2 (nxc, nyc, nzc),
     tempYC2 (nxc, nyc, nzc),
     tempZC2 (nxc, nyc, nzc),
-    tempXN  (nxn, nyn, nzn),
-    tempYN  (nxn, nyn, nzn),
-    tempZN  (nxn, nyn, nzn),
-    tempC   (nxc, nyc, nzc),
+
     tempX   (nxn, nyn, nzn),
     tempY   (nxn, nyn, nzn),
     tempZ   (nxn, nyn, nzn),
@@ -179,38 +202,20 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     temp3X  (nxn, nyn, nzn),
     temp3Y  (nxn, nyn, nzn),
     temp3Z  (nxn, nyn, nzn),
+    tempXN  (nxn, nyn, nzn),
+    tempYN  (nxn, nyn, nzn),
+    tempZN  (nxn, nyn, nzn),
     
-    imageX (nxn, nyn, nzn),
-    imageY (nxn, nyn, nzn),
-    imageZ (nxn, nyn, nzn),
-    Dx     (nxn, nyn, nzn),
-    Dy     (nxn, nyn, nzn),
-    Dz     (nxn, nyn, nzn),
-    vectX  (nxn, nyn, nzn),
-    vectY  (nxn, nyn, nzn),
-    vectZ  (nxn, nyn, nzn),
-    divC   (nxc, nyc, nzc),
+    imageX  (nxn, nyn, nzn),
+    imageY  (nxn, nyn, nzn),
+    imageZ  (nxn, nyn, nzn),
+    Dx      (nxn, nyn, nzn),
+    Dy      (nxn, nyn, nzn),
+    Dz      (nxn, nyn, nzn),
+    vectX   (nxn, nyn, nzn),
+    vectY   (nxn, nyn, nzn),
+    vectZ   (nxn, nyn, nzn)
 
-    //? Divergence
-    divE        (nxc, nyc, nzc),
-    divB        (nxc, nyc, nzc),
-    divE_average(nxc, nyc, nzc),
-    resdiv      (ns, nxc, nyc, nzc),
-    Nns         (ns, nxn, nyn, nzn),
-
-    //! B_ext and J_ext should not be allocated unless used.
-    Bx_ext(nxn, nyn, nzn),
-    By_ext(nxn, nyn, nzn),
-    Bz_ext(nxn, nyn, nzn),
-    Bx_tot(nxn, nyn, nzn),
-    By_tot(nxn, nyn, nzn),
-    Bz_tot(nxn, nyn, nzn),
-    Jx_ext(nxn, nyn, nzn),
-    Jy_ext(nxn, nyn, nzn),
-    Jz_ext(nxn, nyn, nzn),
-    Ex_ext(nxn, nyn, nzn),
-    Ey_ext(nxn, nyn, nzn),
-    Ez_ext(nxn, nyn, nzn)
 {
     //! =============== Constructor =============== !//
   
@@ -3540,34 +3545,33 @@ void EMfields3D::AddPerturbationRho(double deltaBoB, double kx, double ky, doubl
 }
 
 /*!Add a periodic perturbation exp i(kx - \omega t); deltaBoB is the ratio (Delta B / B0) * */
-void EMfields3D::AddPerturbation(double deltaBoB, double kx, double ky, double Ex_mod, double Ex_phase, double Ey_mod, double Ey_phase, double Ez_mod, double Ez_phase, double Bx_mod, double Bx_phase, double By_mod, double By_phase, double Bz_mod, double Bz_phase, double B0, Grid * grid) {
+void EMfields3D::AddPerturbation(double deltaBoB, double kx, double ky, double Ex_mod, double Ex_phase, double Ey_mod, double Ey_phase, double Ez_mod, double Ez_phase, 
+                                                                        double Bx_mod, double Bx_phase, double By_mod, double By_phase, double Bz_mod, double Bz_phase, double B0, Grid * grid)
+{
+    double alpha = deltaBoB * B0 / sqrt(Bx_mod * Bx_mod + By_mod * By_mod + Bz_mod * Bz_mod);
 
-  double alpha;
+    Ex_mod *= alpha;
+    Ey_mod *= alpha;
+    Ez_mod *= alpha;
+    Bx_mod *= alpha;
+    By_mod *= alpha;
+    Bz_mod *= alpha;
 
-  alpha = deltaBoB * B0 / sqrt(Bx_mod * Bx_mod + By_mod * By_mod + Bz_mod * Bz_mod);
+    for (int i = 0; i < nxn; i++)
+        for (int j = 0; j < nyn; j++) 
+        {
+            Ex[i][j][0] += Ex_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + Ex_phase);
+            Ey[i][j][0] += Ey_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + Ey_phase);
+            Ez[i][j][0] += Ez_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + Ez_phase);
+            Bxn[i][j][0] += Bx_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + Bx_phase);
+            Byn[i][j][0] += By_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + By_phase);
+            Bzn[i][j][0] += Bz_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + Bz_phase);
+        }
 
-  Ex_mod *= alpha;
-  Ey_mod *= alpha;
-  Ez_mod *= alpha;
-  Bx_mod *= alpha;
-  By_mod *= alpha;
-  Bz_mod *= alpha;
-
-  for (int i = 0; i < nxn; i++)
-    for (int j = 0; j < nyn; j++) {
-      Ex[i][j][0] += Ex_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + Ex_phase);
-      Ey[i][j][0] += Ey_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + Ey_phase);
-      Ez[i][j][0] += Ez_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + Ez_phase);
-      Bxn[i][j][0] += Bx_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + Bx_phase);
-      Byn[i][j][0] += By_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + By_phase);
-      Bzn[i][j][0] += Bz_mod * cos(kx * grid->getXN(i, j, 0) + ky * grid->getYN(i, j, 0) + Bz_phase);
-
-    }
-
-  // initialize B on centers
-  grid->interpN2C(Bxc, Bxn);
-  grid->interpN2C(Byc, Byn);
-  grid->interpN2C(Bzc, Bzn);
+    // initialize B on centers
+    grid->interpN2C(Bxc, Bxn);
+    grid->interpN2C(Byc, Byn);
+    grid->interpN2C(Bzc, Bzn);
 
 }
 

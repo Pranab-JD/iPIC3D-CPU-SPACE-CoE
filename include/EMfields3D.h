@@ -169,14 +169,16 @@ public:
     void sumMomentsOld(const Particles3Dcomm& pcls);
     /*! add accumulated moments to the moments for a given species */
     //void addToSpeciesMoments(const TenMoments & in, int is);
-    /*! add an amount of charge density to charge density field at node X,Y,Z */
-    // void addRho(double weight[][2][2], int X, int Y, int Z, int is);
-    // /*! add an amount of current density - direction X to current density field at node X,Y,Z */
-    // void addJx(double weight[][2][2], int X, int Y, int Z, int is);
-    // /*! add an amount of current density - direction Y to current density field at node X,Y,Z */
-    // void addJy(double weight[][2][2], int X, int Y, int Z, int is);
-    // /*! add an amount of current density - direction Z to current density field at node X,Y,Z */
-    // void addJz(double weight[][2][2], int X, int Y, int Z, int is);
+
+    //* Add an amount of charge density to charge density field at node X,Y,Z
+    void add_Rho(double weight[8], int X, int Y, int Z, int is);
+    
+    //* Add an amount of current density to current density field at node X,Y,Z
+    void add_Jxh(double weight[8], int X, int Y, int Z, int is);
+    void add_Jyh(double weight[8], int X, int Y, int Z, int is);
+    void add_Jzh(double weight[8], int X, int Y, int Z, int is);
+
+    inline void add_Mass(double value[3][3], int X, int Y, int Z, int ind);
 
     // /*! add an amount of pressure density - direction XX to current density field at node X,Y,Z */
     // void addPxx(double weight[][2][2], int X, int Y, int Z, int is);
@@ -190,9 +192,6 @@ public:
     // void addPyz(double weight[][2][2], int X, int Y, int Z, int is);
     // /*! add an amount of pressure density - direction ZZ to current density field at node X,Y,Z */
     // void addPzz(double weight[][2][2], int X, int Y, int Z, int is);
-
-    //* Add an amount of weighted quantity to the quantity
-    void add_weighted_quantity(array4_double quantity, double weight[8], int X, int Y, int Z, int is);
 
     /*! adjust densities on boundaries that are not periodic */
     void adjustNonPeriodicDensities(int is);
@@ -455,138 +454,62 @@ private:
     /** Characteristic length */
     double L_square;
 
-    // Electric field component used to move particles
-    // organized for rapid access in mover_PC()
+    // Electric field component used to move particles organized for rapid access in mover_PC()
     // [This is the information transferred from cluster to booster].
     array4_pfloat fieldForPcls;
 
-    //? Electric field components (defined at nodes)
-    array3_double Ex;
-    array3_double Ey;
-    array3_double Ez;
+    //? Electric field (defined at nodes)
+    array3_double Ex, Ey, Ez;
 
-    //? Implicit electric field components (defined at nodes)
-    array3_double Exth;
-    array3_double Eyth;
-    array3_double Ezth;
+    //? Implicit electric field (defined at nodes)
+    array3_double Exth, Eyth, Ezth;
 
-    //? Electric potential (defined at cell centres)
-    array3_double PHI;
+    //? Magnetic field (defined at nodes)
+    array3_double Bxn, Byn, Bzn;
 
-    //? Magnetic field components (defined at cell centres)
-    array3_double Bxc;
-    array3_double Byc;
-    array3_double Bzc;
+    //? Magnetic field (defined at cell centres)
+    array3_double Bxc, Byc, Bzc;
 
-    //? Magnetic field components (defined at nodes)
-    array3_double Bxn;
-    array3_double Byn;
-    array3_double Bzn;
+    //? Current density (defined at nodes)
+    array3_double Jx, Jy, Jz;
 
-    //? ***************** TEMPORARY ARRAYS ***************** ?//
+    //? Implcit current density 
+    array3_double Jxh, Jyh, Jzh;
 
-    array3_double tempXC;
-    array3_double tempYC;
-    array3_double tempZC;
-    array3_double tempXC2;
-    array3_double tempYC2;
-    array3_double tempZC2;
-    array3_double tempXN;
-    array3_double tempYN;
-    array3_double tempZN;
+    //? External magnetic field (defined at cell centres)
+    array3_double Bxc_ext, Byc_ext, Bzc_ext;
+
+    //? External magnetic field (defined at nodes)
+    array3_double Bx_ext, By_ext, Bz_ext;
+
+    //? Total magnetic field (defined at nodes)
+    array3_double Bx_tot, By_tot, Bz_tot;
+
+    //? External current (defined at nodes)
+    array3_double Jx_ext, Jy_ext, Jz_ext;
+
+    //? External electric field (defined at nodes)
+    array3_double Ex_ext, Ey_ext, Ez_ext;
+
+    //! Mass matrix components (defined at nodes)
+    array4_double Mxx, Mxy, Mxz, Myx, Myy, Myz, Mzx, Mzy, Mzz;
+
+    //? Density for each species (defined at nodes and centres, respectively)
+    array4_double rhons, rhocs;         
     
-    //* Temporary arrays for MaxwellSource() *//
-    array3_double tempC;
-    array3_double tempX;
-    array3_double tempY;
-    array3_double tempZ;
-    array3_double temp2X;
-    array3_double temp2Y;
-    array3_double temp2Z;
-    array3_double temp3X;
-    array3_double temp3Y;
-    array3_double temp3Z;
-
-    //* Temporary arrays for MaxwellImage() *//
-    array3_double imageX;
-    array3_double imageY;
-    array3_double imageZ;
-    array3_double Dx;
-    array3_double Dy;
-    array3_double Dz;
-    array3_double vectX;
-    array3_double vectY;
-    array3_double vectZ;
-    array3_double divC;
-
-    //* Temporary arrays for summing moments *//
-    int sizeMomentsArray;
-    Moments10 **moments10Array;
-
-    //? ***************** SOURCES ***************** ?//
-
-    array3_double rhoc;             //* Charge density (defined at cell centres)
-    array3_double rhon;             //* Charge density (defined at nodes)
-    array3_double rhoh;             //* Implicit charge density (defined at cell centres)
-    array4_double rhons;            //* Charge density for species (defined at nodes)
-    array4_double rhocs;            //* Charge density for species (defined at cell centres)
-    array3_double rhoc_avg;         //* Time averaged charge density (defined at cell centres)    
-    array4_double rhocs_avg;        //* Time averaged charge density for species (defined at cell centres)
+    array3_double rhoc_avg;             //* Time averaged density (defined at cell centres)    
+    array4_double rhocs_avg;            //* Time averaged density for each species (defined at cell centres)
     
-    array4_double Nns;              //* Number of particles for N species (defined at nodes)
-    array3_double Phic;
+    //? Current densities for each species (defined at nodes)
+    array4_double Jxs, Jys, Jzs, Jxhs, Jyhs, Jzhs;
+    
+    //? Energy flux for each species (defined at nodes)
+    array4_double EFxs, EFys, EFzs;
 
-    //* Divergence of electric and magnetic field
-    array3_double divE;
-    array3_double divB;
-    array3_double divE_average;
-    array4_double resdiv;             // Residual divergence equation, defined on centers
+    //? Number of particles for each species (defined at nodes)
+    array4_double Nns;
 
-    // current density defined on nodes
-    array3_double Jx;
-    array3_double Jy;
-    array3_double Jz;
-
-    // implicit current density defined on nodes
-    array3_double Jxh;
-    array3_double Jyh;
-    array3_double Jzh;
-
-    // implicit current density defined on nodes (species)
-    array4_double Jxhs;
-    array4_double Jyhs;
-    array4_double Jzhs;
-
-    // species-specific current densities defined on nodes
-    array4_double Jxs;
-    array4_double Jys;
-    array4_double Jzs;
-
-    // external electric field components defined on nodes
-    array3_double Ex_ext;
-    array3_double Ey_ext;
-    array3_double Ez_ext;
-
-    // external magnetic field components defined on nodes
-    array3_double Bx_ext;
-    array3_double By_ext;
-    array3_double Bz_ext;
-
-    // external magnetic field components defined on nodes
-    array3_double Bxc_ext;
-    array3_double Byc_ext;
-    array3_double Bzc_ext;
-
-    array3_double Bx_tot;
-    array3_double By_tot;
-    array3_double Bz_tot;
-
-    // external current, defined on nodes
-    array3_double Jx_ext;
-    array3_double Jy_ext;
-    array3_double Jz_ext;
-
-    // pressure tensor components, defined on nodes
+    // TODO: To be deleted in ECSim branch
     array4_double pXXsn;
     array4_double pXYsn;
     array4_double pXZsn;
@@ -594,21 +517,32 @@ private:
     array4_double pYZsn;
     array4_double pZZsn;
 
-    // Energy Flux density component-X for species (defined on nodes)
-    array4_double EFxs;
-    array4_double EFys;
-    array4_double EFzs;
+    //? Density (defined at nodes and centres, respectively)
+    array3_double rhon, rhoc;            
+    
+    //? Implicit density (defined at cell centres)
+    array3_double rhoh;
 
-    //! Mass matrix components, defined on nodes
-    array4_double Mxx;
-    array4_double Myy;
-    array4_double Mzz;
-    array4_double Mxy;
-    array4_double Myx;
-    array4_double Mxz;
-    array4_double Mzx;
-    array4_double Myz;
-    array4_double Mzy;
+    //? Electric potential (defined at cell centres)
+    array3_double PHI, Phic;  
+
+    //? Used in computing divergence
+    array3_double divC, divB, divE, divE_average;
+    array4_double resdiv;
+
+    //? ***************** TEMPORARY ARRAYS ***************** ?//
+
+    //* Used in MaxwellSource()
+    array3_double tempC, tempXC, tempYC, tempZC, tempXC2, tempYC2, tempZC2;
+    array3_double tempX, tempY, tempZ, temp2X, temp2Y, temp2Z, temp3X, temp3Y, temp3Z;
+    array3_double tempXN, tempYN, tempZN;
+
+    //* Temporary arrays for MaxwellImage() *//
+    array3_double imageX, imageY, imageZ, Dx, Dy, Dz, vectX, vectY, vectZ;
+
+    //* Arrays for summing moments *//
+    int sizeMomentsArray;
+    Moments10 **moments10Array;
 
     //* Object of class to handle which nodes have to be computed when the mass matrix is calculated
     NeighbouringNodes NeNo;
@@ -697,41 +631,46 @@ private:
                                  int nx, int ny, int nz);
 };
 
-inline void EMfields3D::add_weighted_quantity(array4_double quantity, double weights[8], int X, int Y, int Z, int is) 
+// inline void EMfields3D::add_weighted_quantity(array4_double quantity, double weights[8], int X, int Y, int Z, int is) 
+// {
+//     for (int i = 0; i < 2; i++)
+//         for (int j = 0; j < 2; j++)
+//             for (int k = 0; k < 2; k++)
+//                 quantity[is][X - i][Y - j][Z - k] += weights[i * 4 + j * 2 + k] * invVOL;
+// }
+
+//* Add an amount of charge density to charge density field at node X,Y,Z
+inline void EMfields3D::add_Rho(double weight[8], int X, int Y, int Z, int is) 
 {
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 2; j++)
             for (int k = 0; k < 2; k++)
-                quantity[is][X - i][Y - j][Z - k] += weights[i * 4 + j * 2 + k] * invVOL;
+                rhons[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k] * invVOL;
 }
 
-// inline void EMfields3D::addRho(double weight[][2][2], int X, int Y, int Z, int is) {
-//   for (int i = 0; i < 2; i++)
-//     for (int j = 0; j < 2; j++)
-//       for (int k = 0; k < 2; k++)
-//         rhons[is][X - i][Y - j][Z - k] += weight[i][j][k] * invVOL;
-// }
-// /*! add an amount of charge density to current density - direction X to current density field on the node */
-// inline void EMfields3D::addJx(double weight[][2][2], int X, int Y, int Z, int is) {
-//   for (int i = 0; i < 2; i++)
-//     for (int j = 0; j < 2; j++)
-//       for (int k = 0; k < 2; k++)
-//         Jxs[is][X - i][Y - j][Z - k] += weight[i][j][k] * invVOL;
-// }
-// /*! add an amount of current density - direction Y to current density field on the node */
-// inline void EMfields3D::addJy(double weight[][2][2], int X, int Y, int Z, int is) {
-//   for (int i = 0; i < 2; i++)
-//     for (int j = 0; j < 2; j++)
-//       for (int k = 0; k < 2; k++)
-//         Jys[is][X - i][Y - j][Z - k] += weight[i][j][k] * invVOL;
-// }
-// /*! add an amount of current density - direction Z to current density field on the node */
-// inline void EMfields3D::addJz(double weight[][2][2], int X, int Y, int Z, int is) {
-//   for (int i = 0; i < 2; i++)
-//     for (int j = 0; j < 2; j++)
-//       for (int k = 0; k < 2; k++)
-//         Jzs[is][X - i][Y - j][Z - k] += weight[i][j][k] * invVOL;
-// }
+//* Add an amount of current density to current density field at node X,Y,Z
+inline void EMfields3D::add_Jxh(double weight[8], int X, int Y, int Z, int is)
+{
+    for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+            for (int k = 0; k < 2; k++)
+                Jxs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k] * invVOL;
+}
+inline void EMfields3D::add_Jyh(double weight[8], int X, int Y, int Z, int is)
+{
+    for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+            for (int k = 0; k < 2; k++)
+                Jys[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k] * invVOL;
+}
+inline void EMfields3D::add_Jzh(double weight[8], int X, int Y, int Z, int is)
+{
+    for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+            for (int k = 0; k < 2; k++)
+                Jzs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k] * invVOL;
+}
+
 // /*! add an amount of pressure density - direction XX to current density field on the node */
 // inline void EMfields3D::addPxx(double weight[][2][2], int X, int Y, int Z, int is) {
 //   for (int i = 0; i < 2; i++)
@@ -775,9 +714,8 @@ inline void EMfields3D::add_weighted_quantity(array4_double quantity, double wei
 //         pZZsn[is][X - i][Y - j][Z - k] += weight[i][j][k] * invVOL;
 // }
 
-//* Add an amount of current density to mass matrix at node X,Y *//
-// TODO: check this comment - Check paper
-void EMfields3D::addMass(double value[3][3], int X, int Y, int Z, int ind) 
+//* Add an amount of current density to mass matrix field at node X,Y *//
+void EMfields3D::add_Mass(double value[3][3], int X, int Y, int Z, int ind) 
 {
     Mxx[ind][X][Y][Z] += value[0][0];
     Mxy[ind][X][Y][Z] += value[0][1];
@@ -790,10 +728,10 @@ void EMfields3D::addMass(double value[3][3], int X, int Y, int Z, int ind)
     Mzz[ind][X][Y][Z] += value[2][2];
 }
 
-void EMfields3D::addMassXX(double value, int X, int Y, int Z, int ind) 
-{
-    Mxx[ind][X][Y][Z] += value;
-}
+// void EMfields3D::addMassXX(double value, int X, int Y, int Z, int ind) 
+// {
+//     Mxx[ind][X][Y][Z] += value;
+// }
 
 inline void get_field_components_for_cell(const double* field_components[8], const_arr4_double fieldForPcls, int cx,int cy,int cz)
 {

@@ -1732,34 +1732,36 @@ void Particles3Dcomm::convertParticlesToSoA()
   particleType = ParticleType::SoA;
 }
 
-void Particles3Dcomm::calculateWeights(double weight[][2][2], double xp, double yp, double zp, int ix, int iy, int iz, Grid * grid) 
-{
-    double xi[2], eta[2], zeta[2];
-    xi[0] = xp - grid->getXN(ix - 1, iy, iz);
-    eta[0] = yp - grid->getYN(ix, iy - 1, iz);
-    zeta[0] = zp - grid->getZN(ix, iy, iz - 1);
-    xi[1] = grid->getXN(ix, iy, iz) - xp;
-    eta[1] = grid->getYN(ix, iy, iz) - yp;
-    zeta[1] = grid->getZN(ix, iy, iz) - zp;
+// void Particles3Dcomm::calculateWeights(double weight[][2][2], double xp, double yp, double zp, int ix, int iy, int iz, Grid * grid) 
+// {
+//     double xi[2], eta[2], zeta[2];
+//     xi[0] = xp - grid->getXN(ix - 1, iy, iz);
+//     eta[0] = yp - grid->getYN(ix, iy - 1, iz);
+//     zeta[0] = zp - grid->getZN(ix, iy, iz - 1);
+//     xi[1] = grid->getXN(ix, iy, iz) - xp;
+//     eta[1] = grid->getYN(ix, iy, iz) - yp;
+//     zeta[1] = grid->getZN(ix, iy, iz) - zp;
     
-    for (int i = 0; i < 2; i++)
-        for (int j = 0; j < 2; j++)
-            for (int k = 0; k < 2; k++)
-                weight[i][j][k] = xi[i] * eta[j] * zeta[k] * invVOL;
-}
+//     for (int i = 0; i < 2; i++)
+//         for (int j = 0; j < 2; j++)
+//             for (int k = 0; k < 2; k++)
+//                 weight[i][j][k] = xi[i] * eta[j] * zeta[k] * invVOL;
+// }
 
 void Particles3Dcomm::computeMoments(Field * EMf) 
 {
     //TODO: External forces are to be implemented
     double Fxl = 0.0, Fyl = 0.0, Fzl = 0.0;
 
+    convertParticlesToSoA();
+    const_arr4_double fieldForPcls = EMf->get_fieldForPcls();
+
     #pragma omp parallel
     {
         convertParticlesToSoA();
 
         #pragma omp for schedule(static)
-        for (int pidx = 0; pidx < getNOP(); pidx++) 
-        // for (long long ip = 0; ip < nop; ip++)
+        for (int pidx = 0; pidx < getNOP(); pidx++)
         {
             //* --------------------------------------- *//
 
@@ -1800,6 +1802,11 @@ void Particles3Dcomm::computeMoments(Field * EMf)
             if (ix > nxc) ix = nxc;
             if (iy > nyc) iy = nyc;
             if (iz > nzc) iz = nzc;
+
+            //* Index of cell of particle
+            const int cx = ix - 1;
+            const int cy = iy - 1;
+            const int cz = iz - 1;
 
             //* Compute weights of the particles
             const double xi0   = xavg - grid->getXN(ix-1);
@@ -1918,48 +1925,49 @@ void Particles3Dcomm::computeMoments(Field * EMf)
             #ifndef _CHARGE_FROM_CURRENT_                
                 for (int ii = 0; ii < 8; ii++)
                     temp[ii] = q[pidx] * weights[ii];
-                EMf->add_weighted_quantity(rhons, weights, ix, iy, iz, ns);
+                EMf->add_Rho(weights, ix, iy, iz, ns);
             #else 
                 if (ns == 1)        // TODO: What is this? Ask Fabio
                 {
                     for (int ii = 0; ii < 8; ii++)
                         temp[ii] = q[pidx] * weights[ii];
-                    EMf->add_weighted_quantity(rhons, weights, ix, iy, iz, ns);
+                    EMf->add_Rho(weights, ix, iy, iz, ns);
                 }
             #endif
 
             //* Add implicit current density - X
             for (int ii = 0; ii < 8; ii++)
                     temp[ii] = qau * weights[ii];
-            EMf->add_weighted_quantity(Jxhs, weights, ix, iy, iz, ns);
+            EMf->add_Jxh(weights, ix, iy, iz, ns);
 
             //* Add implicit current density - Y
             for (int ii = 0; ii < 8; ii++)
                     temp[ii] = qav * weights[ii];
-            EMf->add_weighted_quantity(Jyhs, weights, ix, iy, iz, ns);
+            EMf->add_Jyh(weights, ix, iy, iz, ns);
 
             //* Add implicit current density - Z
             for (int ii = 0; ii < 8; ii++)
                     temp[ii] = qaw * weights[ii];
-            EMf->add_weighted_quantity(Jzhs, weights, ix, iy, iz, ns);
+            EMf->add_Jzh(weights, ix, iy, iz, ns);
 
+            //? Compute exact Mass Matrix
             if(ComputeMM)
             {
                 #pragma omp master
                 if (vct->getCartesian_rank() == 0)
                     cout << "*** Computing Mass Matrix ***" << endl;
                 
-                // Mass Matrix (each node of the cell in which the particle is)
-                for (int i=0; i<2; i++) 
-                    for (int j=0; j<2; j++) 
-                        for (int k=0; k<2; k++) 
+                //* Mass Matrix (each node of the cell in which the particle is)
+                for (int i = 0; i < 2; i++) 
+                    for (int j = 0; j < 2; j++) 
+                        for (int k = 0; k < 2; k++) 
                         {
                             int ni = ix-i;
                             int nj = iy-j;
                             int nk = iz-k;
 
-                            //* Only half of the possible nodes (M is symmetric)
-                            for (int c=0; c<14; c++) 
+                            //* Iterate over half of the 27 neighbouring nodes as M is symmetric
+                            for (int c = 0; c < 14; c++) 
                             {
                                 int n2i = ni + NeNo.getX(c);
                                 int n2j = nj + NeNo.getY(c);
@@ -1969,20 +1977,19 @@ void Particles3Dcomm::computeMoments(Field * EMf)
                                 int j2 = iy - n2j;
                                 int k2 = iz - n2k;
 
-                                //* Check if this node is one of the cell where the particle is
-                                // TODO: What does this part do? Ask Fabio
-                                // TODO: weights is now a 1D array
-                                if (i2>=0 && i2<2 && j2>=0 && j2<2 && k2>=0 && k2<2) 
-                                {
-                                    double qww = q[pidx]*beta*weight[i][j][k]*weight[i2][j2][k2];
-                                    double val[3][3];
+                //                 //TODO: Something like this: if i2=0 and j2=1 and k2 = 1 weight[3]
+                //                 //* Check if this node is one of the cell where the particle is
+                //                 if (i2>=0 && i2<2 && j2>=0 && j2<2 && k2>=0 && k2<2) 
+                //                 {
+                //                     double qww = q[pidx]*beta*weight[i][j][k]*weight[i2][j2][k2];
+                //                     double val[3][3];
                                     
-                                    for (int ind1=0; ind1<3; ind1++)
-                                        for (int ind2=0; ind2<3; ind2++) 
-                                            val[ind1][ind2] = alpha[ind2][ind1]*qww;
+                //                     for (int ind1=0; ind1<3; ind1++)
+                //                         for (int ind2=0; ind2<3; ind2++) 
+                //                             val[ind1][ind2] = alpha[ind2][ind1]*qww;
 
-                                    EMf->addMass(val, ni, nj, nk, c);
-                                }
+                                    // EMf->addMass(val, ni, nj, nk, c);
+                                // }
                             }
                         }
 

@@ -345,7 +345,7 @@ void c_Solver::CalculateMoments()
     // TODO: Long function to be implemented - PJD
     //? Interpolate Particles to grid (nodes)
     for (int i = 0; i < ns; i++)
-		part[i].computeMoments(EMf, col,  grid, vct); 
+		part[i].computeMoments(EMf); 
     
     //* Sum all over the species (mass and charge density)
     EMf->sumOverSpecies();
@@ -404,8 +404,8 @@ void c_Solver::ComputeEMFields(int cycle)
     // }
 
     //* Compute divergence of E and B and accessory variable
-	EMf->timeAveragedDivE(col->getPoissonMAdiv());
-	EMf->divergenceOfE(col->getPoissonMAres());
+	// EMf->timeAveragedDivE(col->getPoissonMAdiv());
+	// EMf->divergenceOfE(col->getPoissonMAres());
 	EMf->divergenceOfB();
 
     //TODO: TBD later
@@ -432,7 +432,7 @@ bool c_Solver::ParticlesMover()
             {
                 //? ECSim
                 case Parameters::SoA:
-                part[i].ECSIM_velocity(EMf)
+                part[i].ECSIM_velocity(EMf);
                 break;
                 
                 default:
@@ -451,7 +451,7 @@ bool c_Solver::ParticlesMover()
             switch(Parameters::get_MOVER_TYPE())
             {
                 case Parameters::SoA:
-                part[i].ECSIM_position(EMf)
+                part[i].ECSIM_position(EMf);
                 break;
             }
 

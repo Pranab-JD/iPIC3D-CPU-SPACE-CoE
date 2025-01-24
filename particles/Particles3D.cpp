@@ -839,13 +839,12 @@ void Particles3D::ECSIM_position(Field * EMf)
         double correct_y = 1.0;
         double correct_z = 1.0;
 
-        //TODO: what is this?
-        double ***R = asgArr3(double, grid->getNXC(), grid->getNYC(), grid->getNZC(), EMf->getResDiv(ns));
+        //TODO: Needed for charge conservation; TBD after the first run
+        // double ***R = asgArr3(double, grid->getNXC(), grid->getNYC(), grid->getNZC(), EMf->getResDiv(ns));
 
-        double dxp = 0.0;
-        double dyp = 0.0;
-        double dzp = 0.0;
-        double invSURF;
+        double dxp = 0.0, dyp = 0.0, dzp = 0.0;
+        // double eta0, eta1, zeta0, zeta1, xi0, xi1; 
+        // double invSURF;
 
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++) 
@@ -867,119 +866,123 @@ void Particles3D::ECSIM_position(Field * EMf)
             const double vorig = getV(pidx);
             const double worig = getW(pidx);
 
-            double gn = 1.0;
-            // if (Relativistic) gn = sqrt(1.+(u[rest]*u[rest]+v[rest]*v[rest]+w[rest]*w[rest])/c/c);
+            //? Lorentz factor at time step "n"
+            double lorentz_factor = 1.0;
+            // if (Relativistic) lorentz_factor = sqrt(1.+(u[rest]*u[rest]+v[rest]*v[rest]+w[rest]*w[rest])/c/c);
 
-            if (ChargeConserving) 
-            {
-                //! Interpolation G-->P
-                const double ixd = floor((xavg - dx/2.0 - xstart) * inv_dx);
-                const double iyd = floor((yavg - dy/2.0 - ystart) * inv_dy);
-                const double izd = floor((zavg - dz/2.0 - zstart) * inv_dz);
+            // TODO: Must be implemented (not needed for the first run) 
+            //? Energy conservation inherently violates charge conservation --> charge has to be conserved separately
+            //? gn = lorentz_factor
+            // if (ChargeConserving) 
+            // {
+                // //! Interpolation G-->P
+                // const double ixd = floor((xavg - dx/2.0 - xstart) * inv_dx);
+                // const double iyd = floor((yavg - dy/2.0 - ystart) * inv_dy);
+                // const double izd = floor((zavg - dz/2.0 - zstart) * inv_dz);
                 
-                //* Interface of index to right of cell
-                int ix = 2 + int(ixd);
-                int iy = 2 + int(iyd);
-                int iz = 2 + int(izd);
+                // //* Interface of index to right of cell
+                // int ix = 2 + int(ixd);
+                // int iy = 2 + int(iyd);
+                // int iz = 2 + int(izd);
 
-                //? ---------- Difference along X ---------- ?//
-                const double eta0  = yavg - grid->getYN(iy-1);
-                const double zeta0 = zavg - grid->getZN(iz-1);
-                const double eta1  = grid->getYN(iy) - yavg;
-                const double zeta1 = grid->getZN(iz) - zavg;
+                // //? ---------- Difference along X ---------- ?//
+                // eta0  = yavg - grid->getYN(iy-1);
+                // zeta0 = zavg - grid->getZN(iz-1);
+                // eta1  = grid->getYN(iy) - yavg;
+                // zeta1 = grid->getZN(iz) - zavg;
                 
-                invSURF = 1.0/(dy*dz);
+                // invSURF = 1.0/(dy*dz);
             
-                const pfloat weight00 = eta0 * zeta0 * invSURF;
-                const pfloat weight01 = eta0 * zeta1 * invSURF;
-                const pfloat weight10 = eta1 * zeta0 * invSURF;
-                const pfloat weight11 = eta1 * zeta1 * invSURF;
+                // const pfloat weight00 = eta0 * zeta0 * invSURF;
+                // const pfloat weight01 = eta0 * zeta1 * invSURF;
+                // const pfloat weight10 = eta1 * zeta0 * invSURF;
+                // const pfloat weight11 = eta1 * zeta1 * invSURF;
 
-                double RxP = 0.0;
-                double RxM = 0.0;
+                // double RxP = 0.0;
+                // double RxM = 0.0;
 
-                //TODO: define RxP and RxM directly here            
-                RxP  = weight00 * (R[ix][iy][iz]         );
-                RxP += weight01 * (R[ix][iy][iz - 1]     );
-                RxP += weight10 * (R[ix][iy - 1][iz]     );
-                RxP += weight11 * (R[ix][iy - 1][iz - 1] );
+                // //TODO: define RxP and RxM directly here            
+                // RxP  = weight00 * (R[ix][iy][iz]         );
+                // RxP += weight01 * (R[ix][iy][iz - 1]     );
+                // RxP += weight10 * (R[ix][iy - 1][iz]     );
+                // RxP += weight11 * (R[ix][iy - 1][iz - 1] );
             
-                RxM  = weight00 * (R[ix - 1][iy][iz]         );
-                RxM += weight01 * (R[ix - 1][iy][iz - 1]     );
-                RxM += weight10 * (R[ix - 1][iy - 1][iz]     );
-                RxM += weight11 * (R[ix - 1][iy - 1][iz - 1] );
+                // RxM  = weight00 * (R[ix - 1][iy][iz]         );
+                // RxM += weight01 * (R[ix - 1][iy][iz - 1]     );
+                // RxM += weight10 * (R[ix - 1][iy - 1][iz]     );
+                // RxM += weight11 * (R[ix - 1][iy - 1][iz - 1] );
                 
-                //? ---------- Difference along Y ---------- ?//
-                const double xi0   = xavg - grid->getXN(ix-1);
-                const double zeta0 = zavg - grid->getZN(iz-1);
-                const double xi1   = grid->getXN(ix) - xavg;
-                const double zeta1 = grid->getZN(iz) - zavg;
+                // //? ---------- Difference along Y ---------- ?//
+                // xi0   = xavg - grid->getXN(ix-1);
+                // zeta0 = zavg - grid->getZN(iz-1);
+                // xi1   = grid->getXN(ix) - xavg;
+                // zeta1 = grid->getZN(iz) - zavg;
 
-                invSURF = 1.0/(dx*dz);
+                // invSURF = 1.0/(dx*dz);
             
-                const pfloat weight00 = xi0 * zeta0 * invSURF;
-                const pfloat weight01 = xi0 * zeta1 * invSURF;
-                const pfloat weight10 = xi1 * zeta0 * invSURF;
-                const pfloat weight11 = xi1 * zeta1 * invSURF;
+                // weight00 = xi0 * zeta0 * invSURF;
+                // weight01 = xi0 * zeta1 * invSURF;
+                // weight10 = xi1 * zeta0 * invSURF;
+                // weight11 = xi1 * zeta1 * invSURF;
 
-                double RyP = 0.0;
-                double RyM = 0.0;
+                // double RyP = 0.0;
+                // double RyM = 0.0;
             
-                RyP = weight00 * (R[ix][iy][iz]             );
-                RyP += weight01 * (R[ix][iy][iz - 1]         );
-                RyP += weight10 * (R[ix - 1][iy][iz]         );
-                RyP += weight11 * (R[ix - 1][iy][iz - 1]     );
+                // RyP = weight00 * (R[ix][iy][iz]             );
+                // RyP += weight01 * (R[ix][iy][iz - 1]         );
+                // RyP += weight10 * (R[ix - 1][iy][iz]         );
+                // RyP += weight11 * (R[ix - 1][iy][iz - 1]     );
             
-                RyM = weight00 * (R[ix][iy-1][iz]             );
-                RyM += weight01 * (R[ix][iy-1][iz - 1]         );
-                RyM += weight10 * (R[ix - 1][iy-1][iz]         );
-                RyM += weight11 * (R[ix - 1][iy-1][iz - 1]     );
+                // RyM = weight00 * (R[ix][iy-1][iz]             );
+                // RyM += weight01 * (R[ix][iy-1][iz - 1]         );
+                // RyM += weight10 * (R[ix - 1][iy-1][iz]         );
+                // RyM += weight11 * (R[ix - 1][iy-1][iz - 1]     );
 
-                //? ---------- Difference along Z ---------- ?//
-                const double xi0   = xavg - grid->getXN(ix-1);
-                const double eta0  = yavg - grid->getYN(iy-1);
-                const double xi1   = grid->getXN(ix) - xavg;
-                const double eta1  = grid->getYN(iy) - yavg;
+                // //? ---------- Difference along Z ---------- ?//
+                // const double xi0   = xavg - grid->getXN(ix-1);
+                // const double eta0  = yavg - grid->getYN(iy-1);
+                // const double xi1   = grid->getXN(ix) - xavg;
+                // const double eta1  = grid->getYN(iy) - yavg;
 
-                invSURF = 1.0/(dx*dy);
+                // invSURF = 1.0/(dx*dy);
             
-                const pfloat weight00 = xi0 * eta0 * invSURF;
-                const pfloat weight01 = xi0 * eta1 * invSURF;
-                const pfloat weight10 = xi1 * eta0 * invSURF;
-                const pfloat weight11 = xi1 * eta1 * invSURF;
+                // weight00 = xi0 * eta0 * invSURF;
+                // weight01 = xi0 * eta1 * invSURF;
+                // weight10 = xi1 * eta0 * invSURF;
+                // weight11 = xi1 * eta1 * invSURF;
         
-                double RzP = 0.0;
-                double RzM = 0.0;
+                // double RzP = 0.0;
+                // double RzM = 0.0;
 
-                RzP  = weight00 * (R[ix][iy][iz]             );
-                RzP += weight01 * (R[ix][iy - 1][iz]         );
-                RzP += weight10 * (R[ix - 1][iy][iz]         );
-                RzP += weight11 * (R[ix - 1][iy - 1][iz]     );
+                // RzP  = weight00 * (R[ix][iy][iz]             );
+                // RzP += weight01 * (R[ix][iy - 1][iz]         );
+                // RzP += weight10 * (R[ix - 1][iy][iz]         );
+                // RzP += weight11 * (R[ix - 1][iy - 1][iz]     );
             
-                RzM  = weight00 * (R[ix][iy][iz-1]             );
-                RzM += weight01 * (R[ix][iy - 1][iz-1]         );
-                RzM += weight10 * (R[ix - 1][iy][iz-1]         );
-                RzM += weight11 * (R[ix - 1][iy - 1][iz-1]     );
+                // RzM  = weight00 * (R[ix][iy][iz-1]             );
+                // RzM += weight01 * (R[ix][iy - 1][iz-1]         );
+                // RzM += weight10 * (R[ix - 1][iy][iz-1]         );
+                // RzM += weight11 * (R[ix - 1][iy - 1][iz-1]     );
 
-                //! End of Interpolation G-->P
+                // //! End of Interpolation G-->P
             
-                double limiter = 1.0;
-                dxp = 0.25 * (RxP - RxM) * dx;
-                dxp = -dxp / abs(dxp+1e-10) * min(abs(dxp),abs(up/gn*dt)/limiter);
+                // double limiter = 1.0;
+                // dxp = 0.25 * (RxP - RxM) * dx;
+                // dxp = -dxp / abs(dxp+1e-10) * min(abs(dxp),abs(up/gn*dt)/limiter);
             
-                dyp = 0.25 * (RyP - RyM) * dy;
-                dyp = -dyp / abs(dyp+1e-10) * min(abs(dyp),abs(vp/gn*dt)/limiter);
+                // dyp = 0.25 * (RyP - RyM) * dy;
+                // dyp = -dyp / abs(dyp+1e-10) * min(abs(dyp),abs(vp/gn*dt)/limiter);
             
-                dzp = 0.25 * (RzP - RzM) * dz;
-                dzp = -dzp / abs(dzp+1e-10) * min(abs(dzp),abs(wp/gn*dt)/limiter);
-            }
+                // dzp = 0.25 * (RzP - RzM) * dz;
+                // dzp = -dzp / abs(dzp+1e-10) * min(abs(dzp),abs(wp/gn*dt)/limiter);
+            // }
 
             //cout << xp << ";  " << ixc << ";  "<< correct_x << ";  " << correct_y << ";  "<< correct_z << endl;
 
             //? Update the positions with the new velocity
-            fetchX(pidx) = xavg + uorig/gn * dt * correct_x + dxp;
-            fetchY(pidx) = yavg + vorig/gn * dt * correct_y + dyp;
-            fetchZ(pidx) = zavg + worig/gn * dt * correct_z + dzp;
+            fetchX(pidx) = xavg + uorig/lorentz_factor * dt * correct_x + dxp;
+            fetchY(pidx) = yavg + vorig/lorentz_factor * dt * correct_y + dyp;
+            fetchZ(pidx) = zavg + worig/lorentz_factor * dt * correct_z + dzp;
 
             fetchU(pidx) = uorig;
             fetchV(pidx) = vorig;
