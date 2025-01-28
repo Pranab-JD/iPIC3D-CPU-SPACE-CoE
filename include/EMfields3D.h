@@ -631,14 +631,6 @@ private:
                                  int nx, int ny, int nz);
 };
 
-// inline void EMfields3D::add_weighted_quantity(array4_double quantity, double weights[8], int X, int Y, int Z, int is) 
-// {
-//     for (int i = 0; i < 2; i++)
-//         for (int j = 0; j < 2; j++)
-//             for (int k = 0; k < 2; k++)
-//                 quantity[is][X - i][Y - j][Z - k] += weights[i * 4 + j * 2 + k] * invVOL;
-// }
-
 //* Add an amount of charge density to charge density field at node X,Y,Z
 inline void EMfields3D::add_Rho(double weight[8], int X, int Y, int Z, int is) 
 {

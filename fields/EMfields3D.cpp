@@ -2178,9 +2178,8 @@ void EMfields3D::calculateE(int cycle)
     eqValue(0.0, gradPHIY, nxn, nyn, nzn);
     eqValue(0.0, gradPHIZ, nxn, nyn, nzn);
   
-    // Adjust E calculating laplacian(PHI) = div(E) -4*PI*rho DIVERGENCE CLEANING
-    // correct the e field regularly, to fulfill the Gussian law 
-    //TODO: Check if this is needed for ECSim; Ask Fabio
+    //* Divergence cleaning: Laplacian(PHI) = div(E) -4*PI*rho; correct electric field regularly to fulfill Gauss' law 
+    //TODO: Is this needed for ECSim? - Ask Fabio
     if (PoissonCorrection && cycle%PoissonCorrectionCycle == 0) 
     {
         double *xkrylovPoisson = new double[(nxc - 2) * (nyc - 2) * (nzc - 2)];
@@ -2264,7 +2263,7 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     if (col->getRemoveDivE() == "no")   weight_curlcurl = 1.0;
     if (col->getRemoveDivE() == "ipic") weight_curlcurl = 0.0;
 
-    //* Temporary arrays
+    //* Temporary arrays - set to 0
     eqValue(0.0, tempC, nxc, nyc, nzc);
     eqValue(0.0, tempX, nxn, nyn, nzn);
     eqValue(0.0, tempY, nxn, nyn, nzn);
@@ -2345,6 +2344,7 @@ void EMfields3D::MaxwellSource(double *bkrylov)
         scale(tempC, (1.0 - weight_curlcurl)*FourPI*th*dt, nxc, nyc, nzc);
         addscale(-(1.0 - weight_curlcurl)*FourPI, tempC, rhoc, nxc, nyc, nzc);
 
+        //! Directional smoothing is not implemented
         energy_conserve_smooth(tempC, nxc, nyc, nzc, -1, col->getSmooth());
         
         communicateCenterBC(nxc, nyc, nzc, tempC, 1, 1, 1, 1, 1, 1, vct, this);        
@@ -2372,18 +2372,18 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     }
 
     //* Poisson correction
-    // if (col->getPoissonCorrection() == "yes" and PCnonzero == true) 
-    // {
-    //     //* Compute gradient        
-    //     grid->gradC2N(temp2X, temp2Y, temp2Z, Phic);
+    if (col->getPoissonCorrection() == "yes") 
+    {
+        // Compute gradient        
+        grid->gradC2N(temp2X, temp2Y, temp2Z, Phic);
+    
+        //TODO: To be implemented later (BC_E_Poisson) - PJD
+        // BC_E_Poisson(vct, temp2X, temp2Y, temp2Z);
         
-    //     //TODO: To be implemented (BC_E_Poisson) - PJD
-    //     BC_E_Poisson(vct, temp2X, temp2Y, temp2Z);
-        
-    //     addscale(-th, tempX, temp2X, nxn, nyn, nzn);  
-    //     addscale(-th, tempY, temp2Y, nxn, nyn, nzn);  
-    //     addscale(-th, tempZ, temp2Z, nxn, nyn, nzn);  
-    // }
+        addscale(-th, tempX, temp2X, nxn, nyn, nzn);  
+        addscale(-th, tempY, temp2Y, nxn, nyn, nzn);  
+        addscale(-th, tempZ, temp2Z, nxn, nyn, nzn);  
+    }
 
     //* Langdon correction (simpler alternative to divergence cleaning); A.B. Lagndon. CPC 70 447-450 (1992)
     if (col->getLangdonCorrection() != 0) 
@@ -2408,7 +2408,7 @@ void EMfields3D::MaxwellSource(double *bkrylov)
         addscale(dt, tempZ, temp2Z, nxn, nyn, nzn);
     }
 
-    // TODO: Do we need this? Ask Fabio - PJD
+    // TODO: To be implemented later 
     // fixBC_Source (vct, col, tempX, tempY, tempZ);
     // if (col->getCase() == "Dipole") 
     //     fixBC_PlanetSource (vct, col, grid, tempX , tempY , tempZ);
@@ -2457,26 +2457,29 @@ void EMfields3D::MaxwellSource(double *bkrylov)
 // ghost nodes before returning to the Krylov solver. With the definitions above, phys2solver() would simply zero
 // the ghost nodes and solver2phys() would populate them via communication. Note that it would also be possible, if
 // desired, to give duplicated nodes equal weight by rescaling their values in these two methods.
-
 void EMfields3D::MaxwellImage(double *im, double* vector)
 {
+    //* double *im      : Output
+    //* double* vector  : Input
+
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
     const Grid *grid = &get_grid();
 
-    int dim = 3*(nxn - 2) * (nyn - 2) * (nzn - 2);
-    eqValue(0.0, im, dim);
-
-    // eqValue(0.0, im, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
-    // eqValue(0.0, imageX, nxn, nyn, nzn);
-    // eqValue(0.0, imageY, nxn, nyn, nzn);
-    // eqValue(0.0, imageZ, nxn, nyn, nzn);
-    // eqValue(0.0, tempX, nxn, nyn, nzn);
-    // eqValue(0.0, tempY, nxn, nyn, nzn);
-    // eqValue(0.0, tempZ, nxn, nyn, nzn);
-    // eqValue(0.0, Dx, nxn, nyn, nzn);
-    // eqValue(0.0, Dy, nxn, nyn, nzn);
-    // eqValue(0.0, Dz, nxn, nyn, nzn);
+    eqValue(0.0, im, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
+    eqValue(0.0, imageX, nxn, nyn, nzn);
+    eqValue(0.0, imageY, nxn, nyn, nzn);
+    eqValue(0.0, imageZ, nxn, nyn, nzn);
+    eqValue(0.0, vectX, nxn, nyn, nzn);
+    eqValue(0.0, vectY, nxn, nyn, nzn);
+    eqValue(0.0, vectZ, nxn, nyn, nzn);
+    eqValue(0.0, tempC, nxn, nyn, nzn);
+    eqValue(0.0, temp2X, nxn, nyn, nzn);
+    eqValue(0.0, temp2Y, nxn, nyn, nzn);
+    eqValue(0.0, temp2Z, nxn, nyn, nzn);
+    eqValue(0.0, temp3X, nxn, nyn, nzn);
+    eqValue(0.0, temp3Y, nxn, nyn, nzn);
+    eqValue(0.0, temp3Z, nxn, nyn, nzn);
 
     //? Move from Krylov space to physical space
     solver2phys(vectX, vectY, vectZ, vector, nxn, nyn, nzn);
@@ -2485,21 +2488,32 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     if (col->getRemoveDivE() == "no")   weight_curlcurl = 1.0;
     if (col->getRemoveDivE() == "ipic") weight_curlcurl = 0.0;
     
-    communicateNodeBC(nxn, nyn, nzn, vectX, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, vectY, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, vectZ, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, vectX, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, vectY, col->bcEy[0], col->bcEy[1], col->bcEy[2], col->bcEy[3], col->bcEy[4], col->bcEy[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, vectZ, col->bcEz[0], col->bcEz[1], col->bcEz[2], col->bcEz[3], col->bcEz[4], col->bcEz[5], vct, this);
 
     if (col->getCurlCurl()) 
     {
         //? curl(curl(E)) is computed using finite differences
-        grid->curlN2C(tempXC, tempYC, tempZC, vectX, vectY, vectZ);
-        communicateCenterBC(nxc, nyc, nzc, tempXC, 1, 1, 1, 1, 1, 1, vct, this);
-        communicateCenterBC(nxc, nyc, nzc, tempYC, 1, 1, 1, 1, 1, 1, vct, this);
-        communicateCenterBC(nxc, nyc, nzc, tempZC, 1, 1, 1, 1, 1, 1, vct, this);    
-        grid->curlC2N(imageX, imageY, imageZ, tempXC, tempYC, tempZC);
+        grid->curlN2C(temp2X, temp2Y, temp2Z, vectX, vectY, vectZ);
+        
+        communicateCenterBC(nxc, nyc, nzc, temp2X, 1, 1, 1, 1, 1, 1, vct, this);
+        communicateCenterBC(nxc, nyc, nzc, temp2Y, 1, 1, 1, 1, 1, 1, vct, this);
+        communicateCenterBC(nxc, nyc, nzc, temp2Z, 1, 1, 1, 1, 1, 1, vct, this);
+
+        //TODO: Apply Lambda Damping to curl(E) - Tobe done later along with lambda damping
+        // if (damping == 1) 
+        // {
+        //     addprod(tempXC, -1.0, LambdaC, nxc, nyc, nzc);
+        //     addprod(tempYC, -1.0, LambdaC, nxc, nyc, nzc);
+        //     addprod(tempZC, -1.0, LambdaC, nxc, nyc, nzc);
+        // }
+        
+        grid->curlC2N(imageX, imageY, imageZ, temp2X, temp2Y, temp2Z);
     }
     else 
     {
+        //! Different schemes (gradiv, direct) are not implemented
         //? curl(curl(E)) = - Laplacian(E) + grad(div(E))
         grid->lapN2N(imageX, vectX, this);
         grid->lapN2N(imageY, vectY, this);
@@ -2533,9 +2547,8 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     addscale(1, imageY, vectY, nxn, nyn, nzn);
     addscale(1, imageZ, vectZ, nxn, nyn, nzn);
 
-    //TODO: To be implemented later -- PJD
-    // if (col->getEnergyConservingSmoothing())
-    //     applySmoothing(vectX,vectY,vectZ, nxn, nyn, nzn, vct, col);
+    if (col->getEnergyConservingSmoothing())
+        energy_conserve_smooth(vectX, vectY, vectZ, nxn, nyn, nzn);
 
     if (col->getExactMM()) 
     {
@@ -2559,8 +2572,7 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
         communicateNodeBC(nxn, nyn, nzn, temp2Y, 2, 2, 2, 2, 2, 2, vct, this);
         communicateNodeBC(nxn, nyn, nzn, temp2Z, 2, 2, 2, 2, 2, 2, vct, this);
 
-        //TODO: Energy conserving smoothing: To be implemented -- PJD
-        // applySmoothing(temp2X,temp2Y,temp2Z, nxn, nyn, nzn, vct, col);
+        energy_conserve_smooth(temp2X, temp2Y, temp2Z, nxn, nyn, nzn);
 
         for (int i=1; i<nxn-1; i++)
             for (int j=1; j<nyn-1; j++)
@@ -2601,7 +2613,7 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
         addscale(1.0, imageZ, temp3Z, nxn, nyn, nzn);
     }
 
-    //TODO: What is this? Ask Fabio -- To be implemented -- PJD
+    //TODO: To be implemented later - PJD
     // fixBC_Image(vct, imageX, imageY, imageZ, vectX, vectY, vectZ);
     // if (col->getCase() == "Dipole")
     //   fixBC_PlanetImage (vct, col, grid, imageX, imageY, imageZ, vectX, vectY, vectZ);
@@ -3493,7 +3505,7 @@ void EMfields3D::calculateB()
     communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
     communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
-    // TODO: Implement this
+    // TODO: Implement this later
     //? Boundary conditions for magnetic field
     // fixBC_B(vct, col);
 }
@@ -3649,50 +3661,117 @@ void EMfields3D::interpDensitiesN2C()
 /*! communicate ghost for grid -> Particles interpolation */
 void EMfields3D::communicateGhostP2G(int ns)
 {
-  // interpolate adding common nodes among processors
-  timeTasks_set_communicating();
+    //* interpolate adding common nodes among processors
+    timeTasks_set_communicating();
 
-  const VirtualTopology3D *vct = &get_vct();
+    const VirtualTopology3D *vct = &get_vct();
 
-  double ***moment0 = convert_to_arr3(rhons[ns]);
-  double ***moment1 = convert_to_arr3(Jxs  [ns]);
-  double ***moment2 = convert_to_arr3(Jys  [ns]);
-  double ***moment3 = convert_to_arr3(Jzs  [ns]);
-  double ***moment4 = convert_to_arr3(pXXsn[ns]);
-  double ***moment5 = convert_to_arr3(pXYsn[ns]);
-  double ***moment6 = convert_to_arr3(pXZsn[ns]);
-  double ***moment7 = convert_to_arr3(pYYsn[ns]);
-  double ***moment8 = convert_to_arr3(pYZsn[ns]);
-  double ***moment9 = convert_to_arr3(pZZsn[ns]);
-  // add the values for the shared nodes
+    double ***moment0 = convert_to_arr3(rhons[ns]);
+    double ***moment1 = convert_to_arr3(Jxs  [ns]);
+    double ***moment2 = convert_to_arr3(Jys  [ns]);
+    double ***moment3 = convert_to_arr3(Jzs  [ns]);
+    double ***moment4 = convert_to_arr3(pXXsn[ns]);
+    double ***moment5 = convert_to_arr3(pXYsn[ns]);
+    double ***moment6 = convert_to_arr3(pXZsn[ns]);
+    double ***moment7 = convert_to_arr3(pYYsn[ns]);
+    double ***moment8 = convert_to_arr3(pYZsn[ns]);
+    double ***moment9 = convert_to_arr3(pZZsn[ns]);
+    // add the values for the shared nodes
 
-  // Call NonBlocking Halo Exchange + Interpolation
-  communicateInterp(nxn, nyn, nzn, moment0, vct,this);
-  communicateInterp(nxn, nyn, nzn, moment1, vct,this);
-  communicateInterp(nxn, nyn, nzn, moment2, vct,this);
-  communicateInterp(nxn, nyn, nzn, moment3, vct,this);
-  communicateInterp(nxn, nyn, nzn, moment4, vct,this);
-  communicateInterp(nxn, nyn, nzn, moment5, vct,this);
-  communicateInterp(nxn, nyn, nzn, moment6, vct,this);
-  communicateInterp(nxn, nyn, nzn, moment7, vct,this);
-  communicateInterp(nxn, nyn, nzn, moment8, vct,this);
-  communicateInterp(nxn, nyn, nzn, moment9, vct,this);
-  // calculate the correct densities on the boundaries
-  adjustNonPeriodicDensities(ns);
+    //* Call NonBlocking Halo Exchange + Interpolation
+    communicateInterp(nxn, nyn, nzn, moment0, vct,this);
+    communicateInterp(nxn, nyn, nzn, moment1, vct,this);
+    communicateInterp(nxn, nyn, nzn, moment2, vct,this);
+    communicateInterp(nxn, nyn, nzn, moment3, vct,this);
+    communicateInterp(nxn, nyn, nzn, moment4, vct,this);
+    communicateInterp(nxn, nyn, nzn, moment5, vct,this);
+    communicateInterp(nxn, nyn, nzn, moment6, vct,this);
+    communicateInterp(nxn, nyn, nzn, moment7, vct,this);
+    communicateInterp(nxn, nyn, nzn, moment8, vct,this);
+    communicateInterp(nxn, nyn, nzn, moment9, vct,this);
+    // calculate the correct densities on the boundaries
+    adjustNonPeriodicDensities(ns);
 
-  // populate the ghost nodes
+    // populate the ghost nodes
 
-  //Call Nonblocking Halo Exchange
-  communicateNode_P(nxn, nyn, nzn, moment0, vct, this);
-  communicateNode_P(nxn, nyn, nzn, moment1, vct, this);
-  communicateNode_P(nxn, nyn, nzn, moment2, vct, this);
-  communicateNode_P(nxn, nyn, nzn, moment3, vct, this);
-  communicateNode_P(nxn, nyn, nzn, moment4, vct, this);
-  communicateNode_P(nxn, nyn, nzn, moment5, vct, this);
-  communicateNode_P(nxn, nyn, nzn, moment6, vct, this);
-  communicateNode_P(nxn, nyn, nzn, moment7, vct, this);
-  communicateNode_P(nxn, nyn, nzn, moment8, vct, this);
-  communicateNode_P(nxn, nyn, nzn, moment9, vct, this);
+    //* Call Nonblocking Halo Exchange
+    communicateNode_P(nxn, nyn, nzn, moment0, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment1, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment2, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment3, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment4, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment5, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment6, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment7, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment8, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment9, vct, this);
+}
+
+//TODO: Implement this correctly
+void EMfields3D::communicateGhostP2G(VirtualTopology3D * vct)
+{
+    const VirtualTopology3D * vct = &get_vct();
+    int rank = vct->getCartesian_rank();
+
+    // interpolate adding common nodes among processors
+    communicateInterp(nxn, nyn, nzn, Jxh, 0, 0, 0, 0, 0, 0, vct);
+    communicateInterp(nxn, nyn, nzn, Jyh, 0, 0, 0, 0, 0, 0, vct);
+    communicateInterp(nxn, nyn, nzn, Jzh, 0, 0, 0, 0, 0, 0, vct);
+    
+    for (int i=0; i<ns; i++) 
+    {
+        communicateInterp(nxn, nyn, nzn, i, Jxhs, 0, 0, 0, 0, 0, 0, vct);
+        communicateInterp(nxn, nyn, nzn, i, Jyhs, 0, 0, 0, 0, 0, 0, vct);
+        communicateInterp(nxn, nyn, nzn, i, Jzhs, 0, 0, 0, 0, 0, 0, vct);
+        
+        #ifndef _CHARGE_FROM_CURRENT_
+            communicateInterp(nxn, nyn, nzn, i, rhons, 0, 0, 0, 0, 0, 0, vct);
+        #else
+            if (i == 1) 
+                communicateInterp(nxn, nyn, nzn, i, rhons, 0, 0, 0, 0, 0, 0, vct);
+        #endif
+    }
+    
+    for (int i=0; i<NE_MASS; i++)
+    { 
+        communicateInterp(nxn, nyn, nzn, i, Mxx, 0, 0, 0, 0, 0, 0, vct);
+        communicateInterp(nxn, nyn, nzn, i, Mxy, 0, 0, 0, 0, 0, 0, vct);
+        communicateInterp(nxn, nyn, nzn, i, Mxz, 0, 0, 0, 0, 0, 0, vct);
+        communicateInterp(nxn, nyn, nzn, i, Myx, 0, 0, 0, 0, 0, 0, vct);
+        communicateInterp(nxn, nyn, nzn, i, Myy, 0, 0, 0, 0, 0, 0, vct);
+        communicateInterp(nxn, nyn, nzn, i, Myz, 0, 0, 0, 0, 0, 0, vct);
+        communicateInterp(nxn, nyn, nzn, i, Mzx, 0, 0, 0, 0, 0, 0, vct);
+        communicateInterp(nxn, nyn, nzn, i, Mzy, 0, 0, 0, 0, 0, 0, vct);
+        communicateInterp(nxn, nyn, nzn, i, Mzz, 0, 0, 0, 0, 0, 0, vct);
+    }
+
+    // put the correct values on ghost cells
+    communicateNode_P(nxn, nyn, nzn, Jxh, vct);
+    communicateNode_P(nxn, nyn, nzn, Jyh, vct);
+    communicateNode_P(nxn, nyn, nzn, Jzh, vct);
+    for (int i=0; i<ns; i++) {
+    communicateNode_P(nxn, nyn, nzn, Jxhs, i, vct);
+    communicateNode_P(nxn, nyn, nzn, Jyhs, i, vct);
+    communicateNode_P(nxn, nyn, nzn, Jzhs, i, vct);
+    #ifndef _CHARGE_FROM_CURRENT_
+    communicateNode_P(nxn, nyn, nzn, rhons, i, vct);
+    #else
+    if (i == 1) communicateNode_P(nxn, nyn, nzn, rhons, i, vct);
+    #endif
+    }
+    
+    for (int i=0; i<NE_MASS; i++)
+    {
+        communicateNode_P(nxn, nyn, nzn, Mxx, i, vct);
+        communicateNode_P(nxn, nyn, nzn, Mxy, i, vct);
+        communicateNode_P(nxn, nyn, nzn, Mxz, i, vct);
+        communicateNode_P(nxn, nyn, nzn, Myx, i, vct);
+        communicateNode_P(nxn, nyn, nzn, Myy, i, vct);
+        communicateNode_P(nxn, nyn, nzn, Myz, i, vct);
+        communicateNode_P(nxn, nyn, nzn, Mzx, i, vct);
+        communicateNode_P(nxn, nyn, nzn, Mzy, i, vct);
+        communicateNode_P(nxn, nyn, nzn, Mzz, i, vct);
+    }
 }
 
 //? Compute divergence of electric field
@@ -3731,7 +3810,7 @@ void EMfields3D::timeAveragedRho(double ma)
 
 void EMfields3D::timeAveragedDivE(double ma) 
 {
-    //* Boundary conditions - TBD later
+    // TODO: Boundary conditions - TBD later
     // EMfields3D::BC_E_Poisson(vct,  Ex, Ey, Ez);
     
     const Grid *grid = &get_grid();
@@ -3828,6 +3907,7 @@ void EMfields3D::setZeroRho(int i0)
 {
     //* Iterate over species
     //TODO: How to get only the first element from array4_double? - PJD
+    //TODO: Why loop over the Can I set everything to 0? - Ask Fabio 
     for (int i = i0; i < ns; i++) 
     {
         // eqValue(0.0, rhons[i], nxn, nyn, nzn);
