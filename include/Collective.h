@@ -194,18 +194,23 @@ class Collective
     bool field_output_is_off()const;
 
     //? ECSim functions
-    bool getAddExternalCurlB()const { return AddExternalCurlB; }
-    bool getAddExternalCurlE()const { return AddExternalCurlE; }
-    bool getEnergyConservingSmoothing()const { return EnergyConservingSmoothing; }
-    bool getCurlCurl()const { return CurlCurl; }
-    bool getExactMM()const { return ExactMM; }
-    string getRemoveDivE()const { return RemoveDivE; }
-    double getLangdonCorrection()const { return LangdonCorrection; }
+    bool getAddExternalCurlB()           const { return AddExternalCurlB; }
+    bool getAddExternalCurlE()           const { return AddExternalCurlE; }
+    bool getEnergyConservingSmoothing()  const { return EnergyConservingSmoothing; }
+    bool getCurlCurl()                   const { return CurlCurl; }
+    bool getExactMM()                    const { return ExactMM; }
+    string getRemoveDivE()               const { return RemoveDivE; }
+    double getLangdonCorrection()        const { return LangdonCorrection; }
 
-    int getZeroCurrent() { return zeroCurrent; }
-    int getSmoothCycle()const { return SmoothCycle; }
-    int getCurrentCycle()const { return CurrentCycle; }
-    void setCurrentCycle(int cycle) { CurrentCycle = cycle; }
+    //* Parameters for charge conservation
+    double Collective::getPoissonMArho() const { return PoissonMArho;}
+    double Collective::getPoissonMAdiv() const { return PoissonMAdiv;}
+    double Collective::getPoissonMAres() const { return PoissonMAres;}
+
+    int getZeroCurrent()                       { return zeroCurrent; }
+    int getSmoothCycle()                 const { return SmoothCycle; }
+    int getCurrentCycle()                const { return CurrentCycle; }
+    void setCurrentCycle(int cycle)            { CurrentCycle = cycle; }
     
     /*! Boundary condition selection for BCFace for the electric field components */
     int bcEx[6], bcEy[6], bcEz[6];
@@ -433,6 +438,9 @@ class Collective
     int DiagnosticsOutputCycle;
     /*! Call Finalize() at end of program execution (true by default) */
     bool CallFinalize;
+
+    //* Parameters for charge conservation
+    double PoissonMArho, PoissonMAdiv, PoissonMAres;
 
     /** AddExternalCurlB */
     bool AddExternalCurlB;

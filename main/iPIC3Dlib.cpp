@@ -340,24 +340,28 @@ void c_Solver::CalculateMoments()
 
     EMf->setZeroDensities();
 
+    // TODO: Do we need (0) and (1) separately? - Ask Fabio
     EMf->setZeroRho(0);
 
-    // TODO: Long function to be implemented - PJD
     //? Interpolate Particles to grid (nodes)
     for (int i = 0; i < ns; i++)
-		part[i].computeMoments(EMf); 
+		part[i].computeMoments(EMf);
+
+    //TODO: Implement this fully and correctly (for each species)
+    EMf->communicateGhostP2G(vct);
     
     //* Sum all over the species (mass and charge density)
     EMf->sumOverSpecies();
     EMf->interpolateCenterSpecies();
-
-    // TODO: These 2 lines are in both sumOverSpecies() and interpolateCenterSpecies(). Do we need these twice? - Ask Fabio
+    
+    // TODO: These following 2 lines are in both sumOverSpecies() and interpolateCenterSpecies(). Do we need these twice? - Ask Fabio
     // TODO:    grid->interpN2C(rhoc, rhon);
     // TODO:    communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct);
-    
-    // TODO: Implement these later -- need data from input files
-    // EMf->timeAveragedRho(col->getPoissonMArho());
-	// EMf->timeAveragedDivE(col->getPoissonMAdiv());
+
+    //TODO: Communication for 4D array (EMf->interpolateCenterSpecies(), setZeroRho(0)) is not included (not for all functions in ECSim) Why? - Ask Fabio
+
+    EMf->timeAveragedRho(col->getPoissonMArho());
+	EMf->timeAveragedDivE(col->getPoissonMAdiv());
 }
 
 //! Compute electric field
@@ -404,8 +408,8 @@ void c_Solver::ComputeEMFields(int cycle)
     // }
 
     //* Compute divergence of E and B and accessory variable
-	// EMf->timeAveragedDivE(col->getPoissonMAdiv());
-	// EMf->divergenceOfE(col->getPoissonMAres());
+	EMf->timeAveragedDivE(col->getPoissonMAdiv());
+	EMf->divergenceOfE(col->getPoissonMAres());
 	EMf->divergenceOfB();
 
     //TODO: TBD later
@@ -432,7 +436,7 @@ bool c_Solver::ParticlesMover()
             {
                 //? ECSim
                 case Parameters::SoA:
-                part[i].ECSIM_velocity(EMf);
+                    part[i].ECSIM_velocity(EMf);
                 break;
                 
                 default:
@@ -447,11 +451,10 @@ bool c_Solver::ParticlesMover()
         //* Iterate over each species to update positions
         for (int i = 0; i < ns; i++)
         {
-            //* Use Predictor-Corrector scheme to move particles
             switch(Parameters::get_MOVER_TYPE())
             {
                 case Parameters::SoA:
-                part[i].ECSIM_position(EMf);
+                    part[i].ECSIM_position(EMf);
                 break;
             }
 

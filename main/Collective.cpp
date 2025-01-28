@@ -147,20 +147,26 @@ void Collective::ReadInput(string inputfile)
 
         delta = config.read < double >("delta",0.5);
 
-        Case              = config.read<string>("Case");
-        wmethod           = config.read<string>("WriteMethod");
-        SimName           = config.read<string>("SimulationName");
+        Case                        = config.read<string>   ("Case");
+        wmethod                     = config.read<string>   ("WriteMethod");
+        SimName                     = config.read<string>   ("SimulationName");
         
-        PoissonCorrection       = config.read<string>   ("PoissonCorrection");
-        PoissonCorrectionCycle  = config.read<int>      ("PoissonCorrectionCycle",10);
+        //* Poisson correction
+        PoissonCorrection           = config.read<string>   ("PoissonCorrection");
+        PoissonCorrectionCycle      = config.read<int>      ("PoissonCorrectionCycle",10);
         
-        RemoveDivE                  = config.read<string>("RemoveDivE","no");
-        AddExternalCurlB            = config.read<bool>  ("AddExternalCurlB",false);
-        AddExternalCurlE            = config.read<bool>  ("AddExternalCurlE",false);
-        EnergyConservingSmoothing   = config.read<bool>  ("EnergyConservingSmoothing",false);
-        LangdonCorrection           = config.read<double>("LangdonCorrection", 0);
-        CurlCurl                    = config.read<bool>  ("CurlCurl",false);
-        ExactMM                     = config.read<bool>  ("ExactMM",true);
+        //* Parameters for charge conservation (changing is not recommended)
+        PoissonMArho                = config.read<double>   ("PoissonMArho", 0.01);
+        PoissonMAdiv                = config.read<double>   ("PoissonMAdiv", 1.0);
+        PoissonMAres                = config.read<double>   ("PoissonMAres", 0.01);
+        
+        RemoveDivE                  = config.read<string>   ("RemoveDivE","no");
+        AddExternalCurlB            = config.read<bool>     ("AddExternalCurlB",false);
+        AddExternalCurlE            = config.read<bool>     ("AddExternalCurlE",false);
+        EnergyConservingSmoothing   = config.read<bool>     ("EnergyConservingSmoothing",false);
+        LangdonCorrection           = config.read<double>   ("LangdonCorrection", 0);
+        CurlCurl                    = config.read<bool>     ("CurlCurl",false);
+        ExactMM                     = config.read<bool>     ("ExactMM",true);
 
         rhoINIT = std::make_unique<double[]>(ns);
         array_double rhoINIT0 = config.read < array_double > ("rhoINIT");
@@ -211,11 +217,10 @@ void Collective::ReadInput(string inputfile)
         CallFinalize = config.read < bool >("CallFinalize", true);
     }
 
-  //read everything from input file, if restart is true, overwrite the setting - bug fixing
-
-  restart_status = 0;
-  last_cycle = -1;
-  c = config.read < double >("c",1.0);
+    //* read everything from input file, if restart is true, overwrite the setting - bug fixing
+    restart_status = 0;
+    last_cycle = -1;
+    c = config.read < double >("c",1.0);
 
 #ifdef BATSRUS
   // set grid size and resolution based on the initial file from fluid code
@@ -840,12 +845,10 @@ int Collective::ReadRestart(string inputfile) {
 
 
 
-void Collective::read_field_restart(
-    const VCtopology3D* vct,
-    const Grid* grid,
-    arr3_double Bxn, arr3_double Byn, arr3_double Bzn,
-    arr3_double Ex, arr3_double Ey, arr3_double Ez,
-    array4_double* rhons_, int ns)const
+void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
+                                    arr3_double Bxn, arr3_double Byn, arr3_double Bzn,
+                                    arr3_double Ex, arr3_double Ey, arr3_double Ez,
+                                    array4_double* rhons_, int ns)const
 {
 #ifdef NO_HDF5
   eprintf("Require HDF5 to read from restart file.");
@@ -1130,7 +1133,8 @@ void Collective::read_particles_restart(
 
 
 /*! constructor */
-Collective::Collective(int argc, char **argv) {
+Collective::Collective(int argc, char **argv) 
+{
   if (argc < 2) {
     inputfile = "inputfile";
     RESTART1 = false;
