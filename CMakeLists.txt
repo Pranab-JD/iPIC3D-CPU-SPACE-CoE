@@ -43,7 +43,7 @@ option(USE_CATALYST "Use Catalyst adaptor" OFF)
 option(USE_BATSRUS "Use BATSRUS flag" OFF)
 option(USE_HDF5 "Use HDF5 library" OFF)
 option(BENCH_MARK "Print tasks time" OFF)
-option(USE_OPENMP "Use OpenMP in support loops" OFF) # must delete all cmake cache if you change this option
+option(USE_OPENMP "Use OpenMP in support loops" ON) # must delete all cmake cache if you change this option
 
 include(GNUInstallDirs)
 
