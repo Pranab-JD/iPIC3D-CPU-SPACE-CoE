@@ -141,7 +141,7 @@ inline void eq(double *vect1, double *vect2, int n){
     vect1[i] = vect2[i];
 }
 
-//* Set a vector (arr3_double/arr4_double) to a value */
+//* Set a vector (arr3_double/arr4_double) to a value
 void eqValue(double value, arr3_double vect, int nx, int ny, int nz);
 void eqValue(double value, arr3_double vect, int nx, int ny);
 void eqValue(double value, arr3_double vect, int nx);

@@ -401,57 +401,58 @@ void eq(arr4_double vect1, const arr3_double vect2, int nx, int ny, int nz, int 
 
 }
 
-/** method to set a vector to a Value */
-void eqValue(double value, arr3_double vect, int nx, int ny, int nz) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      for (int k = 0; k < nz; k++)
-        vect.fetch(i,j,k) = value;
-
+//* Set a vector (arr3_double/arr4_double) to a value
+void eqValue(double value, arr3_double vect, int nx, int ny, int nz) 
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            for (int k = 0; k < nz; k++)
+                vect.fetch(i, j, k) = value;
 }
 
-/** method to set a vector to a Value */
-void eqValue(double value, arr3_double vect, int nx, int ny) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      vect.fetch(i,j,0) = value;
-
+void eqValue(double value, arr3_double vect, int nx, int ny) 
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            vect.fetch(i, j, 0) = value;
 }
-/** method to set a vector to a Value */
-void eqValue(double value, arr3_double vect, int nx) {
-  for (int i = 0; i < nx; i++)
-    vect.fetch(i,0,0) = value;
 
+void eqValue(double value, arr3_double vect, int nx) 
+{
+    for (int i = 0; i < nx; i++)
+        vect.fetch(i, 0, 0) = value;
 }
-/** method to set a vector to a Value */
-void eqValue(double value, arr4_double vect, int ns, int nx, int ny, int nz) {
+
+void eqValue(double value, arr4_double vect, int ns, int nx, int ny, int nz) 
+{
     for (int s = 0; s < ns; s++)
         for (int i = 0; i < nx; i++)
             for (int j = 0; j < ny; j++)
                 for (int k = 0; k < nz; k++)
                     vect.fetch(s, i, j, k) = value;
-
 }
-/** method to set a vector to a Value */
-void eqValue(double value, arr4_double vect, int ns, int nx, int ny) {
+
+void eqValue(double value, arr4_double vect, int ns, int nx, int ny) 
+{
     for (int s = 0; s < ns; s++)
         for (int i = 0; i < nx; i++)
             for (int j = 0; j < ny; j++)
                 vect.fetch(s, i, j, 0) = value;
-
 }
-/** method to set a vector to a Value */
-void eqValue(double value, arr4_double vect, int ns, int nx) {
+
+void eqValue(double value, arr4_double vect, int ns, int nx) 
+{
     for (int s = 0; s < ns; s++)
         for (int i = 0; i < nx; i++)
             vect.fetch(s, i, 0, 0) = value;
+}
 
+void eqValue(double value, double *vect, int n) 
+{
+    for (int i = 0; i < n; i++)
+        vect[i] = value;
 }
-/** method to set a vector to a Value */
-void eqValue(double value, double *vect, int n) {
-  for (int i = 0; i < n; i++)
-    vect[i] = value;
-}
+
 /** method to put a column in a matrix 2D */
 void putColumn(double **Matrix, double *vect, int column, int n) {
   for (int i = 0; i < n; i++)
