@@ -2177,38 +2177,6 @@ void EMfields3D::calculateE(int cycle)
     eqValue(0.0, gradPHIX, nxn, nyn, nzn);
     eqValue(0.0, gradPHIY, nxn, nyn, nzn);
     eqValue(0.0, gradPHIZ, nxn, nyn, nzn);
-  
-    //* Divergence cleaning: Laplacian(PHI) = div(E) -4*PI*rho; correct electric field regularly to fulfill Gauss' law 
-    //TODO: Is this needed for ECSim? - Ask Fabio
-    if (PoissonCorrection && cycle%PoissonCorrectionCycle == 0) 
-    {
-        double *xkrylovPoisson = new double[(nxc - 2) * (nyc - 2) * (nzc - 2)];
-        double *bkrylovPoisson = new double[(nxc - 2) * (nyc - 2) * (nzc - 2)];
-        eqValue(0.0, xkrylovPoisson, (nxc - 2) * (nyc - 2) * (nzc - 2));
-
-        grid->divN2C(divE, Ex, Ey, Ez);
-        scale(tempC, rhoc, -FourPI, nxc, nyc, nzc);
-        sum(divE, tempC, nxc, nyc, nzc);
-        // move to krylov space
-        phys2solver(bkrylovPoisson, divE, nxc, nyc, nzc);
-
-        if (vct->getCartesian_rank() == 0) 
-            cout << "*** DIVERGENCE CLEANING using GMRes***" << endl;
-        
-        GMRES(&Field::PoissonImage, xkrylovPoisson, (nxc - 2) * (nyc - 2) * (nzc - 2), bkrylovPoisson, 20, 200, GMREStol, this);
-
-        solver2phys(PHI, xkrylovPoisson, nxc, nyc, nzc);
-        communicateCenterBC(nxc, nyc, nzc, PHI, 2, 2, 2, 2, 2, 2, vct,this);
-        // calculate the gradient
-        grid->gradC2N(gradPHIX, gradPHIY, gradPHIZ, PHI);
-        // sub
-        sub(Ex, gradPHIX, nxn, nyn, nzn);
-        sub(Ey, gradPHIY, nxn, nyn, nzn);
-        sub(Ez, gradPHIZ, nxn, nyn, nzn);
-
-        delete[]xkrylovPoisson;
-        delete[]bkrylovPoisson;
-    }                             // end of divergence cleaning
 
     if (vct->getCartesian_rank() == 0)
         cout << "*** MAXWELL SOLVER ***" << endl;
@@ -2372,18 +2340,18 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     }
 
     //* Poisson correction
-    if (col->getPoissonCorrection() == "yes") 
-    {
-        // Compute gradient        
-        grid->gradC2N(temp2X, temp2Y, temp2Z, Phic);
+    // if (col->getPoissonCorrection() == "yes") 
+    // {
+    //     // Compute gradient        
+    //     grid->gradC2N(temp2X, temp2Y, temp2Z, Phic);
     
-        //TODO: To be implemented later (BC_E_Poisson) - PJD
-        // BC_E_Poisson(vct, temp2X, temp2Y, temp2Z);
+    //     //TODO: To be implemented later (BC_E_Poisson) - PJD
+    //     // BC_E_Poisson(vct, temp2X, temp2Y, temp2Z);
         
-        addscale(-th, tempX, temp2X, nxn, nyn, nzn);  
-        addscale(-th, tempY, temp2Y, nxn, nyn, nzn);  
-        addscale(-th, tempZ, temp2Z, nxn, nyn, nzn);  
-    }
+    //     addscale(-th, tempX, temp2X, nxn, nyn, nzn);  
+    //     addscale(-th, tempY, temp2Y, nxn, nyn, nzn);  
+    //     addscale(-th, tempZ, temp2Z, nxn, nyn, nzn);  
+    // }
 
     //* Langdon correction (simpler alternative to divergence cleaning); A.B. Lagndon. CPC 70 447-450 (1992)
     if (col->getLangdonCorrection() != 0) 
@@ -2943,13 +2911,13 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
             //     //* 1D: smoothing only in the x 
             //     double alpha = (1.0 - smooth) / 2;
                 
-            //     //TODO: iteration variables are different: nx. ny, nz or nxn, nyn, nzn? - Ask Fabio
+            //     //TODO: Stick to nx, ny, nz 
             //     for (int i = 1; i < nx - 1; i++)
             //         for (int j = 1; j < ny - 1; j++)
-            //             for (int k = 1; k < nzn - 1; k++)
+            //             for (int k = 1; k < nz - 1; k++)
             //                 tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k));
 
-            //     for (int i = 1; i < nxn - 1; i++)
+            //     for (int i = 1; i < nx - 1; i++)
             //         for (int j = 1; j < nyn - 1; j++)
             //             for (int k = 1; k < nzn - 1; k++)
             //                 data.fetch(i, j, k) = tempX.get(i, 0, 0);
@@ -2959,13 +2927,13 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
             //     //* 2D: smoothing only in x and y
             //     double alpha = (1.0 - smooth) / 4;
                 
-            //     for (int i = 1; i < nx - 1; i++)
+            //     for (int i = 1; i < ny - 1; i++)
             //         for (int j = 1; j < ny - 1; j++)
             //             for (int k = 1; k < nzn - 1; k++)
             //                 tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
             //                                                                            + data.get(i, j - 1, k) + data.get(i, j + 1, k));
                 
-            //     for (int i = 1; i < nxn - 1; i++)
+            //     for (int i = 1; i < nz - 1; i++)
             //         for (int j = 1; j < nyn - 1; j++)
             //             for (int k = 1; k < nzn - 1; k++)
             //                 data.fetch(i, j, k) = tempX.get(i, j, 0);
@@ -3679,16 +3647,16 @@ void EMfields3D::communicateGhostP2G(int ns)
     // add the values for the shared nodes
 
     //* Call NonBlocking Halo Exchange + Interpolation
-    communicateInterp(nxn, nyn, nzn, moment0, vct,this);
-    communicateInterp(nxn, nyn, nzn, moment1, vct,this);
-    communicateInterp(nxn, nyn, nzn, moment2, vct,this);
-    communicateInterp(nxn, nyn, nzn, moment3, vct,this);
-    communicateInterp(nxn, nyn, nzn, moment4, vct,this);
-    communicateInterp(nxn, nyn, nzn, moment5, vct,this);
-    communicateInterp(nxn, nyn, nzn, moment6, vct,this);
-    communicateInterp(nxn, nyn, nzn, moment7, vct,this);
-    communicateInterp(nxn, nyn, nzn, moment8, vct,this);
-    communicateInterp(nxn, nyn, nzn, moment9, vct,this);
+    communicateInterp(nxn, nyn, nzn, moment0, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment1, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment2, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment3, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment4, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment5, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment6, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment7, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment8, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment9, vct, this);
     // calculate the correct densities on the boundaries
     adjustNonPeriodicDensities(ns);
 
@@ -3895,7 +3863,7 @@ void EMfields3D::setZeroPrimaryMoments()
 
 }
 
-//? Set all moments to zero */
+//? Set all moments to zero
 void EMfields3D::setZeroDensities() 
 {
     setZeroDerivedMoments();
@@ -3903,17 +3871,12 @@ void EMfields3D::setZeroDensities()
     setZeroMassMatrix();
 }
 
-void EMfields3D::setZeroRho(int i0) 
+//? Set densities (at nodes and cell centres) of all species to 0
+void EMfields3D::setZeroRho() 
 {
-    //* Iterate over species
-    //TODO: How to get only the first element from array4_double? - PJD
-    //TODO: Why loop over the Can I set everything to 0? - Ask Fabio 
-    for (int i = i0; i < ns; i++) 
-    {
-        // eqValue(0.0, rhons[i], nxn, nyn, nzn);
-        // eqValue(0.0, rhocs[i], nxc, nyc, nzc);
-    }
-    eqValue(0.0, Nns, ns, nxn, nyn, nzn);
+    eqValue(0.0, rhocs, nxc, nyc, nzc);     //* Rho, for each species, at cell centres
+    eqValue(0.0, rhons, nxn, nyn, nzn);     //* Rho, for each species, at nodes
+    eqValue(0.0, Nns, ns, nxn, nyn, nzn);   //*
 }
 
 //* Sum charge density of different species on NODES *//
@@ -3967,9 +3930,6 @@ void EMfields3D::interpolateCenterSpecies()
     const Grid *grid = &get_grid();
     const VirtualTopology3D * vct = &get_vct();
 
-    grid->interpN2C(rhoc, rhon);
-    communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct, this);
-
     //TODO: Communication for 4D array is not included (not for all functions in ECSim) Why? - Ask Fabio
     // for (int is = 0; is < ns; is++) 
     // {
@@ -3998,6 +3958,7 @@ void EMfields3D::setZeroCurrent()
                 }
             }
 
+    //TODO: communicateInterp and communicateNode_P does not support array3_double; *** neeeded - Ask Andong
     communicateInterp(nxn, nyn, nzn, Jx_ext, vct, this);
     communicateInterp(nxn, nyn, nzn, Jy_ext, vct, this);
     communicateInterp(nxn, nyn, nzn, Jz_ext, vct, this);
