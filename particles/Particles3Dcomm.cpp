@@ -1900,7 +1900,7 @@ void Particles3Dcomm::computeMoments(Field * EMf)
                     temp[ii] = q[pidx] * weights[ii];
                 EMf->add_Rho(weights, ix, iy, iz, ns);
             #else 
-                if (ns == 1)        // TODO: What is this? Ask Fabio
+                if (ns == 1)        // TODO: Clarify: The else statement is not needed, right? Ask Fabio
                 {
                     for (int ii = 0; ii < 8; ii++)
                         temp[ii] = q[pidx] * weights[ii];

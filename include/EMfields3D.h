@@ -346,7 +346,7 @@ public:
     bool getPCnonzero();
 
     void setZeroCurrent();
-    void setZeroRho(int i0);
+    void setZeroRho();
 
     /*! fetch array for summing moments of thread i */
     Moments10& fetch_moments10Array(int i)
@@ -473,7 +473,7 @@ private:
     //? Current density (defined at nodes)
     array3_double Jx, Jy, Jz;
 
-    //? Implcit current density 
+    //? Implicit current density 
     array3_double Jxh, Jyh, Jzh;
 
     //? External magnetic field (defined at cell centres)

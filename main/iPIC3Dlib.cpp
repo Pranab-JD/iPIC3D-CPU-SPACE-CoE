@@ -338,10 +338,9 @@ void c_Solver::CalculateMoments()
         }
     }
 
+    //? Set all moments and mass/charge densities to 0
     EMf->setZeroDensities();
-
-    // TODO: Do we need (0) and (1) separately? - Ask Fabio
-    EMf->setZeroRho(0);
+    EMf->setZeroRho();
 
     //? Interpolate Particles to grid (nodes)
     for (int i = 0; i < ns; i++)
@@ -353,12 +352,6 @@ void c_Solver::CalculateMoments()
     //* Sum all over the species (mass and charge density)
     EMf->sumOverSpecies();
     EMf->interpolateCenterSpecies();
-    
-    // TODO: These following 2 lines are in both sumOverSpecies() and interpolateCenterSpecies(). Do we need these twice? - Ask Fabio
-    // TODO:    grid->interpN2C(rhoc, rhon);
-    // TODO:    communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct);
-
-    //TODO: Communication for 4D array (EMf->interpolateCenterSpecies(), setZeroRho(0)) is not included (not for all functions in ECSim) Why? - Ask Fabio
 
     EMf->timeAveragedRho(col->getPoissonMArho());
 	EMf->timeAveragedDivE(col->getPoissonMAdiv());
@@ -387,25 +380,17 @@ void c_Solver::ComputeEMFields(int cycle)
     // if (col->getLambdaDamping() == "piston")
 		// EMf->evolveLambda(vct, grid, col, piston);
 
-    //TODO: Only needed for the cases "Shock1D_DoublePiston" and "LangevinAntenna" - Should I implement this? Ask Fabio
+    //TODO: Only needed for the cases "Shock1D_DoublePiston" and "LangevinAntenna"; TBD later
 	//* Update external fields to n+1/2
 	// EMf->updateExternalFields(vct, grid, col, cycle); 
 
-    //TODO: Only needed for the cases "ForcedDynamo" - Should I implement this? Ask Fabio
+    //TODO: Only needed for the cases "ForcedDynamo"; TBD later
 	//* Update particle external forces to n+1/2
 	// EMf->updateParticleExternalForces(vct, grid, col, cycle); 
 
     //? Compute E and B fields
     EMf->calculateE(cycle);
     EMf->calculateB();
-
-    //TODO: TBD later
-    // Impose MHD Buffer Zone
-    // if (col->getCase()=="MHDUCLA" || col->getCase()=="AnnularHarris" || col->getCase()=="GEM" || col->getCase()=="Discontinuity" || col->getCase()=="ForceFree") 
-    // {
-    //     if (col->getLambdaField() == "yes")
-    //         EMf->setMHDBufferZone(grid, vct, col);
-    // }
 
     //* Compute divergence of E and B and accessory variable
 	EMf->timeAveragedDivE(col->getPoissonMAdiv());
