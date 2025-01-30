@@ -20,8 +20,9 @@
 
 #include "Com3DNonblk.h"
 
-//isCenterFlag: 1 communicateCenter; 0 communicateNode
-void NBDerivedHaloComm(int nx, int ny, int nz, double ***vector,const VirtualTopology3D * vct, EMfields3D *EMf,bool isCenterFlag, bool isFaceOnlyFlag, bool needInterp, bool isParticle)
+//! isCenterFlag: 1 = communicateCenter; 0 = communicateNode
+void NBDerivedHaloComm(int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct, EMfields3D *EMf,
+                        bool isCenterFlag, bool isFaceOnlyFlag, bool needInterp, bool isParticle)
 {
     const MPI_Comm comm       = isParticle ?vct->getParticleComm()      :vct->getFieldComm();
 #ifdef DEBUG
