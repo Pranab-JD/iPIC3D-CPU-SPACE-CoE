@@ -81,33 +81,33 @@ class Collective
     void save();
 
     // accessors
-    //
-    int getDim()const{ return (dim); }
-    double getLx()const{ return (Lx); }
-    double getLy()const{ return (Ly); }
-    double getLz()const{ return (Lz); }
-    double getx_center()const{ return (x_center); }
-    double gety_center()const{ return (y_center); }
-    double getz_center()const{ return (z_center); }
-    double getL_square()const{ return (L_square); }
-    int getNxc()const{ return (nxc); }
-    int getNyc()const{ return (nyc); }
-    int getNzc()const{ return (nzc); }
-    int getXLEN()const{ return (XLEN); }
-    int getYLEN()const{ return (YLEN); }
-    int getZLEN()const{ return (ZLEN); }
-    bool getPERIODICX()const{ return (PERIODICX); }
-    bool getPERIODICY()const{ return (PERIODICY); }
-    bool getPERIODICZ()const{ return (PERIODICZ); }
-    bool getPERIODICX_P()const{ return (PERIODICX_P); }
-    bool getPERIODICY_P()const{ return (PERIODICY_P); }
-    bool getPERIODICZ_P()const{ return (PERIODICZ_P); }
-    double getDx()const{ return (dx); }
-    double getDy()const{ return (dy); }
-    double getDz()const{ return (dz); }
-    double getC()const{ return (c); }
-    double getDt()const{ return (dt); }
-    double getTh()const{ return (th); }
+    int getDim()                        const{ return (dim); }
+    double getLx()                      const{ return (Lx); }
+    double getLy()                      const{ return (Ly); }
+    double getLz()                      const{ return (Lz); }
+    double getx_center()                const{ return (x_center); }
+    double gety_center()                const{ return (y_center); }
+    double getz_center()                const{ return (z_center); }
+    double getL_square()                const{ return (L_square); }
+    int getNxc()                        const{ return (nxc); }
+    int getNyc()                        const{ return (nyc); }
+    int getNzc()                        const{ return (nzc); }
+    int getXLEN()                       const{ return (XLEN); }
+    int getYLEN()                       const{ return (YLEN); }
+    int getZLEN()                       const{ return (ZLEN); }
+    bool getPERIODICX()                 const{ return (PERIODICX); }
+    bool getPERIODICY()                 const{ return (PERIODICY); }
+    bool getPERIODICZ()                 const{ return (PERIODICZ); }
+    bool getPERIODICX_P()               const{ return (PERIODICX_P); }
+    bool getPERIODICY_P()               const{ return (PERIODICY_P); }
+    bool getPERIODICZ_P()               const{ return (PERIODICZ_P); }
+    double getDx()                      const{ return (dx); }
+    double getDy()                      const{ return (dy); }
+    double getDz()                      const{ return (dz); }
+    double getC()                       const{ return (c); }
+    double getDt()                      const{ return (dt); }
+    double getTh()                      const{ return (th); }
+    
     double getPushWithBatTime()const{ return PushWithBatTime; }
     double getPushWithEatTime()const{ return PushWithEatTime; }
     double getImplSusceptTime()const{ return ImplSusceptTime; }
@@ -166,51 +166,52 @@ class Collective
     double getB1z()const{ return (B1z); }
     //bool getVerbose()const{ return (verbose); }
     //bool getTrackParticleID(int nspecies)const{ return (TrackParticleID[nspecies]); }
-    int getRestart_status()const{ return (restart_status); }
-    string getSaveDirName()const{ return (SaveDirName); }
-    string getRestartDirName()const{ return (RestartDirName); }
-    string getinputfile()const{ return (inputfile); }
-    string getCase()const{ return (Case); }
-    string getSimName()const{ return (SimName); }
-    string getWriteMethod()const{ return (wmethod); }
-    string getFieldOutputTag()const{return FieldOutputTag;}
-    string getMomentsOutputTag()const{return MomentsOutputTag;}
-    string getPclOutputTag()const{return ParticlesOutputTag;}
-    string getPoissonCorrection()const{ return (PoissonCorrection); }
-    int getPoissonCorrectionCycle()const{ return (PoissonCorrectionCycle); }
-    int getLast_cycle()const{ return (last_cycle); }
-    double getVinj()const{ return (Vinj); }
-    double getCGtol()const{ return (CGtol); }
-    double getGMREStol()const{ return (GMREStol); }
-    int getNiterMover()const{ return (NiterMover); }
-    int getFieldOutputCycle()const{ return (FieldOutputCycle); }
-    int getParticlesOutputCycle()const{ return (ParticlesOutputCycle); }
-    int getTestParticlesOutputCycle()const{ return (TestParticlesOutputCycle); }
-    int getRestartOutputCycle()const{ return (RestartOutputCycle); }
-    int getDiagnosticsOutputCycle()const{ return (DiagnosticsOutputCycle); }
-    bool getCallFinalize()const{ return (CallFinalize); }
-    bool particle_output_is_off()const;
-    bool testparticle_output_is_off()const;
-    bool field_output_is_off()const;
+    int getRestart_status()             const{ return (restart_status); }
+    string getSaveDirName()             const{ return (SaveDirName); }
+    string getRestartDirName()          const{ return (RestartDirName); }
+    string getinputfile()               const{ return (inputfile); }
+    string getCase()                    const{ return (Case); }
+    string getSimName()                 const{ return (SimName); }
+    string getWriteMethod()             const{ return (wmethod); }
+    string getFieldOutputTag()          const{ return FieldOutputTag;}
+    string getMomentsOutputTag()        const{ return MomentsOutputTag;}
+    string getPclOutputTag()            const{ return ParticlesOutputTag;}
+    string getPoissonCorrection()       const{ return (PoissonCorrection); }
+    double getVinj()                    const{ return (Vinj); }
+    double getCGtol()                   const{ return (CGtol); }
+    double getGMREStol()                const{ return (GMREStol); }
+    int getPoissonCorrectionCycle()     const{ return (PoissonCorrectionCycle); }
+    int getLast_cycle()                 const{ return (last_cycle); }
+    int getNiterMover()                 const{ return (NiterMover); }
+    int getFieldOutputCycle()           const{ return (FieldOutputCycle); }
+    int getParticlesOutputCycle()       const{ return (ParticlesOutputCycle); }
+    int getTestParticlesOutputCycle()   const{ return (TestParticlesOutputCycle); }
+    int getRestartOutputCycle()         const{ return (RestartOutputCycle); }
+    int getDiagnosticsOutputCycle()     const{ return (DiagnosticsOutputCycle); }
+    
+    bool getCallFinalize()              const{ return (CallFinalize); }
+    bool particle_output_is_off()       const;
+    bool testparticle_output_is_off()   const;
+    bool field_output_is_off()          const;
 
     //? ECSim functions
-    bool getAddExternalCurlB()           const { return AddExternalCurlB; }
-    bool getAddExternalCurlE()           const { return AddExternalCurlE; }
-    bool getEnergyConservingSmoothing()  const { return EnergyConservingSmoothing; }
-    bool getCurlCurl()                   const { return CurlCurl; }
-    bool getExactMM()                    const { return ExactMM; }
-    string getRemoveDivE()               const { return RemoveDivE; }
-    double getLangdonCorrection()        const { return LangdonCorrection; }
+    bool getAddExternalCurlB()          const { return AddExternalCurlB; }
+    bool getAddExternalCurlE()          const { return AddExternalCurlE; }
+    bool getEnergyConservingSmoothing() const { return EnergyConservingSmoothing; }
+    bool getCurlCurl()                  const { return CurlCurl; }
+    bool getExactMM()                   const { return ExactMM; }
+    string getRemoveDivE()              const { return RemoveDivE; }
+    double getLangdonCorrection()       const { return LangdonCorrection; }
 
     //* Parameters for charge conservation
-    double Collective::getPoissonMArho() const { return PoissonMArho;}
-    double Collective::getPoissonMAdiv() const { return PoissonMAdiv;}
-    double Collective::getPoissonMAres() const { return PoissonMAres;}
+    double getPoissonMArho()            const { return PoissonMArho;}
+    double getPoissonMAdiv()            const { return PoissonMAdiv;}
+    double getPoissonMAres()            const { return PoissonMAres;}
 
-    int getZeroCurrent()                       { return zeroCurrent; }
-    int getSmoothCycle()                 const { return SmoothCycle; }
-    int getCurrentCycle()                const { return CurrentCycle; }
-    void setCurrentCycle(int cycle)            { CurrentCycle = cycle; }
+    int getZeroCurrent()                      { return zeroCurrent; }
+    int getSmoothCycle()                const { return SmoothCycle; }
+    int getCurrentCycle()               const { return CurrentCycle; }
+    void setCurrentCycle(int cycle)           { CurrentCycle = cycle; }
     
     /*! Boundary condition selection for BCFace for the electric field components */
     int bcEx[6], bcEy[6], bcEz[6];
