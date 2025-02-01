@@ -41,7 +41,9 @@ void NBDerivedHaloComm(int nx, int ny, int nz, double ***vector, const VirtualTo
     const int left_neighborY  = isParticle ?vct->getYleft_neighbor_P()  :vct->getYleft_neighbor();
     const int right_neighborZ = isParticle ?vct->getZright_neighbor_P() :vct->getZright_neighbor();
     const int left_neighborZ  = isParticle ?vct->getZleft_neighbor_P()  :vct->getZleft_neighbor();
+    
     bool isCenterDim = (isCenterFlag&&!needInterp);//This is to address moment interp use nodes dimension but exchange center face
+    
     const MPI_Datatype yzFacetype = EMf->getYZFacetype(isCenterDim);
     const MPI_Datatype xzFacetype = EMf->getXZFacetype(isCenterDim);
     const MPI_Datatype xyFacetype = EMf->getXYFacetype(isCenterDim);
@@ -57,27 +59,33 @@ void NBDerivedHaloComm(int nx, int ny, int nz, double ***vector, const VirtualTo
     //Face Exchange as long as neighbor exits on that direction
     //Tag is based on the sender: XL for sender = XR for receiver
     //Post Recv before Send
-    if(left_neighborX != MPI_PROC_NULL && left_neighborX != myrank ){
+    if(left_neighborX != MPI_PROC_NULL && left_neighborX != myrank)
+    {
         MPI_Irecv(&vector[0][1][1], 1, yzFacetype, left_neighborX,tag_XR, comm, &reqList[recvcnt++]);
         communicationCnt[0] = 1;
     }
-    if(right_neighborX != MPI_PROC_NULL && right_neighborX != myrank ){
+    if(right_neighborX != MPI_PROC_NULL && right_neighborX != myrank)
+    {
         MPI_Irecv(&vector[nx-1][1][1], 1, yzFacetype, right_neighborX,tag_XL, comm, &reqList[recvcnt++]);
         communicationCnt[1] = 1;
     }
-    if(left_neighborY != MPI_PROC_NULL && left_neighborY != myrank ){
+    if(left_neighborY != MPI_PROC_NULL && left_neighborY != myrank)
+    {
         MPI_Irecv(&vector[1][0][1], 1, xzFacetype, left_neighborY,tag_YR, comm, &reqList[recvcnt++]);
         communicationCnt[2] = 1;
     }
-    if(right_neighborY != MPI_PROC_NULL && right_neighborY != myrank ){
+    if(right_neighborY != MPI_PROC_NULL && right_neighborY != myrank)
+    {
         MPI_Irecv(&vector[1][ny-1][1], 1, xzFacetype, right_neighborY,tag_YL, comm, &reqList[recvcnt++]);
         communicationCnt[3] = 1;
     }
-    if(left_neighborZ != MPI_PROC_NULL && left_neighborZ != myrank ){
+    if(left_neighborZ != MPI_PROC_NULL && left_neighborZ != myrank)
+    {
         MPI_Irecv(&vector[1][1][0],    1, xyFacetype, left_neighborZ,tag_ZR, comm, &reqList[recvcnt++]);
         communicationCnt[4] = 1;
     }
-    if(right_neighborZ != MPI_PROC_NULL&& right_neighborZ != myrank ){
+    if(right_neighborZ != MPI_PROC_NULL&& right_neighborZ != myrank)
+    {
         MPI_Irecv(&vector[1][1][nz-1], 1, xyFacetype, right_neighborZ,tag_ZL, comm, &reqList[recvcnt++]);
         communicationCnt[5] = 1;
     }
@@ -86,67 +94,72 @@ void NBDerivedHaloComm(int nx, int ny, int nz, double ***vector, const VirtualTo
 
     int offset = (isCenterFlag ?0:1);
 
-    if(communicationCnt[0] == 1){
+    if(communicationCnt[0] == 1)
         MPI_Isend(&vector[1+offset][1][1],    1, yzFacetype, left_neighborX, tag_XL, comm, &reqList[sendcnt++]);
-    }
-    if(communicationCnt[1] == 1){
+    if(communicationCnt[1] == 1)
         MPI_Isend(&vector[nx-2-offset][1][1], 1, yzFacetype, right_neighborX,tag_XR, comm, &reqList[sendcnt++]);
-    }
-    if(communicationCnt[2] == 1){
+    if(communicationCnt[2] == 1)
         MPI_Isend(&vector[1][1+offset][1],    1, xzFacetype, left_neighborY, tag_YL, comm, &reqList[sendcnt++]);
-    }
-    if(communicationCnt[3] == 1){
+    if(communicationCnt[3] == 1)
         MPI_Isend(&vector[1][ny-2-offset][1], 1, xzFacetype, right_neighborY,tag_YR, comm, &reqList[sendcnt++]);
-    }
-    if(communicationCnt[4] == 1){
+    if(communicationCnt[4] == 1)
         MPI_Isend(&vector[1][1][1+offset],    1, xyFacetype, left_neighborZ, tag_ZL, comm, &reqList[sendcnt++]);
-    }
-    if(communicationCnt[5] == 1){
+    if(communicationCnt[5] == 1)
         MPI_Isend(&vector[1][1][nz-2-offset], 1, xyFacetype, right_neighborZ,tag_ZR, comm, &reqList[sendcnt++]);
-    }
+
     assert_eq(recvcnt,sendcnt-recvcnt);
 
     //Buffer swap if any (done before waiting for receiving msg done to delay sync)
-    if (right_neighborX == myrank &&  left_neighborX== myrank){
+    if (right_neighborX == myrank &&  left_neighborX== myrank)
+    {
         for (int iy = 1; iy < ny-1; iy++)
-            for (int iz = 1; iz < nz-1; iz++) {
+            for (int iz = 1; iz < nz-1; iz++) 
+            {
                 vector[0][iy][iz] = vector[nx-2][iy][iz];
                 vector[nx-1][iy][iz] = vector[1][iy][iz];
             }
     }
-    if (right_neighborY == myrank &&  left_neighborY == myrank){
+    if (right_neighborY == myrank &&  left_neighborY == myrank)
+    {
         for (int ix = 1; ix < nx-1; ix++)
-            for (int iz = 1; iz < nz-1; iz++) {
+            for (int iz = 1; iz < nz-1; iz++) 
+            {
                 vector[ix][0][iz] = vector[ix][ny-2][iz];
                 vector[ix][ny-1][iz] = vector[ix][1][iz];
             }
     }
-    if (right_neighborZ == myrank &&  left_neighborZ == myrank){
+    if (right_neighborZ == myrank &&  left_neighborZ == myrank)
+    {
         for (int ix = 1; ix < nx-1; ix++)
-            for (int iy = 1; iy < ny-1; iy++) {
+            for (int iy = 1; iy < ny-1; iy++) 
+            {
                 vector[ix][iy][0]    = vector[ix][iy][nz-2];
                 vector[ix][iy][nz-1] = vector[ix][iy][1];
             }
     }
 
-    //Need to finish receiving + sending before edge exchange
-    if(sendcnt>0){
+    //* Need to finish receiving + sending before edge exchange
+    if(sendcnt>0)
+    {
         MPI_Waitall(sendcnt,  &reqList[0], &stat[0]);
         bool stopFlag = false;
         for(int si=0;si< sendcnt;si++){
             int error_code = stat[si].MPI_ERROR;
-            if (error_code != MPI_SUCCESS) {
+            if (error_code != MPI_SUCCESS) 
+            {
                 stopFlag = true;
-#ifdef DEBUG
-                char error_string[100];
-                int length_of_error_string, error_class;
+                
+                #ifdef DEBUG
+                    char error_string[100];
+                    int length_of_error_string, error_class;
 
-                MPI_Error_class(error_code, &error_class);
-                MPI_Error_string(error_class, error_string, &length_of_error_string);
-                dprintf("MPI_Waitall error at %d  %s\n",si, error_string);
-#endif
+                    MPI_Error_class(error_code, &error_class);
+                    MPI_Error_string(error_class, error_string, &length_of_error_string);
+                    dprintf("MPI_Waitall error at %d  %s\n",si, error_string);
+                #endif
             }
         }
+        
         if(stopFlag) exit (EXIT_FAILURE);
     }
 
@@ -546,12 +559,6 @@ void communicateNodeBC_P(int nx, int ny, int nz, arr3_double _vector,
 	BCface_P(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
 }
 
-void communicateNode_P(int nx, int ny, int nz, double*** vector,
-                        const VirtualTopology3D * vct, EMfields3D *EMf)
-{
-	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false,false,false,true);
-}
-
 
 void communicateCenterBC(int nx, int ny, int nz, arr3_double _vector,
                         int bcFaceXrght, int bcFaceXleft,
@@ -730,7 +737,21 @@ void addCorner(int nx, int ny, int nz, double ***vector,const VirtualTopology3D 
 
 }
 /** communicate and sum shared ghost cells */
+
+//! Used for communicating moments
 void communicateInterp(int nx, int ny, int nz, double*** vector, const VirtualTopology3D * vct, EMfields3D *EMf)
 {
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true,false,true,true);
 }
+
+void communicateNode_P(int nx, int ny, int nz, double*** vector, const VirtualTopology3D * vct, EMfields3D *EMf)
+{
+	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false,false,false,true);
+}
+
+
+// void communicateInterp(int nx, int ny, int nz, array3_double _vector, const VirtualTopology3D * vct, EMfields3D *EMf)
+// {
+//     double ***vector=_vector.fetch_arr3();
+// 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true, false, true, true);
+// }
