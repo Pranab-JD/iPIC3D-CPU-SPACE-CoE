@@ -158,8 +158,13 @@ public:
 
     /*! copy the field data to the array used to move the particles */
     void set_fieldForPcls();
-    /*! communicate ghost for grid -> Particles interpolation */
+    
+    //* Communicate ghost cells for grid -> particles interpolation - IMM
     void communicateGhostP2G(int ns);
+
+    //* Communicate ghost cells for grid -> particles interpolation - ECSIM
+    void communicateGhostP2G_ecsim(int ns);
+
     /*! sum moments (interp_P2G) versions */
     void sumMoments(const Particles3Dcomm* part);
     void sumMoments_AoS(const Particles3Dcomm* part);
@@ -178,7 +183,7 @@ public:
     void add_Jyh(double weight[8], int X, int Y, int Z, int is);
     void add_Jzh(double weight[8], int X, int Y, int Z, int is);
 
-    inline void add_Mass(double value[3][3], int X, int Y, int Z, int ind);
+    void add_Mass(double value[3][3], int X, int Y, int Z, int ind);
 
     // /*! add an amount of pressure density - direction XX to current density field at node X,Y,Z */
     // void addPxx(double weight[][2][2], int X, int Y, int Z, int is);
@@ -327,9 +332,7 @@ public:
     //* Residual of DivE on cell centers *//
     double getResDiv(int X, int Y, int Z, int is) const { return resdiv.get(is, X, Y, Z); }
     // arr3_double getResDiv(int is) { return resdiv.get(is); }
-
-    void addMass(double value[3][3], int X, int Y, int Z, int ind);
-    void addMassXX(double value, int X, int Y, int Z, int ind);
+    //TODO: get 3D array corresponding to 1st element
 
     void divergenceOfE(double ma);
     void divergenceOfB();
@@ -707,7 +710,7 @@ inline void EMfields3D::add_Jzh(double weight[8], int X, int Y, int Z, int is)
 // }
 
 //* Add an amount of current density to mass matrix field at node X,Y *//
-void EMfields3D::add_Mass(double value[3][3], int X, int Y, int Z, int ind) 
+inline void EMfields3D::add_Mass(double value[3][3], int X, int Y, int Z, int ind) 
 {
     Mxx[ind][X][Y][Z] += value[0][0];
     Mxy[ind][X][Y][Z] += value[0][1];
