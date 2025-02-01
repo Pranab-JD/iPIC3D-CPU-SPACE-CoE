@@ -1892,41 +1892,32 @@ void Particles3Dcomm::computeMoments(Field * EMf)
 
             //* --------------------------------------- *//
 
-            double temp[8];
+            double temp[8];         //* Temporary variable used to add densitiy and current density
             
-            //* Add charge density   
-            #ifndef _CHARGE_FROM_CURRENT_                
-                for (int ii = 0; ii < 8; ii++)
-                    temp[ii] = q[pidx] * weights[ii];
-                EMf->add_Rho(weights, ix, iy, iz, ns);
-            #else 
-                if (ns == 1)        // TODO: Clarify: The else statement is not needed, right? Ask Fabio
-                {
-                    for (int ii = 0; ii < 8; ii++)
-                        temp[ii] = q[pidx] * weights[ii];
-                    EMf->add_Rho(weights, ix, iy, iz, ns);
-                }
-            #endif
+            //* Add charge density                 
+            for (int ii = 0; ii < 8; ii++)
+                temp[ii] = q[pidx] * weights[ii];
+            EMf->add_Rho(temp, ix, iy, iz, ns);
 
             //* Add implicit current density - X
             for (int ii = 0; ii < 8; ii++)
                     temp[ii] = qau * weights[ii];
-            EMf->add_Jxh(weights, ix, iy, iz, ns);
+            EMf->add_Jxh(temp, ix, iy, iz, ns);
 
             //* Add implicit current density - Y
             for (int ii = 0; ii < 8; ii++)
                     temp[ii] = qav * weights[ii];
-            EMf->add_Jyh(weights, ix, iy, iz, ns);
+            EMf->add_Jyh(temp, ix, iy, iz, ns);
 
             //* Add implicit current density - Z
             for (int ii = 0; ii < 8; ii++)
                     temp[ii] = qaw * weights[ii];
-            EMf->add_Jzh(weights, ix, iy, iz, ns);
+            EMf->add_Jzh(temp, ix, iy, iz, ns);
 
             //? Compute exact Mass Matrix
             if(ComputeMM)
             {
-                #pragma omp master
+                // #pragma omp master
                 if (vct->getCartesian_rank() == 0)
                     cout << "*** Computing exact Mass Matrix ***" << endl;
                 
@@ -1959,14 +1950,14 @@ void Particles3Dcomm::computeMoments(Field * EMf)
                                     int index2 = i2 * 4 + j2 * 2 + k2; 
 
                                     //! If you encounter error, check if you get correct results by removing "c" in the following!
-                                    double qww = q[pidx] * qdto2mc * c * weight[index1] * weight[index2];
-                                    double val[3][3];
+                                    double qww = q[pidx] * qdto2mc * c * weights[index1] * weights[index2];
+                                    double value[3][3];
                                     
                                     for (int ind1 = 0; ind1 < 3; ind1++)
                                         for (int ind2 = 0; ind2 < 3; ind2++) 
-                                            val[ind1][ind2] = alpha[ind2][ind1]*qww;
+                                            value[ind1][ind2] = alpha[ind2][ind1]*qww;
 
-                                    EMf->addMass(val, ni, nj, nk, c);
+                                    EMf->add_Mass(value, ni, nj, nk, c);
                                 }
                             }
                         }
