@@ -347,7 +347,7 @@ void c_Solver::CalculateMoments()
 		part[i].computeMoments(EMf);
 
     //TODO: Implement this fully and correctly (for each species)
-    EMf->communicateGhostP2G(vct);
+    // EMf->communicateGhostP2G_ecsim(ns);
     
     //* Sum all over the species (mass and charge density)
     EMf->sumOverSpecies();

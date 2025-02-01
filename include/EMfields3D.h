@@ -129,8 +129,9 @@ public:
     void mass_matrix_times_vector(double* MEx, double* MEy, double* MEz, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int i, int j, int k);
 
     //* Energy-conserving smoothing
-    void energy_conserve_smooth(arr3_double data, int nx, int ny, int nz, int dir, double smooth);
     void energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, arr3_double data_Z, int nx, int ny, int nz);
+    void energy_conserve_smooth(arr3_double data, int nx, int ny, int nz, int dir, double smooth);
+    void energy_conserve_smooth_direction(arr3_double data, int nx, int ny, int nz, int dir, double smooth);
 
     /*! communicate ghost for densities and interp rho from node to center */
     void interpDensitiesN2C();
@@ -404,10 +405,13 @@ private:
     double dt;
     /*! decentering parameter */
     double th;
+    
     /*! Smoothing value */
     double Smooth;
-    int SmoothNiter;
-    int Nvolte;
+    int SmoothNiter;          // Frequency of smoothing (after every "SmoothNiter" time cycles)
+    int smooth_cycle;         // Frequency of smoothing (after every "smooth_cycle" time cycles)
+    int num_smoothings;       // Number of times of smoothing at a given time cycle
+    
     int zeroCurrent;
     /*! delt = c*th*dt */
     double delt;

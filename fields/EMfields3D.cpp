@@ -282,7 +282,8 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     delta = col->getDelta();
     Smooth = col->getSmooth();
     SmoothNiter = col->getSmoothNiter();
-    Nvolte = col->getNvolte();
+    smooth_cycle = col->getSmoothCycle();
+    num_smoothings = col->getNumSmoothings();
     
     rhoINIT = new double[ns];               //* Background density (GEM)
     DriftSpecies = new bool[ns];
@@ -2887,60 +2888,50 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
     eqValue(0.0, tempX, nxn, nyn, nzn);
     
     int bc[6];
-
-    if (dir == 0)      
-        for (int i=0; i<6; i++) 
-            bc[i] = col->bcEx[i];
-    else if (dir == 1) 
-        for (int i=0; i<6; i++) 
-            bc[i] = col->bcEy[i];
-    else if (dir == 2) 
-        for (int i=0; i<6; i++) 
-            bc[i] = col->bcEz[i];
+    if (dir == 0)      for (int i=0; i<6; i++) bc[i] = col->bcEx[i];
+    else if (dir == 1) for (int i=0; i<6; i++) bc[i] = col->bcEy[i];
+    else if (dir == 2) for (int i=0; i<6; i++) bc[i] = col->bcEz[i];
 
     if (smooth != 1.0)
     {    
-        //TODO: What is Nvolte? -- PJD
-        for (int icount = 1; icount < Nvolte + 1; icount++) 
+        for (int icount = 1; icount < num_smoothings + 1; icount++) 
         {
-            // double alpha;
             communicateNodeBoxStencilBC(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
 
-            // if (col->getNdim() == 1) 
-            // {   
-            //     //* 1D: smoothing only in the x 
-            //     double alpha = (1.0 - smooth) / 2;
-                
-            //     //TODO: Stick to nx, ny, nz 
-            //     for (int i = 1; i < nx - 1; i++)
-            //         for (int j = 1; j < ny - 1; j++)
-            //             for (int k = 1; k < nz - 1; k++)
-            //                 tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k));
+            if (col->getDim() == 0) 
+            {   
+                //* 1D: smoothing along X
+                double alpha = (1.0 - smooth) / 2;
 
-            //     for (int i = 1; i < nx - 1; i++)
-            //         for (int j = 1; j < nyn - 1; j++)
-            //             for (int k = 1; k < nzn - 1; k++)
-            //                 data.fetch(i, j, k) = tempX.get(i, 0, 0);
-            // } 
-            // else if (col->getNdim() == 2) 
-            // { 
-            //     //* 2D: smoothing only in x and y
-            //     double alpha = (1.0 - smooth) / 4;
-                
-            //     for (int i = 1; i < ny - 1; i++)
-            //         for (int j = 1; j < ny - 1; j++)
-            //             for (int k = 1; k < nzn - 1; k++)
-            //                 tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
-            //                                                                            + data.get(i, j - 1, k) + data.get(i, j + 1, k));
-                
-            //     for (int i = 1; i < nz - 1; i++)
-            //         for (int j = 1; j < nyn - 1; j++)
-            //             for (int k = 1; k < nzn - 1; k++)
-            //                 data.fetch(i, j, k) = tempX.get(i, j, 0);
-            // } 
-            // else 
+                for (int i = 1; i < nx - 1; i++)
+                    for (int j = 1; j < ny - 1; j++)
+                        for (int k = 1; k < nz - 1; k++)
+                            tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k));
+
+                for (int i = 1; i < nx - 1; i++)
+                    for (int j = 1; j < nyn - 1; j++)
+                        for (int k = 1; k < nzn - 1; k++)
+                            data.fetch(i, j, k) = tempX.get(i, 0, 0);
+            } 
+            else if (col->getDim() == 1) 
             { 
-                //* 3D: smoothing only in x and y
+                //* 2D: smoothing along X and Y
+                double alpha = (1.0 - smooth) / 4;
+                
+                for (int i = 1; i < ny - 1; i++)
+                    for (int j = 1; j < ny - 1; j++)
+                        for (int k = 1; k < nzn - 1; k++)
+                            tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
+                                                                                       + data.get(i, j - 1, k) + data.get(i, j + 1, k));
+                
+                for (int i = 1; i < nz - 1; i++)
+                    for (int j = 1; j < nyn - 1; j++)
+                        for (int k = 1; k < nzn - 1; k++)
+                            data.fetch(i, j, k) = tempX.get(i, j, 0);
+            } 
+            else 
+            { 
+                //* 3D: smoothing along X, Y, and Z
                 double alpha = (1.0 - smooth) / 6;
 
                 for (int i = 1; i < nx - 1; i++)
@@ -2950,11 +2941,57 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
                                                                                        + data.get(i, j - 1, k) + data.get(i, j + 1, k)
                                                                                        + data.get(i, j, k - 1) + data.get(i, j, k + 1));
                 
-                for (int i = 1; i < nxn - 1; i++)
-                    for (int j = 1; j < nyn - 1; j++)
-                        for (int k = 1; k < nzn - 1; k++)
+                for (int i = 1; i < nx - 1; i++)
+                    for (int j = 1; j < ny - 1; j++)
+                        for (int k = 1; k < nz - 1; k++)
                             data.fetch(i, j, k) = tempX.get(i, j, k);
             }
+        }
+    }
+}
+
+void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int ny, int nz, int dir, double smooth)
+{
+    const Collective *col = &get_col();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
+
+    //? Initialise temporary arrays with zeros
+    eqValue(0.0, tempX, nxn, nyn, nzn);
+
+    int bc[6];
+    if (dir == 0)      for (int i=0; i<6; i++) bc[i] = col->bcEx[i];
+    else if (dir == 1) for (int i=0; i<6; i++) bc[i] = col->bcEy[i];
+    else if (dir == 2) for (int i=0; i<6; i++) bc[i] = col->bcEz[i];
+
+    // TODO: the smoothing value is not used anywhere! Why? - Ask Fabio
+    // TODO: is directional smoothing preferred because if has fewer communications? - Ask Fabio
+    if (smooth != 1.0) 
+    {
+        communicateNodeBC(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
+
+        for (int icount = 1; icount < num_smoothings + 1; icount++) 
+        {
+            //? New way (without too many communications)
+            for (int i = 1; i < nx - 1; i++)
+                for (int j = 1; j < ny - 1; j++) 
+                    for (int k = 1; k < nz - 1; k++)
+                        tempX.fetch(i, j, k) = 0.015625 * (8.0 * data.get(i, j, k)
+                                                         + 4.0 *(data.get(i-1, j, k) + data.get(i+1, j, k)      //* Faces
+                                                         +       data.get(i, j-1, k) + data.get(i, j+1, k)      //* Faces
+                                                         +       data.get(i, j, k-1) + data.get(i, j, k+1))     //* Faces
+                                                         + 2.0 *(data.get(i-1, j-1, k) + data.get(i+1, j-1, k) + data.get(i-1, j+1, k) + data.get(i+1, j+1, k)      //* Edges
+                                                         +       data.get(i-1, j, k-1) + data.get(i+1, j, k-1) + data.get(i, j-1, k-1) + data.get(i, j+1, k-1)      //* Edges
+                                                         +       data.get(i-1, j, k+1) + data.get(i+1, j, k+1) + data.get(i, j-1, k+1) + data.get(i, j+1, k+1))     //* Edges
+                                                         + 1.0 *(data.get(i-1, j-1, k-1) + data.get(i+1, j-1, k-1) + data.get(i-1, j+1, k-1) + data.get(i+1, j+1, k-1)       //* Corners
+                                                         +       data.get(i-1, j-1, k+1) + data.get(i+1, j-1, k+1) + data.get(i-1, j+1, k+1) + data.get(i+1, j+1, k+1)));    //* Corners
+
+            for (int i = 1; i < nx - 1; i++)
+                for (int j = 1; j < ny - 1; j++)
+                    for (int k = 1; k < nz - 1; k++)
+                        data.fetch(i, j, k) = tempX.get(i, j, k);
+            
+            communicateNodeBC(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
         }
     }
 }
@@ -2966,16 +3003,24 @@ void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, 
     const Grid *grid = &get_grid();
 
     int current_cycle = col->getCurrentCycle();
-    int smooth_cycle = col->getSmoothCycle();
-    double smooth = col->getSmooth();
 
     //! Directional smoothing is not yet implemented
     if (smooth_cycle > 0 and current_cycle % smooth_cycle == 0) 
     {
-        //* Default: average with all the neighbours (6 neighbours in 3D, 4 in 2D and 2 in 1D)
-        energy_conserve_smooth(data_X, nx, ny, nz, 0, smooth);
-        energy_conserve_smooth(data_Y, nx, ny, nz, 1, smooth);
-        energy_conserve_smooth(data_Z, nx, ny, nz, 2, smooth);
+        if (col->getSmoothType() == "directional") 
+        {
+            //* Directional: First, smooth along X, then Y, and finally along Z (2 neighbours)
+            energy_conserve_smooth_direction(data_X, nx, ny, nz, 0, Smooth);
+            energy_conserve_smooth_direction(data_Y, nx, ny, nz, 1, Smooth);
+            energy_conserve_smooth_direction(data_Z, nx, ny, nz, 2, Smooth);
+        }
+        else
+        {
+            //* Default: average with all the neighbours (6 neighbours in 3D, 4 in 2D and 2 in 1D)
+            energy_conserve_smooth(data_X, nx, ny, nz, 0, Smooth);
+            energy_conserve_smooth(data_Y, nx, ny, nz, 1, Smooth);
+            energy_conserve_smooth(data_Z, nx, ny, nz, 2, Smooth);
+        }
     }
 }
 
@@ -3646,7 +3691,7 @@ void EMfields3D::communicateGhostP2G(int ns)
     double ***moment9 = convert_to_arr3(pZZsn[ns]);
     // add the values for the shared nodes
 
-    //* Call NonBlocking Halo Exchange + Interpolation
+    //* NonBlocking Halo Exchange for Interpolation
     communicateInterp(nxn, nyn, nzn, moment0, vct, this);
     communicateInterp(nxn, nyn, nzn, moment1, vct, this);
     communicateInterp(nxn, nyn, nzn, moment2, vct, this);
@@ -3657,12 +3702,11 @@ void EMfields3D::communicateGhostP2G(int ns)
     communicateInterp(nxn, nyn, nzn, moment7, vct, this);
     communicateInterp(nxn, nyn, nzn, moment8, vct, this);
     communicateInterp(nxn, nyn, nzn, moment9, vct, this);
-    // calculate the correct densities on the boundaries
+    
+    //* Calculate correct densities on the boundaries
     adjustNonPeriodicDensities(ns);
 
-    // populate the ghost nodes
-
-    //* Call Nonblocking Halo Exchange
+    //* Populate the ghost nodes - Nonblocking Halo Exchange
     communicateNode_P(nxn, nyn, nzn, moment0, vct, this);
     communicateNode_P(nxn, nyn, nzn, moment1, vct, this);
     communicateNode_P(nxn, nyn, nzn, moment2, vct, this);
@@ -3676,70 +3720,67 @@ void EMfields3D::communicateGhostP2G(int ns)
 }
 
 //TODO: Implement this correctly
-void EMfields3D::communicateGhostP2G(VirtualTopology3D * vct)
+void EMfields3D::communicateGhostP2G_ecsim(int ns)
 {
     const VirtualTopology3D * vct = &get_vct();
     int rank = vct->getCartesian_rank();
 
     // interpolate adding common nodes among processors
-    communicateInterp(nxn, nyn, nzn, Jxh, 0, 0, 0, 0, 0, 0, vct);
-    communicateInterp(nxn, nyn, nzn, Jyh, 0, 0, 0, 0, 0, 0, vct);
-    communicateInterp(nxn, nyn, nzn, Jzh, 0, 0, 0, 0, 0, 0, vct);
-    
-    for (int i=0; i<ns; i++) 
-    {
-        communicateInterp(nxn, nyn, nzn, i, Jxhs, 0, 0, 0, 0, 0, 0, vct);
-        communicateInterp(nxn, nyn, nzn, i, Jyhs, 0, 0, 0, 0, 0, 0, vct);
-        communicateInterp(nxn, nyn, nzn, i, Jzhs, 0, 0, 0, 0, 0, 0, vct);
-        
-        #ifndef _CHARGE_FROM_CURRENT_
-            communicateInterp(nxn, nyn, nzn, i, rhons, 0, 0, 0, 0, 0, 0, vct);
-        #else
-            if (i == 1) 
-                communicateInterp(nxn, nyn, nzn, i, rhons, 0, 0, 0, 0, 0, 0, vct);
-        #endif
-    }
-    
-    for (int i=0; i<NE_MASS; i++)
-    { 
-        communicateInterp(nxn, nyn, nzn, i, Mxx, 0, 0, 0, 0, 0, 0, vct);
-        communicateInterp(nxn, nyn, nzn, i, Mxy, 0, 0, 0, 0, 0, 0, vct);
-        communicateInterp(nxn, nyn, nzn, i, Mxz, 0, 0, 0, 0, 0, 0, vct);
-        communicateInterp(nxn, nyn, nzn, i, Myx, 0, 0, 0, 0, 0, 0, vct);
-        communicateInterp(nxn, nyn, nzn, i, Myy, 0, 0, 0, 0, 0, 0, vct);
-        communicateInterp(nxn, nyn, nzn, i, Myz, 0, 0, 0, 0, 0, 0, vct);
-        communicateInterp(nxn, nyn, nzn, i, Mzx, 0, 0, 0, 0, 0, 0, vct);
-        communicateInterp(nxn, nyn, nzn, i, Mzy, 0, 0, 0, 0, 0, 0, vct);
-        communicateInterp(nxn, nyn, nzn, i, Mzz, 0, 0, 0, 0, 0, 0, vct);
-    }
+    communicateInterp(nxn, nyn, nzn, Jxh, vct, this);
+    communicateInterp(nxn, nyn, nzn, Jyh, vct, this);
+    communicateInterp(nxn, nyn, nzn, Jzh, vct, this);
 
-    // put the correct values on ghost cells
-    communicateNode_P(nxn, nyn, nzn, Jxh, vct);
-    communicateNode_P(nxn, nyn, nzn, Jyh, vct);
-    communicateNode_P(nxn, nyn, nzn, Jzh, vct);
-    for (int i=0; i<ns; i++) {
-    communicateNode_P(nxn, nyn, nzn, Jxhs, i, vct);
-    communicateNode_P(nxn, nyn, nzn, Jyhs, i, vct);
-    communicateNode_P(nxn, nyn, nzn, Jzhs, i, vct);
-    #ifndef _CHARGE_FROM_CURRENT_
-    communicateNode_P(nxn, nyn, nzn, rhons, i, vct);
-    #else
-    if (i == 1) communicateNode_P(nxn, nyn, nzn, rhons, i, vct);
-    #endif
-    }
+    //* Convert ECSIM/RelSIM moments from type array4_double to *** for communication
+    double ***moment_rhons = convert_to_arr3(rhons[ns]);
+    double ***moment_Jxhs  = convert_to_arr3(Jxs[ns]);
+    double ***moment_Jyhs  = convert_to_arr3(Jys[ns]);
+    double ***moment_Jzhs  = convert_to_arr3(Jzs[ns]);
+
+    //* NonBlocking Halo Exchange for Interpolation
+    communicateInterp(nxn, nyn, nzn, moment_rhons, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment_Jxhs,  vct, this);
+    communicateInterp(nxn, nyn, nzn, moment_Jyhs,  vct, this);
+    communicateInterp(nxn, nyn, nzn, moment_Jzhs,  vct, this);
     
-    for (int i=0; i<NE_MASS; i++)
-    {
-        communicateNode_P(nxn, nyn, nzn, Mxx, i, vct);
-        communicateNode_P(nxn, nyn, nzn, Mxy, i, vct);
-        communicateNode_P(nxn, nyn, nzn, Mxz, i, vct);
-        communicateNode_P(nxn, nyn, nzn, Myx, i, vct);
-        communicateNode_P(nxn, nyn, nzn, Myy, i, vct);
-        communicateNode_P(nxn, nyn, nzn, Myz, i, vct);
-        communicateNode_P(nxn, nyn, nzn, Mzx, i, vct);
-        communicateNode_P(nxn, nyn, nzn, Mzy, i, vct);
-        communicateNode_P(nxn, nyn, nzn, Mzz, i, vct);
-    }
+
+    double ***moment_Mxx   = convert_to_arr3(Mxx[0]);
+
+//     for (int i=0; i<NE_MASS; i++)
+//     { 
+//         communicateInterp(nxn, nyn, nzn, i, Mxx, 0, 0, 0, 0, 0, 0, vct);
+//         communicateInterp(nxn, nyn, nzn, i, Mxy, 0, 0, 0, 0, 0, 0, vct);
+//         communicateInterp(nxn, nyn, nzn, i, Mxz, 0, 0, 0, 0, 0, 0, vct);
+//         communicateInterp(nxn, nyn, nzn, i, Myx, 0, 0, 0, 0, 0, 0, vct);
+//         communicateInterp(nxn, nyn, nzn, i, Myy, 0, 0, 0, 0, 0, 0, vct);
+//         communicateInterp(nxn, nyn, nzn, i, Myz, 0, 0, 0, 0, 0, 0, vct);
+//         communicateInterp(nxn, nyn, nzn, i, Mzx, 0, 0, 0, 0, 0, 0, vct);
+//         communicateInterp(nxn, nyn, nzn, i, Mzy, 0, 0, 0, 0, 0, 0, vct);
+//         communicateInterp(nxn, nyn, nzn, i, Mzz, 0, 0, 0, 0, 0, 0, vct);
+//     }
+
+    //* Populate the ghost nodes - Nonblocking Halo Exchange
+    communicateNode_P(nxn, nyn, nzn, Jxh, vct, this);
+    communicateNode_P(nxn, nyn, nzn, Jyh, vct, this);
+    communicateNode_P(nxn, nyn, nzn, Jzh, vct, this);
+
+    communicateNode_P(nxn, nyn, nzn, moment_rhons, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment_Jxhs,  vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment_Jyhs,  vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment_Jzhs,  vct, this);
+
+    
+//     for (int i=0; i<NE_MASS; i++)
+//     {
+//         communicateNode_P(nxn, nyn, nzn, Mxx, i, vct);
+//         communicateNode_P(nxn, nyn, nzn, Mxy, i, vct);
+//         communicateNode_P(nxn, nyn, nzn, Mxz, i, vct);
+//         communicateNode_P(nxn, nyn, nzn, Myx, i, vct);
+//         communicateNode_P(nxn, nyn, nzn, Myy, i, vct);
+//         communicateNode_P(nxn, nyn, nzn, Myz, i, vct);
+//         communicateNode_P(nxn, nyn, nzn, Mzx, i, vct);
+//         communicateNode_P(nxn, nyn, nzn, Mzy, i, vct);
+//         communicateNode_P(nxn, nyn, nzn, Mzz, i, vct);
+//     }
 }
 
 //? Compute divergence of electric field
@@ -3757,9 +3798,14 @@ void EMfields3D::divergenceOfE(double ma)
                     resdiv[is][i][j][k] = resdiv[is][i][j][k]/(rhocs_avg.get(is, i, j, k) - 1e-10) * ma;
 
     //* Iterate over each species
-    //TODO: Communication for 4D array is not included (not for all functions in ECSim) Why? - Ask Fabio
+    // TODO: Communication for 4D array is not included (not for all functions in ECSim) Why? - Ask Fabio
+    // TODO: Include the species number as a paramter of this function. Then you don't need iterate over species here
+
+    // double ***moment0 = convert_to_arr3(rhons[ns]);
+    // tempC = resdiv[0];
+    // communicateCenterBC(nxc, nyc, nzc, tempC, 2, 2, 2, 2, 2, 2, vct, this);
     // for (int is = 0; is < ns; is++)
-        // communicateCenterBC(nxc, nyc, nzc, resdiv[is], 2, 2, 2, 2, 2, 2, vct, this);
+    //     communicateCenterBC(nxc, nyc, nzc, resdiv[is], 2, 2, 2, 2, 2, 2, vct, this);
 }
 
 //? Compute divergence of magnetic field

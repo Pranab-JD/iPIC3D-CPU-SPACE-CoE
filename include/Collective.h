@@ -114,7 +114,7 @@ class Collective
     double getSmooth()const{ return (Smooth); }
     int getImplSusceptMode()const{ return ImplSusceptMode; }
     int getSmoothNiter()const{ return SmoothNiter; }
-    int getNvolte()const{ return (Nvolte); }
+    
     int getNcycles()const{ return (ncycles); }
     int getNs()const{ return (ns); }
     int getNsTestPart()const{ return (nstestpart); }
@@ -209,7 +209,10 @@ class Collective
     double getPoissonMAres()            const { return PoissonMAres;}
 
     int getZeroCurrent()                      { return zeroCurrent; }
+
+    string getSmoothType()              const { return SmoothType; }
     int getSmoothCycle()                const { return SmoothCycle; }
+    int getNumSmoothings()              const { return num_smoothings; }
     int getCurrentCycle()               const { return CurrentCycle; }
     void setCurrentCycle(int cycle)           { CurrentCycle = cycle; }
     
@@ -243,13 +246,16 @@ class Collective
     /*! time of implicit susceptibility used in field advance */
     double ImplSusceptTime; // 0=initial (default), 1=final
     //
-    /*! Smoothing value */
+    
+    //* Smoothing parameters
     double Smooth;
     int SmoothNiter;
-    int Nvolte;
-    int zeroCurrent;
-    int CurrentCycle;
+    int num_smoothings;
     int SmoothCycle;
+    string SmoothType;
+
+    int CurrentCycle;
+    int zeroCurrent;
 
     /*! number of time cycles */
     int ncycles;

@@ -103,9 +103,9 @@ void Collective::ReadInput(string inputfile)
 
         Smooth          = config.read<double>    ("Smooth",1.0);            //1.0 means no smoothing
         SmoothNiter     = config.read<int>       ("SmoothNiter",6);
-        config.readInto(Nvolte, "Nvolte",0);
-
-        SmoothCycle = config.read<int>("SmoothCycle", 1);
+        SmoothCycle     = config.read<int>       ("SmoothCycle", 1);                   //TODO: SmoothNiter is to be replaced with SmoothCycle - PJD
+        SmoothType      = config.read<string>    ("SmoothType", "default");
+        config.readInto(num_smoothings, "num_smoothings",0);
 
         SaveDirName     = config.read<string>    ("SaveDirName","data");
         RestartDirName  = config.read<string>    ("RestartDirName","data");
