@@ -3798,7 +3798,6 @@ void EMfields3D::divergenceOfE(double ma)
                     resdiv[is][i][j][k] = resdiv[is][i][j][k]/(rhocs_avg.get(is, i, j, k) - 1e-10) * ma;
 
     //* Iterate over each species
-    // TODO: Communication for 4D array is not included (not for all functions in ECSim) Why? - Ask Fabio
     // TODO: Include the species number as a paramter of this function. Then you don't need iterate over species here
 
     // double ***moment0 = convert_to_arr3(rhons[ns]);
@@ -4004,7 +4003,6 @@ void EMfields3D::setZeroCurrent()
                 }
             }
 
-    //TODO: communicateInterp and communicateNode_P does not support array3_double; *** neeeded - Ask Andong
     communicateInterp(nxn, nyn, nzn, Jx_ext, vct, this);
     communicateInterp(nxn, nyn, nzn, Jy_ext, vct, this);
     communicateInterp(nxn, nyn, nzn, Jz_ext, vct, this);

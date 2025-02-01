@@ -738,20 +738,27 @@ void addCorner(int nx, int ny, int nz, double ***vector,const VirtualTopology3D 
 }
 /** communicate and sum shared ghost cells */
 
-//! Used for communicating moments
+//? Used for communicating moments/current densities
 void communicateInterp(int nx, int ny, int nz, double*** vector, const VirtualTopology3D * vct, EMfields3D *EMf)
 {
-	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true,false,true,true);
+	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true, false, true, true);
 }
 
+void communicateInterp(int nx, int ny, int nz, array3_double _vector, const VirtualTopology3D * vct, EMfields3D *EMf)
+{
+    double ***vector=_vector.fetch_arr3();
+	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true, false, true, true);
+}
+
+//? Used for communicating current densities (setZeroCurrent)
 void communicateNode_P(int nx, int ny, int nz, double*** vector, const VirtualTopology3D * vct, EMfields3D *EMf)
 {
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false,false,false,true);
 }
 
+void communicateNode_P(int nx, int ny, int nz, array3_double _vector, const VirtualTopology3D * vct, EMfields3D *EMf)
+{
+    double ***vector=_vector.fetch_arr3();
+	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false, false, false, true);
+}
 
-// void communicateInterp(int nx, int ny, int nz, array3_double _vector, const VirtualTopology3D * vct, EMfields3D *EMf)
-// {
-//     double ***vector=_vector.fetch_arr3();
-// 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true, false, true, true);
-// }
