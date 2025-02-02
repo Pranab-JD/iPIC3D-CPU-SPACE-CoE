@@ -65,6 +65,10 @@ void communicateCenterBC(int nx, int ny, int nz, arr3_double vector,
                         int bcFaceXright, int bcFaceXleft, int bcFaceYright, int bcFaceYleft, int bcFaceZright, int bcFaceZleft, 
                         const VirtualTopology3D * vct, EMfields3D *EMf);
 
+void communicateCenterBC(int nx, int ny, int nz, double*** vector, 
+                        int bcFaceXright, int bcFaceXleft, int bcFaceYright, int bcFaceYleft, int bcFaceZright, int bcFaceZleft, 
+                        const VirtualTopology3D * vct, EMfields3D *EMf);
+
 //* Communication + BC
 void communicateCenterBC_P( int nx, int ny, int nz, arr3_double vector, 
                             int bcFaceXright, int bcFaceXleft, int bcFaceYright, int bcFaceYleft, int bcFaceZright, int bcFaceZleft, 
@@ -83,7 +87,6 @@ void communicateCenterBoxStencilBC_P(int nx, int ny, int nz, arr3_double vector,
 //* This communication is used in interpolatimg from particle to grid
 void communicateInterp(int nx, int ny, int nz, double*** vector, const VirtualTopology3D * vct, EMfields3D *EMf);
 void communicateNode_P(int nx, int ny, int nz, double*** vector, const VirtualTopology3D * vct, EMfields3D *EMf);
-
 
 void addCorner(int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct);
 void addEdgeX (int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct);
