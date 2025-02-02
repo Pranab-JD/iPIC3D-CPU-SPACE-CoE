@@ -149,7 +149,7 @@ public:
     void sumOverSpeciesRho();
     /*! Sum current over different species */
     void sumOverSpeciesJ();
-    void interpolateCenterSpecies(); 
+    void interpolateCenterSpecies(int is); 
     /*! Smoothing after the interpolation* */
     void smooth(arr3_double vector, int type);
     /*! SPECIES: Smoothing after the interpolation for species fields* */
@@ -161,10 +161,10 @@ public:
     void set_fieldForPcls();
     
     //* Communicate ghost cells for grid -> particles interpolation - IMM
-    void communicateGhostP2G(int ns);
+    void communicateGhostP2G(int is);
 
     //* Communicate ghost cells for grid -> particles interpolation - ECSIM
-    void communicateGhostP2G_ecsim(int ns);
+    void communicateGhostP2G_ecsim(int is);
 
     /*! sum moments (interp_P2G) versions */
     void sumMoments(const Particles3Dcomm* part);
@@ -331,11 +331,11 @@ public:
     arr3_double getDivAverage() { return divE_average; }
 
     //* Residual of DivE on cell centers *//
-    double getResDiv(int X, int Y, int Z, int is) const { return resdiv.get(is, X, Y, Z); }
-    // arr3_double getResDiv(int is) { return resdiv.get(is); }
+    double getResDiv(int X, int Y, int Z, int is) const { return residual_divergence.get(is, X, Y, Z); }
+    // arr3_double getResDiv(int is) { return residual_divergence.get(is); }
     //TODO: get 3D array corresponding to 1st element
 
-    void divergenceOfE(double ma);
+    void divergenceOfE(double ma, int ns);
     void divergenceOfB();
     void timeAveragedRho(double ma);
     void timeAveragedDivE(double ma);
@@ -535,7 +535,7 @@ private:
 
     //? Used in computing divergence
     array3_double divC, divB, divE, divE_average;
-    array4_double resdiv;
+    array4_double residual_divergence;
 
     //? ***************** TEMPORARY ARRAYS ***************** ?//
 

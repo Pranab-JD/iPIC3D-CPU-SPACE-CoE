@@ -182,7 +182,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     divE        (nxc, nyc, nzc),
     divB        (nxc, nyc, nzc),
     divE_average(nxc, nyc, nzc),
-    resdiv      (ns, nxc, nyc, nzc),
+    residual_divergence      (ns, nxc, nyc, nzc),
     
     //? Temporary arrays
     tempC   (nxc, nyc, nzc),
@@ -3784,27 +3784,22 @@ void EMfields3D::communicateGhostP2G_ecsim(int ns)
 }
 
 //? Compute divergence of electric field
-void EMfields3D::divergenceOfE(double ma) 
+void EMfields3D::divergenceOfE(double ma, int is) 
 {
     const VirtualTopology3D * vct = &get_vct();
 
-    scale(resdiv, divE_average, -1.0/FourPI, ns, nxc, nyc, nzc);
-    addscale(1.0, resdiv, rhoc_avg, ns, nxc, nyc, nzc);
+    scale(residual_divergence, divE_average, -1.0/FourPI, ns, nxc, nyc, nzc);
+    addscale(1.0, residual_divergence, rhoc_avg, ns, nxc, nyc, nzc);
 
-    for (int is = 0; is < ns; is++)
-        for (int i = 0; i < nxc; i++)
-            for (int j = 0; j < nyc; j++)
-                for (int k = 0; k < nzc; k++) 
-                    resdiv[is][i][j][k] = resdiv[is][i][j][k]/(rhocs_avg.get(is, i, j, k) - 1e-10) * ma;
+    //! Potential checkpoint for error -- species
+    for (int i = 0; i < nxc; i++)
+        for (int j = 0; j < nyc; j++)
+            for (int k = 0; k < nzc; k++) 
+                residual_divergence.fetch(is, i, j, k) = residual_divergence.get(is, i, j, k)/(rhocs_avg.get(is, i, j, k) - 1e-10) * ma;
 
-    //* Iterate over each species
-    // TODO: Include the species number as a paramter of this function. Then you don't need iterate over species here
 
-    // double ***moment0 = convert_to_arr3(rhons[ns]);
-    // tempC = resdiv[0];
-    // communicateCenterBC(nxc, nyc, nzc, tempC, 2, 2, 2, 2, 2, 2, vct, this);
-    // for (int is = 0; is < ns; is++)
-    //     communicateCenterBC(nxc, nyc, nzc, resdiv[is], 2, 2, 2, 2, 2, 2, vct, this);
+    double ***residual_div = convert_to_arr3(residual_divergence[is]);
+    communicateCenterBC(nxc, nyc, nzc, residual_div, 2, 2, 2, 2, 2, 2, vct, this);
 }
 
 //? Compute divergence of magnetic field
@@ -3936,9 +3931,9 @@ void EMfields3D::sumOverSpecies()
                 for (int k = 0; k < nzn; k++)
                 {
                     rhon[i][j][k] += rhons[is][i][j][k];
-                    Jx[i][j][k] += Jxs[is][i][j][k];
-                    Jy[i][j][k] += Jys[is][i][j][k];
-                    Jz[i][j][k] += Jzs[is][i][j][k];
+                    Jx[i][j][k]   += Jxs[is][i][j][k];
+                    Jy[i][j][k]   += Jys[is][i][j][k];
+                    Jz[i][j][k]   += Jzs[is][i][j][k];
                 }
     
     communicateNode_P(nxn, nyn, nzn, rhon, vct, this);
@@ -3970,17 +3965,15 @@ void EMfields3D::sumOverSpeciesJ()
                 }
 }
 
-void EMfields3D::interpolateCenterSpecies() 
+void EMfields3D::interpolateCenterSpecies(int is) 
 {
     const Grid *grid = &get_grid();
     const VirtualTopology3D * vct = &get_vct();
 
-    //TODO: Communication for 4D array is not included (not for all functions in ECSim) Why? - Ask Fabio
-    // for (int is = 0; is < ns; is++) 
-    // {
-    //     grid->interpN2C(rhocs_avg[is], rhons[is]);
-    //     communicateCenterBC(nxc, nyc, nzc, rhocs_avg[is], 2, 2, 2, 2, 2, 2, vct, this);
-    // }
+    grid->interpN2C(rhocs_avg, is, rhons);
+
+    double ***rho_avg = convert_to_arr3(rhocs_avg[is]);
+    communicateCenterBC(nxc, nyc, nzc, rho_avg, 2, 2, 2, 2, 2, 2, vct, this);
 }
 
 void EMfields3D::setZeroCurrent()

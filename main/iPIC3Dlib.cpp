@@ -351,7 +351,9 @@ void c_Solver::CalculateMoments()
     
     //* Sum all over the species (mass and charge density)
     EMf->sumOverSpecies();
-    EMf->interpolateCenterSpecies();
+
+    for (int is = 0; is < ns; is++)
+        EMf->interpolateCenterSpecies(is);
 
     EMf->timeAveragedRho(col->getPoissonMArho());
 	EMf->timeAveragedDivE(col->getPoissonMAdiv());
@@ -394,8 +396,11 @@ void c_Solver::ComputeEMFields(int cycle)
 
     //* Compute divergence of E and B and accessory variable
 	EMf->timeAveragedDivE(col->getPoissonMAdiv());
-	EMf->divergenceOfE(col->getPoissonMAres());
-	EMf->divergenceOfB();
+    
+    for (int is = 0; is < ns; is++)
+	    EMf->divergenceOfE(col->getPoissonMAres(), is);
+	
+    EMf->divergenceOfB();
 
     //TODO: TBD later
     // double dt = col->getDt();
