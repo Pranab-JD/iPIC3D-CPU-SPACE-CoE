@@ -75,8 +75,8 @@ void Timing::stopTiming() {
   texecution = tend - tstart;
   if (rank_id == 0) {
     // replace %g with %11.3e?
-    printf( "\n\n*** SIMULATION ENDED SUCESSFULLY ***\n"
-            " Simulation Time: %g sec (%g hours)\n***\n\n",
+    printf( "\n*** SIMULATION COMPLETED SUCESSFULLY! ***\n"
+            "Simulation Time: %g sec (%g hours)\n\n",
             texecution, texecution / 3600);
     //cout << endl;
     //cout << endl;

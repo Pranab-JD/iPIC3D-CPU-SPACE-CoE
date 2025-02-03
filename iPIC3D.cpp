@@ -37,66 +37,71 @@ int main(int argc, char **argv)
             //DBG
             int volatile j = 0;
             while(j == 0)
-            {
-
-            }
+            {  }
         #endif
 
         iPic3D::c_Solver KCode;
+
         KCode.Init(argc, argv); //! load param from file, init the grid, fields
 
         timeTasks.resetCycle(); //reset timer
-        KCode.CalculateMoments();
 
-        //? Use LeXInt timer
+        //? LeXInt timer
         LeXInt::timer time_EF, time_PM, time_MF, time_MG, time_loop, time_total;
         time_total.start();
 
         for (int i = KCode.FirstCycle(); i < KCode.LastCycle(); i++) 
         {
-            time_loop.start();
-
             if (KCode.get_myrank() == 0)
-                printf("================ Cycle %d ================ \n",i);
+                std::cout << std::endl << "=================== Cycle " << i << " ===================" << std::endl ;
 
             timeTasks.resetCycle();
-            
-            time_EF.start();
-            KCode.ComputeEMFields(i);        //* E & B fields
-            time_EF.stop();
-            
-            time_PM.start();
-            KCode.ParticlesMover();         //* Compute the new v and x for particles using the fields
-            time_PM.stop();
 
-            // time_MF.start();
-            // KCode.CalculateB();             //* B field
-            // time_MF.stop();
-
+            if (KCode.get_myrank() == 0)
+                std::cout << "Started CalculateMoments()" << std::endl;
+            
+            //? Charge density, current density, and mass matrix
             time_MG.start();
-            KCode.CalculateMoments();       //* Charge density, current density, and pressure tensor
+            KCode.CalculateMoments();        
             time_MG.stop();
 
-            //calculated from particles position and celocity, then mapped to node(grid) for further solving
-            // some are mapped to cell center
+            if (KCode.get_myrank() == 0)
+                std::cout << "Completed CalculateMoments()" << std::endl << std::endl;
+            if (KCode.get_myrank() == 0)
+                std::cout << "Started ComputeEMFields(i)" << std::endl;
+            
+            //? E & B fields 
+            time_EF.start();
+            // KCode.ComputeEMFields(i);        
+            time_EF.stop();
 
-            KCode.WriteOutput(i);
+            if (KCode.get_myrank() == 0)
+                std::cout << "Completed ComputeEMFields(i)" << std::endl << std::endl;
+
+            if (KCode.get_myrank() == 0)
+                std::cout << "Started ParticlesMover()" << std::endl;
+            
+            //? New velocities and positions of particles using the fields
+            time_PM.start();
+            KCode.ParticlesMover();          
+            time_PM.stop();
+
+            if (KCode.get_myrank() == 0)
+                std::cout << "Completed ParticlesMover()" << std::endl << std::endl;
+
+            // KCode.WriteOutput(i);
             
             //? Print out total time for all tasks
             #ifdef LOG_TASKS_TOTAL_TIME
                 timeTasks.print_cycle_times(i);
             #endif
 
-            time_loop.stop();
-
             if(MPIdata::get_rank() == 0)
             {
-                std::cout << std::endl << "LeXInt timer (cummulative) " << std::endl;
-                std::cout << "Field solver       : " << time_EF.total() << " s" << std::endl;
-                std::cout << "Particle mover     : " << time_PM.total() << " s" << std::endl;
-                // std::cout << "Magnetic field     : " << time_MF.total() << " s" << std::endl;
-                std::cout << "Moment gatherer    : " << time_MG.total() << " s" << std::endl;
-                std::cout << "Cycle time         : " << time_loop.total() << " s" << std::endl << std::endl;
+                std::cout << std::endl << "Runtime of iPIC3D modules " << std::endl;
+                std::cout << "Field solver       : " << time_EF.total()   << " s" << std::endl;
+                std::cout << "Particle mover     : " << time_PM.total()   << " s" << std::endl;
+                std::cout << "Moment gatherer    : " << time_MG.total()   << " s" << std::endl;
             }
         }
 
@@ -105,9 +110,6 @@ int main(int argc, char **argv)
         #ifdef LOG_TASKS_TOTAL_TIME
             timeTasks.print_tasks_total_times();
         #endif
-
-        if(MPIdata::get_rank() == 0)
-            std::cout << std::endl << "Total time (LeXInt timer) : " << time_total.total() << std::endl << std::endl;
 
         KCode.Finalize();
     }
