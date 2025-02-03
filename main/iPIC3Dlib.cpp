@@ -343,15 +343,17 @@ void c_Solver::CalculateMoments()
     EMf->setZeroRho();
 
     //? Interpolate Particles to grid (nodes)
-    for (int i = 0; i < ns; i++)
-		part[i].computeMoments(EMf);
+    for (int is = 0; is < ns; is++)
+		part[is].computeMoments(EMf);
 
-    //TODO: Implement this fully and correctly (for each species)
-    // EMf->communicateGhostP2G_ecsim(ns);
+    //* Communicate moments
+    for (int is = 0; is < ns; is++)
+        EMf->communicateGhostP2G_ecsim(is);
     
     //* Sum all over the species (mass and charge density)
     EMf->sumOverSpecies();
 
+    //* Communicate average densities
     for (int is = 0; is < ns; is++)
         EMf->interpolateCenterSpecies(is);
 

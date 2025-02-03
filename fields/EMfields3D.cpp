@@ -2340,20 +2340,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
         addscale(c*th*dt*c*th*dt, tempZ, temp2Z, nxn, nyn, nzn);
     }
 
-    //* Poisson correction
-    // if (col->getPoissonCorrection() == "yes") 
-    // {
-    //     // Compute gradient        
-    //     grid->gradC2N(temp2X, temp2Y, temp2Z, Phic);
-    
-    //     //TODO: To be implemented later (BC_E_Poisson) - PJD
-    //     // BC_E_Poisson(vct, temp2X, temp2Y, temp2Z);
-        
-    //     addscale(-th, tempX, temp2X, nxn, nyn, nzn);  
-    //     addscale(-th, tempY, temp2Y, nxn, nyn, nzn);  
-    //     addscale(-th, tempZ, temp2Z, nxn, nyn, nzn);  
-    // }
-
     //* Langdon correction (simpler alternative to divergence cleaning); A.B. Lagndon. CPC 70 447-450 (1992)
     if (col->getLangdonCorrection() != 0) 
     {
@@ -2681,28 +2667,6 @@ void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz,
     *MEy = resY;
     *MEz = resZ;
 }
-
-//TODO: Seems like this is not used (RhoImage, computeRhotilde, fixCharge)
-// double EMfields3D::productMassEV(double ***vX, int i, int j, int k)
-// {
-//     const Grid *grid = &get_grid();
-//   double res = 0;
-//   // First the nodes that have been computed in the node i,j,k
-//   for (int g=0; g<NE_MASS; g++) {
-//     int i1 = i + NeNo.getX(g);
-//     int j1 = j + NeNo.getY(g);
-//     int k1 = k + NeNo.getZ(g);
-//     double V1 = 1.0/grid->getInvVOLn(i1,j1,k1);
-//     res += V1*vX[i1][j1][k1]*Mxx[g][i][j][k];
-//     if (g == 0) continue;
-//     int i2 = i - NeNo.getX(g);
-//     int j2 = j - NeNo.getY(g);
-//     int k2 = k - NeNo.getZ(g);
-//     double V2 = 1.0/grid->getInvVOLn(i2,j2,k2);
-//     res += V2*vX[i2][j2][k2]*Mxx[g][i2][j2][k2];
-//   }
-//   return res;
-// }
 
 //? Compute MU dot using mass matrix ?//
 void EMfields3D::MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, 
@@ -3719,7 +3683,6 @@ void EMfields3D::communicateGhostP2G(int ns)
     communicateNode_P(nxn, nyn, nzn, moment9, vct, this);
 }
 
-//TODO: Implement this correctly
 void EMfields3D::communicateGhostP2G_ecsim(int ns)
 {
     const VirtualTopology3D * vct = &get_vct();
@@ -3741,22 +3704,32 @@ void EMfields3D::communicateGhostP2G_ecsim(int ns)
     communicateInterp(nxn, nyn, nzn, moment_Jxhs,  vct, this);
     communicateInterp(nxn, nyn, nzn, moment_Jyhs,  vct, this);
     communicateInterp(nxn, nyn, nzn, moment_Jzhs,  vct, this);
-    
+     
+    for (int m = 0; m < NE_MASS; m++)
+    {
+        double ***moment_Mxx = convert_to_arr3(Mxx[m]);
+        double ***moment_Mxy = convert_to_arr3(Mxy[m]);
+        double ***moment_Mxz = convert_to_arr3(Mxz[m]);
+        double ***moment_Myx = convert_to_arr3(Myx[m]);
+        double ***moment_Myy = convert_to_arr3(Myy[m]);
+        double ***moment_Myz = convert_to_arr3(Myz[m]);
+        double ***moment_Mzx = convert_to_arr3(Mzx[m]);
+        double ***moment_Mzy = convert_to_arr3(Mzy[m]);
+        double ***moment_Mzz = convert_to_arr3(Mzz[m]);
 
-    double ***moment_Mxx   = convert_to_arr3(Mxx[0]);
+        communicateInterp(nxn, nyn, nzn, moment_Mxx, vct, this);
+        communicateInterp(nxn, nyn, nzn, moment_Mxy, vct, this);
+        communicateInterp(nxn, nyn, nzn, moment_Mxz, vct, this);
+        communicateInterp(nxn, nyn, nzn, moment_Myx, vct, this);
+        communicateInterp(nxn, nyn, nzn, moment_Myy, vct, this);
+        communicateInterp(nxn, nyn, nzn, moment_Myz, vct, this);
+        communicateInterp(nxn, nyn, nzn, moment_Mzx, vct, this);
+        communicateInterp(nxn, nyn, nzn, moment_Mzy, vct, this);
+        communicateInterp(nxn, nyn, nzn, moment_Mzz, vct, this);
+    }
 
-//     for (int i=0; i<NE_MASS; i++)
-//     { 
-//         communicateInterp(nxn, nyn, nzn, i, Mxx, 0, 0, 0, 0, 0, 0, vct);
-//         communicateInterp(nxn, nyn, nzn, i, Mxy, 0, 0, 0, 0, 0, 0, vct);
-//         communicateInterp(nxn, nyn, nzn, i, Mxz, 0, 0, 0, 0, 0, 0, vct);
-//         communicateInterp(nxn, nyn, nzn, i, Myx, 0, 0, 0, 0, 0, 0, vct);
-//         communicateInterp(nxn, nyn, nzn, i, Myy, 0, 0, 0, 0, 0, 0, vct);
-//         communicateInterp(nxn, nyn, nzn, i, Myz, 0, 0, 0, 0, 0, 0, vct);
-//         communicateInterp(nxn, nyn, nzn, i, Mzx, 0, 0, 0, 0, 0, 0, vct);
-//         communicateInterp(nxn, nyn, nzn, i, Mzy, 0, 0, 0, 0, 0, 0, vct);
-//         communicateInterp(nxn, nyn, nzn, i, Mzz, 0, 0, 0, 0, 0, 0, vct);
-//     }
+    // TODO: Are the following 6 communications to be done only after the communication of the mass matrix?
+    // TODO: Else we can iterate over the 14 elements of mass matrix just once - Ask Fabio
 
     //* Populate the ghost nodes - Nonblocking Halo Exchange
     communicateNode_P(nxn, nyn, nzn, Jxh, vct, this);
@@ -3768,19 +3741,28 @@ void EMfields3D::communicateGhostP2G_ecsim(int ns)
     communicateNode_P(nxn, nyn, nzn, moment_Jyhs,  vct, this);
     communicateNode_P(nxn, nyn, nzn, moment_Jzhs,  vct, this);
 
-    
-//     for (int i=0; i<NE_MASS; i++)
-//     {
-//         communicateNode_P(nxn, nyn, nzn, Mxx, i, vct);
-//         communicateNode_P(nxn, nyn, nzn, Mxy, i, vct);
-//         communicateNode_P(nxn, nyn, nzn, Mxz, i, vct);
-//         communicateNode_P(nxn, nyn, nzn, Myx, i, vct);
-//         communicateNode_P(nxn, nyn, nzn, Myy, i, vct);
-//         communicateNode_P(nxn, nyn, nzn, Myz, i, vct);
-//         communicateNode_P(nxn, nyn, nzn, Mzx, i, vct);
-//         communicateNode_P(nxn, nyn, nzn, Mzy, i, vct);
-//         communicateNode_P(nxn, nyn, nzn, Mzz, i, vct);
-//     }
+    for (int m = 0; m < NE_MASS; m++)
+    {
+        double ***moment_Mxx = convert_to_arr3(Mxx[m]);
+        double ***moment_Mxy = convert_to_arr3(Mxy[m]);
+        double ***moment_Mxz = convert_to_arr3(Mxz[m]);
+        double ***moment_Myx = convert_to_arr3(Myx[m]);
+        double ***moment_Myy = convert_to_arr3(Myy[m]);
+        double ***moment_Myz = convert_to_arr3(Myz[m]);
+        double ***moment_Mzx = convert_to_arr3(Mzx[m]);
+        double ***moment_Mzy = convert_to_arr3(Mzy[m]);
+        double ***moment_Mzz = convert_to_arr3(Mzz[m]);
+
+        communicateNode_P(nxn, nyn, nzn, moment_Mxx, vct, this);
+        communicateNode_P(nxn, nyn, nzn, moment_Mxy, vct, this);
+        communicateNode_P(nxn, nyn, nzn, moment_Mxz, vct, this);
+        communicateNode_P(nxn, nyn, nzn, moment_Myx, vct, this);
+        communicateNode_P(nxn, nyn, nzn, moment_Myy, vct, this);
+        communicateNode_P(nxn, nyn, nzn, moment_Myz, vct, this);
+        communicateNode_P(nxn, nyn, nzn, moment_Mzx, vct, this);
+        communicateNode_P(nxn, nyn, nzn, moment_Mzy, vct, this);
+        communicateNode_P(nxn, nyn, nzn, moment_Mzz, vct, this);
+    }
 }
 
 //? Compute divergence of electric field
