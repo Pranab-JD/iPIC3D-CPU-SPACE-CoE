@@ -234,7 +234,7 @@ protected:
     const VirtualTopology3D * vct;
     const Grid * grid;
 
-    //* Number of species */
+    //* Number of species
     int ns;
 
     //* Number of particles per cell (total, X, Y, Z)

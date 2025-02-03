@@ -333,7 +333,7 @@ public:
     //* Residual of DivE on cell centers *//
     double getResDiv(int X, int Y, int Z, int is) const { return residual_divergence.get(is, X, Y, Z); }
     // arr3_double getResDiv(int is) { return residual_divergence.get(is); }
-    //TODO: get 3D array corresponding to 1st element
+    // TODO: get 3D array corresponding to 1st element - used in updatePosition --> charge conservation
 
     void divergenceOfE(double ma, int ns);
     void divergenceOfB();

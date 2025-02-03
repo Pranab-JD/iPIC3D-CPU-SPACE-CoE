@@ -1941,7 +1941,7 @@ void Particles3Dcomm::computeMoments(Field * EMf)
                                 int j2 = iy - n2j;
                                 int k2 = iz - n2k;
 
-                                //TODO: What does this part actually do?
+                                //TODO: What does this part actually do? - Ask Fabio
                                 //* Check if this node is one of the cell where the particle is
                                 if (i2 >= 0 && i2 < 2 && j2 >= 0 && j2 < 2 && k2 >= 0 && k2 < 2) 
                                 {
