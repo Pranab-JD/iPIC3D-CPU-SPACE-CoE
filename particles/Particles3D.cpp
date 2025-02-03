@@ -804,14 +804,6 @@ void Particles3D::ECSIM_velocity(Field * EMf)
             vavg = (vbEy + (vbEz * Omx - vbEx * Omz + edotb * Omy)) * denom;
             wavg = (vbEz + (vbEx * Omy - vbEy * Omx + edotb * Omz)) * denom;
 
-
-            //TODO: what is this?
-            //     #ifdef __JDOTE_TEST__
-            //     ubar[rest] = uptilde;
-            //     vbar[rest] = vptilde;
-            //     wbar[rest] = wptilde;
-            //     #endif
-
             //TODO: what is this?
             //     mirror(vct, xp, yp, zp, up, vp, wp,Bxl, Byl, Bzl);
 
@@ -861,7 +853,6 @@ void Particles3D::ECSIM_position(Field * EMf)
             double zavg = zorig;
 
             //* Copy particles' velocities 
-            //TODO: do we really need this?
             const double uorig = getU(pidx);
             const double vorig = getV(pidx);
             const double worig = getW(pidx);
@@ -990,10 +981,24 @@ void Particles3D::ECSIM_position(Field * EMf)
         }                             
         //! END OF ALL THE PARTICLES
 
-        //TODO: Is this needed? Set to zero the corresponding components of the position of the particles for 1D and 2D cases
-        // fixPosition();
-
+        //* 1D: Y & Z = 0; 2D: Z = 0
+        fixPosition();
     }
+}
+
+//* Set particles' poitions to 0 along unused dimensions
+void Particles3D::fixPosition()
+{
+    if (ndim == 1) 
+    {
+        for (int pidx = 0; pidx < getNOP(); pidx++) 
+        {
+            z[pidx] = 0;
+            y[pidx] = 0;
+        }
+    } 
+    else if (ndim == 2) 
+        for (int pidx = 0; pidx < getNOP(); pidx++)  z[pidx] = 0;
 }
 
 //? ============================================================================= *//?

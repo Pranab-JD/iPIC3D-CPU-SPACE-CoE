@@ -92,6 +92,7 @@ class Particles3D:public Particles3Dcomm {
     void ECSIM_velocity(Field * EMf);
     /** ECSIM position update **/
     void ECSIM_position(Field * EMf);
+    void fixPosition();
     /** array-of-structs version of mover_PC */
     void mover_PC_AoS(Field * EMf);
     /** Relativistic array-of-structs version of mover_PC with adaptive Subcycling and PC*/
