@@ -67,7 +67,7 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,
     for (int jj = 0; jj < xkrylovlen; jj++)
       V[ii][jj] = 0;
 
-
+    std::cout << "Inside gmres " << std::endl;
 
   if (GMRESVERBOSE && is_output_thread()) {
     printf( "------------------------------------\n"
@@ -81,6 +81,8 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,
   if (normb == 0.0)
     normb = 1.0;
 
+    std::cout << "Gmres checkpoint 1" << std::endl;
+
   int itr=0;
   for (itr = 0; itr < max_iter; itr++)
   {
@@ -88,6 +90,8 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,
     (field->*FunctionImage) (im, xkrylov);
     sub(r, b, im, xkrylovlen);
     initial_error = normP(r, xkrylovlen,&fieldcomm);
+
+    std::cout << "Gmres checkpoint 2" << std::endl;
 
     if (itr == 0) {
     //   if (is_output_thread())
@@ -103,6 +107,8 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,
         break;
       }
     }
+
+    std::cout << "Gmres checkpoint 3" << std::endl;
 
     scale(V[0], r, (1.0 / initial_error), xkrylovlen);
     eqValue(0.0, s, m + 1);
@@ -182,16 +188,24 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,
       k++;
     }
 
+    std::cout << "Gmres checkpoint 4 " << k << "    "  << std::endl;
+
     k--;
     y[k] = s[k] / H[k][k];
 
+    std::cout << "Gmres checkpoint 4.1" << std::endl;
+
     for (int i = k - 1; i >= 0; i--) {
+        std::cout << "Gmres checkpoint 4.2" << std::endl;
       double tmp = 0.0;
       for (int l = i + 1; l <= k; l++)
+    //   std::cout << "Gmres checkpoint 4.3" << std::endl;
         tmp += H[i][l] * y[l];
       y[i] = (s[i] - tmp) / H[i][i];
-
+    std::cout << "Gmres checkpoint 4.3" << std::endl;
     }
+
+    std::cout << "Gmres checkpoint 5" << std::endl;
 
 
     for (int j = 0; j < k; j++)
@@ -202,6 +216,8 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,
         xkrylov[i] += yj * Vj[i];
     }
 
+    std::cout << "Gmres checkpoint 6" << std::endl;
+
     if (initial_error <= rho_tol) {
       if (is_output_thread())
       {
@@ -211,6 +227,7 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,
       }
       break;
     }
+    std::cout << "Gmres checkpoint 7" << std::endl;
     if (is_output_thread() && GMRESVERBOSE)
     {
       printf("Restart: %d error: %g\n", itr,  initial_error / rho_tol * tol);
@@ -218,12 +235,15 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,
     }
 
   }
+  std::cout << "Gmres checkpoint 8" << std::endl;
   if(itr==max_iter && is_output_thread())
   {
     printf("GMRES not converged !! Final error: %g\n",
       initial_error / rho_tol * tol);
     //cout << "GMRES not converged !! Final error: " << initial_error / rho_tol * tol << endl;
   }
+
+  std::cout << "Completed gmres" << std::endl;
 
   delete[]r;
   delete[]im;
