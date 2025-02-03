@@ -424,14 +424,32 @@ bool c_Solver::ParticlesMover()
         //* Iterate over each species to update velocities
         for (int i = 0; i < ns; i++)
         {
+            std::cout << "Species: " << ns << std::endl; 
+
             switch(Parameters::get_MOVER_TYPE())
             {
                 //? ECSim
                 case Parameters::SoA:
+                    // std::cout << "ECSIM: " << ns << std::endl; 
+                    // part[i].ECSIM_velocity(EMf);
+                break;
+                case Parameters::AoS:
+                    // std::cout << "mover_PC_AoS: " << ns << std::endl; 
+                    // part[i].mover_PC_AoS(EMf);
                     part[i].ECSIM_velocity(EMf);
                 break;
+                // case Parameters::AoS_Relativistic:
+                //     part[i].mover_PC_AoS_Relativistic(EMf);
+                //     break;
+                // case Parameters::AoSintr:
+                //     part[i].mover_PC_AoS_vec_intr(EMf);
+                // break;
+                // case Parameters::AoSvec:
+                //     part[i].mover_PC_AoS_vec(EMf);
+                // break;
                 
                 default:
+                std::cout << "default:"  << ns << std::endl; 
                 unsupported_value_error(Parameters::get_MOVER_TYPE());
             }
 
@@ -445,7 +463,7 @@ bool c_Solver::ParticlesMover()
         {
             switch(Parameters::get_MOVER_TYPE())
             {
-                case Parameters::SoA:
+                case Parameters::AoS:
                     part[i].ECSIM_position(EMf);
                 break;
             }

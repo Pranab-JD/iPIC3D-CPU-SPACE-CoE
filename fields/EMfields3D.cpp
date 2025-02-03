@@ -2187,12 +2187,21 @@ void EMfields3D::calculateE(int cycle)
 
     //* Move to Krylov space from physical space
     phys2solver(xkrylov, Ex, Ey, Ez, nxn, nyn, nzn);
+
+    if (vct->getCartesian_rank() == 0)
+        cout << "*** GMRes iterations ***" << endl;
     
     //? Solve using GMRes
     GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 20, 200, GMREStol, this);
+
+    if (vct->getCartesian_rank() == 0)
+        cout << "*** GMRes iterations completed ***" << endl;
   
     //* Move from Krylov space to physical space
     solver2phys(Exth, Eyth, Ezth, xkrylov, nxn, nyn, nzn);
+
+    if (vct->getCartesian_rank() == 0)
+        cout << "*** Field data communication ***" << endl;
 
     //? Communicate E theta so the interpolation can have good values
     communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
@@ -2436,6 +2445,9 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     eqValue(0.0, temp3Y, nxn, nyn, nzn);
     eqValue(0.0, temp3Z, nxn, nyn, nzn);
 
+        if (vct->getCartesian_rank() == 0)
+            cout << "***  Krylov space to physical space ***" << endl;
+
     //? Move from Krylov space to physical space
     solver2phys(vectX, vectY, vectZ, vector, nxn, nyn, nzn);
 
@@ -2449,12 +2461,15 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
 
     if (col->getCurlCurl()) 
     {
+            if (vct->getCartesian_rank() == 0)
+        cout << "***  getcurlcurl ***" << endl;
+
         //? curl(curl(E)) is computed using finite differences
         grid->curlN2C(temp2X, temp2Y, temp2Z, vectX, vectY, vectZ);
         
-        communicateCenterBC(nxc, nyc, nzc, temp2X, 1, 1, 1, 1, 1, 1, vct, this);
-        communicateCenterBC(nxc, nyc, nzc, temp2Y, 1, 1, 1, 1, 1, 1, vct, this);
-        communicateCenterBC(nxc, nyc, nzc, temp2Z, 1, 1, 1, 1, 1, 1, vct, this);
+        communicateCenterBC(nxc, nyc, nzc, temp2X, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, temp2Y, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, temp2Z, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
 
         //TODO: Apply Lambda Damping to curl(E) - Tobe done later along with lambda damping
         // if (damping == 1) 
@@ -2468,30 +2483,45 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     }
     else 
     {
+        if (vct->getCartesian_rank() == 0)
+        cout << "***  else curlcurl ***" << endl;
+
         //! Different schemes (gradiv, direct) are not implemented
         //? curl(curl(E)) = - Laplacian(E) + grad(div(E))
         grid->lapN2N(imageX, vectX, this);
         grid->lapN2N(imageY, vectY, this);
         grid->lapN2N(imageZ, vectZ, this);
 
+        if (vct->getCartesian_rank() == 0)
+        cout << "***  computed lapN2N ***" << endl;
+
         //? computes minus the laplacian
         scale(imageX, -1,  nxn, nyn, nzn);
         scale(imageY, -1,  nxn, nyn, nzn);
         scale(imageZ, -1,  nxn, nyn, nzn);
+
+        if (vct->getCartesian_rank() == 0)
+        cout << "***  computed scale ***" << endl;
     
-        //? computes gradient of divergence in two steps
-        if (col->getRemoveDivE() == "no" || col->getRemoveDivE() == "ipic" ) 
-        {
-            grid->divN2C(tempC, vectX, vectY, vectZ);
-            communicateCenterBC(nxc, nyc, nzc, tempC, 1, 1, 1, 1, 1, 1, vct, this);
-            grid->gradC2N(temp2X, temp2Y, temp2Z, tempC);
+        // //? computes gradient of divergence in two steps
+        // if (col->getRemoveDivE() == "no" || col->getRemoveDivE() == "ipic") 
+        // {
+        //     if (vct->getCartesian_rank() == 0)
+        //     cout << "***  inside optional if ***" << endl;
+
+        //     grid->divN2C(tempC, vectX, vectY, vectZ);
+        //     communicateCenterBC(nxc, nyc, nzc, tempC, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
+        //     grid->gradC2N(temp2X, temp2Y, temp2Z, tempC);
     
-            //* Add grad(div) with Laplacian
-            addscale(weight_curlcurl, imageX, temp2X, nxn, nyn, nzn);
-            addscale(weight_curlcurl, imageY, temp2Y, nxn, nyn, nzn);
-            addscale(weight_curlcurl, imageZ, temp2Z, nxn, nyn, nzn);
-        }
+        //     //* Add grad(div) with Laplacian
+        //     addscale(weight_curlcurl, imageX, temp2X, nxn, nyn, nzn);
+        //     addscale(weight_curlcurl, imageY, temp2Y, nxn, nyn, nzn);
+        //     addscale(weight_curlcurl, imageZ, temp2Z, nxn, nyn, nzn);
+        // }
     }
+
+    if (vct->getCartesian_rank() == 0)
+    cout << "*** multiply by factor ***" << endl;
     
     //* multiply by factor
     scale(imageX, c*th*dt*c*th*dt, nxn, nyn, nzn);
@@ -2502,6 +2532,8 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     addscale(1, imageY, vectY, nxn, nyn, nzn);
     addscale(1, imageZ, vectZ, nxn, nyn, nzn);
 
+        if (vct->getCartesian_rank() == 0)
+            cout << "*** energy_conserve_smooth ***" << endl;
     if (col->getEnergyConservingSmoothing())
         energy_conserve_smooth(vectX, vectY, vectZ, nxn, nyn, nzn);
 
@@ -2523,10 +2555,12 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
                     temp2Z.fetch(i, j, k) = dt*th*FourPI*MEz;
                 }
 
-        communicateNodeBC(nxn, nyn, nzn, temp2X, 2, 2, 2, 2, 2, 2, vct, this);
-        communicateNodeBC(nxn, nyn, nzn, temp2Y, 2, 2, 2, 2, 2, 2, vct, this);
-        communicateNodeBC(nxn, nyn, nzn, temp2Z, 2, 2, 2, 2, 2, 2, vct, this);
+        communicateNodeBC(nxn, nyn, nzn, temp2X, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, temp2Y, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, temp2Z, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
 
+        if (vct->getCartesian_rank() == 0)
+            cout << "*** energy_conserve_smooth ***" << endl;
         energy_conserve_smooth(temp2X, temp2Y, temp2Z, nxn, nyn, nzn);
 
         for (int i=1; i<nxn-1; i++)
@@ -2542,18 +2576,18 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
         addscale(1.0, imageY, temp2Y, nxn, nyn, nzn);
         addscale(1.0, imageZ, temp2Z, nxn, nyn, nzn);
 
-        if (col->getRemoveDivE() == "ipic") 
-        {
-            grid->divN2C(tempC, temp2X, temp2Y, temp2Z);
-            communicateCenterBC(nxc, nyc, nzc, tempC, 1, 1, 1, 1, 1, 1, vct, this);
-            grid->gradC2N(temp2X, temp2Y, temp2Z, tempC);
+        // if (col->getRemoveDivE() == "ipic") 
+        // {
+        //     grid->divN2C(tempC, temp2X, temp2Y, temp2Z);
+        //     communicateCenterBC(nxc, nyc, nzc, tempC, 1, 1, 1, 1, 1, 1, vct, this);
+        //     grid->gradC2N(temp2X, temp2Y, temp2Z, tempC);
 
-            //* Add dt*th*FourPI*grad(div(M*E))
-            double factor = -c*th*dt*c*th*dt*(1.0 - weight_curlcurl);
-            addscale(factor, imageX, temp2X, nxn, nyn, nzn);
-            addscale(factor, imageY, temp2Y, nxn, nyn, nzn);
-            addscale(factor, imageZ, temp2Z, nxn, nyn, nzn);
-        }
+        //     //* Add dt*th*FourPI*grad(div(M*E))
+        //     double factor = -c*th*dt*c*th*dt*(1.0 - weight_curlcurl);
+        //     addscale(factor, imageX, temp2X, nxn, nyn, nzn);
+        //     addscale(factor, imageY, temp2Y, nxn, nyn, nzn);
+        //     addscale(factor, imageZ, temp2Z, nxn, nyn, nzn);
+        // }
     }
     else 
     {
@@ -2573,8 +2607,14 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     // if (col->getCase() == "Dipole")
     //   fixBC_PlanetImage (vct, col, grid, imageX, imageY, imageZ, vectX, vectY, vectZ);
 
+    if (vct->getCartesian_rank() == 0)
+        cout << "*** phys2solver ***" << endl;
+    
     //? Move from physical space to Krylov space
     phys2solver(im, imageX, imageY, imageZ, nxn, nyn, nzn);
+    
+    if (vct->getCartesian_rank() == 0)
+        cout << "*** completed phys2solver ***" << endl;
 }
 
 //* Calculate PI dot (vectX, vectY, vectZ) -- Not needed for ECSim *//
@@ -3875,12 +3915,12 @@ void EMfields3D::setZeroPrimaryMoments()
                     EFxs [kk][i][j][k] = 0.0;
                     EFys [kk][i][j][k] = 0.0;
                     EFzs [kk][i][j][k] = 0.0;
-                    pXXsn[kk][i][j][k] = 0.0;
-                    pXYsn[kk][i][j][k] = 0.0;
-                    pXZsn[kk][i][j][k] = 0.0;
-                    pYYsn[kk][i][j][k] = 0.0;
-                    pYZsn[kk][i][j][k] = 0.0;
-                    pZZsn[kk][i][j][k] = 0.0;
+                    // pXXsn[kk][i][j][k] = 0.0;
+                    // pXYsn[kk][i][j][k] = 0.0;
+                    // pXZsn[kk][i][j][k] = 0.0;
+                    // pYYsn[kk][i][j][k] = 0.0;
+                    // pYZsn[kk][i][j][k] = 0.0;
+                    // pZZsn[kk][i][j][k] = 0.0;
                 }
 
 }
@@ -3896,9 +3936,10 @@ void EMfields3D::setZeroDensities()
 //? Set densities (at nodes and cell centres) of all species to 0
 void EMfields3D::setZeroRho() 
 {
-    eqValue(0.0, rhocs, nxc, nyc, nzc);     //* Rho, for each species, at cell centres
-    eqValue(0.0, rhons, nxn, nyn, nzn);     //* Rho, for each species, at nodes
-    eqValue(0.0, Nns, ns, nxn, nyn, nzn);   //*
+    //! ns needs to be included!!!!
+    eqValue(0.0, rhocs, ns, nxc, nyc, nzc);     //* Rho, for each species, at cell centres
+    eqValue(0.0, rhons, ns, nxn, nyn, nzn);     //* Rho, for each species, at nodes
+    eqValue(0.0, Nns, ns, nxn, nyn, nzn);       //*
 }
 
 //* Sum charge density of different species on NODES *//

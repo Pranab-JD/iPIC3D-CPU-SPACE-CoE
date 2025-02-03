@@ -1892,8 +1892,9 @@ void Particles3Dcomm::computeMoments(Field * EMf)
 
             //* --------------------------------------- *//
 
-            double temp[8];         //* Temporary variable used to add densitiy and current density
+            double temp[8];         //* Temporary variable used to add density and current density
             
+            //! Potential checkpoint for error : Jxs, Jys, Jzs instead of Jxhs, Jyhs, Jzhs
             //* Add charge density                 
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = q[pidx] * weights[ii];
@@ -1916,11 +1917,7 @@ void Particles3Dcomm::computeMoments(Field * EMf)
 
             //? Compute exact Mass Matrix
             if(ComputeMM)
-            {
-                // #pragma omp master
-                if (vct->getCartesian_rank() == 0)
-                    cout << "*** Computing exact Mass Matrix ***" << endl;
-                
+            {               
                 //* Mass Matrix (each node of the cell in which the particle is)
                 for (int i = 0; i < 2; i++) 
                     for (int j = 0; j < 2; j++) 
@@ -1960,8 +1957,7 @@ void Particles3Dcomm::computeMoments(Field * EMf)
                                     EMf->add_Mass(value, ni, nj, nk, c);
                                 }
                             }
-                        }
-
+                        }   
             }
         }
     }
