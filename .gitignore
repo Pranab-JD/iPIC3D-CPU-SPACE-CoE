@@ -1,6 +1,4 @@
-build/
-build_gcc/
-build_ecsim/
+build*/
 .cproject
 .project
 .settings

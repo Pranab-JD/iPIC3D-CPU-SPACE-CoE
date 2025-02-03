@@ -675,7 +675,7 @@ void Particles3D::ECSIM_velocity(Field * EMf)
 
         #pragma omp master
         if (vct->getCartesian_rank() == 0) 
-            cout << "*** ECSIM MOVER (velocities); species " << ns << endl;
+            cout << "*** ECSIM MOVER (velocities) for species " << ns << " ***" << endl;
 
         const_arr4_double fieldForPcls = EMf->get_fieldForPcls();
 
@@ -825,7 +825,7 @@ void Particles3D::ECSIM_position(Field * EMf)
 
         #pragma omp master
         if (vct->getCartesian_rank() == 0) 
-            cout << "*** ECSIM MOVER (velocities); species " << ns << endl;
+            cout << "*** ECSIM MOVER (positions) for species " << ns << " ***" << endl;
 
         double correct_x = 1.0;
         double correct_y = 1.0;
