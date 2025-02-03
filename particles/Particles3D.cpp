@@ -989,7 +989,7 @@ void Particles3D::ECSIM_position(Field * EMf)
 //* Set particles' poitions to 0 along unused dimensions
 void Particles3D::fixPosition()
 {
-    if (ndim == 1) 
+    if (col->getDim() == 0) 
     {
         for (int pidx = 0; pidx < getNOP(); pidx++) 
         {
@@ -997,7 +997,7 @@ void Particles3D::fixPosition()
             y[pidx] = 0;
         }
     } 
-    else if (ndim == 2) 
+    else if (col->getDim() == 1) 
         for (int pidx = 0; pidx < getNOP(); pidx++)  z[pidx] = 0;
 }
 
