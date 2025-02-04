@@ -362,6 +362,7 @@ void TimeTasks::print_cycle_times(int cycle)
   //print_cycle_times(cycle, task_duration, "max");
   printf0("\nRuntimes for cycle %d (averaged over all processes)\n", cycle);
   print_cycle_times(cycle, task_duration, "");
+  printf0("\n");
   //printf0("=== times for cycle %d (minimum over all processes) ===\n", cycle);
   //print_cycle_times(cycle, task_duration, "min");
   if(!MPIdata::get_rank()) fflush(stdout);
