@@ -424,8 +424,6 @@ bool c_Solver::ParticlesMover()
         //* Iterate over each species to update velocities
         for (int i = 0; i < ns; i++)
         {
-            std::cout << "Species: " << ns << std::endl; 
-
             switch(Parameters::get_MOVER_TYPE())
             {
                 //? ECSim

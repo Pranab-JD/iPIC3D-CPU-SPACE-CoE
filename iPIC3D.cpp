@@ -56,40 +56,23 @@ int main(int argc, char **argv)
                 std::cout << std::endl << "=================== Cycle " << i << " ===================" << std::endl ;
 
             timeTasks.resetCycle();
-
-            if (KCode.get_myrank() == 0)
-                std::cout << "Started CalculateMoments()" << std::endl;
             
-            //? Charge density, current density, and mass matrix
+            //? Moment Gatherer --> Compute charge density, current density, and mass matrix
             time_MG.start();
             KCode.CalculateMoments();        
             time_MG.stop();
-
-            if (KCode.get_myrank() == 0)
-                std::cout << "Completed CalculateMoments()" << std::endl << std::endl;
-            if (KCode.get_myrank() == 0)
-                std::cout << "Started ComputeEMFields(i)" << std::endl;
             
-            //? E & B fields 
+            //? Field Solver --> Compute E & B fields 
             time_EF.start();
-            // KCode.ComputeEMFields(i);        
+            KCode.ComputeEMFields(i);        
             time_EF.stop();
-
-            if (KCode.get_myrank() == 0)
-                std::cout << "Completed ComputeEMFields(i)" << std::endl << std::endl;
-
-            if (KCode.get_myrank() == 0)
-                std::cout << "Started ParticlesMover()" << std::endl;
             
-            //? New velocities and positions of particles using the fields
+            //? Particle Pusher --> Compute new velocities and positions of the particles
             time_PM.start();
             KCode.ParticlesMover();          
             time_PM.stop();
 
-            if (KCode.get_myrank() == 0)
-                std::cout << "Completed ParticlesMover()" << std::endl << std::endl;
-
-            // KCode.WriteOutput(i);
+            KCode.WriteOutput(i);
             
             //? Print out total time for all tasks
             #ifdef LOG_TASKS_TOTAL_TIME
