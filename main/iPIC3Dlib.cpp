@@ -37,18 +37,19 @@
 #include "outputPrepare.h"
 //
 #ifndef NO_HDF5
-#include "WriteOutputParallel.h"
-#include "OutputWrapperFPP.h"
+    #include "WriteOutputParallel.h"
+    #include "OutputWrapperFPP.h"
 #endif
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 
 #include "Moments.h" // for debugging
 
 #ifdef USE_CATALYST
-#include "Adaptor.h"
+    #include "Adaptor.h"
 #endif
 
 using namespace iPic3D;
@@ -427,13 +428,10 @@ bool c_Solver::ParticlesMover()
             switch(Parameters::get_MOVER_TYPE())
             {
                 //? ECSim
-                case Parameters::SoA:
-                    // std::cout << "ECSIM: " << ns << std::endl; 
-                    // part[i].ECSIM_velocity(EMf);
-                break;
+                // case Parameters::SoA:
+                //     part[i].ECSIM_velocity(EMf);
+                // break;
                 case Parameters::AoS:
-                    // std::cout << "mover_PC_AoS: " << ns << std::endl; 
-                    // part[i].mover_PC_AoS(EMf);
                     part[i].ECSIM_velocity(EMf);
                 break;
                 // case Parameters::AoS_Relativistic:
@@ -452,6 +450,7 @@ bool c_Solver::ParticlesMover()
             }
 
             //* Should integrate BC into separate_and_send_particles
+            // TODO: Are the following two statements needed in both position and velocity?
             part[i].openbc_particles_outflow();
             part[i].separate_and_send_particles();
         }
@@ -461,6 +460,9 @@ bool c_Solver::ParticlesMover()
         {
             switch(Parameters::get_MOVER_TYPE())
             {
+                // case Parameters::SoA:
+                //     part[i].ECSIM_position(EMf);
+                // break;
                 case Parameters::AoS:
                     part[i].ECSIM_position(EMf);
                 break;
@@ -550,113 +552,127 @@ void c_Solver::WriteOutput(int cycle)
 
     if(!Parameters::get_doWriteOutput())  return;
 
-//! Non-blocking collective MPI-IO
-  if (col->getWriteMethod() == "nbcvtk")
-  {
+    if (col->getWriteMethod() == "nbcvtk")
+    {//! Non-blocking collective MPI-IO
 
-	  if(!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle) ){
-		  if(!(col->getFieldOutputTag()).empty()){
+        if(!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle) )
+        {
+            if(!(col->getFieldOutputTag()).empty())
+            {
+                if(fieldreqcounter>0)
+                {
+                    //MPI_Waitall(fieldreqcounter,&fieldreqArr[0],&fieldstsArr[0]);
+                    for(int si=0;si< fieldreqcounter;si++)
+                    {
+                        int error_code = MPI_File_write_all_end(fieldfhArr[si],&fieldwritebuffer[si][0][0][0],&fieldstsArr[si]);//fieldstsArr[si].MPI_ERROR;
+                        
+                        if (error_code != MPI_SUCCESS)
+                        {
+                            char error_string[100];
+                            int length_of_error_string, error_class;
+                            MPI_Error_class(error_code, &error_class);
+                            MPI_Error_string(error_class, error_string, &length_of_error_string);
+                            dprintf("MPI_Waitall error at field output cycle %d  %d  %s\n",cycle, si, error_string);
+                        }
+                        else
+                            MPI_File_close(&(fieldfhArr[si]));
+                    }
+                }
 
-			  if(fieldreqcounter>0){
-			          
-			          //MPI_Waitall(fieldreqcounter,&fieldreqArr[0],&fieldstsArr[0]);
-				  for(int si=0;si< fieldreqcounter;si++){
-				    int error_code = MPI_File_write_all_end(fieldfhArr[si],&fieldwritebuffer[si][0][0][0],&fieldstsArr[si]);//fieldstsArr[si].MPI_ERROR;
-					  if (error_code != MPI_SUCCESS) {
-						  char error_string[100];
-						  int length_of_error_string, error_class;
-						  MPI_Error_class(error_code, &error_class);
-						  MPI_Error_string(error_class, error_string, &length_of_error_string);
-						  dprintf("MPI_Waitall error at field output cycle %d  %d  %s\n",cycle, si, error_string);
-					  }else{
-						  MPI_File_close(&(fieldfhArr[si]));
-					  }
-				  }
-			  }
-			  fieldreqcounter = WriteFieldsVTKNonblk(grid, EMf, col, vct,cycle,fieldwritebuffer,fieldreqArr,fieldfhArr);
-		  }
+                fieldreqcounter = WriteFieldsVTKNonblk(grid, EMf, col, vct,cycle,fieldwritebuffer,fieldreqArr,fieldfhArr);
+            }
 
-		  if(!(col->getMomentsOutputTag()).empty()){
+            if(!(col->getMomentsOutputTag()).empty())
+            {
+                if(momentreqcounter>0)
+                {
+                    //MPI_Waitall(momentreqcounter,&momentreqArr[0],&momentstsArr[0]);
+                    for(int si=0;si< momentreqcounter;si++)
+                    {
+                        int error_code = MPI_File_write_all_end(momentfhArr[si],&momentwritebuffer[si][0][0],&momentstsArr[si]);//momentstsArr[si].MPI_ERROR;
+                        
+                        if (error_code != MPI_SUCCESS) 
+                        {
+                            char error_string[100];
+                            int length_of_error_string, error_class;
+                            MPI_Error_class(error_code, &error_class);
+                            MPI_Error_string(error_class, error_string, &length_of_error_string);
+                            dprintf("MPI_Waitall error at moments output cycle %d  %d %s\n",cycle, si, error_string);
+                        }
+                        else
+                            MPI_File_close(&(momentfhArr[si]));
+                    }
+                }
 
-			  if(momentreqcounter>0){
-			    //MPI_Waitall(momentreqcounter,&momentreqArr[0],&momentstsArr[0]);
-				  for(int si=0;si< momentreqcounter;si++){
-				    int error_code = MPI_File_write_all_end(momentfhArr[si],&momentwritebuffer[si][0][0],&momentstsArr[si]);//momentstsArr[si].MPI_ERROR;
-					  if (error_code != MPI_SUCCESS) {
-						  char error_string[100];
-						  int length_of_error_string, error_class;
-						  MPI_Error_class(error_code, &error_class);
-						  MPI_Error_string(error_class, error_string, &length_of_error_string);
-						  dprintf("MPI_Waitall error at moments output cycle %d  %d %s\n",cycle, si, error_string);
-					  }else{
-						  MPI_File_close(&(momentfhArr[si]));
-					  }
-				  }
-			  }
-			  momentreqcounter = WriteMomentsVTKNonblk(grid, EMf, col, vct,cycle,momentwritebuffer,momentreqArr,momentfhArr);
-		  }
-	  }
+                momentreqcounter = WriteMomentsVTKNonblk(grid, EMf, col, vct,cycle,momentwritebuffer,momentreqArr,momentfhArr);
+            }
+        }
 
-	  //Particle information is still in hdf5
-	  	WriteParticles(cycle);
-	  //Test Particle information is still in hdf5
-	    WriteTestParticles(cycle);
+        //! Particle data is written to hdf5 files
+        WriteParticles(cycle);
+        WriteTestParticles(cycle);
 
-  }else if (col->getWriteMethod() == "pvtk"){//Blocking collective MPI-IO
-	  if(!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle) ){
-		  if(!(col->getFieldOutputTag()).empty()){
-			  //WriteFieldsVTK(grid, EMf, col, vct, col->getFieldOutputTag() ,cycle);//B + E + Je + Ji + rho
-			  WriteFieldsVTK(grid, EMf, col, vct, col->getFieldOutputTag() ,cycle, fieldwritebuffer);//B + E + Je + Ji + rho
-		  }
-		  if(!(col->getMomentsOutputTag()).empty()){
-			  WriteMomentsVTK(grid, EMf, col, vct, col->getMomentsOutputTag() ,cycle, momentwritebuffer);
-		  }
-	  }
+    }
+    else if (col->getWriteMethod() == "pvtk")
+    {//! Blocking collective MPI-IO
+	    
+        if(!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle) )
+        {
+		    if(!(col->getFieldOutputTag()).empty())
+			    WriteFieldsVTK(grid, EMf, col, vct, col->getFieldOutputTag() ,cycle, fieldwritebuffer);//B + E + Je + Ji + rho
 
-	  //Particle information is still in hdf5
-	  	WriteParticles(cycle);
-	  //Test Particle information is still in hdf5
-	    WriteTestParticles(cycle);
+		    if(!(col->getMomentsOutputTag()).empty())
+			    WriteMomentsVTK(grid, EMf, col, vct, col->getMomentsOutputTag() ,cycle, momentwritebuffer);
+	    }
 
-  }else{
-
+        //! Particle data is written to hdf5 files
+        WriteParticles(cycle);
+        WriteTestParticles(cycle);
+    }
+    else
+    {
 		#ifdef NO_HDF5
-			eprintf("The selected output option must be compiled with HDF5");
+			
+            eprintf("The selected output option must be compiled with HDF5");
 
 		#else
-			if (col->getWriteMethod() == "H5hut"){
 
-			  if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
-				WriteFieldsH5hut(ns, grid, EMf, col, vct, cycle);
-			  if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
-				WritePartclH5hut(ns, grid, part, col, vct, cycle);
+			if (col->getWriteMethod() == "H5hut")
+            {//! No guarantee that this will work
 
-			}else if (col->getWriteMethod() == "phdf5"){
+			    if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
+				    WriteFieldsH5hut(ns, grid, EMf, col, vct, cycle);
 
-			  if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
-				WriteOutputParallel(grid, EMf, part, col, vct, cycle);
-
-			  if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
-			  {
-				if(MPIdata::get_rank()==0)
-				  warning_printf("WriteParticlesParallel() is not yet implemented.");
-			  }
-
-			}else if (col->getWriteMethod() == "shdf5"){
-
-					WriteFields(cycle);
-
-					WriteParticles(cycle);
-
-					WriteTestParticles(cycle);
-
-			}else{
-			  warning_printf(
-				"Invalid output option. Options are: H5hut, phdf5, shdf5, pvtk");
-			  invalid_value_error(col->getWriteMethod().c_str());
+			    if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
+				    WritePartclH5hut(ns, grid, part, col, vct, cycle);
 			}
+            else if (col->getWriteMethod() == "phdf5")
+            {//! Parallel HDF5
+
+			    if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
+				    WriteOutputParallel(grid, EMf, part, col, vct, cycle);
+
+			    if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
+			    {
+				    if(MPIdata::get_rank()==0)
+				        warning_printf("WriteParticlesParallel() is not yet implemented.");
+			    }
+			}
+            else if (col->getWriteMethod() == "shdf5")
+            {//! Serial HDF5
+
+                WriteFields(cycle);
+                WriteParticles(cycle);
+                WriteTestParticles(cycle);
+			}
+            else
+            {
+			    warning_printf("\nERROR: Invalid WriteMethod in input file. Available options: H5hut or phdf5 or shdf5 or pvtk or nbcvtk.");
+			    invalid_value_error(col->getWriteMethod().c_str());
+			}
+
 		#endif
-  	  }
+  	}
 }
 
 void c_Solver::WriteRestart(int cycle)
@@ -691,10 +707,14 @@ void c_Solver::WriteConserved(int cycle)
         if (myrank == (nprocs-1)) 
         {
             ofstream my_file(cq.c_str(), fstream::app);
-            if(cycle == 0) my_file << "\t" << "\t" << "\t" << "Total_Energy" << "\t" << "Momentum" << "\t" << "Eenergy" << "\t" << "Benergy" << "\t" << "Kenergy" << "\t" << "Kenergy(species)" << "\t" << "BulkEnergy(species)" << endl;
-            my_file << cycle << "\t" << "\t" << (Eenergy + Benergy + TOTenergy) << "\t" << TOTmomentum << "\t" << Eenergy << "\t" << Benergy << "\t" << TOTenergy;
-            for (int is = 0; is < ns; is++) my_file << "\t" << Ke[is];
-            for (int is = 0; is < ns; is++) my_file << "\t" << BulkEnergy[is];
+            
+            if(cycle == 0) 
+            my_file << "Cycle" << setw(20) << "Total Energy"                  << setw(20) << "Momentum"  << setw(20) << "Eenergy" << setw(20) << "Benergy" << setw(20) << "Kenergy" << endl;
+            my_file << cycle   << setw(20) << (Eenergy + Benergy + TOTenergy) << setw(20) << TOTmomentum << setw(20) << Eenergy   << setw(20) << Benergy   << setw(20) << TOTenergy;
+            
+            // for (int is = 0; is < ns; is++) my_file << "\t" << Ke[is];
+            // for (int is = 0; is < ns; is++) my_file << "\t" << BulkEnergy[is];
+            
             my_file << endl;
             my_file.close();
         }
@@ -813,10 +833,10 @@ void c_Solver::Finalize()
     my_clock->stopTiming();
 }
 
-//! place the particles into new cells according to their current position
+//? Place particles into new cells according to their current position
 void c_Solver::sortParticles() 
 {
-    for(int species_idx=0; species_idx<ns; species_idx++)
+    for(int species_idx = 0; species_idx < ns; species_idx++)
         part[species_idx].sort_particles_serial();
 }
 
@@ -829,14 +849,14 @@ void c_Solver::pad_particle_capacities()
         testpart[i].pad_capacities();
 }
 
-// convert particle to struct of arrays (assumed by I/O)
+//? Convert particle data to struct of arrays (assumed by I/O)
 void c_Solver::convertParticlesToSoA()
 {
     for (int i = 0; i < ns; i++)
         part[i].convertParticlesToSoA();
 }
 
-// convert particle to array of structs (used in computing)
+//? Convert particle data to array of structs (used in computing)
 void c_Solver::convertParticlesToAoS()
 {
     for (int i = 0; i < ns; i++)
