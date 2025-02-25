@@ -43,64 +43,69 @@ double dot(const double *vect1, const double *vect2, int n) {
     result += vect1[i] * vect2[i];
   return (result);
 }
-/** method to calculate the square norm of a vector */
-double norm2(const double *const*vect, int nx, int ny) {
-  double result = 0;
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      result += vect[i][j] * vect[i][j];
-  return (result);
-}
-/** method to calculate the square norm of a vector */
-double norm2(const arr3_double vect, int nx, int ny) {
-  double result = 0;
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      result += vect.get(i,j,0) * vect.get(i,j,0);
-  return (result);
-}
-/** method to calculate the square norm of a vector */
-double norm2(const double *vect, int nx) {
-  double result = 0;
-  for (int i = 0; i < nx; i++)
-    result += vect[i] * vect[i];
-  return (result);
+
+
+//? ========================= L2 norm ========================= ?//
+
+double norm2(const double *vect, int nx) 
+{
+    double result = 0;
+    
+    for (int i = 0; i < nx; i++)
+        result += vect[i] * vect[i];
+    
+        return (result);
 }
 
-/** method to calculate the parallel dot product */
-/*
-double norm2P(const arr3_double vect, int nx, int ny, int nz) {
-  double result = 0;
-  double local_result = 0;
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      for (int k = 0; k < nz; k++)
-        local_result += vect.get(i,j,k) * vect.get(i,j,k);
-
-  MPI_Allreduce(&local_result, &result, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  return (result);
-}*/
-
-/** method to calculate the parallel norm of a vector on different processors with the ghost cell */
-/*
-double norm2P(const double *vect, int n) {
-  double result = 0;
-  double local_result = 0;
-  for (int i = 0; i < n; i++)
-    local_result += vect[i] * vect[i];
-  MPI_Allreduce(&local_result, &result, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  return (result);
-}*/
-/** method to calculate the parallel norm of a vector on different processors with the gost cell*/
-double normP(const double *vect, int n,MPI_Comm* comm) {
-  double result = 0.0;
-  double local_result = 0.0;
-  for (int i = 0; i < n; i++)
-    local_result += vect[i] * vect[i];
-  MPI_Allreduce(&local_result, &result, 1, MPI_DOUBLE, MPI_SUM, *comm);
-  return (sqrt(result));
-
+double norm2(const double *const*vect, int nx, int ny) 
+{
+    double result = 0;
+    
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            result += vect[i][j] * vect[i][j];
+    
+            return (result);
 }
+double norm2(const arr3_double vect, int nx, int ny) 
+{
+    double result = 0;
+    
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            result += vect.get(i,j,0) * vect.get(i,j,0);
+    
+            return (result);
+}
+
+double norm2(const arr3_double vect, int nx, int ny, int nz) 
+{
+    double result = 0;
+    
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            for (int k = 0; k < nz; j++)
+                result += vect.get(i,j,k) * vect.get(i,j,k);
+    
+            return (result);
+}
+
+//* Compute parallel norm of a vector on different processors with the gost cell
+double normP(const double *vect, int n,MPI_Comm* comm) 
+{
+    double result = 0.0;
+    double local_result = 0.0;
+    
+    for (int i = 0; i < n; i++)
+        local_result += vect[i] * vect[i];
+    
+    MPI_Allreduce(&local_result, &result, 1, MPI_DOUBLE, MPI_SUM, *comm);
+    
+    return (sqrt(result));
+}
+
+//? =========================================================== ?//
+
 /** method to calculate the difference of two vectors*/
 void sub(double *res, const double *vect1, const double *vect2, int n) {
   for (int i = 0; i < n; i++)
@@ -219,7 +224,7 @@ void scale(double *vect1, const double *vect2, double alfa, int n)
         vect1[i] = vect2[i] * alfa;
 }
 
-//* vector1 = vector1 + alfa*vector2
+//* vector3 = vector1 + alfa*vector2
 void addscale(double alfa, arr3_double vect1, arr3_double vect2, const arr3_double vect3, int nx, int ny, int nz)
 {
     for (int i = 0; i < nx; i++)
@@ -228,6 +233,7 @@ void addscale(double alfa, arr3_double vect1, arr3_double vect2, const arr3_doub
 	            vect3.fetch(i,j,k) = vect1.get(i,j,k) + alfa * vect2.get(i,j,k);
 }
 
+//* vector1 = vector1 + alfa*vector2
 void addscale(double alfa, arr4_double vect1, const arr3_double vect2, int ns, int nx, int ny, int nz)
 {
     for (int is = 0; is < ns; is++)

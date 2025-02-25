@@ -132,6 +132,7 @@ namespace iPic3D {
     double Benergy;
     double TOTenergy;
     double TOTmomentum;
+    double initial_total_energy;
 
     //the below used for IO
     MPI_Request *headerReq;

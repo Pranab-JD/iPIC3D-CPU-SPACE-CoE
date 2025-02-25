@@ -114,7 +114,7 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,  const do
             for (int j = 0; j <= k; j++)
                 y[j] = dot(w, V[j], xkrylovlen);
 
-            y[k+1] = norm2(w,xkrylovlen);
+            y[k+1] = norm2(w, xkrylovlen);
             
             MPI_Allreduce(MPI_IN_PLACE, y, (k+2), MPI_DOUBLE, MPI_SUM, fieldcomm);
 

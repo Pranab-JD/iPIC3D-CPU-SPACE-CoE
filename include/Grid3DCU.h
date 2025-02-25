@@ -284,20 +284,20 @@ public:
     // double getInvVOL(int i, int j, int k)const{ return (invVOL.get(i, j, k)); }
 
   // inline methods to calculate mesh cell and weights.
-  static void get_weights(double weights[8],
-    double w0x, double w0y, double w0z,
-    double w1x, double w1y, double w1z)
-  {
+    static void get_weights(double weights[8],
+                            double w0x, double w0y, double w0z,
+                            double w1x, double w1y, double w1z)
+    {
+        weights[0] = w0x*w0y*w0z; // weight000
+        weights[1] = w0x*w0y*w1z; // weight001
+        weights[2] = w0x*w1y*w0z; // weight010
+        weights[3] = w0x*w1y*w1z; // weight011
+        weights[4] = w1x*w0y*w0z; // weight100
+        weights[5] = w1x*w0y*w1z; // weight101
+        weights[6] = w1x*w1y*w0z; // weight110
+        weights[7] = w1x*w1y*w1z; // weight111
+    }
 
-    weights[0] = w0x*w0y*w0z; // weight000
-    weights[1] = w0x*w0y*w1z; // weight001
-    weights[2] = w0x*w1y*w0z; // weight010
-    weights[3] = w0x*w1y*w1z; // weight011
-    weights[4] = w1x*w0y*w0z; // weight100
-    weights[5] = w1x*w0y*w1z; // weight101
-    weights[6] = w1x*w1y*w0z; // weight110
-    weights[7] = w1x*w1y*w1z; // weight111
-  }
   void get_cell_coordinates(
     int& cx, int& cy, int& cz,
     double xpos, double ypos, double zpos)const
@@ -354,47 +354,51 @@ public:
     get_cell_coordinates(cx,cy,cz,x,y,z);
     make_cell_coordinates_safe(cx,cy,cz);
   }
-  void get_safe_cell_and_weights(
-    double xpos, double ypos, double zpos,
-    int &cx, int& cy, int& cz,
-    double weights[8])const
-  {
-    //convert_xpos_to_cxpos(xpos,ypos,zpos,cx_pos,cy_pos,cz_pos);
-    // gxStart marks start of guarded domain (including ghosts)
-    const double rel_xpos = xpos - xStart_g;
-    const double rel_ypos = ypos - yStart_g;
-    const double rel_zpos = zpos - zStart_g;
-    // cell position (in guarded array)
-    double cx_pos = rel_xpos * invdx;
-    double cy_pos = rel_ypos * invdy;
-    double cz_pos = rel_zpos * invdz;
-    //
-    if(suppress_runaway_particle_instability)
-      make_grid_position_safe(cx_pos,cy_pos,cz_pos);
-    //
-    cx = int(floor(cx_pos));
-    cy = int(floor(cy_pos));
-    cz = int(floor(cz_pos));
-    // this was the old algorithm.
-    if(!suppress_runaway_particle_instability)
-      make_cell_coordinates_safe(cx,cy,cz);
-    assert_cell_coordinates_safe(cx,cy,cz);
-  
-    // fraction of distance from the left
-    const double w0x = cx_pos - cx;
-    const double w0y = cy_pos - cy;
-    const double w0z = cz_pos - cz;
-    // fraction of the distance from the right of the cell
-    const double w1x = 1.-w0x;
-    const double w1y = 1.-w0y;
-    const double w1z = 1.-w0z;
 
-    get_weights(weights, w0x, w0y, w0z, w1x, w1y, w1z);
-  }
-  void get_safe_cell_and_weights(double xpos[3], int cx[3], double weights[8])const
-  {
-    get_safe_cell_and_weights(xpos[0],xpos[1],xpos[2],cx[0],cx[1],cx[2],weights);
-  }
+void get_safe_cell_and_weights(double xpos, double ypos, double zpos,
+                               int &cx, int& cy, int& cz, double weights[8])const
+    {
+        //convert_xpos_to_cxpos(xpos,ypos,zpos,cx_pos,cy_pos,cz_pos);
+        // gxStart marks start of guarded domain (including ghosts)
+        const double rel_xpos = xpos - xStart_g;
+        const double rel_ypos = ypos - yStart_g;
+        const double rel_zpos = zpos - zStart_g;
+
+        // cell position (in guarded array)
+        double cx_pos = rel_xpos * invdx;
+        double cy_pos = rel_ypos * invdy;
+        double cz_pos = rel_zpos * invdz;
+        
+        if(suppress_runaway_particle_instability)
+            make_grid_position_safe(cx_pos,cy_pos,cz_pos);
+        
+        cx = int(floor(cx_pos));
+        cy = int(floor(cy_pos));
+        cz = int(floor(cz_pos));
+        
+        // this was the old algorithm.
+        if(!suppress_runaway_particle_instability)
+            make_cell_coordinates_safe(cx,cy,cz);
+        assert_cell_coordinates_safe(cx,cy,cz);
+    
+        // fraction of distance from the left
+        const double w0x = cx_pos - cx;
+        const double w0y = cy_pos - cy;
+        const double w0z = cz_pos - cz;
+        
+        // fraction of the distance from the right of the cell
+        const double w1x = 1.-w0x;
+        const double w1y = 1.-w0y;
+        const double w1z = 1.-w0z;
+
+        get_weights(weights, w0x, w0y, w0z, w1x, w1y, w1z);
+    }
+  
+    void get_safe_cell_and_weights(double xpos[3], int cx[3], double weights[8])const
+    {
+        get_safe_cell_and_weights(xpos[0], xpos[1], xpos[2], cx[0], cx[1], cx[2], weights);
+    }
+
 };
 
 typedef Grid3DCU Grid;

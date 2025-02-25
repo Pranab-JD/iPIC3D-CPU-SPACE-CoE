@@ -53,18 +53,13 @@ developers: Stefano Markidis, Giovanni Lapenta
 double dotP(const double *vect1, const double *vect2, int n,MPI_Comm* comm);
 /** method to calculate dot product */
 double dot(const double *vect1, const double *vect2, int n);
-/** method to calculate the square norm of a vector */
-double norm2(const double *const*vect, int nx, int ny);
-/** method to calculate the square norm of a vector */
-double norm2(const arr3_double vect, int nx, int ny);
-/** method to calculate the square norm of a vector */
+
 double norm2(const double *vect, int nx);
-/** method to calculate the parallel dot product */
-//double norm2P(const arr3_double vect, int nx, int ny, int nz);
-/** method to calculate the parallel norm of a vector on different processors with the ghost cell */
-//double norm2P(const double *vect, int n);
-/** method to calculate the parallel norm of a vector on different processors with the gost cell*/
-double normP(const double *vect, int n,MPI_Comm* comm);
+double norm2(const double *const*vect, int nx, int ny);
+double norm2(const arr3_double vect, int nx, int ny);
+double norm2(const arr3_double vect, int nx, int ny, int nz);
+double normP(const double *vect, int n, MPI_Comm* comm);
+
 /** method to calculate the difference of two vectors*/
 void sub(double *res, const double *vect1, const double *vect2, int n);
 /** method to calculate the sum of two vectors vector1 = vector1 + vector2*/
