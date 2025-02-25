@@ -754,8 +754,10 @@ void communicateInterp(int nx, int ny, int nz, double*** vector, const VirtualTo
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true, false, true, true);
 }
 
-//? Used for communicating current densities (setZeroCurrent)
+//? Used for communicating moments
 void communicateNode_P(int nx, int ny, int nz, double*** vector, const VirtualTopology3D * vct, EMfields3D *EMf)
 {
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false, false, false, true);
 }
+
+//* ============================================================================================================================ *//

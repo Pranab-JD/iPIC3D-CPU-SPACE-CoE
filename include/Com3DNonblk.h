@@ -88,6 +88,8 @@ void communicateCenterBoxStencilBC_P(int nx, int ny, int nz, arr3_double vector,
 void communicateInterp(int nx, int ny, int nz, double*** vector, const VirtualTopology3D * vct, EMfields3D *EMf);
 void communicateNode_P(int nx, int ny, int nz, double*** vector, const VirtualTopology3D * vct, EMfields3D *EMf);
 
+// void communicateInterp(int nx, int ny, int nz, int ns, double ****vector, const VirtualTopology3D * vct);
+
 void addCorner(int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct);
 void addEdgeX (int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct);
 void addEdgeY (int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct);
