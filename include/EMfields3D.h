@@ -37,6 +37,7 @@ const int DFIELD_3or4 = 4; // 4 pads with garbage but is needed for alignment
 
 class Particles3Dcomm;
 class Moments10;
+class ECSIM_Moments13;
 class EMfields3D                // :public Field
 {
 public:
@@ -80,7 +81,7 @@ public:
     /*! Initialise Taylor-Green flow */
     void initTaylorGreen();
     /*! Calculate Electric field using the implicit Maxwell solver */
-    void calculateE(int cycle);
+    void calculateE();
     /*! Image of Poisson Solver (for SOLVER) */
     void PoissonImage(double *image, double *vector);
     /*! Image of Maxwell Solver (for Solver) */
@@ -115,6 +116,8 @@ public:
 
     /*! Calculate rho hat, Jx hat, Jy hat, Jz hat */
     void calculateHatFunctions();
+
+    void C2NB();
 
     //* Calculate the three components of Pi(implicit pressure) cross image vector -- Not needed for ECSim *//
     void PIdot(arr3_double PIdotX, arr3_double PIdotY, arr3_double PIdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int ns);
@@ -165,6 +168,7 @@ public:
 
     //* Communicate ghost cells for grid -> particles interpolation - ECSIM
     void communicateGhostP2G_ecsim(int is);
+    void communicateGhostP2G_mass_matrix();
 
     /*! sum moments (interp_P2G) versions */
     void sumMoments(const Particles3Dcomm* part);
@@ -343,7 +347,8 @@ public:
     /*! get the electric field energy */
     double getEenergy();
     /*! get the magnetic field energy */
-    double getBenergy();
+    double getBintenergy();
+    double getBextenergy();
     /*! get bulk kinetic energy */
     double getBulkEnergy(int is);
 
@@ -359,6 +364,14 @@ public:
         assert_lt(i,sizeMomentsArray);
         return *(moments10Array[i]);
     }
+
+    ECSIM_Moments13& fetch_moments13Array(int i)
+    {
+        assert_le(0, i);
+        assert_lt(i, sizeMomentsArray);
+        return *(ecsim_moments13Array[i]);
+    }
+
     int get_sizeMomentsArray() { return sizeMomentsArray; }
 
     /*! print electromagnetic fields info */
@@ -550,6 +563,7 @@ private:
     //* Arrays for summing moments *//
     int sizeMomentsArray;
     Moments10 **moments10Array;
+    ECSIM_Moments13 **ecsim_moments13Array;
 
     //* Object of class to handle which nodes have to be computed when the mass matrix is calculated
     NeighbouringNodes NeNo;
@@ -644,7 +658,10 @@ inline void EMfields3D::add_Rho(double weight[8], int X, int Y, int Z, int is)
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 2; j++)
             for (int k = 0; k < 2; k++)
+            {
+                // const double temp = weight[i * 4 + j * 2 + k];
                 rhons[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k] * invVOL;
+            }
 }
 
 //* Add an amount of current density to current density field at node X,Y,Z
@@ -653,21 +670,30 @@ inline void EMfields3D::add_Jxh(double weight[8], int X, int Y, int Z, int is)
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 2; j++)
             for (int k = 0; k < 2; k++)
-                Jxhs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k] * invVOL;
+            {
+                // const double temp = weight[i * 4 + j * 2 + k];
+                Jxhs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k];
+            }
 }
 inline void EMfields3D::add_Jyh(double weight[8], int X, int Y, int Z, int is)
 {
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 2; j++)
             for (int k = 0; k < 2; k++)
-                Jyhs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k] * invVOL;
+            {
+                // const double temp = weight[i * 4 + j * 2 + k];
+                Jyhs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k];
+            }
 }
 inline void EMfields3D::add_Jzh(double weight[8], int X, int Y, int Z, int is)
 {
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 2; j++)
             for (int k = 0; k < 2; k++)
-                Jzhs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k] * invVOL;
+            {
+                // const double temp = weight[i * 4 + j * 2 + k];
+                Jzhs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k];
+            }
 }
 
 // /*! add an amount of pressure density - direction XX to current density field on the node */
@@ -726,11 +752,6 @@ inline void EMfields3D::add_Mass(double value[3][3], int X, int Y, int Z, int in
     Mzy[ind][X][Y][Z] += value[2][1];
     Mzz[ind][X][Y][Z] += value[2][2];
 }
-
-// void EMfields3D::addMassXX(double value, int X, int Y, int Z, int ind) 
-// {
-//     Mxx[ind][X][Y][Z] += value;
-// }
 
 inline void get_field_components_for_cell(const double* field_components[8], const_arr4_double fieldForPcls, int cx,int cy,int cz)
 {
