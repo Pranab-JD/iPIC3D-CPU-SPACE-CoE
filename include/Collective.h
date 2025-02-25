@@ -176,11 +176,11 @@ class Collective
     string getFieldOutputTag()          const{ return FieldOutputTag;}
     string getMomentsOutputTag()        const{ return MomentsOutputTag;}
     string getPclOutputTag()            const{ return ParticlesOutputTag;}
-    string getPoissonCorrection()       const{ return (PoissonCorrection); }
+    // string getPoissonCorrection()       const{ return (PoissonCorrection); }
     double getVinj()                    const{ return (Vinj); }
     double getCGtol()                   const{ return (CGtol); }
     double getGMREStol()                const{ return (GMREStol); }
-    int getPoissonCorrectionCycle()     const{ return (PoissonCorrectionCycle); }
+    // int getPoissonCorrectionCycle()     const{ return (PoissonCorrectionCycle); }
     int getLast_cycle()                 const{ return (last_cycle); }
     int getNiterMover()                 const{ return (NiterMover); }
     int getFieldOutputCycle()           const{ return (FieldOutputCycle); }
@@ -198,15 +198,12 @@ class Collective
     bool getAddExternalCurlB()          const { return AddExternalCurlB; }
     bool getAddExternalCurlE()          const { return AddExternalCurlE; }
     bool getEnergyConservingSmoothing() const { return EnergyConservingSmoothing; }
-    bool getCurlCurl()                  const { return CurlCurl; }
     bool getExactMM()                   const { return ExactMM; }
-    string getRemoveDivE()              const { return RemoveDivE; }
-    double getLangdonCorrection()       const { return LangdonCorrection; }
 
     //* Parameters for charge conservation
-    double getPoissonMArho()            const { return PoissonMArho;}
-    double getPoissonMAdiv()            const { return PoissonMAdiv;}
-    double getPoissonMAres()            const { return PoissonMAres;}
+    // double getPoissonMArho()            const { return PoissonMArho;}
+    // double getPoissonMAdiv()            const { return PoissonMAdiv;}
+    // double getPoissonMAres()            const { return PoissonMAres;}
 
     int getZeroCurrent()                      { return zeroCurrent; }
 
@@ -447,7 +444,7 @@ class Collective
     bool CallFinalize;
 
     //* Parameters for charge conservation
-    double PoissonMArho, PoissonMAdiv, PoissonMAres;
+    // double PoissonMArho, PoissonMAdiv, PoissonMAres;
 
     /** AddExternalCurlB */
     bool AddExternalCurlB;
@@ -461,9 +458,6 @@ class Collective
     bool CurlCurl;
     /** Exact MAss Matrix Formulation */
     bool ExactMM;
-    /*! Langdon correction flag */
-    double LangdonCorrection;
-
 };
 typedef Collective CollectiveIO;
 

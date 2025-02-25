@@ -152,19 +152,18 @@ void Collective::ReadInput(string inputfile)
         SimName                     = config.read<string>   ("SimulationName");
         
         //* Poisson correction
-        PoissonCorrection           = config.read<string>   ("PoissonCorrection");
-        PoissonCorrectionCycle      = config.read<int>      ("PoissonCorrectionCycle",10);
+        // PoissonCorrection           = config.read<string>   ("PoissonCorrection");
+        // PoissonCorrectionCycle      = config.read<int>      ("PoissonCorrectionCycle",10);
         
-        //* Parameters for charge conservation (changing is not recommended)
-        PoissonMArho                = config.read<double>   ("PoissonMArho", 0.01);
-        PoissonMAdiv                = config.read<double>   ("PoissonMAdiv", 1.0);
-        PoissonMAres                = config.read<double>   ("PoissonMAres", 0.01);
+        // //* Parameters for charge conservation (changing is not recommended)
+        // PoissonMArho                = config.read<double>   ("PoissonMArho", 0.01);
+        // PoissonMAdiv                = config.read<double>   ("PoissonMAdiv", 1.0);
+        // PoissonMAres                = config.read<double>   ("PoissonMAres", 0.01);
         
         RemoveDivE                  = config.read<string>   ("RemoveDivE","no");
         AddExternalCurlB            = config.read<bool>     ("AddExternalCurlB",false);
         AddExternalCurlE            = config.read<bool>     ("AddExternalCurlE",false);
         EnergyConservingSmoothing   = config.read<bool>     ("EnergyConservingSmoothing",false);
-        LangdonCorrection           = config.read<double>   ("LangdonCorrection", 0);
         CurlCurl                    = config.read<bool>     ("CurlCurl",false);
         ExactMM                     = config.read<bool>     ("ExactMM",true);
 
