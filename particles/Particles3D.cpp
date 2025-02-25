@@ -72,26 +72,26 @@ static bool cap_velocity(){return false;}
 /** particles are uniformly distributed with zero velocity   */
 void Particles3D::uniform_background(Field * EMf)
 {
-  for (int i = 1; i < grid->getNXC() - 1; i++)
-  for (int j = 1; j < grid->getNYC() - 1; j++)
-  for (int k = 1; k < grid->getNZC() - 1; k++)
-  {
-    for (int ii = 0; ii < npcelx; ii++)
-    for (int jj = 0; jj < npcely; jj++)
-    for (int kk = 0; kk < npcelz; kk++)
-    {
-      double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-      double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-      double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-      double u = 0.0;
-      double v = 0.0;
-      double w = 0.0;
-      double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / grid->getInvVOL());
-      _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,0));
-    }
-  }
-  cout << "Velocity Maxwellian Distribution " << endl;
+    for (int i = 1; i < grid->getNXC() - 1; i++)
+        for (int j = 1; j < grid->getNYC() - 1; j++)
+            for (int k = 1; k < grid->getNZC() - 1; k++)
+                for (int ii = 0; ii < npcelx; ii++)
+                    for (int jj = 0; jj < npcely; jj++)
+                        for (int kk = 0; kk < npcelz; kk++)
+                        {
+                            double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                            double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                            double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+                            double u = 0.0;
+                            double v = 0.0;
+                            double w = 0.0;
+                            double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / grid->getInvVOL());
+                            _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,0));
+                        }
+    
+    cout << "u, v, w = 0.0 " << endl;
 }
+
 /** Initialize particles with a constant velocity in dim direction. Depending on the value of dim:
   <ul>
   <li> dim = 0 --> constant velocity on X direction </li>
@@ -194,46 +194,43 @@ void Particles3D::MaxwellianFromFluidCell(Collective *col, int is, int i, int j,
 /** Maxellian random velocity and uniform spatial distribution */
 void Particles3D::maxwellian(Field * EMf)
 {
-  /* initialize random generator with different seed on different processor */
-  srand(vct->getCartesian_rank() + 2);
+    /* initialize random generator with different seed on different processor */
+    srand(vct->getCartesian_rank() + 2);
 
-  assert_eq(_pcls.size(),0);
+    assert_eq(_pcls.size(),0);
 
-  const double q_sgn = (qom / fabs(qom));
-  // multipled by charge density gives charge per particle
-  const double q_factor =  q_sgn * grid->getVOL() / npcel;
+    const double q_sgn = (qom / fabs(qom));
+    // multipled by charge density gives charge per particle
+    const double q_factor =  q_sgn * grid->getVOL() / npcel;
 
-  for (int i = 1; i < grid->getNXC() - 1; i++)
-  {
-  for (int j = 1; j < grid->getNYC() - 1; j++)
-  for (int k = 1; k < grid->getNZC() - 1; k++)
-  {
-    const double q = q_factor * EMf->getRHOcs(i, j, k, ns);
-    for (int ii = 0; ii < npcelx; ii++)
-    for (int jj = 0; jj < npcely; jj++)
-    for (int kk = 0; kk < npcelz; kk++)
+    for (int i = 1; i < grid->getNXC() - 1; i++)
+        for (int j = 1; j < grid->getNYC() - 1; j++)
+            for (int k = 1; k < grid->getNZC() - 1; k++)
+            {
+                const double q = q_factor * EMf->getRHOcs(i, j, k, ns);
+                
+                for (int ii = 0; ii < npcelx; ii++)
+                    for (int jj = 0; jj < npcely; jj++)
+                        for (int kk = 0; kk < npcelz; kk++)
+                        {
+                            double u,v,w;
+                            sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
+                            
+                            // could also sample positions randomly as in repopulate_particles();
+                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+                            create_new_particle(u,v,w,q,x,y,z);
+                        }
+            }
+
+    if(0)
     {
-      double u,v,w;
-      sample_maxwellian(
-        u,v,w,
-        uth, vth, wth,
-        u0, v0, w0);
-      // could also sample positions randomly as in repopulate_particles();
-      const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-      const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-      const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-      create_new_particle(u,v,w,q,x,y,z);
+        dprintf("number of particles of species %d: %d", ns, getNOP());
+        const int num_ids = 1;
+        longid id_list[num_ids] = {0};
+        print_pcls(_pcls,ns,id_list, num_ids);
     }
-  }
-  //dprintf("capacity=%d, size=%d", _pcls.capacity(), getNOP());
-  }
-  if(0)
-  {
-    dprintf("number of particles of species %d: %d", ns, getNOP());
-    const int num_ids = 1;
-    longid id_list[num_ids] = {0};
-    print_pcls(_pcls,ns,id_list, num_ids);
-  }
 }
 
 /** Maxellian velocity from currents and uniform spatial distribution */
@@ -664,14 +661,14 @@ void Particles3D::mover_PC(Field * EMf)
     }
 }
 
-//? ============================================================================= *//?
+//! ============================================================================= !//
 
 //! ECSIM - energy conserving semi-implicit method !//
-void Particles3D::ECSIM_velocity(Field * EMf) 
+void Particles3D::ECSIM_velocity(Field *EMf) 
 {
     #pragma omp parallel
     {
-        convertParticlesToSoA();
+        convertParticlesToAoS();
 
         #pragma omp master
         if (vct->getCartesian_rank() == 0) 
@@ -679,86 +676,44 @@ void Particles3D::ECSIM_velocity(Field * EMf)
 
         const_arr4_double fieldForPcls = EMf->get_fieldForPcls();
 
+        const double qdto2mc = 0.5 * dt * qom/c;
+
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++) 
         {
+            //* Copy the particle
+		    SpeciesParticle* pcl = &_pcls[pidx];
+		    ALIGNED(pcl);
+
             //* --------------------------------------- *//
 
-            //* Copy particles' positions
-            const double xorig = getX(pidx);
-            const double yorig = getY(pidx);
-            const double zorig = getZ(pidx);
-
-            //* Copy particles' velocities
-            const double uorig = getU(pidx);
-            const double vorig = getV(pidx);
-            const double worig = getW(pidx);
+            //* Copy particles' positions and velocities
+            const double xorig = pcl->get_x();
+            const double yorig = pcl->get_y();
+            const double zorig = pcl->get_z();
+            const double uorig = pcl->get_u();
+            const double vorig = pcl->get_v();
+            const double worig = pcl->get_w();
             
+            //* Additional variables for storing old and new positions and velocities
             double xavg = xorig;
             double yavg = yorig;
             double zavg = zorig;
             
-            double uavg;
-            double vavg;
-            double wavg;
+            double uavg, vavg, wavg;
 
             //* --------------------------------------- *//
 
-            //* Interpolation G-->P
-            const double ixd = floor((xavg - xstart) * inv_dx);
-            const double iyd = floor((yavg - ystart) * inv_dy);
-            const double izd = floor((zavg - zstart) * inv_dz);
-            
-            //* Interface of index to right of cell
-            int ix = 2 + int(ixd);
-            int iy = 2 + int(iyd);
-            int iz = 2 + int(izd);
-
-            //* Use field data of closest cell in domain
-            if (ix < 1) ix = 1;
-            if (iy < 1) iy = 1;
-            if (iz < 1) iz = 1;
-            if (ix > nxc) ix = nxc;
-            if (iy > nyc) iy = nyc;
-            if (iz > nzc) iz = nzc;
-            
-            //* Index of cell of particle
-            const int cx = ix - 1;
-            const int cy = iy - 1;
-            const int cz = iz - 1;
-
-            //* Compute weights of the particles
-            const double xi0   = xavg - grid->getXN(ix-1);
-            const double eta0  = yavg - grid->getYN(iy-1);
-            const double zeta0 = zavg - grid->getZN(iz-1);
-            const double xi1   = grid->getXN(ix) - xavg;
-            const double eta1  = grid->getYN(iy) - yavg;
-            const double zeta1 = grid->getZN(iz) - zavg;
-
+            //* Compute weights for field components
             double weights[8] ALLOC_ALIGNED;
-            const pfloat weight0 = invVOL*xi0;
-            const pfloat weight1 = invVOL*xi1;
-            const pfloat weight00 = weight0*eta0;
-            const pfloat weight01 = weight0*eta1;
-            const pfloat weight10 = weight1*eta0;
-            const pfloat weight11 = weight1*eta1;
-            weights[0] = weight00*zeta0;                            // weight000 = xi[0] * eta[0] * zeta[0] * invVOL
-            weights[1] = weight00*zeta1;                            // weight001 = xi[0] * eta[0] * zeta[1] * invVOL
-            weights[2] = weight01*zeta0;                            // weight010 = xi[0] * eta[1] * zeta[0] * invVOL
-            weights[3] = weight01*zeta1;                            // weight011 = xi[0] * eta[1] * zeta[1] * invVOL
-            weights[4] = weight10*zeta0;                            // weight100 = xi[1] * eta[0] * zeta[0] * invVOL
-            weights[5] = weight10*zeta1;                            // weight101 = xi[1] * eta[0] * zeta[1] * invVOL
-            weights[6] = weight11*zeta0;                            // weight110 = xi[1] * eta[1] * zeta[0] * invVOL
-            weights[7] = weight11*zeta1;                            // weight111 = xi[1] * eta[1] * zeta[1] * invVOL
+            int cx, cy, cz;
+            grid->get_safe_cell_and_weights(xavg, yavg, zavg, cx, cy, cz, weights);
 
-            //* --------------------------------------- *//
-
-            const double* field_components[8];
+            const double* field_components[8] ALLOC_ALIGNED;
             get_field_components_for_cell(field_components, fieldForPcls, cx, cy, cz);
 
             double sampled_field[8] ALLOC_ALIGNED;
-            for(int i=0;i<8;i++) 
-                sampled_field[i]=0;
+            for(int i=0;i<8;i++) sampled_field[i]=0;
             
             double& Bxl=sampled_field[0];
             double& Byl=sampled_field[1];
@@ -784,8 +739,6 @@ void Particles3D::ECSIM_velocity(Field * EMf)
 
             //* --------------------------------------- *//
 
-            const double qdto2mc = 0.5 * dt * qom/c;
-
             const double Omx = qdto2mc*Bxl;
             const double Omy = qdto2mc*Byl;
             const double Omz = qdto2mc*Bzl;
@@ -793,35 +746,35 @@ void Particles3D::ECSIM_velocity(Field * EMf)
             const pfloat omsq = (Omx * Omx + Omy * Omy + Omz * Omz);
             const pfloat denom = 1.0 / (1.0 + omsq);
 
-            //? Update (temporary) positions
-            double vbEx = uorig + qdto2mc*Exl;
-            double vbEy = vorig + qdto2mc*Eyl;
-            double vbEz = worig + qdto2mc*Ezl;
+            //? Update (temporary) velocities
+            const pfloat u_temp = uorig + qdto2mc*Exl;
+            const pfloat v_temp = vorig + qdto2mc*Eyl;
+            const pfloat w_temp = worig + qdto2mc*Ezl;
 
-            double edotb = vbEx * Omx + vbEy * Omy + vbEz * Omz;
+            const pfloat udotOm = u_temp * Omx + v_temp * Omy + w_temp * Omz;
 
-            uavg = (vbEx + (vbEy * Omz - vbEz * Omy + edotb * Omx)) * denom;
-            vavg = (vbEy + (vbEz * Omx - vbEx * Omz + edotb * Omy)) * denom;
-            wavg = (vbEz + (vbEx * Omy - vbEy * Omx + edotb * Omz)) * denom;
+            uavg = (u_temp + (v_temp * Omz - w_temp * Omy + udotOm * Omx)) * denom;
+            vavg = (v_temp + (w_temp * Omx - u_temp * Omz + udotOm * Omy)) * denom;
+            wavg = (w_temp + (u_temp * Omy - v_temp * Omx + udotOm * Omz)) * denom;
 
             //TODO: what is this?
             //     mirror(vct, xp, yp, zp, up, vp, wp,Bxl, Byl, Bzl);
 
             //? Update final velocities
-            fetchU(pidx) = 2.0 * uavg - uorig;
-            fetchV(pidx) = 2.0 * vavg - vorig;
-            fetchW(pidx) = 2.0 * wavg - worig;
+            pcl->set_u(2.0 * uavg - uorig);
+            pcl->set_v(2.0 * vavg - vorig);
+            pcl->set_w(2.0 * wavg - worig);
         }
 
     }
     //! End of #pragma omp parallel
 }
 
-void Particles3D::ECSIM_position(Field * EMf) 
+void Particles3D::ECSIM_position(Field *EMf) 
 {
     #pragma omp parallel
     {
-        convertParticlesToSoA();
+        convertParticlesToAoS();
 
         #pragma omp master
         if (vct->getCartesian_rank() == 0) 
@@ -841,21 +794,24 @@ void Particles3D::ECSIM_position(Field * EMf)
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++) 
         {
+            //* Copy the particle
+		    SpeciesParticle* pcl = &_pcls[pidx];
+		    ALIGNED(pcl);
+
             //* --------------------------------------- *//
 
-            //* Copy particles' positions
-            const double xorig = getX(pidx);
-            const double yorig = getY(pidx);
-            const double zorig = getZ(pidx);
-
+            //* Copy particles' positions and velocities
+            const double xorig = pcl->get_x();
+            const double yorig = pcl->get_y();
+            const double zorig = pcl->get_z();
+            const double uorig = pcl->get_u();
+            const double vorig = pcl->get_v();
+            const double worig = pcl->get_w();
+            
+            //* Additional variables for storing old and new positions and velocities
             double xavg = xorig;
             double yavg = yorig;
             double zavg = zorig;
-
-            //* Copy particles' velocities 
-            const double uorig = getU(pidx);
-            const double vorig = getV(pidx);
-            const double worig = getW(pidx);
 
             //? Lorentz factor at time step "n"
             double lorentz_factor = 1.0;
@@ -864,120 +820,12 @@ void Particles3D::ECSIM_position(Field * EMf)
             // TODO: Must be implemented (not needed for the first run) 
             //? Energy conservation inherently violates charge conservation --> charge has to be conserved separately
             //? gn = lorentz_factor
-            // if (ChargeConserving) 
-            // {
-                // //! Interpolation G-->P
-                // const double ixd = floor((xavg - dx/2.0 - xstart) * inv_dx);
-                // const double iyd = floor((yavg - dy/2.0 - ystart) * inv_dy);
-                // const double izd = floor((zavg - dz/2.0 - zstart) * inv_dz);
-                
-                // //* Interface of index to right of cell
-                // int ix = 2 + int(ixd);
-                // int iy = 2 + int(iyd);
-                // int iz = 2 + int(izd);
-
-                // //? ---------- Difference along X ---------- ?//
-                // eta0  = yavg - grid->getYN(iy-1);
-                // zeta0 = zavg - grid->getZN(iz-1);
-                // eta1  = grid->getYN(iy) - yavg;
-                // zeta1 = grid->getZN(iz) - zavg;
-                
-                // invSURF = 1.0/(dy*dz);
-            
-                // const pfloat weight00 = eta0 * zeta0 * invSURF;
-                // const pfloat weight01 = eta0 * zeta1 * invSURF;
-                // const pfloat weight10 = eta1 * zeta0 * invSURF;
-                // const pfloat weight11 = eta1 * zeta1 * invSURF;
-
-                // double RxP = 0.0;
-                // double RxM = 0.0;
-
-                // //TODO: define RxP and RxM directly here            
-                // RxP  = weight00 * (R[ix][iy][iz]         );
-                // RxP += weight01 * (R[ix][iy][iz - 1]     );
-                // RxP += weight10 * (R[ix][iy - 1][iz]     );
-                // RxP += weight11 * (R[ix][iy - 1][iz - 1] );
-            
-                // RxM  = weight00 * (R[ix - 1][iy][iz]         );
-                // RxM += weight01 * (R[ix - 1][iy][iz - 1]     );
-                // RxM += weight10 * (R[ix - 1][iy - 1][iz]     );
-                // RxM += weight11 * (R[ix - 1][iy - 1][iz - 1] );
-                
-                // //? ---------- Difference along Y ---------- ?//
-                // xi0   = xavg - grid->getXN(ix-1);
-                // zeta0 = zavg - grid->getZN(iz-1);
-                // xi1   = grid->getXN(ix) - xavg;
-                // zeta1 = grid->getZN(iz) - zavg;
-
-                // invSURF = 1.0/(dx*dz);
-            
-                // weight00 = xi0 * zeta0 * invSURF;
-                // weight01 = xi0 * zeta1 * invSURF;
-                // weight10 = xi1 * zeta0 * invSURF;
-                // weight11 = xi1 * zeta1 * invSURF;
-
-                // double RyP = 0.0;
-                // double RyM = 0.0;
-            
-                // RyP = weight00 * (R[ix][iy][iz]             );
-                // RyP += weight01 * (R[ix][iy][iz - 1]         );
-                // RyP += weight10 * (R[ix - 1][iy][iz]         );
-                // RyP += weight11 * (R[ix - 1][iy][iz - 1]     );
-            
-                // RyM = weight00 * (R[ix][iy-1][iz]             );
-                // RyM += weight01 * (R[ix][iy-1][iz - 1]         );
-                // RyM += weight10 * (R[ix - 1][iy-1][iz]         );
-                // RyM += weight11 * (R[ix - 1][iy-1][iz - 1]     );
-
-                // //? ---------- Difference along Z ---------- ?//
-                // const double xi0   = xavg - grid->getXN(ix-1);
-                // const double eta0  = yavg - grid->getYN(iy-1);
-                // const double xi1   = grid->getXN(ix) - xavg;
-                // const double eta1  = grid->getYN(iy) - yavg;
-
-                // invSURF = 1.0/(dx*dy);
-            
-                // weight00 = xi0 * eta0 * invSURF;
-                // weight01 = xi0 * eta1 * invSURF;
-                // weight10 = xi1 * eta0 * invSURF;
-                // weight11 = xi1 * eta1 * invSURF;
-        
-                // double RzP = 0.0;
-                // double RzM = 0.0;
-
-                // RzP  = weight00 * (R[ix][iy][iz]             );
-                // RzP += weight01 * (R[ix][iy - 1][iz]         );
-                // RzP += weight10 * (R[ix - 1][iy][iz]         );
-                // RzP += weight11 * (R[ix - 1][iy - 1][iz]     );
-            
-                // RzM  = weight00 * (R[ix][iy][iz-1]             );
-                // RzM += weight01 * (R[ix][iy - 1][iz-1]         );
-                // RzM += weight10 * (R[ix - 1][iy][iz-1]         );
-                // RzM += weight11 * (R[ix - 1][iy - 1][iz-1]     );
-
-                // //! End of Interpolation G-->P
-            
-                // double limiter = 1.0;
-                // dxp = 0.25 * (RxP - RxM) * dx;
-                // dxp = -dxp / abs(dxp+1e-10) * min(abs(dxp),abs(up/gn*dt)/limiter);
-            
-                // dyp = 0.25 * (RyP - RyM) * dy;
-                // dyp = -dyp / abs(dyp+1e-10) * min(abs(dyp),abs(vp/gn*dt)/limiter);
-            
-                // dzp = 0.25 * (RzP - RzM) * dz;
-                // dzp = -dzp / abs(dzp+1e-10) * min(abs(dzp),abs(wp/gn*dt)/limiter);
-            // }
-
-            //cout << xp << ";  " << ixc << ";  "<< correct_x << ";  " << correct_y << ";  "<< correct_z << endl;
 
             //? Update the positions with the new velocity
-            fetchX(pidx) = xavg + uorig/lorentz_factor * dt * correct_x + dxp;
-            fetchY(pidx) = yavg + vorig/lorentz_factor * dt * correct_y + dyp;
-            fetchZ(pidx) = zavg + worig/lorentz_factor * dt * correct_z + dzp;
-
-            fetchU(pidx) = uorig;
-            fetchV(pidx) = vorig;
-            fetchW(pidx) = worig;
+            pcl->set_x(xavg + uorig/lorentz_factor * dt * correct_x + dxp);
+            pcl->set_y(yavg + vorig/lorentz_factor * dt * correct_y + dyp);
+            pcl->set_z(zavg + worig/lorentz_factor * dt * correct_z + dzp);
+            
         }                             
         //! END OF ALL THE PARTICLES
 
@@ -1001,7 +849,9 @@ void Particles3D::fixPosition()
         for (int pidx = 0; pidx < getNOP(); pidx++)  z[pidx] = 0;
 }
 
-//? ============================================================================= *//?
+//! End of ECSIM & RelSIM
+
+//! ============================================================================= !//
 
 void Particles3D::mover_PC_AoS(Field * EMf)
 {

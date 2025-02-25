@@ -153,6 +153,7 @@ int c_Solver::Init(int argc, char **argv)
     else if (col->getCase()=="Dipole2D")  		EMf->initDipole2D();
     else if (col->getCase()=="NullPoints")      EMf->initNullPoints();
     else if (col->getCase()=="TaylorGreen")     EMf->initTaylorGreen();
+    else if (col->getCase()=="Uniform")         EMf->init();
     #ifdef BATSRUS
         else if (col->getCase()=="BATSRUS")   	EMf->initBATSRUS();
     #endif
@@ -195,6 +196,7 @@ int c_Solver::Init(int argc, char **argv)
                 else if (col->getCase()=="BATSRUS")   	part[i].MaxwellianFromFluid(EMf,col,i);
             #endif
             else if (col->getCase()=="NullPoints")    	part[i].maxwellianNullPoints(EMf);
+            else if (col->getCase()=="Uniform")    	    part[i].uniform_background(EMf);
             else if (col->getCase()=="TaylorGreen")     part[i].maxwellianNullPoints(EMf); // Flow is initiated from the current prescribed on the grid.
             else if (col->getCase()=="GEMDoubleHarris") part[i].maxwellianDoubleHarris(EMf);
             else                                  		part[i].maxwellian(EMf);
@@ -284,64 +286,71 @@ void c_Solver::CalculateMoments()
 {
     timeTasks_set_main_task(TimeTasks::MOMENTS);
 
+    //* Avoid SIMD array overrun
     pad_particle_capacities();
 
     //* Vectorised; assumes that particles are sorted by mesh cell
-    if(Parameters::get_VECTORIZE_MOMENTS())
-    {
-        switch(Parameters::get_MOMENTS_TYPE())
-        {
-            case Parameters::SoA:
-            // since particles are sorted,we can vectorize interpolation of particles to grid
-            convertParticlesToSoA();
-            sortParticles();
-            EMf->sumMoments_vectorized(part);
-            break;
+    // if(Parameters::get_VECTORIZE_MOMENTS())
+    // {
+    //     switch(Parameters::get_MOMENTS_TYPE())
+    //     {
+    //         case Parameters::SoA:
+    //             // since particles are sorted,we can vectorize interpolation of particles to grid
+    //             convertParticlesToSoA();
+    //             sortParticles();
+    //             EMf->sumMoments_vectorized(part);
+    //         break;
             
-            case Parameters::AoS:
-            convertParticlesToAoS();
-            sortParticles();
-            EMf->sumMoments_vectorized_AoS(part);
-            break;
+    //         case Parameters::AoS:
+    //             convertParticlesToAoS();
+    //             sortParticles();
+    //             EMf->sumMoments_vectorized_AoS(part);
+    //         break;
             
-            default:
-            unsupported_value_error(Parameters::get_MOMENTS_TYPE());
-        }
-    }
-    else
-    {
-        if(Parameters::get_SORTING_PARTICLES())
-            sortParticles();
-        
-        switch(Parameters::get_MOMENTS_TYPE())
-        {
-            case Parameters::SoA:
-            EMf->setZeroPrimaryMoments();
-            convertParticlesToSoA();
-            EMf->sumMoments(part);
-            break;
-            
-            case Parameters::AoS:
-            EMf->setZeroPrimaryMoments();   // clear the data to 0
-            convertParticlesToAoS();        // convert 
-            EMf->sumMoments_AoS(part);      // sum up the 10 densities of each particles of each species
-            // then calculate the weight according to their position; map the 10 momentum to the grid(node) with the weight
-            break;
-            
-            case Parameters::AoSintr:
-            EMf->setZeroPrimaryMoments();
-            convertParticlesToAoS();
-            EMf->sumMoments_AoS_intr(part);
-            break;
-            
-            default:
-            unsupported_value_error(Parameters::get_MOMENTS_TYPE());
-        }
-    }
+    //         default:
+    //         unsupported_value_error(Parameters::get_MOMENTS_TYPE());
+    //     }
+    // }
+    // else
+    // {
+    //     if(Parameters::get_SORTING_PARTICLES())
+    //         sortParticles();
 
-    //? Set all moments and mass/charge densities to 0
+    //     switch(Parameters::get_MOMENTS_TYPE())
+    //     {
+    //         case Parameters::SoA:
+    //             EMf->setZeroPrimaryMoments();
+    //             convertParticlesToSoA();
+    //             EMf->sumMoments(part);
+    //         break;
+            
+    //         case Parameters::AoS:
+                
+    //             cout << "Moments AoS" << endl;
+ 
+    //             //* Set moments to 0
+    //             // EMf->setZeroDensities();
+                
+    //             convertParticlesToAoS();
+                
+    //             // EMf->sumMoments_AoS(part);      // sum up the 10 densities of each particles of each species
+    //             // then calculate the weight according to their position; map the 10 momentum to the grid(node) with the weight
+
+    //         break;
+            
+    //         case Parameters::AoSintr:
+    //             EMf->setZeroPrimaryMoments();
+    //             convertParticlesToAoS();
+    //             EMf->sumMoments_AoS_intr(part);
+    //         break;
+            
+    //         default:
+    //         unsupported_value_error(Parameters::get_MOMENTS_TYPE());
+    //     }
+    // }
+
+    //? Set all moments and densities to 0
     EMf->setZeroDensities();
-    EMf->setZeroRho();
 
     //? Interpolate Particles to grid (nodes)
     for (int is = 0; is < ns; is++)
@@ -349,7 +358,10 @@ void c_Solver::CalculateMoments()
 
     //* Communicate moments
     for (int is = 0; is < ns; is++)
+    {
         EMf->communicateGhostP2G_ecsim(is);
+    }
+    EMf->communicateGhostP2G_mass_matrix();
     
     //* Sum all over the species (mass and charge density)
     EMf->sumOverSpecies();
@@ -357,34 +369,11 @@ void c_Solver::CalculateMoments()
     //* Communicate average densities
     for (int is = 0; is < ns; is++)
         EMf->interpolateCenterSpecies(is);
-
-    EMf->timeAveragedRho(col->getPoissonMArho());
-	EMf->timeAveragedDivE(col->getPoissonMAdiv());
-}
-
-//! Compute electric field
-void c_Solver::ComputeE(int cycle) 
-{
-    timeTasks_set_main_task(TimeTasks::FIELDS);
-
-    EMf->calculateE(cycle);
-}
-
-//! Compute magnetic field (assuming electric field has already been calculated)
-void c_Solver::CalculateB() 
-{
-    timeTasks_set_main_task(TimeTasks::FIELDS);
-
-    EMf->calculateB();
 }
 
 //! Compute electromagnetic field (E and B needs to computed inside 1 function for ECSim)
 void c_Solver::ComputeEMFields(int cycle)
 {
-    //TODO: TBD later
-    // if (col->getLambdaDamping() == "piston")
-		// EMf->evolveLambda(vct, grid, col, piston);
-
     //TODO: Only needed for the cases "Shock1D_DoublePiston" and "LangevinAntenna"; TBD later
 	//* Update external fields to n+1/2
 	// EMf->updateExternalFields(vct, grid, col, cycle); 
@@ -394,14 +383,8 @@ void c_Solver::ComputeEMFields(int cycle)
 	// EMf->updateParticleExternalForces(vct, grid, col, cycle); 
 
     //? Compute E and B fields
-    EMf->calculateE(cycle);
+    EMf->calculateE();
     EMf->calculateB();
-
-    //* Compute divergence of E and B and accessory variable
-	EMf->timeAveragedDivE(col->getPoissonMAdiv());
-    
-    for (int is = 0; is < ns; is++)
-	    EMf->divergenceOfE(col->getPoissonMAres(), is);
 	
     EMf->divergenceOfB();
 
@@ -417,9 +400,11 @@ bool c_Solver::ParticlesMover()
     //? Move all species of particles
     {
         timeTasks_set_main_task(TimeTasks::PARTICLES);
+        
         // Should change this to add background field
         EMf->set_fieldForPcls();
 
+        //* Avoid SIMD array overrun
         pad_particle_capacities();
 
         //* Iterate over each species to update velocities
@@ -428,31 +413,20 @@ bool c_Solver::ParticlesMover()
             switch(Parameters::get_MOVER_TYPE())
             {
                 //? ECSim
-                // case Parameters::SoA:
-                //     part[i].ECSIM_velocity(EMf);
-                // break;
+                case Parameters::SoA:
+                    part[i].ECSIM_velocity(EMf);
+                break;
                 case Parameters::AoS:
                     part[i].ECSIM_velocity(EMf);
                 break;
-                // case Parameters::AoS_Relativistic:
-                //     part[i].mover_PC_AoS_Relativistic(EMf);
-                //     break;
-                // case Parameters::AoSintr:
-                //     part[i].mover_PC_AoS_vec_intr(EMf);
-                // break;
-                // case Parameters::AoSvec:
-                //     part[i].mover_PC_AoS_vec(EMf);
-                // break;
-                
                 default:
-                std::cout << "default:"  << ns << std::endl; 
                 unsupported_value_error(Parameters::get_MOVER_TYPE());
             }
 
             //* Should integrate BC into separate_and_send_particles
             // TODO: Are the following two statements needed in both position and velocity?
-            part[i].openbc_particles_outflow();
-            part[i].separate_and_send_particles();
+            // part[i].openbc_particles_outflow();
+            // part[i].separate_and_send_particles();
         }
 
         //* Iterate over each species to update positions
@@ -460,9 +434,9 @@ bool c_Solver::ParticlesMover()
         {
             switch(Parameters::get_MOVER_TYPE())
             {
-                // case Parameters::SoA:
-                //     part[i].ECSIM_position(EMf);
-                // break;
+                case Parameters::SoA:
+                    part[i].ECSIM_position(EMf);
+                break;
                 case Parameters::AoS:
                     part[i].ECSIM_position(EMf);
                 break;
@@ -470,6 +444,8 @@ bool c_Solver::ParticlesMover()
 
             //* Should integrate BC into separate_and_send_particles
             part[i].openbc_particles_outflow();
+
+            //TODO: what does this do?
             part[i].separate_and_send_particles();
         }
 
@@ -477,6 +453,9 @@ bool c_Solver::ParticlesMover()
         for (int i = 0; i < ns; i++)  
             part[i].recommunicate_particles_until_done(1);
     }
+
+    //? Update the values of magnetic field at the nodes at time n+1
+    EMf->C2NB();
 
     //? Repopulate the buffer zone at the edge
     for (int i=0; i < ns; i++) 
@@ -688,18 +667,40 @@ void c_Solver::WriteRestart(int cycle)
 
 void c_Solver::WriteConserved(int cycle) 
 {
+    if (cycle == 0) 
+    {
+
+        initial_total_energy = EMf->getEenergy() + EMf->getBintenergy();
+        
+        for (int is = 0; is < ns; is++) 
+            initial_total_energy +=  part[is].getKe();
+    }
+
     if(col->getDiagnosticsOutputCycle() > 0 && cycle % col->getDiagnosticsOutputCycle() == 0)
     {
         Eenergy = EMf->getEenergy();
-        Benergy = EMf->getBenergy();
+        // Benergy = EMf->getBenergy();
+
+        double ExtBenergy = EMf->getBextenergy();
+        double IntBenergy = EMf->getBintenergy();
+        // double EenRem     = EMf->getEenergyRemoved(true);
+
         TOTenergy = 0.0;
         TOTmomentum = 0.0;
+        double kinetic_energy = 0.0;
         
         for (int is = 0; is < ns; is++) 
         {
             Ke[is] = part[is].getKe();
-            BulkEnergy[is] = EMf->getBulkEnergy(is);
+            // double lKr = part[is].getKremoved();
+            // Kr += lKr;
             TOTenergy += Ke[is];
+
+            kinetic_energy += part[is].getKe();
+
+            // BulkEnergy[is] = EMf->getBulkEnergy(is);
+            
+            
             momentum[is] = part[is].getP();
             TOTmomentum += momentum[is];
         }
@@ -708,14 +709,43 @@ void c_Solver::WriteConserved(int cycle)
         {
             ofstream my_file(cq.c_str(), fstream::app);
             
-            if(cycle == 0) 
-            my_file << "Cycle" << setw(20) << "Total Energy"                  << setw(20) << "Momentum"  << setw(20) << "Eenergy" << setw(20) << "Benergy" << setw(20) << "Kenergy" << endl;
-            my_file << cycle   << setw(20) << (Eenergy + Benergy + TOTenergy) << setw(20) << TOTmomentum << setw(20) << Eenergy   << setw(20) << Benergy   << setw(20) << TOTenergy;
+            // if(cycle == 0) 
+            // my_file << "Cycle" << setw(17) << "Total Energy" << setw(25) << "Energy(cycle) - Energy(initial)"   << endl;
+            // my_file << cycle   << setw(20) << (Eenergy + IntBenergy + TOTenergy) << setw(20) << abs(initial_total_energy - (Eenergy + IntBenergy + TOTenergy))  << endl;
             
+            if(cycle == 0)
+            {
+                my_file << endl << "I.   Cycle" 
+                        << endl << "II.  Electric energy" 
+                        << endl << "III. Magnetic energy (int)" 
+                        << endl << "IV.  Magnetic energy (ext)" 
+                        << endl << "V.   Kinetic Energy"
+                        << endl << "VI.  Total Energy" 
+                        << endl << "VII. Energy(cycle) - Energy(initial)" << endl << endl;
+
+                my_file << "=====================================================================================================================================" << endl << endl;
+
+                my_file << setw(7) 
+                        << "I"   << setw(25) << "II" << setw(25) 
+                        << "III" << setw(25) << "IV" << setw(25) 
+                        << "V"   << setw(25) << "VI" << setw(25) 
+                        << "VII" << endl << endl;
+            }
+            
+            
+            my_file << setw(7)  << cycle << scientific << setprecision(15)
+                    << setw(25) << Eenergy 
+                    << setw(25) << IntBenergy 
+                    << setw(25) << ExtBenergy 
+                    << setw(25) << kinetic_energy  
+                    << setw(25) << Eenergy + IntBenergy + kinetic_energy
+                    << setw(25) << abs(initial_total_energy - (Eenergy + IntBenergy + TOTenergy))
+                    << endl;
+            
+
             // for (int is = 0; is < ns; is++) my_file << "\t" << Ke[is];
             // for (int is = 0; is < ns; is++) my_file << "\t" << BulkEnergy[is];
             
-            my_file << endl;
             my_file.close();
         }
     }

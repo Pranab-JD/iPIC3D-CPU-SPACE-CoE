@@ -43,6 +43,7 @@ int main(int argc, char **argv)
         iPic3D::c_Solver KCode;
 
         KCode.Init(argc, argv); //! load param from file, init the grid, fields
+        KCode.WriteConserved(0);
 
         timeTasks.resetCycle(); //reset timer
 
@@ -50,7 +51,7 @@ int main(int argc, char **argv)
         LeXInt::timer time_EF, time_PM, time_MF, time_MG, time_loop, time_total;
         time_total.start();
 
-        for (int i = KCode.FirstCycle(); i < KCode.LastCycle(); i++) 
+        for (int i = KCode.FirstCycle()+1; i <= KCode.LastCycle(); i++) 
         {
             if (KCode.get_myrank() == 0)
                 std::cout << std::endl << "=================== Cycle " << i << " ===================" << std::endl ;
@@ -69,7 +70,7 @@ int main(int argc, char **argv)
             
             //? Particle Pusher --> Compute new velocities and positions of the particles
             time_PM.start();
-            KCode.ParticlesMover();          
+            // KCode.ParticlesMover();          
             time_PM.stop();
 
             KCode.WriteOutput(i);

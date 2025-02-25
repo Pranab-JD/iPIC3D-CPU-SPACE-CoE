@@ -1357,22 +1357,35 @@ void Particles3Dcomm::communicate_particles()
   recommunicate_particles_until_done(1);
 }
 
-/** return the Kinetic energy */
-double Particles3Dcomm::getKe() {
-  double localKe = 0.0;
-  double totalKe = 0.0;
-  for (int i = 0; i < _pcls.size(); i++)
-  {
-    SpeciesParticle& pcl = _pcls[i];
-    const double u = pcl.get_u();
-    const double v = pcl.get_v();
-    const double w = pcl.get_w();
-    const double q = pcl.get_q();
-    localKe += .5*(q/qom)*(u*u + v*v + w*w);
-  }
-  MPI_Allreduce(&localKe, &totalKe, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);
-  return (totalKe);
+//? Kinetic energy of all particles
+double Particles3Dcomm::getKe() 
+{
+    double localKe = 0.0;
+    double totalKe = 0.0;
+    
+    for (int i = 0; i < _pcls.size(); i++)
+    {
+        SpeciesParticle& pcl = _pcls[i];
+        const double u = pcl.get_u();
+        const double v = pcl.get_v();
+        const double w = pcl.get_w();
+        const double q = pcl.get_q();
+        
+        localKe += .5*(q/qom)*(u*u + v*v + w*w);
+    }
+    
+    MPI_Allreduce(&localKe, &totalKe, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);
+    return (totalKe);
 }
+
+//? Kinetic energy removed from the system
+// double Particles3Dcomm::getKremoved() 
+// {
+//     double localK = K_removed;
+//     double totalK = 0.0;
+//     MPI_Allreduce(&localK, &totalK, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+//     return (totalK);
+// }
 
 /** return the total momentum */
 //
@@ -1380,20 +1393,21 @@ double Particles3Dcomm::getKe() {
 // momentum, which has no physical meaning that I can see.
 // we should be summing each component of the momentum. -eaj
 //
-double Particles3Dcomm::getP() {
-  double localP = 0.0;
-  double totalP = 0.0;
-  for (int i = 0; i < _pcls.size(); i++)
-  {
-    SpeciesParticle& pcl = _pcls[i];
-    const double u = pcl.get_u();
-    const double v = pcl.get_v();
-    const double w = pcl.get_w();
-    const double q = pcl.get_q();
-    localP += (q/qom)*sqrt(u*u + v*v + w*w);
-  }
-  MPI_Allreduce(&localP, &totalP, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);
-  return (totalP);
+double Particles3Dcomm::getP() 
+{
+    double localP = 0.0;
+    double totalP = 0.0;
+    for (int i = 0; i < _pcls.size(); i++)
+    {
+        SpeciesParticle& pcl = _pcls[i];
+        const double u = pcl.get_u();
+        const double v = pcl.get_v();
+        const double w = pcl.get_w();
+        const double q = pcl.get_q();
+        localP += (q/qom)*sqrt(u*u + v*v + w*w);
+    }
+    MPI_Allreduce(&localP, &totalP, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);
+    return (totalP);
 }
 
 /** return the highest kinetic energy */
@@ -1738,81 +1752,52 @@ void Particles3Dcomm::computeMoments(Field * EMf)
     double Fxl = 0.0, Fyl = 0.0, Fzl = 0.0;
 
     convertParticlesToSoA();
+
     const_arr4_double fieldForPcls = EMf->get_fieldForPcls();
+
+    const double qdto2mc = 0.5 * dt * qom/c;
 
     #pragma omp parallel
     {
-        convertParticlesToSoA();
+        convertParticlesToAoS();
 
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++)
         {
+            //* Copy the particle
+		    SpeciesParticle* pcl = &_pcls[pidx];
+		    ALIGNED(pcl);
+
             //* --------------------------------------- *//
 
-            //* Copy particles' positions (so that these are not "accidentally" modified)
-            const double xorig = getX(pidx);
-            const double yorig = getY(pidx);
-            const double zorig = getZ(pidx);
+            //* Copy particles' positions and velocities
+            const double xorig = pcl->get_x();
+            const double yorig = pcl->get_y();
+            const double zorig = pcl->get_z();
+            const double uorig = pcl->get_u();
+            const double vorig = pcl->get_v();
+            const double worig = pcl->get_w();
+            const double q     = pcl->get_q();
             
+            //* Additional variables for storing old and new positions and velocities
             double xavg = xorig;
             double yavg = yorig;
             double zavg = zorig;
-
-            //* Interpolation G-->P
-            const double ixd = floor((xavg - xstart) * inv_dx);
-            const double iyd = floor((yavg - ystart) * inv_dy);
-            const double izd = floor((zavg - zstart) * inv_dz);
-
-            //* Interface of index to right of cell
-            int ix = 2 + int(ixd);
-            int iy = 2 + int(iyd);
-            int iz = 2 + int(izd);
-
-            //* Use field data of closest cell in domain
-            if (ix < 1) ix = 1;
-            if (iy < 1) iy = 1;
-            if (iz < 1) iz = 1;
-            if (ix > nxc) ix = nxc;
-            if (iy > nyc) iy = nyc;
-            if (iz > nzc) iz = nzc;
-
-            //* Index of cell of particle
-            const int cx = ix - 1;
-            const int cy = iy - 1;
-            const int cz = iz - 1;
-
-            //* Compute weights of the particles
-            const double xi0   = xavg - grid->getXN(ix-1);
-            const double eta0  = yavg - grid->getYN(iy-1);
-            const double zeta0 = zavg - grid->getZN(iz-1);
-            const double xi1   = grid->getXN(ix) - xavg;
-            const double eta1  = grid->getYN(iy) - yavg;
-            const double zeta1 = grid->getZN(iz) - zavg;
-
-            double weights[8] ALLOC_ALIGNED;
-            const pfloat weight0 = invVOL*xi0;
-            const pfloat weight1 = invVOL*xi1;
-            const pfloat weight00 = weight0*eta0;
-            const pfloat weight01 = weight0*eta1;
-            const pfloat weight10 = weight1*eta0;
-            const pfloat weight11 = weight1*eta1;
-            weights[0] = weight00*zeta0;                            // weight000 = xi[0] * eta[0] * zeta[0] * invVOL
-            weights[1] = weight00*zeta1;                            // weight001 = xi[0] * eta[0] * zeta[1] * invVOL
-            weights[2] = weight01*zeta0;                            // weight010 = xi[0] * eta[1] * zeta[0] * invVOL
-            weights[3] = weight01*zeta1;                            // weight011 = xi[0] * eta[1] * zeta[1] * invVOL
-            weights[4] = weight10*zeta0;                            // weight100 = xi[1] * eta[0] * zeta[0] * invVOL
-            weights[5] = weight10*zeta1;                            // weight101 = xi[1] * eta[0] * zeta[1] * invVOL
-            weights[6] = weight11*zeta0;                            // weight110 = xi[1] * eta[1] * zeta[0] * invVOL
-            weights[7] = weight11*zeta1;                            // weight111 = xi[1] * eta[1] * zeta[1] * invVOL
+            
+            double uavg, vavg, wavg;
 
             //* --------------------------------------- *//
 
-            const double* field_components[8];
+            //* Compute weights for field components
+            double weights[8] ALLOC_ALIGNED;
+            int cx, cy, cz;
+            grid->get_safe_cell_and_weights(xavg, yavg, zavg, cx, cy, cz, weights);
+
+            const double* field_components[8] ALLOC_ALIGNED;
             get_field_components_for_cell(field_components, fieldForPcls, cx, cy, cz);
 
             double sampled_field[8] ALLOC_ALIGNED;
-            for(int i = 0; i < 8; i++) 
-                sampled_field[i] = 0;
+            for(int i=0;i<8;i++) sampled_field[i]=0;
             
             double& Bxl=sampled_field[0];
             double& Byl=sampled_field[1];
@@ -1823,48 +1808,25 @@ void Particles3Dcomm::computeMoments(Field * EMf)
             
             const int num_field_components = 2*DFIELD_3or4;
 
-            for(int c = 0; c < 8; c++)
+            for(int c = 0; c < 3; c++)
             {
-                const double* field_components_c = field_components[c];
+                const double* field_components_c=field_components[c];
                 ASSUME_ALIGNED(field_components_c);
                 const double weights_c = weights[c];
                 
                 #pragma simd
-                for(int i = 0; i < num_field_components; i++)
+                for(int i=0; i<num_field_components; i++)
                 {
-                    sampled_field[i] += weights_c * field_components_c[i];
+                    sampled_field[i] += weights_c*field_components_c[i];
                 }
-
-                //TODO: Add Fext*Bx_ext[ix-i][iy-j][iz-k]), Y, and Z
             }
 
             //TODO: External force to be implemented in "sampled_field"
-            // Bxl += weight[i][j][k] * (Bx[ix-i][iy-j][iz-k] + Fext*Bx_ext[ix-i][iy-j][iz-k]);
-            // Byl += weight[i][j][k] * (By[ix-i][iy-j][iz-k] + Fext*By_ext[ix-i][iy-j][iz-k]);
-            // Bzl += weight[i][j][k] * (Bz[ix-i][iy-j][iz-k] + Fext*Bz_ext[ix-i][iy-j][iz-k]);
-
-            //TODO: External force to be implemented
-            // if (EMf->getParticleExternalForce()) 
-            // {
-            //     Fxl = 0.0;
-            //     Fyl = 0.0;
-            //     Fzl = 0.0;
-            //     for (int i=0; i<=1; i++)
-            //         for (int j=0; j<=1; j++)
-            //         for (int k=0; k<=1; k++) 
-            //         {
-            //             Fxl += weight[i][j][k] * Fpextx[ix-i][iy-j][iz-k];
-            //             Fyl += weight[i][j][k] * Fpexty[ix-i][iy-j][iz-k];
-            //             Fzl += weight[i][j][k] * Fpextz[ix-i][iy-j][iz-k];
-            //         }
-            // }
 
             //* --------------------------------------- *//
 
             //? Rotation matrix alpha
             double Gamma = 1.0;
-
-            const double qdto2mc = 0.5 * dt * qom/c;
 
             const double Omx = qdto2mc*Bxl/Gamma;
             const double Omy = qdto2mc*Byl/Gamma;
@@ -1886,35 +1848,58 @@ void Particles3Dcomm::computeMoments(Field * EMf)
             alpha[2][1] = (-Omx + (Omy*Omz))*denom;
             alpha[2][2] = ( 1.0 + (Omz*Omz))*denom;
 
-            double qau = q[pidx]*(alpha[0][0]*(u[pidx]+dt/2.*Fxl) + alpha[0][1]*(v[pidx]+dt/2.*Fyl) + alpha[0][2]*(w[pidx]+dt/2.*Fzl));
-            double qav = q[pidx]*(alpha[1][0]*(u[pidx]+dt/2.*Fxl) + alpha[1][1]*(v[pidx]+dt/2.*Fyl) + alpha[1][2]*(w[pidx]+dt/2.*Fzl));
-            double qaw = q[pidx]*(alpha[2][0]*(u[pidx]+dt/2.*Fxl) + alpha[2][1]*(v[pidx]+dt/2.*Fyl) + alpha[2][2]*(w[pidx]+dt/2.*Fzl));
+            double qau = q * (alpha[0][0]*(uorig + dt/2.*Fxl) + alpha[0][1]*(vorig + dt/2.*Fyl) + alpha[0][2]*(worig + dt/2.*Fzl));
+            double qav = q * (alpha[1][0]*(uorig + dt/2.*Fxl) + alpha[1][1]*(vorig + dt/2.*Fyl) + alpha[1][2]*(worig + dt/2.*Fzl));
+            double qaw = q * (alpha[2][0]*(uorig + dt/2.*Fxl) + alpha[2][1]*(vorig + dt/2.*Fyl) + alpha[2][2]*(worig + dt/2.*Fzl));
 
             //* --------------------------------------- *//
 
             double temp[8];         //* Temporary variable used to add density and current density
             
+            //* index of cell of particle;
+            const int ix = cx;
+            const int iy = cy;
+            const int iz = cz;
+
+            cout << "Particle id: " << pidx << endl;
+            
             //! Potential checkpoint for error : Jxs, Jys, Jzs instead of Jxhs, Jyhs, Jzhs
             //* Add charge density                 
             for (int ii = 0; ii < 8; ii++)
-                temp[ii] = q[pidx] * weights[ii];
+                temp[ii] = q * weights[ii];
             EMf->add_Rho(temp, ix, iy, iz, ns);
+
+            for (int ii = 0; ii < 8; ii++)
+                cout << "Rho: " << temp[ii] << "    ";
+            cout << endl;
 
             //* Add implicit current density - X
             for (int ii = 0; ii < 8; ii++)
                     temp[ii] = qau * weights[ii];
             EMf->add_Jxh(temp, ix, iy, iz, ns);
+            
+            for (int ii = 0; ii < 8; ii++)
+                cout << "Jxh: " << temp[ii] << "    ";
+            cout << endl;
 
             //* Add implicit current density - Y
             for (int ii = 0; ii < 8; ii++)
                     temp[ii] = qav * weights[ii];
             EMf->add_Jyh(temp, ix, iy, iz, ns);
 
+            for (int ii = 0; ii < 8; ii++)
+                cout << "Jyh: " << temp[ii] << "    ";
+            cout << endl;
+
             //* Add implicit current density - Z
             for (int ii = 0; ii < 8; ii++)
                     temp[ii] = qaw * weights[ii];
             EMf->add_Jzh(temp, ix, iy, iz, ns);
 
+            for (int ii = 0; ii < 8; ii++)
+            cout << "Jzh: " << temp[ii] << "    ";
+            cout << endl;
+            
             //? Compute exact Mass Matrix
             if(ComputeMM)
             {               
@@ -1946,8 +1931,8 @@ void Particles3Dcomm::computeMoments(Field * EMf)
                                     int index1 = i * 4 + j * 2 + k;
                                     int index2 = i2 * 4 + j2 * 2 + k2; 
 
-                                    //! If you encounter error, check if you get correct results by removing "c" in the following!
-                                    double qww = q[pidx] * qdto2mc * c * weights[index1] * weights[index2];
+                                    //! If you encounter error, check if you get correct results by removing/adding "c" in the following!
+                                    double qww = q * qdto2mc * c *weights[index1] * weights[index2];
                                     double value[3][3];
                                     
                                     for (int ind1 = 0; ind1 < 3; ind1++)
@@ -1959,6 +1944,8 @@ void Particles3Dcomm::computeMoments(Field * EMf)
                             }
                         }   
             }
+            cout << endl << endl;
         }
+        cout << endl << endl;
     }
 }

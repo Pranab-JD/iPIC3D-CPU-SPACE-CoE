@@ -59,8 +59,10 @@
 
 #if defined(FLAT_ARRAYS) || defined(CHECK_BOUNDS)
   #define convert_to_arr3(arg) (arg.fetch_arr3())
+  #define convert_to_arr3(arg) (arg.fetch_arr4())
 #else
   #define convert_to_arr3(arg) (arg)
+  #define convert_to_arr4(arg) (arg)
 #endif
 //template <class type>
 //inline type*** fetch_arr3(array_fetch3(type)&in)
