@@ -47,4 +47,25 @@ class Moments10
     ~Moments10(){};
 };
 
+class ECSIM_Moments13
+{
+private:
+    arr4_double arr;
+    int nx;
+    int ny;
+    int nz;
+
+public:
+    // void set_to_zero();
+
+    //* Fetch accessors (write access)
+    arr4_double fetch_arr() { return arr; }
+
+    //? Constructor
+    ECSIM_Moments13(int nxn, int nyn, int nzn) : nx(nxn), ny(nyn), nz(nzn), arr(nxn, nyn, nzn, 13) {};
+    
+    //? Destructor
+    ~ECSIM_Moments13(){};
+};
+
 #endif
