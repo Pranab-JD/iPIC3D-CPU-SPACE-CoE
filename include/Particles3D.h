@@ -39,18 +39,19 @@ developers: Stefano Markidis, Enrico Camporeale, Giovanni Lapenta, David Burgess
  * @version 2.0
  *
  */
-class Particles3D:public Particles3Dcomm {
-
-  public:
-    /** constructor */
-    //Particles3D();
-    Particles3D(int species, CollectiveIO *col, VirtualTopology3D *vct, Grid * grid):
-      Particles3Dcomm(species, col, vct, grid)
-    {}
-    /** destructor */
+class Particles3D:public Particles3Dcomm 
+{
+    public:
+    
+    //! Constructor !//
+    Particles3D(int species, CollectiveIO *col, VirtualTopology3D *vct, Grid * grid): Particles3Dcomm(species, col, vct, grid) {}
+    
+    //! Destructor !//
     ~Particles3D(){}
-    /** Initial condition: uniform in space and motionless */
+    
+    //* Initial condition: uniform in space and motionless
     void uniform_background(Field * EMf);
+    
     /** Initialize particles with a constant velocity in dim direction. Depending on the value of dim:
       <ul>
       <li> dim = 0 --> constant velocity on X direction </li>
@@ -58,6 +59,7 @@ class Particles3D:public Particles3Dcomm {
       </ul>
       */
     void constantVelocity(double vel, int dim, Field * EMf);
+    
     /** Initial condition: uniform in space and maxwellian in velocity */
     void maxwellian(Field * EMf);
     /** Initial condition: uniform in space and maxwellian in velocity with velocity from Null Point currents */
@@ -88,10 +90,12 @@ class Particles3D:public Particles3Dcomm {
     void mover_explicit(Field * EMf);
     /** mover with a Predictor-Corrector Scheme */
     void mover_PC(Field * EMf);
-    /** ECSIM velocity update **/
+    
+    //* ECSIM velocity and position update
     void ECSIM_velocity(Field * EMf);
-    /** ECSIM position update **/
     void ECSIM_position(Field * EMf);
+    void computeMoments(Field * EMf);
+    
     void fixPosition();
     /** array-of-structs version of mover_PC */
     void mover_PC_AoS(Field * EMf);
@@ -107,11 +111,12 @@ class Particles3D:public Particles3Dcomm {
     void mover_PC_vectorized(Field * EMf);
     /** relativistic mover with a Predictor-Corrector scheme */
     int mover_relativistic(Field * EMf);
-   private:
+   
+    private:
     /** repopulate particles in a single cell */
-    void populate_cell_with_particles(int i, int j, int k, double q,
-      double dx_per_pcl, double dy_per_pcl, double dz_per_pcl);
-   public:
+    void populate_cell_with_particles(int i, int j, int k, double q, double dx_per_pcl, double dy_per_pcl, double dz_per_pcl);
+   
+    public:
     /** repopulate particles in boundary layer */
     void repopulate_particles();
     /*! Delete the particles inside the sphere with radius R and center x_center y_center and return the total charge removed */
@@ -122,12 +127,12 @@ class Particles3D:public Particles3Dcomm {
     void openbc_delete_testparticles();
     void openbc_particles_inflow();
 
-#ifdef BATSRUS
-    /*! Initial condition: given a fluid model (BATSRUS) */
-    void MaxwellianFromFluid(Field* EMf,Collective *col, int is);
-    /*! Initiate dist. func. for a single cell form a fluid model (BATSRUS) */
-    void MaxwellianFromFluidCell(Collective *col, int is, int i, int j, int k, int &ip, double *x, double *y, double *z, double *q, double *vx, double *vy, double *vz, longid* ParticleID);
-#endif
+    #ifdef BATSRUS
+        /*! Initial condition: given a fluid model (BATSRUS) */
+        void MaxwellianFromFluid(Field* EMf,Collective *col, int is);
+        /*! Initiate dist. func. for a single cell form a fluid model (BATSRUS) */
+        void MaxwellianFromFluidCell(Collective *col, int is, int i, int j, int k, int &ip, double *x, double *y, double *z, double *q, double *vx, double *vy, double *vz, longid* ParticleID);
+    #endif
 
 };
 

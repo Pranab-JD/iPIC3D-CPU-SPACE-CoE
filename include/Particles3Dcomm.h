@@ -80,7 +80,7 @@ public:
     virtual void apply_Yrght_BC(vector_SpeciesParticle& pcls, int start=0);
     virtual void apply_Zrght_BC(vector_SpeciesParticle& pcls, int start=0);
 
-    void computeMoments(Field * EMf);
+    // void computeMoments(Field * EMf);
 
 private:
     void apply_periodic_BC_global(vector_SpeciesParticle& pcl_list, int pstart);
