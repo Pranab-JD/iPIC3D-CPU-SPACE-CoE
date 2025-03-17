@@ -24,6 +24,7 @@
 #ifndef EMfields3D_H
 #define EMfields3D_H
 
+#include <iostream>
 #include "asserts.h"
 #include "ipicfwd.h"
 #include "Alloc.h"
@@ -753,12 +754,12 @@ inline void EMfields3D::add_Mass(double value[3][3], int X, int Y, int Z, int in
     Mzz[ind][X][Y][Z] += value[2][2];
 }
 
-inline void get_field_components_for_cell(const double* field_components[8], const_arr4_double fieldForPcls, int cx,int cy,int cz)
+inline void get_field_components_for_cell(const double* field_components[8], const_arr4_double fieldForPcls, int cx, int cy, int cz)
 {
     // interface to the right of cell
-    const int ix = cx+1;
-    const int iy = cy+1;
-    const int iz = cz+1;
+    const int ix = cx + 1;
+    const int iy = cy + 1;
+    const int iz = cz + 1;
 
     arr3_double_get field0 = fieldForPcls[ix];
     arr3_double_get field1 = fieldForPcls[cx];
@@ -774,6 +775,7 @@ inline void get_field_components_for_cell(const double* field_components[8], con
     field_components[5] = field10[cz]; // field101 
     field_components[6] = field11[iz]; // field110 
     field_components[7] = field11[cz]; // field111 
+
 }
 
 typedef EMfields3D Field;
