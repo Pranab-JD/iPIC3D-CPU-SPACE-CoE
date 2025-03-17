@@ -286,8 +286,12 @@ void c_Solver::CalculateMoments()
 {
     timeTasks_set_main_task(TimeTasks::MOMENTS);
 
+    EMf->set_fieldForPcls();
+
     //* Avoid SIMD array overrun
     pad_particle_capacities();
+
+    
 
     //* Vectorised; assumes that particles are sorted by mesh cell
     // if(Parameters::get_VECTORIZE_MOMENTS())
@@ -326,14 +330,14 @@ void c_Solver::CalculateMoments()
             
     //         case Parameters::AoS:
                 
-    //             cout << "Moments AoS" << endl;
+    //             // cout << "Moments AoS" << endl;
  
     //             //* Set moments to 0
-    //             // EMf->setZeroDensities();
+    //             EMf->setZeroDensities();
                 
     //             convertParticlesToAoS();
                 
-    //             // EMf->sumMoments_AoS(part);      // sum up the 10 densities of each particles of each species
+    //             EMf->sumMoments_AoS(part);      // sum up the 10 densities of each particles of each species
     //             // then calculate the weight according to their position; map the 10 momentum to the grid(node) with the weight
 
     //         break;
