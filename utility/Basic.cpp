@@ -90,6 +90,29 @@ double norm2(const arr3_double vect, int nx, int ny, int nz)
             return (result);
 }
 
+double norm2(double ***vect, int nx, int ny) 
+{
+    double result = 0;
+    
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            result += vect[i][j][0] * vect[i][j][0];
+
+    return (result);
+}
+
+double norm2(double ***vect, int nx, int ny, int nz) 
+{
+    double result = 0;
+    
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            for (int k = 0; k < nz; k++)
+                result += vect[i][j][k] * vect[i][j][k];
+
+    return (result);
+  }
+
 //* Compute parallel norm of a vector on different processors with the gost cell
 double normP(const double *vect, int n,MPI_Comm* comm) 
 {
