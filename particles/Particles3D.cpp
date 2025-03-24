@@ -82,9 +82,9 @@ void Particles3D::uniform_background(Field * EMf)
                             double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
                             double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
                             double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-                            double u = 0.0;
-                            double v = 0.0;
-                            double w = 0.0;
+                            double u = 0.1;
+                            double v = 0.1;
+                            double w = 0.1;
                             double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / grid->getInvVOL());
                             _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,0));
                         }
@@ -667,6 +667,7 @@ void Particles3D::mover_PC(Field * EMf)
 //! ECSIM - energy conserving semi-implicit method !//
 void Particles3D::ECSIM_velocity(Field *EMf) 
 {
+    cout << "Number of particles: " << getNOP() << endl;
     #pragma omp parallel
     {
         convertParticlesToAoS();
@@ -870,7 +871,6 @@ void Particles3D::computeMoments(Field *EMf)
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++)
         {
-            // cout << "Particle id: " << pidx << endl;
             //* Copy the particle
 		    SpeciesParticle* pcl = &_pcls[pidx];
 		    ALIGNED(pcl);
@@ -883,6 +883,11 @@ void Particles3D::computeMoments(Field *EMf)
             const double vorig = pcl->get_v();
             const double worig = pcl->get_w();
             const double q     = pcl->get_q();
+
+            // cout << "Particle id: " << pidx << endl;
+            // cout << "Charge: " << q << endl;
+            // cout << "Position: " << xorig << "  "  << yorig << "  "  << zorig << endl;
+            // cout << "Velocity: " << uorig << "   " << vorig << "   " << worig << endl;
 
             //* Additional variables for storing old and new positions and velocities
             double xavg = xorig;
@@ -956,17 +961,13 @@ void Particles3D::computeMoments(Field *EMf)
             alpha[2][1] = (-Omx + (Omy*Omz))*denom;
             alpha[2][2] = ( 1.0 + (Omz*Omz))*denom;
 
-            // cout << alpha[0][0] << "   " << alpha[0][1] << "   " << alpha[0][2] << endl;
-            // cout << alpha[1][0] << "   " << alpha[1][1] << "   " << alpha[1][2] << endl;
-            // cout << alpha[2][0] << "   " << alpha[2][1] << "   " << alpha[2][2] << endl;
-
-            // cout << "charge: " << q << endl;
-            // cout << "velocity: " << uorig << "   " << vorig << "   " << worig << endl;
-
             double qau = q * (alpha[0][0]*(uorig + dt/2.*Fxl) + alpha[0][1]*(vorig + dt/2.*Fyl) + alpha[0][2]*(worig + dt/2.*Fzl));
             double qav = q * (alpha[1][0]*(uorig + dt/2.*Fxl) + alpha[1][1]*(vorig + dt/2.*Fyl) + alpha[1][2]*(worig + dt/2.*Fzl));
             double qaw = q * (alpha[2][0]*(uorig + dt/2.*Fxl) + alpha[2][1]*(vorig + dt/2.*Fyl) + alpha[2][2]*(worig + dt/2.*Fzl));
 
+            // cout << alpha[0][0] << "   " << alpha[0][1] << "   " << alpha[0][2] << endl;
+            // cout << alpha[1][0] << "   " << alpha[1][1] << "   " << alpha[1][2] << endl;
+            // cout << alpha[2][0] << "   " << alpha[2][1] << "   " << alpha[2][2] << endl;
             // cout << "qau, qav, qaw: " << qau << "   " << qav << "   " << qaw << endl << endl;
 
             //* --------------------------------------- *//
@@ -974,45 +975,48 @@ void Particles3D::computeMoments(Field *EMf)
             double temp[8];         //* Temporary variable used to add density and current density
             
             //* index of cell of particle;
-            const int ix = cx;
-            const int iy = cy;
-            const int iz = cz;
+            const int ix = cx + 1;
+            const int iy = cy + 1;
+            const int iz = cz + 1 ;
 
             //* Add charge density                 
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = q * weights[ii];
-            EMf->add_Rho(temp, ix, iy, iz, ns);
 
-            // for (int ii = 0; ii < 8; ii++)
-            //     cout << "Rho: " << temp[ii] << "    ";
-            // cout << endl;
+            EMf->add_Rho(temp, ix, iy, iz, 0);
+
+            // if (pidx == getNOP() - 1)
+            // {
+            //     cout << "Compute Moments" << endl;
+            //     for (int ii = 0; ii < grid->getNXN(); ii++)
+            //     {
+            //         for (int jj = 0; jj < grid->getNYN(); jj++)
+            //         {
+            //             for (int kk = 0; kk < grid->getNZN(); kk++)
+            //             {
+            //                 cout << EMf->getRHOns(ii, jj, kk, 0) << "    ";
+            //             }
+            //             cout << endl;
+            //         }
+            //         cout << endl;
+            //     }
+            //     cout << endl << endl;
+            // }
 
             //* Add implicit current density - X
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = qau * weights[ii];
             EMf->add_Jxh(temp, ix, iy, iz, ns);
-            
-            // for (int ii = 0; ii < 8; ii++)
-            //     cout << "Jxh: " << temp[ii] << "    ";
-            // cout << endl;
 
             //* Add implicit current density - Y
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = qav * weights[ii];
             EMf->add_Jyh(temp, ix, iy, iz, ns);
 
-            // for (int ii = 0; ii < 8; ii++)
-            //     cout << "Jyh: " << temp[ii] << "    ";
-            // cout << endl;
-
             //* Add implicit current density - Z
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = qaw * weights[ii];
             EMf->add_Jzh(temp, ix, iy, iz, ns);
-
-            // for (int ii = 0; ii < 8; ii++)
-            //     cout << "Jzh: " << temp[ii] << "    ";
-            // cout << endl << endl;
             
             //? Compute exact Mass Matrix
             if(ComputeMM)
@@ -1055,17 +1059,8 @@ void Particles3D::computeMoments(Field *EMf)
                                             value[ind1][ind2] = alpha[ind2][ind1]*qww;
 
                                     EMf->add_Mass(value, ni, nj, nk, n_node);
-
-                                    // if (n_node == 7)
-                                    // {
-                                    //     cout << value[0][0] << "   " << value[0][1] << "   " << value[0][2] << endl;
-                                    //     cout << value[1][0] << "   " << value[1][1] << "   " << value[1][2] << endl;
-                                    //     cout << value[2][0] << "   " << value[2][1] << "   " << value[2][2] << endl;
-                                    // }
                                 }
                             }
-
-                            // cout << endl;
                         }   
             }
         }
