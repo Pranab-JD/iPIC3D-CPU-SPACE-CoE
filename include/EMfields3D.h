@@ -659,10 +659,7 @@ inline void EMfields3D::add_Rho(double weight[8], int X, int Y, int Z, int is)
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 2; j++)
             for (int k = 0; k < 2; k++)
-            {
-                // const double temp = weight[i * 4 + j * 2 + k];
                 rhons[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k] * invVOL;
-            }
 }
 
 //* Add an amount of current density to current density field at node X,Y,Z

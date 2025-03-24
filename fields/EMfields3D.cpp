@@ -886,7 +886,7 @@ void EMfields3D::sumMoments(const Particles3Dcomm* part)
   }
 }
 
-//! This is commented out in function call. This is the alternative to "computeMoments()" in CalculateMoments(). 
+//! This is the alternative to "computeMoments()" in CalculateMoments(). 
 void EMfields3D::sumMoments_AoS(const Particles3Dcomm* part)
 {
     cout << "sumMoments_AoS" << endl;
@@ -1004,6 +1004,9 @@ void EMfields3D::sumMoments_AoS(const Particles3Dcomm* part)
                     momentsArray[c][m] += velmoments[m]*weights[c];
         }
 
+        // for (int is = 0; is < ns; is++)
+        //     part[is].computeMoments(EMf);
+
         //? Reduction: reduce moments in parallel
         for(int thread_num = 0; thread_num < get_sizeMomentsArray(); thread_num++)
         {
@@ -1020,33 +1023,39 @@ void EMfields3D::sumMoments_AoS(const Particles3Dcomm* part)
                         Jzhs [is][i][j][k] += moments[i][j][k][3];
                     }
 
-            #pragma omp for collapse(2)
-            for (int c = 0; c < NE_MASS; c++) 
-                for (int i = 0; i < nxn; i++)
-                    for (int j = 0; j < nyn; j++)
-                        for (int k = 0; k < nzn; k++) 
-                        {
-                            Mxx.fetch(c, i, j, k) += invVOL*moments[i][j][k][4];
-                            Mxy.fetch(c, i, j, k) += invVOL*moments[i][j][k][5];
-                            Mxz.fetch(c, i, j, k) += invVOL*moments[i][j][k][6];
-                            Myx.fetch(c, i, j, k) += invVOL*moments[i][j][k][7];
-                            Myy.fetch(c, i, j, k) += invVOL*moments[i][j][k][8];
-                            Myz.fetch(c, i, j, k) += invVOL*moments[i][j][k][9];
-                            Mzx.fetch(c, i, j, k) += invVOL*moments[i][j][k][10];
-                            Mzy.fetch(c, i, j, k) += invVOL*moments[i][j][k][11];
-                            Mzz.fetch(c, i, j, k) += invVOL*moments[i][j][k][12];
-                        }
+            // #pragma omp for collapse(2)
+            // for (int c = 0; c < NE_MASS; c++) 
+            //     for (int i = 0; i < nxn; i++)
+            //         for (int j = 0; j < nyn; j++)
+            //             for (int k = 0; k < nzn; k++) 
+            //             {
+            //                 Mxx.fetch(c, i, j, k) += moments[i][j][k][4];
+            //                 Mxy.fetch(c, i, j, k) += moments[i][j][k][5];
+            //                 Mxz.fetch(c, i, j, k) += moments[i][j][k][6];
+            //                 Myx.fetch(c, i, j, k) += moments[i][j][k][7];
+            //                 Myy.fetch(c, i, j, k) += moments[i][j][k][8];
+            //                 Myz.fetch(c, i, j, k) += moments[i][j][k][9];
+            //                 Mzx.fetch(c, i, j, k) += moments[i][j][k][10];
+            //                 Mzy.fetch(c, i, j, k) += moments[i][j][k][11];
+            //                 Mzz.fetch(c, i, j, k) += moments[i][j][k][12];
+            //             }
         }
         
     }
     }
 
-    for (int i = 0; i < ns; i++)
+    for (int is = 0; is < ns; is++)
     {
-        communicateGhostP2G_ecsim(i);
-    
-        communicateGhostP2G_mass_matrix();
+        communicateGhostP2G_ecsim(is);
+        // communicateGhostP2G_mass_matrix();
     }
+
+    //* Sum all over the species (mass and charge density)
+    // sumOverSpecies();
+
+    //* Communicate average densities
+    // for (int is = 0; is < ns; is++)
+    //     interpolateCenterSpecies(is);
 }
 
 #ifdef __MIC__
@@ -2153,16 +2162,6 @@ void EMfields3D::calculateE()
     if (vct->getCartesian_rank() == 0)
         cout << "*** Electric field computation ***" << endl;
 
-        cout << "Norm Ex: " << norm2(Ex, nxn, nyn) << "  " << norm2(Ex, nyn, nzn) << "  " << norm2(Ex, nzn, nxn) << endl;
-        cout << "Norm Ey: " << norm2(Ey, nxn, nyn) << "  " << norm2(Ey, nyn, nzn) << "  " << norm2(Ey, nzn, nxn) << endl;
-        cout << "Norm Ez: " << norm2(Ez, nxn, nyn) << "  " << norm2(Ez, nyn, nzn) << "  " << norm2(Ez, nzn, nxn) << endl << endl;
-    
-        cout << "Norm B(x,y,z): " << norm2(Bxc, nxc, nyc) << "  " << norm2(Byc, nxc, nyc) << "  " << norm2(Bzc, nxc, nyc) << endl << endl;
-        
-        cout << "Norm Jxh: " << norm2(Jxh, nxn, nyn) << "  " << norm2(Jxh, nyn, nzn) << "  " << norm2(Jxh, nzn, nxn) << endl;
-        cout << "Norm Jyh: " << norm2(Jyh, nxn, nyn) << "  " << norm2(Jyh, nyn, nzn) << "  " << norm2(Jyh, nzn, nxn) << endl;
-        cout << "Norm Jzh: " << norm2(Jzh, nxn, nyn) << "  " << norm2(Jzh, nyn, nzn) << "  " << norm2(Jzh, nzn, nxn) << endl << endl;
-
     //? X,Y,Z components for E
     double *xkrylov = new double[3 * (nxn - 2) * (nyn - 2) * (nzn - 2)];
     double *bkrylov = new double[3 * (nxn - 2) * (nyn - 2) * (nzn - 2)];
@@ -2170,16 +2169,6 @@ void EMfields3D::calculateE()
     //? Initialise all params with zeros 
     eqValue(0.0, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
     eqValue(0.0, bkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
-
-    // cout << "Norm Ex(y, z): " << norm2(Ex, nyn, nzn) << "  " << norm2(Ex, nyn, nzn) << "  " << norm2(Ex, nyn, nzn) << endl;
-    // cout << "Norm Ex(x, z): " << norm2(Ex, nxn, nzn) << "  " << norm2(Ex, nxn, nzn) << "  " << norm2(Ex, nxn, nzn) << endl;
-    // cout << "Norm Ex(x, y): " << norm2(Ex, nxn, nyn) << "  " << norm2(Ex, nxn, nyn) << "  " << norm2(Ex, nxn, nyn) << endl;
-
-    // cout << "Norm Ey(y, z): " << norm2(Ey, nyn, nzn) << "  " << norm2(Ey, nyn, nzn) << "  " << norm2(Ey, nyn, nzn) << endl;
-    // cout << "Norm Ey(x, z): " << norm2(Ey, nxn, nzn) << "  " << norm2(Ey, nxn, nzn) << "  " << norm2(Ey, nxn, nzn) << endl;
-    // cout << "Norm Ey(x, y): " << norm2(Ey, nxn, nyn) << "  " << norm2(Ey, nxn, nyn) << "  " << norm2(Ey, nxn, nyn) << endl;
-
-    // cout << "Norm Ez(y, z): " << norm2(Ez, nyn, nzn) << "  " << norm2(Ez, nyn, nzn) << "  " << norm2(Ez, nyn, nzn) << endl;
     // cout << "Norm Ez(x, z): " << norm2(Ez, nxn, nzn) << "  " << norm2(Ez, nxn, nzn) << "  " << norm2(Ez, nxn, nzn) << endl;
     // cout << "Norm Ez(x, y): " << norm2(Ez, nxn, nyn) << "  " << norm2(Ez, nxn, nyn) << "  " << norm2(Ez, nxn, nyn) << endl << endl;
     
@@ -2193,7 +2182,7 @@ void EMfields3D::calculateE()
     cout << "Norm xkrylov (calculateE): " << norm2(xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
     
     //? Solve using GMRes
-    // GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 20, 200, GMREStol, this);
+    GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 20, 200, GMREStol, this);
 
     //* Move from Krylov space to physical space
     solver2phys(Exth, Eyth, Ezth, xkrylov, nxn, nyn, nzn);
@@ -2218,18 +2207,6 @@ void EMfields3D::calculateE()
     communicateNodeBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
-
-    // cout << "Norm Ex(y, z): " << norm2(Ex, nyn, nzn) << "  " << norm2(Ex, nyn, nzn) << "  " << norm2(Ex, nyn, nzn) << endl;
-    // cout << "Norm Ex(x, z): " << norm2(Ex, nxn, nzn) << "  " << norm2(Ex, nxn, nzn) << "  " << norm2(Ex, nxn, nzn) << endl;
-    // cout << "Norm Ex(x, y): " << norm2(Ex, nxn, nyn) << "  " << norm2(Ex, nxn, nyn) << "  " << norm2(Ex, nxn, nyn) << endl;
-
-    // cout << "Norm Ey(y, z): " << norm2(Ey, nyn, nzn) << "  " << norm2(Ey, nyn, nzn) << "  " << norm2(Ey, nyn, nzn) << endl;
-    // cout << "Norm Ey(x, z): " << norm2(Ey, nxn, nzn) << "  " << norm2(Ey, nxn, nzn) << "  " << norm2(Ey, nxn, nzn) << endl;
-    // cout << "Norm Ey(x, y): " << norm2(Ey, nxn, nyn) << "  " << norm2(Ey, nxn, nyn) << "  " << norm2(Ey, nxn, nyn) << endl;
-
-    // cout << "Norm Ez(y, z): " << norm2(Ez, nyn, nzn) << "  " << norm2(Ez, nyn, nzn) << "  " << norm2(Ez, nyn, nzn) << endl;
-    // cout << "Norm Ez(x, z): " << norm2(Ez, nxn, nzn) << "  " << norm2(Ez, nxn, nzn) << "  " << norm2(Ez, nxn, nzn) << endl;
-    // cout << "Norm Ez(x, y): " << norm2(Ez, nxn, nyn) << "  " << norm2(Ez, nxn, nyn) << "  " << norm2(Ez, nxn, nyn) << endl << endl;
 
     //? OpenBC Inflow: this needs to be integrate to Halo Exchange BC
     //TODO: Is this implemented? Ask Andong/Stefano
@@ -2296,8 +2273,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     communicateNodeBC(nxn, nyn, nzn, Jyh, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, Jzh, 2, 2, 2, 2, 2, 2, vct, this);
 
-    //TODO: compute norms of current -- check with ecsim code?
-
     //* Energy-conserving smoothing
     energy_conserve_smooth(Jxh, Jyh, Jzh, nxn, nyn, nzn);
 
@@ -2318,10 +2293,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
                 tempZ.fetch(i, j, k) = th*dt*(c*temp2Z.get(i, j, k) - FourPI*Jz_tot*invVOL);
 
             }
-    
-    // cout << "Norm temp(y, z): " << norm2(tempZ, nyn, nzn) << "  " << norm2(tempZ, nyn, nzn) << "  " << norm2(tempZ, nyn, nzn) << endl;
-    // cout << "Norm temp(x, z): " << norm2(tempZ, nxn, nzn) << "  " << norm2(tempZ, nxn, nzn) << "  " << norm2(tempZ, nxn, nzn) << endl;
-    // cout << "Norm temp(x, y): " << norm2(tempZ, nxn, nyn) << "  " << norm2(tempZ, nxn, nyn) << "  " << norm2(tempZ, nxn, nyn) << endl;
 
     communicateNodeBC(nxn, nyn, nzn, temp3X, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, temp3Y, 2, 2, 2, 2, 2, 2, vct, this);
@@ -2331,18 +2302,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     addscale(1.0, tempX, Ex, nxn, nyn, nzn);
     addscale(1.0, tempY, Ey, nxn, nyn, nzn);
     addscale(1.0, tempZ, Ez, nxn, nyn, nzn);
-        
-    // cout << "Norm Ex(y, z): " << norm2(Ex, nyn, nzn) << "  " << norm2(Ex, nyn, nzn) << "  " << norm2(Ex, nyn, nzn) << endl;
-    // cout << "Norm Ex(x, z): " << norm2(Ex, nxn, nzn) << "  " << norm2(Ex, nxn, nzn) << "  " << norm2(Ex, nxn, nzn) << endl;
-    // cout << "Norm Ex(x, y): " << norm2(Ex, nxn, nyn) << "  " << norm2(Ex, nxn, nyn) << "  " << norm2(Ex, nxn, nyn) << endl;
-
-    // cout << "Norm Ey(y, z): " << norm2(Ey, nyn, nzn) << "  " << norm2(Ey, nyn, nzn) << "  " << norm2(Ey, nyn, nzn) << endl;
-    // cout << "Norm Ey(x, z): " << norm2(Ey, nxn, nzn) << "  " << norm2(Ey, nxn, nzn) << "  " << norm2(Ey, nxn, nzn) << endl;
-    // cout << "Norm Ey(x, y): " << norm2(Ey, nxn, nyn) << "  " << norm2(Ey, nxn, nyn) << "  " << norm2(Ey, nxn, nyn) << endl;
-
-    // cout << "Norm Ez(y, z): " << norm2(Ez, nyn, nzn) << "  " << norm2(Ez, nyn, nzn) << "  " << norm2(Ez, nyn, nzn) << endl;
-    // cout << "Norm Ez(x, z): " << norm2(Ez, nxn, nzn) << "  " << norm2(Ez, nxn, nzn) << "  " << norm2(Ez, nxn, nzn) << endl;
-    // cout << "Norm Ez(x, y): " << norm2(Ez, nxn, nyn) << "  " << norm2(Ez, nxn, nyn) << "  " << norm2(Ez, nxn, nyn) << endl;
 
     // //? Add contribution of E_ext to the change in B
     // if (col->getAddExternalCurlE()) 
@@ -3644,30 +3603,79 @@ void EMfields3D::communicateGhostP2G_ecsim(int is)
     double ***moment_Jyhs  = convert_to_arr3(Jyhs[is]);
     double ***moment_Jzhs  = convert_to_arr3(Jzhs[is]);
 
-    // interpolate adding common nodes among processors
-    // communicateInterp(nxn, nyn, nzn, Jxh, vct, this);
-    // communicateInterp(nxn, nyn, nzn, Jyh, vct, this);
-    // communicateInterp(nxn, nyn, nzn, Jzh, vct, this);
+    //TODO: Print full array for moment_rhons!!!
 
-    //TODO: Implement "communicateInterp" and "communicateNode_P" as in ECSim
+    // cout << "Rhons (initial)" << endl;
+    // for (int ii = 0; ii < nxn; ii++)
+    // {
+    //     for (int jj = 0; jj < nyn; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzn; kk++)
+    //         {
+    //             cout << rhons[0][ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
+
+    // cout << "Jxhs" << endl;
+    // for (int ii = 0; ii < nxn; ii++)
+    // {
+    //     for (int jj = 0; jj < nyn; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzn; kk++)
+    //         {
+    //             cout << moment_Jxhs[ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
 
     cout << "Norm rhons: " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
     cout << "Norm Jxhs, Jyhs, Jzhs: " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl;
+    // cout << "Norm Jxh, Jyh, Jzh: " <<  norm2(Jxh, nxn, nyn, nzn) << "  " << norm2(Jyh, nxn, nyn, nzn) << "  " << norm2(Jzh, nxn, nyn, nzn) << endl << endl;
 
+    // interpolate adding common nodes among processors
+    communicateInterp(nxn, nyn, nzn, Jxh, vct, this);
+    communicateInterp(nxn, nyn, nzn, Jyh, vct, this);
+    communicateInterp(nxn, nyn, nzn, Jzh, vct, this);
+
+    //TODO: Implement "communicateInterp" and "communicateNode_P" as in ECSim
 
     //* NonBlocking Halo Exchange for Interpolation
     communicateInterp(nxn, nyn, nzn, moment_rhons, vct, this);
     communicateInterp(nxn, nyn, nzn, moment_Jxhs,  vct, this);
     communicateInterp(nxn, nyn, nzn, moment_Jyhs,  vct, this);
     communicateInterp(nxn, nyn, nzn, moment_Jzhs,  vct, this);
+
+    //! Problem: boundary data is incorrectly computed with communicateInterp
+    // cout << "Rhons (after communicateInterp)" << endl;
+    // for (int ii = 0; ii < nxn; ii++)
+    // {
+    //     for (int jj = 0; jj < nyn; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzn; kk++)
+    //         {
+    //             cout << rhons[0][ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
     
     cout << "Norm rhons: " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
     cout << "Norm Jxhs, Jyhs, Jzhs: " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl;
+    // cout << "Norm Jxh, Jyh, Jzh: " <<  norm2(Jxh, nxn, nyn, nzn) << "  " << norm2(Jyh, nxn, nyn, nzn) << "  " << norm2(Jzh, nxn, nyn, nzn) << endl << endl;
 
     //* Populate the ghost nodes - Nonblocking Halo Exchange
-    // communicateNode_P(nxn, nyn, nzn, Jxh, vct, this);
-    // communicateNode_P(nxn, nyn, nzn, Jyh, vct, this);
-    // communicateNode_P(nxn, nyn, nzn, Jzh, vct, this);
+    communicateNode_P(nxn, nyn, nzn, Jxh, vct, this);
+    communicateNode_P(nxn, nyn, nzn, Jyh, vct, this);
+    communicateNode_P(nxn, nyn, nzn, Jzh, vct, this);
 
     // cout << "Norm Jxh, Jyh, Jzh: " <<  norm2(Jxh, nxn, nyn, nzn) << "  " << norm2(Jyh, nxn, nyn, nzn) << "  " << norm2(Jzh, nxn, nyn, nzn) << endl;
 
@@ -3676,8 +3684,24 @@ void EMfields3D::communicateGhostP2G_ecsim(int is)
     communicateNode_P(nxn, nyn, nzn, moment_Jzhs,  vct, this);
     communicateNode_P(nxn, nyn, nzn, moment_rhons, vct, this);
 
+    // cout << "Rhons (after communicateNode_P)" << endl;
+    // for (int ii = 0; ii < nxn; ii++)
+    // {
+    //     for (int jj = 0; jj < nyn; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzn; kk++)
+    //         {
+    //             cout << rhons[0][ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
+
     cout << "Norm rhons: " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
     cout << "Norm Jxhs, Jyhs, Jzhs: " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl;
+    // cout << "Norm Jxh, Jyh, Jzh: " <<  norm2(Jxh, nxn, nyn, nzn) << "  " << norm2(Jyh, nxn, nyn, nzn) << "  " << norm2(Jzh, nxn, nyn, nzn) << endl << endl;
 }
 
 void EMfields3D::communicateGhostP2G_mass_matrix()
@@ -3697,10 +3721,23 @@ void EMfields3D::communicateGhostP2G_mass_matrix()
         double ***moment_Mzy = convert_to_arr3(Mzy[m]);
         double ***moment_Mzz = convert_to_arr3(Mzz[m]);
 
-        cout << "Before Mxx, Mxy, Mxz: " << norm2(moment_Mxx, nxn, nyn, nzn) << "   "  << norm2(moment_Mxy, nxn, nyn, nzn) << "   "  << norm2(moment_Mxz, nxn, nyn, nzn) << endl;
-        // cout << "Myx: " << norm2(moment_Myx, nxn, nyn) << "  " << norm2(moment_Myx, nyn, nzn) << "  " << norm2(moment_Myx, nzn, nxn) << endl;
-        // cout << "Myz: " << norm2(moment_Myz, nxn, nyn) << "  " << norm2(moment_Myz, nyn, nzn) << "  " << norm2(moment_Myz, nzn, nxn) << endl;
-        // cout << "Mzy: " << norm2(moment_Mzy, nxn, nyn) << "  " << norm2(moment_Mzy, nyn, nzn) << "  " << norm2(moment_Mzy, nzn, nxn) << endl;
+        // if (m == 0)
+        // {
+        // cout << "Mxx (initial)" << endl;
+        //     for (int ii = 0; ii < nxn; ii++)
+        //     {
+        //         for (int jj = 0; jj < nyn; jj++)
+        //         {
+        //             for (int kk = 0; kk < nzn; kk++)
+        //             {
+        //                 cout << Mxx[m][ii][jj][kk] << "    ";
+        //             }
+        //             cout << endl;
+        //         }
+        //         cout << endl;
+        //     }
+        // }
+        // cout << endl << endl;
 
         communicateInterp(nxn, nyn, nzn, moment_Mxx, vct, this);
         communicateInterp(nxn, nyn, nzn, moment_Mxy, vct, this);
@@ -3712,10 +3749,23 @@ void EMfields3D::communicateGhostP2G_mass_matrix()
         communicateInterp(nxn, nyn, nzn, moment_Mzy, vct, this);
         communicateInterp(nxn, nyn, nzn, moment_Mzz, vct, this);
 
-        cout << "After Mxx, Mxy, Mxz: " << norm2(moment_Mxx, nxn, nyn, nzn) << "   "  << norm2(moment_Mxy, nxn, nyn, nzn) << "   "  << norm2(moment_Mxz, nxn, nyn, nzn) << endl;
-        // cout << "Myx: " << norm2(moment_Myx, nxn, nyn) << "  " << norm2(moment_Myx, nyn, nzn) << "  " << norm2(moment_Myx, nzn, nxn) << endl;
-        // cout << "Myz: " << norm2(moment_Myz, nxn, nyn) << "  " << norm2(moment_Myz, nyn, nzn) << "  " << norm2(moment_Myz, nzn, nxn) << endl;
-        // cout << "Mzy: " << norm2(moment_Mzy, nxn, nyn) << "  " << norm2(moment_Mzy, nyn, nzn) << "  " << norm2(moment_Mzy, nzn, nxn) << endl;
+        // if (m == 0)
+        // {
+        // cout << "Mxx (after communicateInterp)" << endl;
+        //     for (int ii = 0; ii < nxn; ii++)
+        //     {
+        //         for (int jj = 0; jj < nyn; jj++)
+        //         {
+        //             for (int kk = 0; kk < nzn; kk++)
+        //             {
+        //                 cout << Mxx[m][ii][jj][kk] << "    ";
+        //             }
+        //             cout << endl;
+        //         }
+        //         cout << endl;
+        //     }
+        // }
+        // cout << endl << endl;
 
         communicateNode_P(nxn, nyn, nzn, moment_Mxx, vct, this);
         communicateNode_P(nxn, nyn, nzn, moment_Mxy, vct, this);
@@ -3727,13 +3777,26 @@ void EMfields3D::communicateGhostP2G_mass_matrix()
         communicateNode_P(nxn, nyn, nzn, moment_Mzy, vct, this);
         communicateNode_P(nxn, nyn, nzn, moment_Mzz, vct, this);
 
-        // cout << "Mxx, Mxy, Mxz: " << norm2(moment_Mxx, nxn, nyn, nzn) << "   "  << norm2(moment_Mxy, nxn, nyn, nzn) << "   "  << norm2(moment_Mxz, nxn, nyn, nzn) << endl;
-        // cout << "Myx: " << norm2(moment_Myx, nxn, nyn) << "  " << norm2(moment_Myx, nyn, nzn) << "  " << norm2(moment_Myx, nzn, nxn) << endl;
-        // cout << "Myz: " << norm2(moment_Myz, nxn, nyn) << "  " << norm2(moment_Myz, nyn, nzn) << "  " << norm2(moment_Myz, nzn, nxn) << endl;
-        // cout << "Mzy: " << norm2(moment_Mzy, nxn, nyn) << "  " << norm2(moment_Mzy, nyn, nzn) << "  " << norm2(moment_Mzy, nzn, nxn) << endl << endl;
+        // if (m == 0)
+        // {
+        // cout << "Mxx (after communicateNode_P)" << endl;
+        //     for (int ii = 0; ii < nxn; ii++)
+        //     {
+        //         for (int jj = 0; jj < nyn; jj++)
+        //         {
+        //             for (int kk = 0; kk < nzn; kk++)
+        //             {
+        //                 cout << Mxx[m][ii][jj][kk] << "    ";
+        //             }
+        //             cout << endl;
+        //         }
+        //         cout << endl;
+        //     }
+        // }
+        // cout << endl << endl;
     }
 
-    cout << endl;
+    // cout << endl;
 }
 
 //? Compute divergence of electric field
@@ -3892,19 +3955,19 @@ void EMfields3D::sumOverSpecies()
                     Jzh[i][j][k]   += Jzhs[is][i][j][k];
                 }
     
-    cout << endl << "Sum Over Species" << endl;
-    cout << "Norm Rho_n: " << norm2(rhon, nxn, nyn) << "  " << norm2(rhon, nyn, nzn) << "  " << norm2(rhon, nzn, nxn) << endl;
-    cout << "Norm Rho_c: " << norm2(rhoc, nxc, nyc) << "  " << norm2(rhoc, nyc, nzc) << "  " << norm2(rhoc, nzc, nxc) << endl;
+    // cout << endl << "Sum Over Species" << endl;
+    // cout << "Norm Rho_n: " << norm2(rhon, nxn, nyn) << "  " << norm2(rhon, nyn, nzn) << "  " << norm2(rhon, nzn, nxn) << endl;
+    // cout << "Norm Rho_c: " << norm2(rhoc, nxc, nyc) << "  " << norm2(rhoc, nyc, nzc) << "  " << norm2(rhoc, nzc, nxc) << endl;
 
     communicateNode_P(nxn, nyn, nzn, rhon, vct, this);
     grid->interpN2C(rhoc, rhon);
     communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct, this);
 
-    cout << "Norm Rho_n: " << norm2(rhon, nxn, nyn) << "  " << norm2(rhon, nyn, nzn) << "  " << norm2(rhon, nzn, nxn) << endl;
-    cout << "Norm Rho_c: " << norm2(rhoc, nxc, nyc) << "  " << norm2(rhoc, nyc, nzc) << "  " << norm2(rhoc, nzc, nxc) << endl;
-    cout << "Norm Jxh: " << norm2(Jxh, nxn, nyn) << "  " << norm2(Jxh, nyn, nzn) << "  " << norm2(Jxh, nzn, nxn) << endl;
-    cout << "Norm Jyh: " << norm2(Jyh, nxn, nyn) << "  " << norm2(Jyh, nyn, nzn) << "  " << norm2(Jyh, nzn, nxn) << endl;
-    cout << "Norm Jzh: " << norm2(Jzh, nxn, nyn) << "  " << norm2(Jzh, nyn, nzn) << "  " << norm2(Jzh, nzn, nxn) << endl << endl;
+    // cout << "Norm Rho_n: " << norm2(rhon, nxn, nyn) << "  " << norm2(rhon, nyn, nzn) << "  " << norm2(rhon, nzn, nxn) << endl;
+    // cout << "Norm Rho_c: " << norm2(rhoc, nxc, nyc) << "  " << norm2(rhoc, nyc, nzc) << "  " << norm2(rhoc, nzc, nxc) << endl;
+    // cout << "Norm Jxh: " << norm2(Jxh, nxn, nyn) << "  " << norm2(Jxh, nyn, nzn) << "  " << norm2(Jxh, nzn, nxn) << endl;
+    // cout << "Norm Jyh: " << norm2(Jyh, nxn, nyn) << "  " << norm2(Jyh, nyn, nzn) << "  " << norm2(Jyh, nzn, nxn) << endl;
+    // cout << "Norm Jzh: " << norm2(Jzh, nxn, nyn) << "  " << norm2(Jzh, nyn, nzn) << "  " << norm2(Jzh, nzn, nxn) << endl << endl;
 }
 
 //* Sum mass and charge density of different species (on nodes) *//
@@ -3936,10 +3999,28 @@ void EMfields3D::interpolateCenterSpecies(int is)
     const Grid *grid = &get_grid();
     const VirtualTopology3D * vct = &get_vct();
 
-    grid->interpN2C(rhocs_avg, is, rhons);
+    //! nan value in rhocs_avg!!
 
-    double ***rho_avg = convert_to_arr3(rhocs_avg[is]);
-    communicateCenterBC(nxc, nyc, nzc, rho_avg, 2, 2, 2, 2, 2, 2, vct, this);
+    grid->interpN2C(rhocs_avg, is, rhons);
+    communicateCenterBC(nxc, nyc, nzc, rhocs_avg[is], 2, 2, 2, 2, 2, 2, vct, this);
+
+    // cout << "After communicateCenterBC" << endl;
+    // cout << "Norm rhocs_avg: " << norm2(rhocs_avg[is], nxc, nyc, nzc) << endl;
+
+    // cout << "rhocs_avg: " << endl;
+    // for (int ii = 0; ii < nxc; ii++)
+    // {
+    //     for (int jj = 0; jj < nyc; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzc; kk++)
+    //         {
+    //             cout << rhocs_avg[is][ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl;
 }
 
 void EMfields3D::setZeroCurrent()

@@ -291,7 +291,7 @@ void c_Solver::CalculateMoments()
     //* Avoid SIMD array overrun
     pad_particle_capacities();
 
-    // //* Vectorised; assumes that particles are sorted by mesh cell
+    //* Vectorised; assumes that particles are sorted by mesh cell
     // if(Parameters::get_VECTORIZE_MOMENTS())
     // {
     //     switch(Parameters::get_MOMENTS_TYPE())
@@ -328,15 +328,12 @@ void c_Solver::CalculateMoments()
             
     //         case Parameters::AoS:
                 
-    //             cout << "Moments AoS" << endl;
+    //             cout << "Parameters::get_MOMENTS_TYPE --> Moments AoS" << endl;
  
     //             //* Set moments to 0
     //             EMf->setZeroDensities();
                 
     //             convertParticlesToAoS();
-
-    //             // for (int is = 0; is < ns; is++)
-	//                 // 	part[is].computeMoments(EMf);
                 
     //             EMf->sumMoments_AoS(part);      // sum up the 10 densities of each particles of each species
     //             // then calculate the weight according to their position; map the 10 momentum to the grid(node) with the weight
@@ -358,13 +355,13 @@ void c_Solver::CalculateMoments()
     //? Set all moments and densities to 0
     EMf->setZeroDensities();
 
-    // convertParticlesToAoS();
+    convertParticlesToAoS();
 
     //? Interpolate Particles to grid (nodes)
     for (int is = 0; is < ns; is++)
 		part[is].computeMoments(EMf);
 
-    // //* Communicate moments
+    //* Communicate moments
     for (int is = 0; is < ns; is++)
         EMf->communicateGhostP2G_ecsim(is);
 
@@ -373,9 +370,9 @@ void c_Solver::CalculateMoments()
     //* Sum all over the species (mass and charge density)
     EMf->sumOverSpecies();
 
-    //* Communicate average densities
-    // for (int is = 0; is < ns; is++)
-    //     EMf->interpolateCenterSpecies(is);
+    // * Communicate average densities
+    for (int is = 0; is < ns; is++)
+        EMf->interpolateCenterSpecies(is);
 }
 
 //! Compute electromagnetic field (E and B needs to computed inside 1 function for ECSim)
