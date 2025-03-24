@@ -70,7 +70,7 @@ int main(int argc, char **argv)
             
             //? Particle Pusher --> Compute new velocities and positions of the particles
             time_PM.start();
-            // KCode.ParticlesMover();          
+            KCode.ParticlesMover();          
             time_PM.stop();
 
             KCode.WriteOutput(i);
