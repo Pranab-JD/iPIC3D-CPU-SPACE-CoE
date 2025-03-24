@@ -25,9 +25,9 @@ void NBDerivedHaloComm(int nx, int ny, int nz, double ***vector, const VirtualTo
                         bool isCenterFlag, bool isFaceOnlyFlag, bool needInterp, bool isParticle)
 {
     const MPI_Comm comm       = isParticle ?vct->getParticleComm()      :vct->getFieldComm();
-#ifdef DEBUG
-	MPI_Errhandler_set(comm,MPI_ERRORS_RETURN);
-#endif
+    #ifdef DEBUG
+	    MPI_Errhandler_set(comm,MPI_ERRORS_RETURN);
+    #endif
     MPI_Status  stat[12];
     MPI_Request reqList[12];				  //at most 6 requests x 2 (send recv)
     int communicationCnt[6] = {0,0,0,0,0,0};  //1 if there communication on that dir
@@ -754,21 +754,21 @@ void communicateInterp(int nx, int ny, int nz, double*** vector, const VirtualTo
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true, false, true, true);
 }
 
+void communicateInterp(int nx, int ny, int nz, arr3_double _vector, const VirtualTopology3D * vct, EMfields3D *EMf)
+{
+    double ***vector=_vector.fetch_arr3();
+	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, true, false, true, true);
+}
+
 void communicateNode_P(int nx, int ny, int nz, double*** vector, const VirtualTopology3D * vct, EMfields3D *EMf)
 {
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false, false, false, true);
 }
 
-//? Used for communicating moments
-void communicateNode_P(int nx, int ny, int nz, double*** vector,
-    int bcFaceXrght, int bcFaceXleft,
-    int bcFaceYrght, int bcFaceYleft,
-    int bcFaceZrght, int bcFaceZleft,
-    const VirtualTopology3D * vct, EMfields3D *EMf)
+void communicateNode_P(int nx, int ny, int nz, arr3_double _vector, const VirtualTopology3D * vct, EMfields3D *EMf)
 {
+    double ***vector=_vector.fetch_arr3();
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false, false, false, true);
-
-	BCface_P(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
 }
 
 //* ============================================================================================================================ *//
