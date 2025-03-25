@@ -667,7 +667,6 @@ void Particles3D::mover_PC(Field * EMf)
 //! ECSIM - energy conserving semi-implicit method !//
 void Particles3D::ECSIM_velocity(Field *EMf) 
 {
-    cout << "Number of particles: " << getNOP() << endl;
     #pragma omp parallel
     {
         convertParticlesToAoS();
@@ -839,16 +838,27 @@ void Particles3D::ECSIM_position(Field *EMf)
 //* Set particles' poitions to 0 along unused dimensions
 void Particles3D::fixPosition()
 {
-    if (col->getDim() == 0) 
+    //TODO: debug this function for 3D case
+    cout << "Dimension: " << col->getDim() << endl;
+
+    // if (col->getDim() == 0) 
+    // {    
+    //     for (int pidx = 0; pidx < getNOP(); pidx++) 
+    //     {
+    //         cout << "Particle: " << pidx << endl;   
+    //         z[pidx] = 0;
+    //         y[pidx] = 0;
+    //     }
+    // } 
+    // else if (col->getDim() == 1) 
     {
         for (int pidx = 0; pidx < getNOP(); pidx++) 
         {
-            z[pidx] = 0;
-            y[pidx] = 0;
+            SpeciesParticle* pcl = &_pcls[pidx];
+		    ALIGNED(pcl);
+            pcl->set_z(0.0);
         }
-    } 
-    else if (col->getDim() == 1) 
-        for (int pidx = 0; pidx < getNOP(); pidx++)  z[pidx] = 0;
+    }
 }
 
 
@@ -857,6 +867,7 @@ void Particles3D::computeMoments(Field *EMf)
     // convertParticlesToSoA();
 
     cout << "Number of particles of species " << ns << ": " << getNOP() << endl;
+    cout << "Grid points: " << grid->getNXN() << ", " << grid->getNYN() << ", " << grid->getNZN() << endl;
 
     #pragma omp parallel
     {
@@ -983,18 +994,18 @@ void Particles3D::computeMoments(Field *EMf)
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = q * weights[ii];
 
-            EMf->add_Rho(temp, ix, iy, iz, 0);
+            EMf->add_Rho(temp, ix, iy, iz, ns);
 
             // if (pidx == getNOP() - 1)
             // {
-            //     cout << "Compute Moments" << endl;
+            //     cout << "Compute Moments, species: " << ns << endl;
             //     for (int ii = 0; ii < grid->getNXN(); ii++)
             //     {
             //         for (int jj = 0; jj < grid->getNYN(); jj++)
             //         {
             //             for (int kk = 0; kk < grid->getNZN(); kk++)
             //             {
-            //                 cout << EMf->getRHOns(ii, jj, kk, 0) << "    ";
+            //                 cout << EMf->getRHOns(ii, jj, kk, ns) << "    ";
             //             }
             //             cout << endl;
             //         }
