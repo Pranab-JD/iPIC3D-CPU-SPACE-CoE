@@ -202,6 +202,7 @@ int c_Solver::Init(int argc, char **argv)
             else                                  		part[i].maxwellian(EMf);
             
             part[i].reserve_remaining_particle_IDs();
+            // part[i].fixPosition();
         }
     }
 

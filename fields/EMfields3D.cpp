@@ -2178,8 +2178,8 @@ void EMfields3D::calculateE()
     //* Move to Krylov space from physical space
     phys2solver(xkrylov, Ex, Ey, Ez, nxn, nyn, nzn);
 
-    cout << "Norm bkrylov (calculateE): " << norm2(bkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
-    cout << "Norm xkrylov (calculateE): " << norm2(xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
+    // cout << "Norm bkrylov (calculateE): " << norm2(bkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
+    // cout << "Norm xkrylov (calculateE): " << norm2(xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
     
     //? Solve using GMRes
     GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 20, 200, GMREStol, this);
@@ -2187,8 +2187,8 @@ void EMfields3D::calculateE()
     //* Move from Krylov space to physical space
     solver2phys(Exth, Eyth, Ezth, xkrylov, nxn, nyn, nzn);
 
-    cout << "Norm bkrylov (calculateE): " << norm2(bkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
-    cout << "Norm xkrylov (calculateE): " << norm2(xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
+    // cout << "Norm bkrylov (calculateE): " << norm2(bkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
+    // cout << "Norm xkrylov (calculateE): " << norm2(xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
 
     //? Communicate E theta so the interpolation can have good values
     communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
@@ -3605,14 +3605,14 @@ void EMfields3D::communicateGhostP2G_ecsim(int is)
 
     //TODO: Print full array for moment_rhons!!!
 
-    // cout << "Rhons (initial)" << endl;
+    // cout << "Rhons (initial), species: " << is << endl;
     // for (int ii = 0; ii < nxn; ii++)
     // {
     //     for (int jj = 0; jj < nyn; jj++)
     //     {
     //         for (int kk = 0; kk < nzn; kk++)
     //         {
-    //             cout << rhons[0][ii][jj][kk] << "    ";
+    //             cout << rhons[is][ii][jj][kk] << "    ";
     //         }
     //         cout << endl;
     //     }
@@ -3668,8 +3668,8 @@ void EMfields3D::communicateGhostP2G_ecsim(int is)
     // }
     // cout << endl << endl;
     
-    cout << "Norm rhons: " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
-    cout << "Norm Jxhs, Jyhs, Jzhs: " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl;
+    // cout << "Norm rhons: " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
+    // cout << "Norm Jxhs, Jyhs, Jzhs: " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl;
     // cout << "Norm Jxh, Jyh, Jzh: " <<  norm2(Jxh, nxn, nyn, nzn) << "  " << norm2(Jyh, nxn, nyn, nzn) << "  " << norm2(Jzh, nxn, nyn, nzn) << endl << endl;
 
     //* Populate the ghost nodes - Nonblocking Halo Exchange
