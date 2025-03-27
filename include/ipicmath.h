@@ -105,56 +105,53 @@ inline double sample_u_double()
   return double(rand())*max_inv;
 }
 
+//? --------------------------- Maxwellian --------------------------- ?//
+
 inline void sample_standard_maxwellian(double& u)
 {
-  // we sample a single component by pretending that it
-  // is part of a two-dimensional joint distribution.
-  const double prob = sqrt(-2.0 * log(sample_clopen_u_double()));
-  const double theta = 2.0 * M_PI * sample_u_double();
-  u = prob * cos(theta);
+    //* we sample a single component by pretending that it is part of a two-dimensional joint distribution.
+    const double prob = sqrt(-2.0 * log(sample_clopen_u_double()));
+    const double theta = 2.0 * M_PI * sample_u_double();
+    u = prob * cos(theta);
 }
 
 inline void sample_standard_maxwellian(double& u, double& v)
 {
-  // the distribution of the magnitude of (u,v)
-  // can be integrated analytically
-  const double prob = sqrt(-2.0 * log(sample_clopen_u_double()));
-  const double theta = 2.0 * M_PI * sample_u_double();
-  u = prob * cos(theta);
-  v = prob * sin(theta);
+    //* the distribution of the magnitude of (u,v) can be integrated analytically
+    const double prob = sqrt(-2.0 * log(sample_clopen_u_double()));
+    const double theta = 2.0 * M_PI * sample_u_double();
+    u = prob * cos(theta);
+    v = prob * sin(theta);
 }
 
 inline void sample_standard_maxwellian(double& u, double& v, double& w)
 {
-  sample_standard_maxwellian(u,v);
-  sample_standard_maxwellian(w);
+    sample_standard_maxwellian(u, v);
+    sample_standard_maxwellian(w);
 }
 
 inline void sample_maxwellian(double& u, double ut)
 {
-  sample_standard_maxwellian(u);
-  u *= ut;
+    sample_standard_maxwellian(u);
+    u *= ut;
 }
 
-inline void sample_maxwellian(double& u, double& v, double& w,
-  double ut, double vt, double wt)
+inline void sample_maxwellian(double& u, double& v, double& w, double ut, double vt, double wt)
 {
-  sample_standard_maxwellian(u,v,w);
-  u *= ut;
-  v *= vt;
-  w *= wt;
+    sample_standard_maxwellian(u, v, w);
+    u *= ut; v *= vt; w *= wt;
 }
 
-inline void sample_maxwellian(
-  double& u, double& v, double& w,
-  double ut, double vt, double wt,
-  double u0, double v0, double w0)
+inline void sample_maxwellian(double& u, double& v, double& w, double ut, double vt, double wt, double u0, double v0, double w0)
 {
-  sample_standard_maxwellian(u,v,w);
-  u = u0 + ut*u;
-  v = v0 + vt*v;
-  w = w0 + wt*w;
+    // sample_standard_maxwellian(u, v, w);
+    // u = u0 + ut*u; v = v0 + vt*v; w = w0 + wt*w;
+    u = sin(2.0 * M_PI * ut);
+    v = cos(2.0 * M_PI * vt);
+    w = sin(2.0 * M_PI * wt)*cos(2.0 * M_PI * wt);
 }
+
+//? ------------------------------------------------------------------ ?//
 
 // add or subtract multiples of L until x lies
 // between 0 and L.
