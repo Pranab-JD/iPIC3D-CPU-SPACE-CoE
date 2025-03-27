@@ -83,8 +83,8 @@ void Particles3D::uniform_background(Field * EMf)
                             double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
                             double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
                             double u = 0.1;
-                            double v = 0.1;
-                            double w = 0.1;
+                            double v = 0.0;
+                            double w = 0.0;
                             double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / grid->getInvVOL());
                             _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,0));
                         }
@@ -202,6 +202,7 @@ void Particles3D::maxwellian(Field * EMf)
     // multipled by charge density gives charge per particle
     const double q_factor =  q_sgn * grid->getVOL() / npcel;
 
+    long long counter = 0;
     for (int i = 1; i < grid->getNXC() - 1; i++)
         for (int j = 1; j < grid->getNYC() - 1; j++)
             for (int k = 1; k < grid->getNZC() - 1; k++)
@@ -212,16 +213,32 @@ void Particles3D::maxwellian(Field * EMf)
                     for (int jj = 0; jj < npcely; jj++)
                         for (int kk = 0; kk < npcelz; kk++)
                         {
-                            double u = 0.1; double v = 0.1; double w = 0.1;
+                            // double u = 0.1; double v = 0.1; double w = 0.1;
 
-                            // double u,v,w;
-                            // sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
+                            double u,v,w;
+                            sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
+
+                            // double harvest = rand() / (double) RAND_MAX;
+                            // double prob = sqrt(-2.0 * log(1.0 - .999999 * harvest));
+                            // harvest = rand() / (double) RAND_MAX;
+                            // double theta = 2.0 * M_PI * harvest;
+                            // setU(counter, u0 + uth * prob * cos(theta));
+                            // setV(counter, v0 + vth * prob * sin(theta));
+
+                            // harvest = rand() / (double) RAND_MAX;
+                            // prob = sqrt(-2.0 * log(1.0 - .999999 * harvest));
+                            // harvest = rand() / (double) RAND_MAX;
+                            // theta = 2.0 * M_PI * harvest;
+                            // // w[counter] = w0 + wth * prob * cos(theta);
+                            // setW(counter, w0 + wth * prob * cos(theta));
                             
                             // could also sample positions randomly as in repopulate_particles();
                             const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
                             const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
                             const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+                            
                             create_new_particle(u,v,w,q,x,y,z);
+                            counter++;
                         }
             }
 
@@ -895,6 +912,9 @@ void Particles3D::computeMoments(Field *EMf)
             const double worig = pcl->get_w();
             const double q     = pcl->get_q();
 
+            if (pidx > 230)
+			    cout << "Particle: " << pidx << ", velocity: " << uorig << ", " << vorig << ", " << worig << endl;
+
             // cout << "Particle id: " << pidx << endl;
             // cout << "Charge: " << q << endl;
             // cout << "Position: " << xorig << "  "  << yorig << "  "  << zorig << endl;
@@ -1030,50 +1050,46 @@ void Particles3D::computeMoments(Field *EMf)
             EMf->add_Jzh(temp, ix, iy, iz, ns);
             
             //? Compute exact Mass Matrix
-            if(ComputeMM)
-            {               
-                //* Mass Matrix (each node of the cell in which the particle is)
-                for (int i = 0; i < 2; i++) 
-                    for (int j = 0; j < 2; j++) 
-                        for (int k = 0; k < 2; k++) 
+            for (int i = 0; i < 2; i++) 
+                for (int j = 0; j < 2; j++) 
+                    for (int k = 0; k < 2; k++) 
+                    {
+                        int ni = ix-i;
+                        int nj = iy-j;
+                        int nk = iz-k;
+
+                        //* Iterate over half of the 27 neighbouring nodes as M is symmetric
+                        for (int n_node = 0; n_node < 14; n_node++)
                         {
-                            int ni = ix-i;
-                            int nj = iy-j;
-                            int nk = iz-k;
+                            int n2i = ni + NeNo.getX(n_node);
+                            int n2j = nj + NeNo.getY(n_node);
+                            int n2k = nk + NeNo.getZ(n_node);
 
-                            //* Iterate over half of the 27 neighbouring nodes as M is symmetric
-                            for (int n_node = 0; n_node < 14; n_node++)
+                            int i2 = ix - n2i;
+                            int j2 = iy - n2j;
+                            int k2 = iz - n2k;
+
+                            //TODO: What does this part actually do? - Ask Fabio
+                            //* Check if this node is one of the cell where the particle is
+                            if (i2 >= 0 && i2 < 2 && j2 >= 0 && j2 < 2 && k2 >= 0 && k2 < 2) 
                             {
-                                int n2i = ni + NeNo.getX(n_node);
-                                int n2j = nj + NeNo.getY(n_node);
-                                int n2k = nk + NeNo.getZ(n_node);
+                                // Map (i, j, k) & (i2, j2, k2) to 1D
+                                int index1 = i * 4 + j * 2 + k;
+                                int index2 = i2 * 4 + j2 * 2 + k2; 
 
-                                int i2 = ix - n2i;
-                                int j2 = iy - n2j;
-                                int k2 = iz - n2k;
+                                double qww = q * qdto2mc * weights[index1] * weights[index2];
+                                
+                                // cout << "qww: " << qww << endl;
+                                double value[3][3];
+                                
+                                for (int ind1 = 0; ind1 < 3; ind1++)
+                                    for (int ind2 = 0; ind2 < 3; ind2++) 
+                                        value[ind1][ind2] = alpha[ind2][ind1]*qww;
 
-                                //TODO: What does this part actually do? - Ask Fabio
-                                //* Check if this node is one of the cell where the particle is
-                                if (i2 >= 0 && i2 < 2 && j2 >= 0 && j2 < 2 && k2 >= 0 && k2 < 2) 
-                                {
-                                    // Map (i, j, k) & (i2, j2, k2) to 1D
-                                    int index1 = i * 4 + j * 2 + k;
-                                    int index2 = i2 * 4 + j2 * 2 + k2; 
-
-                                    double qww = q * qdto2mc * weights[index1] * weights[index2];
-                                    
-                                    // cout << "qww: " << qww << endl;
-                                    double value[3][3];
-                                    
-                                    for (int ind1 = 0; ind1 < 3; ind1++)
-                                        for (int ind2 = 0; ind2 < 3; ind2++) 
-                                            value[ind1][ind2] = alpha[ind2][ind1]*qww;
-
-                                    EMf->add_Mass(value, ni, nj, nk, n_node);
-                                }
+                                EMf->add_Mass(value, ni, nj, nk, n_node);
                             }
-                        }   
-            }
+                        }
+                    }   
         }
     }
 }

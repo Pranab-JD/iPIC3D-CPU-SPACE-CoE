@@ -39,6 +39,7 @@
 #include "ipicmath.h" // for roundup_to_multiple
 #include "Alloc.h"
 #include "asserts.h"
+#include <iomanip>
 #ifndef NO_HDF5
 #endif
 
@@ -2182,7 +2183,7 @@ void EMfields3D::calculateE()
     // cout << "Norm xkrylov (calculateE): " << norm2(xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
     
     //? Solve using GMRes
-    GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 20, 200, GMREStol, this);
+    GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 40, 200, GMREStol, this);
 
     //* Move from Krylov space to physical space
     solver2phys(Exth, Eyth, Ezth, xkrylov, nxn, nyn, nzn);
@@ -3603,16 +3604,14 @@ void EMfields3D::communicateGhostP2G_ecsim(int is)
     double ***moment_Jyhs  = convert_to_arr3(Jyhs[is]);
     double ***moment_Jzhs  = convert_to_arr3(Jzhs[is]);
 
-    //TODO: Print full array for moment_rhons!!!
-
-    // cout << "Rhons (initial), species: " << is << endl;
+    // cout << "Jxhs (initial), species: " << is << endl;
     // for (int ii = 0; ii < nxn; ii++)
     // {
     //     for (int jj = 0; jj < nyn; jj++)
     //     {
     //         for (int kk = 0; kk < nzn; kk++)
     //         {
-    //             cout << rhons[is][ii][jj][kk] << "    ";
+    //             cout << setprecision(10) << Jyhs[is][ii][jj][kk] << "    ";
     //         }
     //         cout << endl;
     //     }
@@ -3620,23 +3619,8 @@ void EMfields3D::communicateGhostP2G_ecsim(int is)
     // }
     // cout << endl << endl;
 
-    // cout << "Jxhs" << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-    //             cout << moment_Jxhs[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    cout << "Norm rhons: " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
-    cout << "Norm Jxhs, Jyhs, Jzhs: " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl;
+    // cout << "Norm rhons (before): " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
+    // cout << "Norm Jxhs, Jyhs, Jzhs (before): " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl << endl;
     // cout << "Norm Jxh, Jyh, Jzh: " <<  norm2(Jxh, nxn, nyn, nzn) << "  " << norm2(Jyh, nxn, nyn, nzn) << "  " << norm2(Jzh, nxn, nyn, nzn) << endl << endl;
 
     // interpolate adding common nodes among processors
@@ -3644,23 +3628,21 @@ void EMfields3D::communicateGhostP2G_ecsim(int is)
     communicateInterp(nxn, nyn, nzn, Jyh, vct, this);
     communicateInterp(nxn, nyn, nzn, Jzh, vct, this);
 
-    //TODO: Implement "communicateInterp" and "communicateNode_P" as in ECSim
-
     //* NonBlocking Halo Exchange for Interpolation
     communicateInterp(nxn, nyn, nzn, moment_rhons, vct, this);
     communicateInterp(nxn, nyn, nzn, moment_Jxhs,  vct, this);
     communicateInterp(nxn, nyn, nzn, moment_Jyhs,  vct, this);
     communicateInterp(nxn, nyn, nzn, moment_Jzhs,  vct, this);
 
-    //! Problem: boundary data is incorrectly computed with communicateInterp
-    // cout << "Rhons (after communicateInterp)" << endl;
+    //! NOTE: boundary data is different in this code compared to the ECSIM code (on BitBucket)
+    // cout << "Jxhs (after communicateInterp), species: " << is << endl;
     // for (int ii = 0; ii < nxn; ii++)
     // {
     //     for (int jj = 0; jj < nyn; jj++)
     //     {
     //         for (int kk = 0; kk < nzn; kk++)
     //         {
-    //             cout << rhons[0][ii][jj][kk] << "    ";
+    //             cout << setprecision(10) << Jyhs[is][ii][jj][kk] << "    ";
     //         }
     //         cout << endl;
     //     }
@@ -3684,14 +3666,15 @@ void EMfields3D::communicateGhostP2G_ecsim(int is)
     communicateNode_P(nxn, nyn, nzn, moment_Jzhs,  vct, this);
     communicateNode_P(nxn, nyn, nzn, moment_rhons, vct, this);
 
-    // cout << "Rhons (after communicateNode_P)" << endl;
+    // cout << "Jxhs (after communicateNode_P), species: " << is << endl;
     // for (int ii = 0; ii < nxn; ii++)
     // {
     //     for (int jj = 0; jj < nyn; jj++)
     //     {
     //         for (int kk = 0; kk < nzn; kk++)
     //         {
-    //             cout << rhons[0][ii][jj][kk] << "    ";
+                
+    //             cout << setprecision(10) << Jyhs[is][ii][jj][kk] << "    ";
     //         }
     //         cout << endl;
     //     }
@@ -3699,8 +3682,8 @@ void EMfields3D::communicateGhostP2G_ecsim(int is)
     // }
     // cout << endl << endl;
 
-    cout << "Norm rhons: " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
-    cout << "Norm Jxhs, Jyhs, Jzhs: " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl;
+    // cout << "Norm rhons (after): " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
+    // cout << "Norm Jxhs, Jyhs, Jzhs (after): " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl << endl;
     // cout << "Norm Jxh, Jyh, Jzh: " <<  norm2(Jxh, nxn, nyn, nzn) << "  " << norm2(Jyh, nxn, nyn, nzn) << "  " << norm2(Jzh, nxn, nyn, nzn) << endl << endl;
 }
 
@@ -3721,24 +3704,6 @@ void EMfields3D::communicateGhostP2G_mass_matrix()
         double ***moment_Mzy = convert_to_arr3(Mzy[m]);
         double ***moment_Mzz = convert_to_arr3(Mzz[m]);
 
-        // if (m == 0)
-        // {
-        // cout << "Mxx (initial)" << endl;
-        //     for (int ii = 0; ii < nxn; ii++)
-        //     {
-        //         for (int jj = 0; jj < nyn; jj++)
-        //         {
-        //             for (int kk = 0; kk < nzn; kk++)
-        //             {
-        //                 cout << Mxx[m][ii][jj][kk] << "    ";
-        //             }
-        //             cout << endl;
-        //         }
-        //         cout << endl;
-        //     }
-        // }
-        // cout << endl << endl;
-
         communicateInterp(nxn, nyn, nzn, moment_Mxx, vct, this);
         communicateInterp(nxn, nyn, nzn, moment_Mxy, vct, this);
         communicateInterp(nxn, nyn, nzn, moment_Mxz, vct, this);
@@ -3749,24 +3714,6 @@ void EMfields3D::communicateGhostP2G_mass_matrix()
         communicateInterp(nxn, nyn, nzn, moment_Mzy, vct, this);
         communicateInterp(nxn, nyn, nzn, moment_Mzz, vct, this);
 
-        // if (m == 0)
-        // {
-        // cout << "Mxx (after communicateInterp)" << endl;
-        //     for (int ii = 0; ii < nxn; ii++)
-        //     {
-        //         for (int jj = 0; jj < nyn; jj++)
-        //         {
-        //             for (int kk = 0; kk < nzn; kk++)
-        //             {
-        //                 cout << Mxx[m][ii][jj][kk] << "    ";
-        //             }
-        //             cout << endl;
-        //         }
-        //         cout << endl;
-        //     }
-        // }
-        // cout << endl << endl;
-
         communicateNode_P(nxn, nyn, nzn, moment_Mxx, vct, this);
         communicateNode_P(nxn, nyn, nzn, moment_Mxy, vct, this);
         communicateNode_P(nxn, nyn, nzn, moment_Mxz, vct, this);
@@ -3776,27 +3723,7 @@ void EMfields3D::communicateGhostP2G_mass_matrix()
         communicateNode_P(nxn, nyn, nzn, moment_Mzx, vct, this);
         communicateNode_P(nxn, nyn, nzn, moment_Mzy, vct, this);
         communicateNode_P(nxn, nyn, nzn, moment_Mzz, vct, this);
-
-        // if (m == 0)
-        // {
-        // cout << "Mxx (after communicateNode_P)" << endl;
-        //     for (int ii = 0; ii < nxn; ii++)
-        //     {
-        //         for (int jj = 0; jj < nyn; jj++)
-        //         {
-        //             for (int kk = 0; kk < nzn; kk++)
-        //             {
-        //                 cout << Mxx[m][ii][jj][kk] << "    ";
-        //             }
-        //             cout << endl;
-        //         }
-        //         cout << endl;
-        //     }
-        // }
-        // cout << endl << endl;
     }
-
-    // cout << endl;
 }
 
 //? Compute divergence of electric field

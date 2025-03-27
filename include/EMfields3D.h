@@ -668,30 +668,21 @@ inline void EMfields3D::add_Jxh(double weight[8], int X, int Y, int Z, int is)
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 2; j++)
             for (int k = 0; k < 2; k++)
-            {
-                // const double temp = weight[i * 4 + j * 2 + k];
                 Jxhs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k];
-            }
 }
 inline void EMfields3D::add_Jyh(double weight[8], int X, int Y, int Z, int is)
 {
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 2; j++)
             for (int k = 0; k < 2; k++)
-            {
-                // const double temp = weight[i * 4 + j * 2 + k];
                 Jyhs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k];
-            }
 }
 inline void EMfields3D::add_Jzh(double weight[8], int X, int Y, int Z, int is)
 {
     for (int i = 0; i < 2; i++)
         for (int j = 0; j < 2; j++)
             for (int k = 0; k < 2; k++)
-            {
-                // const double temp = weight[i * 4 + j * 2 + k];
                 Jzhs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k];
-            }
 }
 
 // /*! add an amount of pressure density - direction XX to current density field on the node */
