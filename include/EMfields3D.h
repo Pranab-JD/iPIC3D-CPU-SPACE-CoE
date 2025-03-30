@@ -47,6 +47,8 @@ public:
     /*! destructor */
     ~EMfields3D();
 
+    void setAllzero();
+
     /*! initialize the electromagnetic fields with constant values */
     void init();
     /*! init beam */
