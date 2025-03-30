@@ -430,8 +430,8 @@ bool c_Solver::ParticlesMover()
 
             //* Should integrate BC into separate_and_send_particles
             // TODO: Are the following two statements needed in both position and velocity?
-            // part[i].openbc_particles_outflow();
-            // part[i].separate_and_send_particles();
+            part[i].openbc_particles_outflow();
+            part[i].separate_and_send_particles();
         }
 
         //* Iterate over each species to update positions
@@ -448,9 +448,8 @@ bool c_Solver::ParticlesMover()
             }
 
             //* Should integrate BC into separate_and_send_particles
-            part[i].openbc_particles_outflow();
-
             //TODO: what does this do?
+            part[i].openbc_particles_outflow();
             part[i].separate_and_send_particles();
         }
 
@@ -675,8 +674,10 @@ void c_Solver::WriteConserved(int cycle)
     if (cycle == 0) 
     {
 
+        //? Total energy = Electric field energy + Magnetic field energy
         initial_total_energy = EMf->getEenergy() + EMf->getBintenergy();
         
+        //? Total energy = Electric field energy + Magnetic field energy + Kinetic Energy
         for (int is = 0; is < ns; is++) 
             initial_total_energy +=  part[is].getKe();
     }

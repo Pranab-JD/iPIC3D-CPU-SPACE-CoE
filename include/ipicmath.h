@@ -78,7 +78,7 @@ inline int roundup_to_multiple(int n, int m)
 }
 
 // sample from clopen unit interval (0,1]
-inline double sample_clopen_u_double()
+inline double  sample_clopen_u_double()
 {
   // old way (retained for sake of bit-wise code agreement)
   const double harvest = rand() / (double) RAND_MAX;
@@ -144,11 +144,11 @@ inline void sample_maxwellian(double& u, double& v, double& w, double ut, double
 
 inline void sample_maxwellian(double& u, double& v, double& w, double ut, double vt, double wt, double u0, double v0, double w0)
 {
-    // sample_standard_maxwellian(u, v, w);
+    sample_standard_maxwellian(u, v, w);
     // u = u0 + ut*u; v = v0 + vt*v; w = w0 + wt*w;
-    u = sin(2.0 * M_PI * ut);
-    v = cos(2.0 * M_PI * vt);
-    w = sin(2.0 * M_PI * wt)*cos(2.0 * M_PI * wt);
+    // u = sin(2.0 * M_PI * ut);
+    // v = 0.1*cos(2.0 * M_PI * vt);
+    // w = sin(2.0 * M_PI * wt);
 }
 
 //? ------------------------------------------------------------------ ?//
