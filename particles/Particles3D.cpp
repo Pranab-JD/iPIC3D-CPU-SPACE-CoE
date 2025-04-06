@@ -597,30 +597,10 @@ void Particles3D::ECSIM_velocity(Field *EMf)
 
     }
     //! End of #pragma omp parallel
-
-    // for (int ii = 0; ii < 10; ii++) 
-	// {
-    //     //* Copy the particle
-    //     SpeciesParticle* pcl = &_pcls[ii];
-    //     ALIGNED(pcl);
-
-	//   	cout << "Particle id: " << ii << endl;
-	// 	cout << setprecision(15) << "Velocity: " << pcl->get_u() << ", " << pcl->get_v() << ", " << pcl->get_w() << endl;
-	// }
 }
 
 void Particles3D::ECSIM_position(Field *EMf) 
 {
-    // for (int ii = 24; ii < 29; ii++)
-	// {
-    //     //* Copy the particle
-    //     SpeciesParticle* pcl = &_pcls[ii];
-    //     ALIGNED(pcl);
-
-	//   	cout << "Particle id: " << ii << endl;
-	// 	cout << setprecision(15) << "Position: " << pcl->get_x() << ", " << pcl->get_y() << ", " << pcl->get_z() << endl << endl;
-	// }
-
     #pragma omp parallel
     {
         convertParticlesToAoS();
@@ -680,13 +660,6 @@ void Particles3D::ECSIM_position(Field *EMf)
 
         //* 1D: particle positions for Y & Z = 0; 2D: particle positions for Z = 0
         fixPosition();
-
-        // SpeciesParticle* pcl = &_pcls[0];
-        // ALIGNED(pcl);
-        // cout << "Particle id (Before communicating): " << 0 << endl;
-        // cout << setprecision(15) << "Velocity: " << pcl->get_u() << ", " << pcl->get_v() << ", " << pcl->get_w() << endl;
-        // cout << setprecision(15) << "Position: " << pcl->get_x() << ", " << pcl->get_y() << ", " << pcl->get_z() << endl << endl;
-
     }
 }
 
@@ -819,9 +792,10 @@ void Particles3D::computeMoments(Field *EMf)
 
             //* --------------------------------------- *//
 
-            double temp[8];         //* Temporary variable used to add density and current density
+            //* Temporary variable used to add density and current density
+            double temp[8];         
             
-            //* index of cell of particle;
+            //* Index of cell of particles
             const int ix = cx + 1;
             const int iy = cy + 1;
             const int iz = cz + 1;

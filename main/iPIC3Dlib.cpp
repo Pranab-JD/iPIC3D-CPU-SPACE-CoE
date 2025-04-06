@@ -362,16 +362,16 @@ void c_Solver::CalculateMoments()
     for (int is = 0; is < ns; is++)
 		part[is].computeMoments(EMf);
 
-    //* Communicate moments
+    //? Communicate moments
     for (int is = 0; is < ns; is++)
         EMf->communicateGhostP2G_ecsim(is);
 
     EMf->communicateGhostP2G_mass_matrix();
     
-    //* Sum all over the species (mass and charge density)
+    //? Sum all over the species (mass and charge density)
     EMf->sumOverSpecies();
 
-    // * Communicate average densities
+    //?  Communicate average densities
     for (int is = 0; is < ns; is++)
         EMf->interpolateCenterSpecies(is);
 }
