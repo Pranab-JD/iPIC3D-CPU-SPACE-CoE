@@ -44,7 +44,7 @@
 #endif
 
 #include <iostream>
-//#include <sstream>
+#include <fstream>
 using std::cout;
 using std::endl;
 using namespace iPic3D;
@@ -2283,173 +2283,19 @@ void EMfields3D::calculateE()
     //* Prepare the source 
     MaxwellSource(bkrylov);
 
-    // cout << "bkrylov (after)" << endl;
-    // for (int kk = 0; kk < 3 * (nxn - 2) * (nyn - 2) * (nzn - 2); kk++)
-    //     if (bkrylov[kk] != 0.0)
-    //         cout << kk << "   " << setprecision(15) << bkrylov[kk] << endl;
-
     //* Move to Krylov space from physical space
     phys2solver(xkrylov, Ex, Ey, Ez, nxn, nyn, nzn);
-
-    // cout << "Ex (initial)" << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-    //             cout << setprecision(10) << Ex[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    // cout << "Ey (initial)" << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-    //             cout << setprecision(10) << Ey[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    // cout << "Ezth (initial)" << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-    //             cout << setprecision(16) << Ezth[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    // cout << "Norm bkrylov (calculateE): " << norm2(bkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
-    // cout << "Norm xkrylov (calculateE): " << norm2(xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
     
     //? Solve using GMRes
-    GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 20, 200, GMREStol, this);
-
-    // cout << "xkrylov (after)" << endl;
-    // for (int kk = 0; kk < 3 * (nxn - 2) * (nyn - 2) * (nzn - 2); kk++)
-    //     if (xkrylov[kk] != 0.0)
-    //         cout << kk << "   " << setprecision(15) << xkrylov[kk] << endl;
+    GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 20, 100, GMREStol, this);
 
     //* Move from Krylov space to physical space
     solver2phys(Exth, Eyth, Ezth, xkrylov, nxn, nyn, nzn);
-
-    // cout << "Exth (before communicate)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(10) << Exth[ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-	// cout << "Eyth (before communicate)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(10) << Eyth[ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-	// cout << "Ezth (before communicate)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Ezth[ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-    // cout << "Norm bkrylov (calculateE): " << norm2(bkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
-    // cout << "Norm xkrylov (calculateE): " << norm2(xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2)) << endl;
 
     //? Communicate E theta so the interpolation can have good values
     communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0], col->bcEy[1], col->bcEy[2], col->bcEy[3], col->bcEy[4], col->bcEy[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Ezth, col->bcEz[0], col->bcEz[1], col->bcEz[2], col->bcEz[3], col->bcEz[4], col->bcEz[5], vct, this);
-
-    // cout << "Exth (after communicate)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Exth[ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-	// cout << "Eyth (after communicate)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Eyth[ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-	// cout << "Ezth (after communicate)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Ezth[ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-    // cout << "Norm Ex, Ey, Ez: " << norm2(Ex, nyn, nzn) << "  " << norm2(Ey, nxn, nzn) << "  " << norm2(Ez, nxn, nyn) << endl;
-    // cout << "Norm Exth, Eyth, Ezth: " << norm2(Exth, nyn, nzn) << "  " << norm2(Eyth, nxn, nzn) << "  " << norm2(Ezth, nxn, nyn) << endl << endl;
 
     //* E(x,y,z) = -(1.0 - th)/th * E(x,y,z) + 1.0/th * Eth(x,y,z): scale the electric field values
     addscale(1.0/th, -(1.0 - th)/th, Ex, Exth, nxn, nyn, nzn);
@@ -2460,21 +2306,6 @@ void EMfields3D::calculateE()
     communicateNodeBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
-
-    // cout << "Ez (final)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Ez[ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
 
     //? OpenBC Inflow: this needs to be integrate to Halo Exchange BC
     //TODO: Is this implemented? Ask Andong/Stefano
@@ -2496,16 +2327,16 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     const Grid *grid = &get_grid();
 
     //* Temporary arrays - set to 0
-    eqValue(0.0, tempC, nxc, nyc, nzc);
-    eqValue(0.0, tempX, nxn, nyn, nzn);
-    eqValue(0.0, tempY, nxn, nyn, nzn);
-    eqValue(0.0, tempZ, nxn, nyn, nzn);
-    eqValue(0.0, temp2X, nxn, nyn, nzn);
-    eqValue(0.0, temp2Y, nxn, nyn, nzn);
-    eqValue(0.0, temp2Z, nxn, nyn, nzn);
-    eqValue(0.0, temp3X, nxn, nyn, nzn);
-    eqValue(0.0, temp3Y, nxn, nyn, nzn);
-    eqValue(0.0, temp3Z, nxn, nyn, nzn);
+    // eqValue(0.0, tempC, nxc, nyc, nzc);
+    // eqValue(0.0, tempX, nxn, nyn, nzn);
+    // eqValue(0.0, tempY, nxn, nyn, nzn);
+    // eqValue(0.0, tempZ, nxn, nyn, nzn);
+    // eqValue(0.0, temp2X, nxn, nyn, nzn);
+    // eqValue(0.0, temp2Y, nxn, nyn, nzn);
+    // eqValue(0.0, temp2Z, nxn, nyn, nzn);
+    // eqValue(0.0, temp3X, nxn, nyn, nzn);
+    // eqValue(0.0, temp3Y, nxn, nyn, nzn);
+    // eqValue(0.0, temp3Z, nxn, nyn, nzn);
 
     //* Valid for second-order formulation
     communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
@@ -2515,20 +2346,18 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     //* Compute curl of magnetic field (defined at cell centres) on nodes
     grid->curlC2N(temp2X, temp2Y, temp2Z, Bxc, Byc, Bzc);
 
-
-
     // if (col->getAddExternalCurlB()) 
     // {
     //     //* Dipole SOURCE version using J_ext
     //     if (vct->getCartesian_rank() == 0)
     //         cout << "*** Add contribution to the Curl of B_ext to Maxwell Source ***" << endl;
-        
+    //
     //     communicateCenterBC(nxc, nyc, nzc, Bxc_ext, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
     //     communicateCenterBC(nxc, nyc, nzc, Byc_ext, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
     //     communicateCenterBC(nxc, nyc, nzc, Bzc_ext, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
-        
+    //    
     //     grid->curlC2N(Jx_ext, Jy_ext, Jz_ext, Bxc_ext, Byc_ext, Bzc_ext);
-        
+    //    
     //     // The sing below was 1, I tested -1 that seems to make more sense when one has to remove the actual current present when the field is external
     //     addscale(1.0, temp2X, Jx_ext, nxn, nyn, nzn);
     //     addscale(1.0, temp2Y, Jy_ext, nxn, nyn, nzn);
@@ -2542,7 +2371,7 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     communicateNodeBC(nxn, nyn, nzn, Jzh, 2, 2, 2, 2, 2, 2, vct, this);
 
     //* Energy-conserving smoothing
-    energy_conserve_smooth(Jxh, Jyh, Jzh, nxn, nyn, nzn);
+    // energy_conserve_smooth(Jxh, Jyh, Jzh, nxn, nyn, nzn);
 
     for (int i = 0; i < nxn; i++)
         for (int j = 0; j < nyn; j++) 
@@ -2577,7 +2406,7 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     //     grid->lapN2N(temp2X, Ex_ext, this);
     //     grid->lapN2N(temp2Y, Ey_ext, this);
     //     grid->lapN2N(temp2Z, Ez_ext, this);
-
+    //
     //     addscale(c*th*dt*c*th*dt, tempX, temp2X, nxn, nyn, nzn);
     //     addscale(c*th*dt*c*th*dt, tempY, temp2Y, nxn, nyn, nzn);
     //     addscale(c*th*dt*c*th*dt, tempZ, temp2Z, nxn, nyn, nzn);
@@ -2642,91 +2471,82 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     const Grid *grid = &get_grid();
 
     eqValue(0.0, im, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
-    eqValue(0.0, imageX, nxn, nyn, nzn);
-    eqValue(0.0, imageY, nxn, nyn, nzn);
-    eqValue(0.0, imageZ, nxn, nyn, nzn);
-    eqValue(0.0, vectX,  nxn, nyn, nzn);
-    eqValue(0.0, vectY,  nxn, nyn, nzn);
-    eqValue(0.0, vectZ,  nxn, nyn, nzn);
-    eqValue(0.0, tempXC, nxc, nyc, nzc);
-    eqValue(0.0, tempYC, nxc, nyc, nzc);
-    eqValue(0.0, tempZC, nxc, nyc, nzc);
-    eqValue(0.0, temp2X, nxn, nyn, nzn);
-    eqValue(0.0, temp2Y, nxn, nyn, nzn);
-    eqValue(0.0, temp2Z, nxn, nyn, nzn);
-    // eqValue(0.0, temp3X, nxn, nyn, nzn);
-    // eqValue(0.0, temp3Y, nxn, nyn, nzn);
-    // eqValue(0.0, temp3Z, nxn, nyn, nzn);
 
     //? Move from Krylov space to physical space
-    solver2phys(vectX, vectY, vectZ, vector, nxn, nyn, nzn);
-    
-    communicateNodeBC(nxn, nyn, nzn, vectX, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, vectY, col->bcEy[0], col->bcEy[1], col->bcEy[2], col->bcEy[3], col->bcEy[4], col->bcEy[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, vectZ, col->bcEz[0], col->bcEz[1], col->bcEz[2], col->bcEz[3], col->bcEz[4], col->bcEz[5], vct, this);
+    solver2phys(tempX, tempY, tempZ, vector, nxn, nyn, nzn);
+
+    //! Here is a major problem. Incorrect boundary data --> results in non-energy conservation
+	// communicateNodeBC(nxn, nyn, nzn, tempX, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
+	// communicateNodeBC(nxn, nyn, nzn, tempY, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
+	// communicateNodeBC(nxn, nyn, nzn, tempZ, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
+
+    communicateNodeBC_old(nxn, nyn, nzn, tempX, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
+	communicateNodeBC_old(nxn, nyn, nzn, tempY, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
+	communicateNodeBC_old(nxn, nyn, nzn, tempZ, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
 
     //? curl(curl(E)) is computed using finite differences
-    grid->curlN2C(tempXC, tempYC, tempZC, vectX, vectY, vectZ);
+    grid->curlN2C(tempXC, tempYC, tempZC, tempX, tempY, tempZ);
     
     communicateCenterBC(nxc, nyc, nzc, tempXC, 1, 1, 1, 1, 1, 1, vct, this);
     communicateCenterBC(nxc, nyc, nzc, tempYC, 1, 1, 1, 1, 1, 1, vct, this);
     communicateCenterBC(nxc, nyc, nzc, tempZC, 1, 1, 1, 1, 1, 1, vct, this);
-    
+
     grid->curlC2N(imageX, imageY, imageZ, tempXC, tempYC, tempZC);
-    
+
     //* multiply by factor
     scale(imageX, c*th*dt*c*th*dt, nxn, nyn, nzn);
     scale(imageY, c*th*dt*c*th*dt, nxn, nyn, nzn);
     scale(imageZ, c*th*dt*c*th*dt, nxn, nyn, nzn);
 
-    addscale(1, imageX, vectX, nxn, nyn, nzn);
-    addscale(1, imageY, vectY, nxn, nyn, nzn);
-    addscale(1, imageZ, vectZ, nxn, nyn, nzn);
+    addscale(1, imageX, tempX, nxn, nyn, nzn);
+    addscale(1, imageY, tempY, nxn, nyn, nzn);
+    addscale(1, imageZ, tempZ, nxn, nyn, nzn);
 
     // TODO: this if statement needs to be removed, right? - Ask Fabio
-    if (col->getEnergyConservingSmoothing())
-        energy_conserve_smooth(vectX, vectY, vectZ, nxn, nyn, nzn);
+    // if (col->getEnergyConservingSmoothing())
+    //     energy_conserve_smooth(tempX, tempY, tempZ, nxn, nyn, nzn);
 
     // if (col->getExactMM()) 
     // {
-        for (int i=1; i<nxn-1; i++) 
-            for (int j=1; j<nyn-1; j++) 
-                for (int k=1; k<nzn-1; k++) 
-                {
-                    double MEx, MEy, MEz;
-                    
-                    mass_matrix_times_vector(&MEx, &MEy, &MEz, vectX, vectY, vectZ, i, j, k);
-                    
-                    temp2X.fetch(i, j, k) = dt*th*FourPI*MEx;
-                    temp2Y.fetch(i, j, k) = dt*th*FourPI*MEy;
-                    temp2Z.fetch(i, j, k) = dt*th*FourPI*MEz;
-                }
-        //TODO: Are boundary conditions for mass matrix same as that of electric field? - Ask Fabio
-        //TODO: Are boundary conditions for electric and magnetic field always the same?
-        communicateNodeBC(nxn, nyn, nzn, temp2X, 2, 2, 2, 2, 2, 2, vct, this);
-        communicateNodeBC(nxn, nyn, nzn, temp2Y, 2, 2, 2, 2, 2, 2, vct, this);
-        communicateNodeBC(nxn, nyn, nzn, temp2Z, 2, 2, 2, 2, 2, 2, vct, this);
+    for (int i=1; i<nxn-1; i++) 
+        for (int j=1; j<nyn-1; j++) 
+            for (int k=1; k<nzn-1; k++) 
+            {
+                double MEx, MEy, MEz;
+                
+                mass_matrix_times_vector(&MEx, &MEy, &MEz, tempX, tempY, tempZ, i, j, k);
+                
+                temp2X.fetch(i, j, k) = dt*th*FourPI*MEx;
+                temp2Y.fetch(i, j, k) = dt*th*FourPI*MEy;
+                temp2Z.fetch(i, j, k) = dt*th*FourPI*MEz;
+            }
+    
+    //TODO: Are boundary conditions for mass matrix same as that of electric field? - Ask Fabio
+    //TODO: Are boundary conditions for electric and magnetic field always the same?
+    communicateNodeBC(nxn, nyn, nzn, temp2X, 2, 2, 2, 2, 2, 2, vct, this);
+    communicateNodeBC(nxn, nyn, nzn, temp2Y, 2, 2, 2, 2, 2, 2, vct, this);
+    communicateNodeBC(nxn, nyn, nzn, temp2Z, 2, 2, 2, 2, 2, 2, vct, this);
 
-        energy_conserve_smooth(temp2X, temp2Y, temp2Z, nxn, nyn, nzn);
+    // energy_conserve_smooth(temp2X, temp2Y, temp2Z, nxn, nyn, nzn);
 
-        for (int i=1; i<nxn-1; i++)
-            for (int j=1; j<nyn-1; j++)
-                for (int k=1; k<nzn-1; k++) 
-                {
-                    temp2X.fetch(i, j, k) *= invVOL;
-                    temp2Y.fetch(i, j, k) *= invVOL;
-                    temp2Z.fetch(i, j, k) *= invVOL;
-                }
+    for (int i=1; i<nxn-1; i++)
+        for (int j=1; j<nyn-1; j++)
+            for (int k=1; k<nzn-1; k++) 
+            {
+                temp2X.fetch(i, j, k) *= invVOL;
+                temp2Y.fetch(i, j, k) *= invVOL;
+                temp2Z.fetch(i, j, k) *= invVOL;
+            }
 
-        addscale(1.0, imageX, temp2X, nxn, nyn, nzn);
-        addscale(1.0, imageY, temp2Y, nxn, nyn, nzn);
-        addscale(1.0, imageZ, temp2Z, nxn, nyn, nzn);
-
+    addscale(1.0, imageX, temp2X, nxn, nyn, nzn);
+    addscale(1.0, imageY, temp2Y, nxn, nyn, nzn);
+    addscale(1.0, imageZ, temp2Z, nxn, nyn, nzn);
     // }
     // else 
     // {
     //     //? Add mass matrix applied to E but using the poor man approximation
-    //     MUdot_mass_matrix(temp3X, temp3Y, temp3Z, temp2X, temp2Y, temp2Z, vectX, vectY, vectZ);
+    // TODO: Is this needed? Ask Fabio
+    //     MUdot_mass_matrix(temp3X, temp3Y, temp3Z, temp2X, temp2Y, temp2Z, tempX, tempY, tempZ);
         
     //     addscale(1.0, imageX, temp3X, nxn, nyn, nzn);
     //     addscale(1.0, imageY, temp3Y, nxn, nyn, nzn);
@@ -2734,9 +2554,9 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     // }
 
     //TODO: To be implemented later - PJD
-    // fixBC_Image(vct, imageX, imageY, imageZ, vectX, vectY, vectZ);
+    // fixBC_Image(vct, imageX, imageY, imageZ, tempX, tempY, tempZ);
     // if (col->getCase() == "Dipole")
-    //   fixBC_PlanetImage (vct, col, grid, imageX, imageY, imageZ, vectX, vectY, vectZ);
+    //   fixBC_PlanetImage (vct, col, grid, imageX, imageY, imageZ, tempX, tempY, tempZ);
     
     //? Move from physical space to Krylov space
     phys2solver(im, imageX, imageY, imageZ, nxn, nyn, nzn);
@@ -3629,50 +3449,50 @@ void EMfields3D::calculateB()
     if (vct->getCartesian_rank() == 0)
         cout << "*** Magnetic field computation ***" << endl;
 
-        // cout << "Bxc (initial)" << endl;
-        // for (int ii = 0; ii < nxc; ii++)
-        // {
-        //     for (int jj = 0; jj < nyc; jj++)
-        //     {
-        //         for (int kk = 0; kk < nzc; kk++)
-        //         {
-        //             cout << setprecision(10) << Bxc[ii][jj][kk] << "    ";
-        //         }
-        //         cout << endl;
-        //     }
-        //     cout << endl;
-        // }
-        // cout << endl << endl;
+    // cout << "Bxc (initial)" << endl;
+    // for (int ii = 0; ii < nxc; ii++)
+    // {
+    //     for (int jj = 0; jj < nyc; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzc; kk++)
+    //         {
+    //             cout << setprecision(10) << Bxc[ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
 
-        // cout << "Byc (initial)" << endl;
-        // for (int ii = 0; ii < nxc; ii++)
-        // {
-        //     for (int jj = 0; jj < nyc; jj++)
-        //     {
-        //         for (int kk = 0; kk < nzc; kk++)
-        //         {
-        //             cout << setprecision(10) << Byc[ii][jj][kk] << "    ";
-        //         }
-        //         cout << endl;
-        //     }
-        //     cout << endl;
-        // }
-        // cout << endl << endl;
+    // cout << "Byc (initial)" << endl;
+    // for (int ii = 0; ii < nxc; ii++)
+    // {
+    //     for (int jj = 0; jj < nyc; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzc; kk++)
+    //         {
+    //             cout << setprecision(10) << Byc[ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
 
-        // cout << "Bzc (initial)" << endl;
-        // for (int ii = 0; ii < nxc; ii++)
-        // {
-        //     for (int jj = 0; jj < nyc; jj++)
-        //     {
-        //         for (int kk = 0; kk < nzc; kk++)
-        //         {
-        //             cout << setprecision(10) << Bzc[ii][jj][kk] << "    ";
-        //         }
-        //         cout << endl;
-        //     }
-        //     cout << endl;
-        // }
-        // cout << endl << endl;
+    // cout << "Bzc (initial)" << endl;
+    // for (int ii = 0; ii < nxc; ii++)
+    // {
+    //     for (int jj = 0; jj < nyc; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzc; kk++)
+    //         {
+    //             cout << setprecision(10) << Bzc[ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
 
     //? Compute curl of E_theta
     grid->curlN2C(tempXC, tempYC, tempZC, Exth, Eyth, Ezth);
@@ -3681,7 +3501,7 @@ void EMfields3D::calculateB()
     // if (col->getAddExternalCurlE()) 
     //     grid->curlN2C(tempXC2, tempYC2, tempZC2, Ex_ext, Ey_ext, Ez_ext);
 
-    energy_conserve_smooth(Exth, Eyth, Ezth, nxn, nyn, nzn);
+    // energy_conserve_smooth(Exth, Eyth, Ezth, nxn, nyn, nzn);
 
     communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
@@ -3711,7 +3531,7 @@ void EMfields3D::calculateB()
     //     {
     //         for (int kk = 0; kk < nzc; kk++)
     //         {
-    //             cout << setprecision(10) << Bxc[ii][jj][kk] << "    ";
+    //             cout << setprecision(16) << Bxc[ii][jj][kk] << "    ";
     //         }
     //         cout << endl;
     //     }
@@ -3719,6 +3539,7 @@ void EMfields3D::calculateB()
     // }
     // cout << endl << endl;
 
+    //! Print this out
     // cout << "Byc (final)" << endl;
     // for (int ii = 0; ii < nxc; ii++)
     // {
@@ -3726,7 +3547,7 @@ void EMfields3D::calculateB()
     //     {
     //         for (int kk = 0; kk < nzc; kk++)
     //         {
-    //             cout << setprecision(10) << Byc[ii][jj][kk] << "    ";
+    //             cout << setprecision(16) << Byc[ii][jj][kk] << "    ";
     //         }
     //         cout << endl;
     //     }
@@ -3741,7 +3562,7 @@ void EMfields3D::calculateB()
     //     {
     //         for (int kk = 0; kk < nzc; kk++)
     //         {
-    //             cout << setprecision(10) << Bzc[ii][jj][kk] << "    ";
+    //             cout << setprecision(16) << Bzc[ii][jj][kk] << "    ";
     //         }
     //         cout << endl;
     //     }
@@ -3956,29 +3777,25 @@ void EMfields3D::communicateGhostP2G_ecsim(int is)
     int rank = vct->getCartesian_rank();
 
     //* Convert ECSIM/RelSIM moments from type array4_double to *** for communication
-    double ***moment_rhons = convert_to_arr3(rhons[is]);
-    double ***moment_Jxhs  = convert_to_arr3(Jxhs[is]);
-    double ***moment_Jyhs  = convert_to_arr3(Jyhs[is]);
-    double ***moment_Jzhs  = convert_to_arr3(Jzhs[is]);
+    // double ***moment_rhons = convert_to_arr3(rhons[is]);
+    // double ***moment_Jxhs  = convert_to_arr3(Jxhs[is]);
+    // double ***moment_Jyhs  = convert_to_arr3(Jyhs[is]);
+    // double ***moment_Jzhs  = convert_to_arr3(Jzhs[is]);
 
-    // cout << "Jxhs (initial), species: " << is << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-    //             cout << setprecision(10) << Jyhs[is][ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    // cout << "Norm rhons (before): " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
-    // cout << "Norm Jxhs, Jyhs, Jzhs (before): " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl << endl;
-    // cout << "Norm Jxh, Jyh, Jzh: " <<  norm2(Jxh, nxn, nyn, nzn) << "  " << norm2(Jyh, nxn, nyn, nzn) << "  " << norm2(Jzh, nxn, nyn, nzn) << endl << endl;
+    // cout << "Jzhs (initial)" << endl;
+	// for (int ii = 0; ii < nxn; ii++)
+	// {
+	// 	for (int jj = 0; jj < nyn; jj++)
+	// 	{
+	// 		for (int kk = 0; kk < nzn; kk++)
+	// 		{
+	// 			cout << setprecision(16) << Jzhs[is][ii][jj][kk] << "    ";
+	// 		}
+	// 		cout << endl;
+	// 	}
+	// 	cout << endl;
+	// }
+	// cout << endl << endl;
 
     // interpolate adding common nodes among processors
     communicateInterp(nxn, nyn, nzn, Jxh, vct, this);
@@ -3986,62 +3803,91 @@ void EMfields3D::communicateGhostP2G_ecsim(int is)
     communicateInterp(nxn, nyn, nzn, Jzh, vct, this);
 
     //* NonBlocking Halo Exchange for Interpolation
-    communicateInterp(nxn, nyn, nzn, moment_rhons, vct, this);
-    communicateInterp(nxn, nyn, nzn, moment_Jxhs,  vct, this);
-    communicateInterp(nxn, nyn, nzn, moment_Jyhs,  vct, this);
-    communicateInterp(nxn, nyn, nzn, moment_Jzhs,  vct, this);
+    // communicateInterp(nxn, nyn, nzn, moment_rhons, vct, this);
+    // communicateInterp(nxn, nyn, nzn, moment_Jxhs,  vct, this);
+    // communicateInterp(nxn, nyn, nzn, moment_Jyhs,  vct, this);
+    // communicateInterp(nxn, nyn, nzn, moment_Jzhs,  vct, this);
+
+    communicateInterp_old(nxn, nyn, nzn, is, Jxhs,  0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, Jyhs,  0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, Jzhs,  0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, rhons, 0, 0, 0, 0, 0, 0, vct, this);
 
     //! NOTE: boundary data is different in this code compared to the ECSIM code (on BitBucket)
-    // cout << "Jxhs (after communicateInterp), species: " << is << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-    //             cout << setprecision(10) << Jyhs[is][ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-    
-    // cout << "Norm rhons: " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
-    // cout << "Norm Jxhs, Jyhs, Jzhs: " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl;
-    // cout << "Norm Jxh, Jyh, Jzh: " <<  norm2(Jxh, nxn, nyn, nzn) << "  " << norm2(Jyh, nxn, nyn, nzn) << "  " << norm2(Jzh, nxn, nyn, nzn) << endl << endl;
+    // cout << "Jzhs (communicateInterp)" << endl;
+	// for (int ii = 0; ii < nxn; ii++)
+	// {
+	// 	for (int jj = 0; jj < nyn; jj++)
+	// 	{
+	// 		for (int kk = 0; kk < nzn; kk++)
+	// 		{
+	// 			cout << setprecision(16) << Jzhs[is][ii][jj][kk] << "    ";
+	// 		}
+	// 		cout << endl;
+	// 	}
+	// 	cout << endl;
+	// }
+	// cout << endl << endl;
 
     //* Populate the ghost nodes - Nonblocking Halo Exchange
     communicateNode_P(nxn, nyn, nzn, Jxh, vct, this);
     communicateNode_P(nxn, nyn, nzn, Jyh, vct, this);
     communicateNode_P(nxn, nyn, nzn, Jzh, vct, this);
 
-    // cout << "Norm Jxh, Jyh, Jzh: " <<  norm2(Jxh, nxn, nyn, nzn) << "  " << norm2(Jyh, nxn, nyn, nzn) << "  " << norm2(Jzh, nxn, nyn, nzn) << endl;
+    // communicateNode_P(nxn, nyn, nzn, moment_Jxhs,  vct, this);
+    // communicateNode_P(nxn, nyn, nzn, moment_Jyhs,  vct, this);
+    // communicateNode_P(nxn, nyn, nzn, moment_Jzhs,  vct, this);
+    // communicateNode_P(nxn, nyn, nzn, moment_rhons, vct, this);
 
-    communicateNode_P(nxn, nyn, nzn, moment_Jxhs,  vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment_Jyhs,  vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment_Jzhs,  vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment_rhons, vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, Jxhs,  vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, Jyhs,  vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, Jzhs,  vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, rhons, vct, this);
 
-    // cout << "Jxhs (after communicateNode_P), species: " << is << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-                
-    //             cout << setprecision(10) << Jyhs[is][ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
+    // cout << "Jyhs (communicateNode_P)" << endl;
+	// for (int ii = 0; ii < nxn; ii++)
+	// {
+	// 	for (int jj = 0; jj < nyn; jj++)
+	// 	{
+	// 		for (int kk = 0; kk < nzn; kk++)
+	// 		{
+	// 			cout << setprecision(16) << Jyhs[is][ii][jj][kk] << "    ";
+	// 		}
+	// 		cout << endl;
+	// 	}
+	// 	cout << endl;
+	// }
+	// cout << endl << endl;
 
-    // cout << "Norm rhons (after): " <<  norm2(moment_rhons, nxn, nyn, nzn) << endl;
-    // cout << "Norm Jxhs, Jyhs, Jzhs (after): " <<  norm2(moment_Jxhs, nxn, nyn, nzn) << "  " << norm2(moment_Jyhs, nxn, nyn, nzn) << "  " << norm2(moment_Jzhs, nxn, nyn, nzn) << endl << endl;
-    // cout << "Norm Jxh, Jyh, Jzh: " <<  norm2(Jxh, nxn, nyn, nzn) << "  " << norm2(Jyh, nxn, nyn, nzn) << "  " << norm2(Jzh, nxn, nyn, nzn) << endl << endl;
+    // cout << "Jzhs (communicateNode_P)" << endl;
+	// for (int ii = 0; ii < nxn; ii++)
+	// {
+	// 	for (int jj = 0; jj < nyn; jj++)
+	// 	{
+	// 		for (int kk = 0; kk < nzn; kk++)
+	// 		{
+	// 			cout << setprecision(16) << Jzhs[is][ii][jj][kk] << "    ";
+	// 		}
+	// 		cout << endl;
+	// 	}
+	// 	cout << endl;
+	// }
+	// cout << endl << endl;
+
+    // cout << "Jxh (communicateNode_P)" << endl;
+	// for (int ii = 0; ii < nxn; ii++)
+	// {
+	// 	for (int jj = 0; jj < nyn; jj++)
+	// 	{
+	// 		for (int kk = 0; kk < nzn; kk++)
+	// 		{
+	// 			cout << setprecision(16) << Jxh[ii][jj][kk] << "    ";
+	// 		}
+	// 		cout << endl;
+	// 	}
+	// 	cout << endl;
+	// }
+	// cout << endl << endl;
 }
 
 void EMfields3D::communicateGhostP2G_mass_matrix()
@@ -4051,35 +3897,57 @@ void EMfields3D::communicateGhostP2G_mass_matrix()
 
     for (int m = 0; m < NE_MASS; m++)
     {
-        double ***moment_Mxx = convert_to_arr3(Mxx[m]);
-        double ***moment_Mxy = convert_to_arr3(Mxy[m]);
-        double ***moment_Mxz = convert_to_arr3(Mxz[m]);
-        double ***moment_Myx = convert_to_arr3(Myx[m]);
-        double ***moment_Myy = convert_to_arr3(Myy[m]);
-        double ***moment_Myz = convert_to_arr3(Myz[m]);
-        double ***moment_Mzx = convert_to_arr3(Mzx[m]);
-        double ***moment_Mzy = convert_to_arr3(Mzy[m]);
-        double ***moment_Mzz = convert_to_arr3(Mzz[m]);
+        //! This gives wrong results
+        // double ***moment_Mxx = convert_to_arr3(Mxx[m]);
+        // double ***moment_Mxy = convert_to_arr3(Mxy[m]);
+        // double ***moment_Mxz = convert_to_arr3(Mxz[m]);
+        // double ***moment_Myx = convert_to_arr3(Myx[m]);
+        // double ***moment_Myy = convert_to_arr3(Myy[m]);
+        // double ***moment_Myz = convert_to_arr3(Myz[m]);
+        // double ***moment_Mzx = convert_to_arr3(Mzx[m]);
+        // double ***moment_Mzy = convert_to_arr3(Mzy[m]);
+        // double ***moment_Mzz = convert_to_arr3(Mzz[m]);
 
-        communicateInterp(nxn, nyn, nzn, moment_Mxx, vct, this);
-        communicateInterp(nxn, nyn, nzn, moment_Mxy, vct, this);
-        communicateInterp(nxn, nyn, nzn, moment_Mxz, vct, this);
-        communicateInterp(nxn, nyn, nzn, moment_Myx, vct, this);
-        communicateInterp(nxn, nyn, nzn, moment_Myy, vct, this);
-        communicateInterp(nxn, nyn, nzn, moment_Myz, vct, this);
-        communicateInterp(nxn, nyn, nzn, moment_Mzx, vct, this);
-        communicateInterp(nxn, nyn, nzn, moment_Mzy, vct, this);
-        communicateInterp(nxn, nyn, nzn, moment_Mzz, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Mxx, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Mxy, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Mxz, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Myx, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Myy, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Myz, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Mzx, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Mzy, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Mzz, vct, this);
 
-        communicateNode_P(nxn, nyn, nzn, moment_Mxx, vct, this);
-        communicateNode_P(nxn, nyn, nzn, moment_Mxy, vct, this);
-        communicateNode_P(nxn, nyn, nzn, moment_Mxz, vct, this);
-        communicateNode_P(nxn, nyn, nzn, moment_Myx, vct, this);
-        communicateNode_P(nxn, nyn, nzn, moment_Myy, vct, this);
-        communicateNode_P(nxn, nyn, nzn, moment_Myz, vct, this);
-        communicateNode_P(nxn, nyn, nzn, moment_Mzx, vct, this);
-        communicateNode_P(nxn, nyn, nzn, moment_Mzy, vct, this);
-        communicateNode_P(nxn, nyn, nzn, moment_Mzz, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Mxx, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Mxy, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Mxz, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Myx, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Myy, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Myz, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Mzx, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Mzy, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Mzz, vct, this);
+
+        communicateInterp_old(nxn, nyn, nzn, m, Mxx, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Mxy, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Mxz, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Myx, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Myy, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Myz, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Mzx, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Mzy, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Mzz, 0, 0, 0, 0, 0, 0, vct, this);
+
+        communicateNode_P_old(nxn, nyn, nzn, m, Mxx, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Mxy, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Mxz, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Myx, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Myy, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Myz, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Mzx, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Mzy, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Mzz, vct, this);
+
     }
 }
 
@@ -4228,6 +4096,66 @@ void EMfields3D::sumOverSpecies()
     const Grid *grid = &get_grid();
     const VirtualTopology3D * vct = &get_vct();
 
+    // cout << "Jxhs (before)" << endl;
+	// for (int ii = 0; ii < nxn; ii++)
+	// {
+	// 	for (int jj = 0; jj < nyn; jj++)
+	// 	{
+	// 		for (int kk = 0; kk < nzn; kk++)
+	// 		{
+	// 			cout << setprecision(16) << Jxhs[0][ii][jj][kk] << "    ";
+	// 		}
+	// 		cout << endl;
+	// 	}
+	// 	cout << endl;
+	// }
+	// cout << endl << endl;
+
+    // cout << "Jyhs (before)" << endl;
+	// for (int ii = 0; ii < nxn; ii++)
+	// {
+	// 	for (int jj = 0; jj < nyn; jj++)
+	// 	{
+	// 		for (int kk = 0; kk < nzn; kk++)
+	// 		{
+	// 			cout << setprecision(16) << Jyhs[0][ii][jj][kk] << "    ";
+	// 		}
+	// 		cout << endl;
+	// 	}
+	// 	cout << endl;
+	// }
+	// cout << endl << endl;
+
+    // cout << "Jzhs (before)" << endl;
+	// for (int ii = 0; ii < nxn; ii++)
+	// {
+	// 	for (int jj = 0; jj < nyn; jj++)
+	// 	{
+	// 		for (int kk = 0; kk < nzn; kk++)
+	// 		{
+	// 			cout << setprecision(16) << Jzhs[0][ii][jj][kk] << "    ";
+	// 		}
+	// 		cout << endl;
+	// 	}
+	// 	cout << endl;
+	// }
+	// cout << endl << endl;
+
+    // cout << "rhons (before)" << endl;
+    // for (int ii = 0; ii < nxn; ii++)
+    // {
+    //     for (int jj = 0; jj < nyn; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzn; kk++)
+    //         {
+    //             cout << setprecision(16) << rhons[0][ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
+
     for (int is = 0; is < ns; is++)
         for (int i = 0; i < nxn; i++)
             for (int j = 0; j < nyn; j++)
@@ -4239,9 +4167,65 @@ void EMfields3D::sumOverSpecies()
                     Jzh[i][j][k]   += Jzhs[is][i][j][k];
                 }
     
-    // cout << endl << "Sum Over Species" << endl;
-    // cout << "Norm Rho_n: " << norm2(rhon, nxn, nyn) << "  " << norm2(rhon, nyn, nzn) << "  " << norm2(rhon, nzn, nxn) << endl;
-    // cout << "Norm Rho_c: " << norm2(rhoc, nxc, nyc) << "  " << norm2(rhoc, nyc, nzc) << "  " << norm2(rhoc, nzc, nxc) << endl;
+    // cout << "Jxh (after)" << endl;
+    // for (int ii = 0; ii < nxn; ii++)
+    // {
+    //     for (int jj = 0; jj < nyn; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzn; kk++)
+    //         {
+    //             cout << setprecision(16) << Jxh[ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
+
+    // cout << "Jyh (after)" << endl;
+    // for (int ii = 0; ii < nxn; ii++)
+    // {
+    //     for (int jj = 0; jj < nyn; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzn; kk++)
+    //         {
+    //             cout << setprecision(16) << Jyh[ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
+
+    // cout << "Jzh (after)" << endl;
+    // for (int ii = 0; ii < nxn; ii++)
+    // {
+    //     for (int jj = 0; jj < nyn; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzn; kk++)
+    //         {
+    //             cout << setprecision(16) << Jzh[ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
+
+    // cout << "rhon (after)" << endl;
+    // for (int ii = 0; ii < nxn; ii++)
+    // {
+    //     for (int jj = 0; jj < nyn; jj++)
+    //     {
+    //         for (int kk = 0; kk < nzn; kk++)
+    //         {
+    //             cout << setprecision(16) << rhon[ii][jj][kk] << "    ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
+    // cout << endl << endl;
 
     communicateNode_P(nxn, nyn, nzn, rhon, vct, this);
     grid->interpN2C(rhoc, rhon);
@@ -4288,9 +4272,6 @@ void EMfields3D::interpolateCenterSpecies(int is)
     grid->interpN2C(rhocs_avg, is, rhons);
     communicateCenterBC(nxc, nyc, nzc, rhocs_avg[is], 2, 2, 2, 2, 2, 2, vct, this);
 
-    // cout << "After communicateCenterBC" << endl;
-    // cout << "Norm rhocs_avg: " << norm2(rhocs_avg[is], nxc, nyc, nzc) << endl;
-
     // cout << "rhocs_avg: " << endl;
     // for (int ii = 0; ii < nxc; ii++)
     // {
@@ -4298,7 +4279,7 @@ void EMfields3D::interpolateCenterSpecies(int is)
     //     {
     //         for (int kk = 0; kk < nzc; kk++)
     //         {
-    //             cout << rhocs_avg[is][ii][jj][kk] << "    ";
+    //             cout << setprecision(16) << rhocs_avg[is][ii][jj][kk] << "    ";
     //         }
     //         cout << endl;
     //     }
