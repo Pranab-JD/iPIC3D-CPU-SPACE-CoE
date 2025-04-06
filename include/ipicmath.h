@@ -145,10 +145,7 @@ inline void sample_maxwellian(double& u, double& v, double& w, double ut, double
 inline void sample_maxwellian(double& u, double& v, double& w, double ut, double vt, double wt, double u0, double v0, double w0)
 {
     sample_standard_maxwellian(u, v, w);
-    // u = u0 + ut*u; v = v0 + vt*v; w = w0 + wt*w;
-    // u = sin(2.0 * M_PI * ut);
-    // v = 0.1*cos(2.0 * M_PI * vt);
-    // w = sin(2.0 * M_PI * wt);
+    u = u0 + ut*u; v = v0 + vt*v; w = w0 + wt*w;
 }
 
 //? ------------------------------------------------------------------ ?//
