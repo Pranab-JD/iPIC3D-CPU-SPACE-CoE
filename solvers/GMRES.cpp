@@ -26,9 +26,10 @@
 #include "errors.h"
 #include "Alloc.h"
 #include "TimeTasks.h"
-//#include "ipicdefs.h"
 #include "EMfields3D.h"
 #include "VCtopology3D.h"
+
+using namespace std;
 
 void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,  const double *b, int m, int max_iter, double tol, Field * field)
 {
@@ -76,19 +77,23 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,  const do
 
     MPI_Comm fieldcomm = (field->get_vct()).getFieldComm();
 
-    double normb = normP(b, xkrylovlen,&fieldcomm);
+    double normb = normP(b, xkrylovlen, &fieldcomm);
     if (normb == 0.0) normb = 1.0;
 
-    int itr=0;
+    //? GMRes iterations
+    int itr = 0;
     for (itr = 0; itr < max_iter; itr++)
     {
         //* r = b - A*x
         (field->*FunctionImage) (im, xkrylov);
         sub(r, b, im, xkrylovlen);
-        initial_error = normP(r, xkrylovlen,&fieldcomm);
+        initial_error = normP(r, xkrylovlen, &fieldcomm);
 
         if (itr == 0) 
         {
+            if (is_output_thread())
+                cout << "Initial residual = " << initial_error << "; norm b vector (source) = " << normb << endl;
+
             rho_tol = initial_error * tol;
 
             if ((initial_error / normb) <= tol) 
@@ -195,20 +200,21 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,  const do
 
         if (is_output_thread() && GMRESVERBOSE)
             printf("Restart: %d error: %g\n", itr,  initial_error / rho_tol * tol);
+
     }
 
-    if(itr==max_iter && is_output_thread())
+    if(itr == max_iter && is_output_thread())
         printf("GMRES not converged !! Final error: %g\n", initial_error / rho_tol * tol);
 
-  delete[]r;
-  delete[]im;
-  delete[]s;
-  delete[]cs;
-  delete[]sn;
-  delete[]y;
-  delArr2(H, m + 1);
-  delArr2(V, m + 1);
-  return;
+    delete[]r;
+    delete[]im;
+    delete[]s;
+    delete[]cs;
+    delete[]sn;
+    delete[]y;
+    delArr2(H, m + 1);
+    delArr2(V, m + 1);
+    return;
 }
 
 void ApplyPlaneRotation(double &dx, double &dy, double &cs, double &sn) 
