@@ -614,136 +614,148 @@ void communicateCenterBoxStencilBC_P( int nx, int ny, int nz, arr3_double _vecto
     BCface_P(nx, ny, nz, vector, bcFaceXrght, bcFaceXleft, bcFaceYrght, bcFaceYleft, bcFaceZrght, bcFaceZleft, vct);
 }
 
+
 /** add the values of ghost cells faces to the 3D physical vector */
 void addFace(int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct)
 {
-  const int nxr = nx-2;
-  const int nyr = ny-2;
-  const int nzr = nz-2;
+    const int nxr = nx-2;
+    const int nyr = ny-2;
+    const int nzr = nz-2;
 
-  // Xright
-  if (vct->hasXrghtNeighbor_P())
-  {
-    for (int j = 1; j <= nyr; j++)
-    	for (int k = 1; k <= nzr; k++)
-    		vector[nx - 2][j][k] += vector[nx - 1][j][k];
-  }
-  // XLEFT
-  if (vct->hasXleftNeighbor_P())
-  {
-    for (int j = 1; j <= nyr; j++)
-		for (int k = 1; k <= nzr; k++)
-			vector[1][j][k] += vector[0][j][k];
-  }
+    // Xright
+    if (vct->hasXrghtNeighbor_P())
+    {
+        for (int j = 1; j <= nyr; j++)
+            for (int k = 1; k <= nzr; k++)
+                vector[nx - 2][j][k] += vector[nx - 1][j][k];
+    }
+    // XLEFT
+    if (vct->hasXleftNeighbor_P())
+    {
+        for (int j = 1; j <= nyr; j++)
+            for (int k = 1; k <= nzr; k++)
+                vector[1][j][k] += vector[0][j][k];
+    }
 
-  // Yright
-  if (vct->hasYrghtNeighbor_P())
-  {
-    for (int i = 1; i <= nxr; i++)
-		for (int k = 1; k <= nzr; k++)
-			 vector[i][ny - 2][k] += vector[i][ny - 1][k];
-  }
-  // Yleft
-  if (vct->hasYleftNeighbor_P())
-  {
-    for (int i = 1; i <= nxr; i++)
-    	for (int k = 1; k <= nzr; k++)
-    		vector[i][1][k] += vector[i][0][k];
-  }
-  // Zright
-  if (vct->hasZrghtNeighbor_P())
-  {
-    for (int i = 1; i <= nxr; i++)
-		for (int j = 1; j <= nyr; j++)
-			vector[i][j][nz - 2] += vector[i][j][nz - 1];
-  }
-  // ZLEFT
-  if (vct->hasZleftNeighbor_P())
-  {
-    for (int i = 1; i <= nxr; i++)
-		for (int j = 1; j <= nyr; j++)
-			vector[i][j][1] += vector[i][j][0];
-  }
+    // Yright
+    if (vct->hasYrghtNeighbor_P())
+    {
+        for (int i = 1; i <= nxr; i++)
+            for (int k = 1; k <= nzr; k++)
+                vector[i][ny - 2][k] += vector[i][ny - 1][k];
+    }
+    // Yleft
+    if (vct->hasYleftNeighbor_P())
+    {
+        for (int i = 1; i <= nxr; i++)
+            for (int k = 1; k <= nzr; k++)
+                vector[i][1][k] += vector[i][0][k];
+    }
+    // Zright
+    if (vct->hasZrghtNeighbor_P())
+    {
+        for (int i = 1; i <= nxr; i++)
+            for (int j = 1; j <= nyr; j++)
+                vector[i][j][nz - 2] += vector[i][j][nz - 1];
+    }
+    // ZLEFT
+    if (vct->hasZleftNeighbor_P())
+    {
+        for (int i = 1; i <= nxr; i++)
+            for (int j = 1; j <= nyr; j++)
+                vector[i][j][1] += vector[i][j][0];
+    }
 }
+
 /** insert the ghost cells Edge Z in the 3D physical vector */
 void addEdgeZ(int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct)
 {
-  if (vct->hasXrghtNeighbor_P() && vct->hasYrghtNeighbor_P()) {
-    for (int i = 1; i < (nz - 1); i++)
-      vector[nx - 2][ny - 2][i] += vector[nx - 1][ny - 1][i];
-  }
-  if (vct->hasXleftNeighbor_P() && vct->hasYleftNeighbor_P()) {
-    for (int i = 1; i < (nz - 1); i++)
-      vector[1][1][i] += vector[0][0][i];
-  }
-  if (vct->hasXrghtNeighbor_P() && vct->hasYleftNeighbor_P()) {
-    for (int i = 1; i < (nz - 1); i++)
-      vector[nx - 2][1][i] += vector[nx - 1][0][i];
-  }
-  if (vct->hasXleftNeighbor_P() && vct->hasYrghtNeighbor_P()) {
-    for (int i = 1; i < (nz - 1); i++)
-      vector[1][ny - 2][i] += vector[0][ny - 1][i];
-  }
+    if (vct->hasXrghtNeighbor_P() && vct->hasYrghtNeighbor_P()) 
+    {
+        for (int i = 1; i < (nz - 1); i++)
+            vector[nx - 2][ny - 2][i] += vector[nx - 1][ny - 1][i];
+    }
+    if (vct->hasXleftNeighbor_P() && vct->hasYleftNeighbor_P()) 
+    {
+        for (int i = 1; i < (nz - 1); i++)
+            vector[1][1][i] += vector[0][0][i];
+    }
+    if (vct->hasXrghtNeighbor_P() && vct->hasYleftNeighbor_P()) 
+    {
+        for (int i = 1; i < (nz - 1); i++)
+            vector[nx - 2][1][i] += vector[nx - 1][0][i];
+    }
+    if (vct->hasXleftNeighbor_P() && vct->hasYrghtNeighbor_P()) 
+    {
+        for (int i = 1; i < (nz - 1); i++)
+            vector[1][ny - 2][i] += vector[0][ny - 1][i];
+    }
 }
 /** add the ghost cell values Edge Y to the 3D physical vector */
 void addEdgeY(int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct)
 {
-  if (vct->hasXrghtNeighbor_P() && vct->hasZrghtNeighbor_P()) {
-    for (int i = 1; i < (ny - 1); i++)
-      vector[nx - 2][i][nz - 2] += vector[nx - 1][i][nz - 1];
-  }
-  if (vct->hasXleftNeighbor_P() && vct->hasZleftNeighbor_P()) {
-    for (int i = 1; i < (ny - 1); i++)
-      vector[1][i][1] += vector[0][i][0];
-  }
-  if (vct->hasXleftNeighbor_P() && vct->hasZrghtNeighbor_P()) {
-    for (int i = 1; i < (ny - 1); i++)
-      vector[1][i][nz - 2] += vector[0][i][nz - 1];
-  }
-  if (vct->hasXrghtNeighbor_P() && vct->hasZleftNeighbor_P()) {
-    for (int i = 1; i < (ny - 1); i++)
-      vector[nx - 2][i][1] += vector[nx - 1][i][0];
-  }
+    if (vct->hasXrghtNeighbor_P() && vct->hasZrghtNeighbor_P()) 
+    {
+        for (int i = 1; i < (ny - 1); i++)
+            vector[nx - 2][i][nz - 2] += vector[nx - 1][i][nz - 1];
+    }
+    if (vct->hasXleftNeighbor_P() && vct->hasZleftNeighbor_P()) 
+    {
+        for (int i = 1; i < (ny - 1); i++)
+            vector[1][i][1] += vector[0][i][0];
+    }
+    if (vct->hasXleftNeighbor_P() && vct->hasZrghtNeighbor_P()) 
+    {
+        for (int i = 1; i < (ny - 1); i++)
+            vector[1][i][nz - 2] += vector[0][i][nz - 1];
+    }
+    if (vct->hasXrghtNeighbor_P() && vct->hasZleftNeighbor_P()) 
+    {
+        for (int i = 1; i < (ny - 1); i++)
+            vector[nx - 2][i][1] += vector[nx - 1][i][0];
+    }
 }
+
 /** add the ghost values Edge X to the 3D physical vector */
 void addEdgeX(int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct)
 {
-  if (vct->hasYrghtNeighbor_P() && vct->hasZrghtNeighbor_P()) {
-    for (int i = 1; i < (nx - 1); i++)
-      vector[i][ny - 2][nz - 2] += vector[i][ny - 1][nz - 1];
-  }
-  if (vct->hasYleftNeighbor_P() && vct->hasZleftNeighbor_P()) {
-    for (int i = 1; i < (nx - 1); i++)
-      vector[i][1][1] += vector[i][0][0];
-  }
-  if (vct->hasYleftNeighbor_P() && vct->hasZrghtNeighbor_P()) {
-    for (int i = 1; i < (nx - 1); i++)
-      vector[i][1][nz - 2] += vector[i][0][nz - 1];
-  }
-  if (vct->hasYrghtNeighbor_P() && vct->hasZleftNeighbor_P()) {
-    for (int i = 1; i < (nx - 1); i++)
-      vector[i][ny - 2][1] += vector[i][ny - 1][0];
-  }
+    if (vct->hasYrghtNeighbor_P() && vct->hasZrghtNeighbor_P()) {
+        for (int i = 1; i < (nx - 1); i++)
+        vector[i][ny - 2][nz - 2] += vector[i][ny - 1][nz - 1];
+    }
+    if (vct->hasYleftNeighbor_P() && vct->hasZleftNeighbor_P()) {
+        for (int i = 1; i < (nx - 1); i++)
+        vector[i][1][1] += vector[i][0][0];
+    }
+    if (vct->hasYleftNeighbor_P() && vct->hasZrghtNeighbor_P()) {
+        for (int i = 1; i < (nx - 1); i++)
+        vector[i][1][nz - 2] += vector[i][0][nz - 1];
+    }
+    if (vct->hasYrghtNeighbor_P() && vct->hasZleftNeighbor_P()) {
+        for (int i = 1; i < (nx - 1); i++)
+        vector[i][ny - 2][1] += vector[i][ny - 1][0];
+    }
 }
+
 /** add ghost cells values Corners in the 3D physical vector */
 void addCorner(int nx, int ny, int nz, double ***vector,const VirtualTopology3D * vct)
 {
-  if (vct->hasXrghtNeighbor_P() && vct->hasYrghtNeighbor_P() && vct->hasZrghtNeighbor_P())
-    vector[nx - 2][ny - 2][nz - 2] += vector[nx - 1][ny - 1][nz - 1];
-  if (vct->hasXleftNeighbor_P() && vct->hasYrghtNeighbor_P() && vct->hasZrghtNeighbor_P())
-    vector[1][ny - 2][nz - 2] += vector[0][ny - 1][nz - 1];
-  if (vct->hasXrghtNeighbor_P() && vct->hasYleftNeighbor_P() && vct->hasZrghtNeighbor_P())
-    vector[nx - 2][1][nz - 2] += vector[nx - 1][0][nz - 1];
-  if (vct->hasXleftNeighbor_P() && vct->hasYleftNeighbor_P() && vct->hasZrghtNeighbor_P())
-    vector[1][1][nz - 2] += vector[0][0][nz - 1];
-  if (vct->hasXrghtNeighbor_P() && vct->hasYrghtNeighbor_P() && vct->hasZleftNeighbor_P())
-    vector[nx - 2][ny - 2][1] += vector[nx - 1][ny - 1][0];
-  if (vct->hasXleftNeighbor_P() && vct->hasYrghtNeighbor_P() && vct->hasZleftNeighbor_P())
-    vector[1][ny - 2][1] += vector[0][ny - 1][0] ;
-  if (vct->hasXrghtNeighbor_P() && vct->hasYleftNeighbor_P() && vct->hasZleftNeighbor_P())
-    vector[nx - 2][1][1] += vector[nx - 1][0][0] ;
-  if (vct->hasXleftNeighbor_P() && vct->hasYleftNeighbor_P() && vct->hasZleftNeighbor_P())
-    vector[1][1][1] += vector[0][0][0];
+    if (vct->hasXrghtNeighbor_P() && vct->hasYrghtNeighbor_P() && vct->hasZrghtNeighbor_P())
+        vector[nx - 2][ny - 2][nz - 2] += vector[nx - 1][ny - 1][nz - 1];
+    if (vct->hasXleftNeighbor_P() && vct->hasYrghtNeighbor_P() && vct->hasZrghtNeighbor_P())
+        vector[1][ny - 2][nz - 2] += vector[0][ny - 1][nz - 1];
+    if (vct->hasXrghtNeighbor_P() && vct->hasYleftNeighbor_P() && vct->hasZrghtNeighbor_P())
+        vector[nx - 2][1][nz - 2] += vector[nx - 1][0][nz - 1];
+    if (vct->hasXleftNeighbor_P() && vct->hasYleftNeighbor_P() && vct->hasZrghtNeighbor_P())
+        vector[1][1][nz - 2] += vector[0][0][nz - 1];
+    if (vct->hasXrghtNeighbor_P() && vct->hasYrghtNeighbor_P() && vct->hasZleftNeighbor_P())
+        vector[nx - 2][ny - 2][1] += vector[nx - 1][ny - 1][0];
+    if (vct->hasXleftNeighbor_P() && vct->hasYrghtNeighbor_P() && vct->hasZleftNeighbor_P())
+        vector[1][ny - 2][1] += vector[0][ny - 1][0] ;
+    if (vct->hasXrghtNeighbor_P() && vct->hasYleftNeighbor_P() && vct->hasZleftNeighbor_P())
+        vector[nx - 2][1][1] += vector[nx - 1][0][0] ;
+    if (vct->hasXleftNeighbor_P() && vct->hasYleftNeighbor_P() && vct->hasZleftNeighbor_P())
+        vector[1][1][1] += vector[0][0][0];
 
 }
 /** communicate and sum shared ghost cells */
@@ -769,6 +781,200 @@ void communicateNode_P(int nx, int ny, int nz, arr3_double _vector, const Virtua
 {
     double ***vector=_vector.fetch_arr3();
 	NBDerivedHaloComm(nx, ny, nz, vector, vct, EMf, false, false, false, true);
+}
+
+void communicateNode_P_old(int nx, int ny, int nz, int ns, double ****vector, const VirtualTopology3D *vct, EMfields3D *EMf) 
+{
+    // allocate 6 ghost cell Faces
+    double *ghostXrightFace = new double[(ny - 2) * (nz - 2)];
+    double *ghostXleftFace = new double[(ny - 2) * (nz - 2)];
+    double *ghostYrightFace = new double[(nx - 2) * (nz - 2)];
+    double *ghostYleftFace = new double[(nx - 2) * (nz - 2)];
+    double *ghostZrightFace = new double[(nx - 2) * (ny - 2)];
+    double *ghostZleftFace = new double[(nx - 2) * (ny - 2)];
+    // allocate 12 ghost cell Edges
+    // X EDGE
+    double *ghostXsameYleftZleftEdge = new double[nx - 2];
+    double *ghostXsameYrightZleftEdge = new double[nx - 2];
+    double *ghostXsameYleftZrightEdge = new double[nx - 2];
+    double *ghostXsameYrightZrightEdge = new double[nx - 2];
+    // Y EDGE
+    double *ghostXrightYsameZleftEdge = new double[ny - 2];
+    double *ghostXleftYsameZleftEdge = new double[ny - 2];
+    double *ghostXrightYsameZrightEdge = new double[ny - 2];
+    double *ghostXleftYsameZrightEdge = new double[ny - 2];
+    // Z EDGE
+    double *ghostXrightYleftZsameEdge = new double[nz - 2];
+    double *ghostXrightYrightZsameEdge = new double[nz - 2];
+    double *ghostXleftYleftZsameEdge = new double[nz - 2];
+    double *ghostXleftYrightZsameEdge = new double[nz - 2];
+    // allocate 8 ghost cell corner
+    double ghostXrightYrightZrightCorner, ghostXleftYrightZrightCorner, ghostXrightYleftZrightCorner, ghostXleftYleftZrightCorner;
+    double ghostXrightYrightZleftCorner, ghostXleftYrightZleftCorner, ghostXrightYleftZleftCorner, ghostXleftYleftZleftCorner;
+  
+    // apply boundary condition to 6 Ghost Faces and communicate if necessary to 6 processors: along 3 DIRECTIONS
+    makeNodeFace(nx, ny, nz, vector, ns, ghostXrightFace, ghostXleftFace, ghostYrightFace, ghostYleftFace, ghostZrightFace, ghostZleftFace);
+    communicateGhostFace((ny - 2) * (nz - 2), vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXrightFace, ghostXleftFace);
+    communicateGhostFace((nx - 2) * (nz - 2), vct->getCartesian_rank(), vct->getYright_neighbor_P(), vct->getYleft_neighbor_P(), 1, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostYrightFace, ghostYleftFace);
+    communicateGhostFace((nx - 2) * (ny - 2), vct->getCartesian_rank(), vct->getZright_neighbor_P(), vct->getZleft_neighbor_P(), 2, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostZrightFace, ghostZleftFace);
+    parseFace(nx, ny, nz, vector, ns, ghostXrightFace, ghostXleftFace, ghostYrightFace, ghostYleftFace, ghostZrightFace, ghostZleftFace);
+  
+    /** prepare ghost cell Edge Y for communication: these are communicate: these are communicated in X direction */
+    makeNodeGhostEdgeY(nx, ny, nz, ghostZleftFace, ghostZrightFace, ghostXrightYsameZrightEdge, ghostXleftYsameZleftEdge, ghostXleftYsameZrightEdge, ghostXrightYsameZleftEdge);
+    /** prepare ghost cell Edge Z for communication: these are communicated in Y direction */
+    makeNodeGhostEdgeZ(nx, ny, nz, ghostXleftFace, ghostXrightFace, ghostXrightYrightZsameEdge, ghostXleftYleftZsameEdge, ghostXrightYleftZsameEdge, ghostXleftYrightZsameEdge);
+    /** prepare ghost cell Edge X for communication: these are communicated in  Z direction*/
+    makeNodeGhostEdgeX(nx, ny, nz, ghostYleftFace, ghostYrightFace, ghostXsameYrightZrightEdge, ghostXsameYleftZleftEdge, ghostXsameYleftZrightEdge, ghostXsameYrightZleftEdge);
+  
+    // communicate twice each direction
+    // X-DIRECTION: Z -> X
+    MPI_Barrier(MPI_COMM_WORLD);
+    communicateGhostFace(ny - 2, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXrightYsameZleftEdge, ghostXleftYsameZleftEdge);
+    communicateGhostFace(ny - 2, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXrightYsameZrightEdge, ghostXleftYsameZrightEdge);
+    // Y-DIRECTION: X -> Y
+    MPI_Barrier(MPI_COMM_WORLD);
+    communicateGhostFace(nz - 2, vct->getCartesian_rank(), vct->getYright_neighbor_P(), vct->getYleft_neighbor_P(), 1, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXleftYrightZsameEdge, ghostXleftYleftZsameEdge);
+    communicateGhostFace(nz - 2, vct->getCartesian_rank(), vct->getYright_neighbor_P(), vct->getYleft_neighbor_P(), 1, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXrightYrightZsameEdge, ghostXrightYleftZsameEdge);
+    // Z-DIRECTION: Y -> Z
+    MPI_Barrier(MPI_COMM_WORLD);
+    communicateGhostFace(nx - 2, vct->getCartesian_rank(), vct->getZright_neighbor_P(), vct->getZleft_neighbor_P(), 2, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXsameYleftZrightEdge, ghostXsameYleftZleftEdge);
+    communicateGhostFace(nx - 2, vct->getCartesian_rank(), vct->getZright_neighbor_P(), vct->getZleft_neighbor_P(), 2, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXsameYrightZrightEdge, ghostXsameYrightZleftEdge);
+    
+    // parse
+    MPI_Barrier(MPI_COMM_WORLD);
+    parseEdgeZ(nx, ny, nz, vector, ns, ghostXrightYrightZsameEdge, ghostXleftYleftZsameEdge, ghostXrightYleftZsameEdge, ghostXleftYrightZsameEdge);
+    parseEdgeY(nx, ny, nz, vector, ns, ghostXrightYsameZrightEdge, ghostXleftYsameZleftEdge, ghostXleftYsameZrightEdge, ghostXrightYsameZleftEdge);
+    parseEdgeX(nx, ny, nz, vector, ns, ghostXsameYrightZrightEdge, ghostXsameYleftZleftEdge, ghostXsameYleftZrightEdge, ghostXsameYrightZleftEdge);
+
+    makeNodeGhostCorner(nx, ny, nz, ghostXsameYrightZrightEdge, ghostXsameYleftZleftEdge, ghostXsameYleftZrightEdge, ghostXsameYrightZleftEdge, &ghostXrightYrightZrightCorner, &ghostXleftYrightZrightCorner, &ghostXrightYleftZrightCorner, &ghostXleftYleftZrightCorner, &ghostXrightYrightZleftCorner, &ghostXleftYrightZleftCorner, &ghostXrightYleftZleftCorner, &ghostXleftYleftZleftCorner);
+    // communicate only in the X-DIRECTION
+    communicateGhostFace(1, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), &ghostXrightYrightZrightCorner, &ghostXleftYrightZrightCorner);
+    communicateGhostFace(1, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), &ghostXrightYleftZrightCorner, &ghostXleftYleftZrightCorner);
+    communicateGhostFace(1, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), &ghostXrightYleftZleftCorner, &ghostXleftYleftZleftCorner);
+    communicateGhostFace(1, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), &ghostXrightYrightZleftCorner, &ghostXleftYrightZleftCorner);
+    
+    // parse
+    parseCorner(nx, ny, nz, vector, ns, &ghostXrightYrightZrightCorner, &ghostXleftYrightZrightCorner, &ghostXrightYleftZrightCorner, &ghostXleftYleftZrightCorner, &ghostXrightYrightZleftCorner, &ghostXleftYrightZleftCorner, &ghostXrightYleftZleftCorner, &ghostXleftYleftZleftCorner);
+
+    delete[]ghostXrightFace;
+    delete[]ghostXleftFace;
+    delete[]ghostYrightFace;
+    delete[]ghostYleftFace;
+    delete[]ghostZrightFace;
+    delete[]ghostZleftFace;
+    // X EDGE
+    delete[]ghostXsameYleftZleftEdge;
+    delete[]ghostXsameYrightZleftEdge;
+    delete[]ghostXsameYleftZrightEdge;
+    delete[]ghostXsameYrightZrightEdge;
+    // Y EDGE
+    delete[]ghostXrightYsameZleftEdge;
+    delete[]ghostXleftYsameZleftEdge;
+    delete[]ghostXrightYsameZrightEdge;
+    delete[]ghostXleftYsameZrightEdge;
+    // Z EDGE
+    delete[]ghostXrightYleftZsameEdge;
+    delete[]ghostXrightYrightZsameEdge;
+    delete[]ghostXleftYleftZsameEdge;
+    delete[]ghostXleftYrightZsameEdge;
+    // timeTasks.addto_communicate(); 
+}
+  
+void communicateInterp_old(int nx, int ny, int nz, int ns, double ****vector,
+                           int bcFaceXright, int bcFaceXleft, int bcFaceYright, int bcFaceYleft, int bcFaceZright, int bcFaceZleft, 
+                           const VirtualTopology3D *vct, EMfields3D *EMf)
+{
+    // allocate 6 ghost cell Faces
+    double *ghostXrightFace = new double[(ny - 2) * (nz - 2)];
+    double *ghostXleftFace = new double[(ny - 2) * (nz - 2)];
+    double *ghostYrightFace = new double[(nx - 2) * (nz - 2)];
+    double *ghostYleftFace = new double[(nx - 2) * (nz - 2)];
+    double *ghostZrightFace = new double[(nx - 2) * (ny - 2)];
+    double *ghostZleftFace = new double[(nx - 2) * (ny - 2)];
+    // allocate 12 ghost cell Edges
+    // X EDGE
+    double *ghostXsameYleftZleftEdge = new double[nx - 2];
+    double *ghostXsameYrightZleftEdge = new double[nx - 2];
+    double *ghostXsameYleftZrightEdge = new double[nx - 2];
+    double *ghostXsameYrightZrightEdge = new double[nx - 2];
+    // Y EDGE
+    double *ghostXrightYsameZleftEdge = new double[ny - 2];
+    double *ghostXleftYsameZleftEdge = new double[ny - 2];
+    double *ghostXrightYsameZrightEdge = new double[ny - 2];
+    double *ghostXleftYsameZrightEdge = new double[ny - 2];
+    // Z EDGE
+    double *ghostXrightYleftZsameEdge = new double[nz - 2];
+    double *ghostXrightYrightZsameEdge = new double[nz - 2];
+    double *ghostXleftYleftZsameEdge = new double[nz - 2];
+    double *ghostXleftYrightZsameEdge = new double[nz - 2];
+    // allocate 8 ghost cell corner
+    double ghostXrightYrightZrightCorner, ghostXleftYrightZrightCorner, ghostXrightYleftZrightCorner, ghostXleftYleftZrightCorner;
+    double ghostXrightYrightZleftCorner, ghostXleftYrightZleftCorner, ghostXrightYleftZleftCorner, ghostXleftYleftZleftCorner;
+  
+    // apply boundary condition to 6 Ghost Faces and communicate if necessary to 6 processors: along 3 DIRECTIONS
+    makeCenterFace(nx, ny, nz, vector, ns, ghostXrightFace, ghostXleftFace, ghostYrightFace, ghostYleftFace, ghostZrightFace, ghostZleftFace);
+    // communication
+    communicateGhostFace((ny - 2) * (nz - 2), vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXrightFace, ghostXleftFace);
+    communicateGhostFace((nx - 2) * (nz - 2), vct->getCartesian_rank(), vct->getYright_neighbor_P(), vct->getYleft_neighbor_P(), 1, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostYrightFace, ghostYleftFace);
+    communicateGhostFace((nx - 2) * (ny - 2), vct->getCartesian_rank(), vct->getZright_neighbor_P(), vct->getZleft_neighbor_P(), 2, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostZrightFace, ghostZleftFace);
+    addFace(nx, ny, nz, vector, ns, ghostXrightFace, ghostXleftFace, ghostYrightFace, ghostYleftFace, ghostZrightFace, ghostZleftFace, vct);
+  /** prepare ghost cell Edge Y for communication: these are communicated in X direction */
+    makeNodeEdgeY(nx, ny, nz, ghostZleftFace, ghostZrightFace, ghostXrightYsameZrightEdge, ghostXleftYsameZleftEdge, ghostXleftYsameZrightEdge, ghostXrightYsameZleftEdge);
+  /** prepare ghost cell Edge Z for communication: these are communicated in Y direction */
+    makeNodeEdgeZ(nx, ny, nz, ghostXleftFace, ghostXrightFace, ghostXrightYrightZsameEdge, ghostXleftYleftZsameEdge, ghostXrightYleftZsameEdge, ghostXleftYrightZsameEdge);
+  /** prepare ghost cell Edge X for communication: these are communicated in  Z direction*/
+    makeNodeEdgeX(nx, ny, nz, ghostYleftFace, ghostYrightFace, ghostXsameYrightZrightEdge, ghostXsameYleftZleftEdge, ghostXsameYleftZrightEdge, ghostXsameYrightZleftEdge);
+  
+    // communicate twice each direction
+    // X-DIRECTION: Z -> X -> Y
+    MPI_Barrier(MPI_COMM_WORLD);
+    communicateGhostFace(ny - 2, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXrightYsameZleftEdge, ghostXleftYsameZleftEdge);
+    communicateGhostFace(ny - 2, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXrightYsameZrightEdge, ghostXleftYsameZrightEdge);
+    // Y-DIRECTION: X -> Y -> Z
+    MPI_Barrier(MPI_COMM_WORLD);
+    communicateGhostFace(nz - 2, vct->getCartesian_rank(), vct->getYright_neighbor_P(), vct->getYleft_neighbor_P(), 1, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXleftYrightZsameEdge, ghostXleftYleftZsameEdge);
+    communicateGhostFace(nz - 2, vct->getCartesian_rank(), vct->getYright_neighbor_P(), vct->getYleft_neighbor_P(), 1, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXrightYrightZsameEdge, ghostXrightYleftZsameEdge);
+    // Z-DIRECTION: Y -> Z
+    MPI_Barrier(MPI_COMM_WORLD);
+    communicateGhostFace(nx - 2, vct->getCartesian_rank(), vct->getZright_neighbor_P(), vct->getZleft_neighbor_P(), 2, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXsameYleftZrightEdge, ghostXsameYleftZleftEdge);
+    communicateGhostFace(nx - 2, vct->getCartesian_rank(), vct->getZright_neighbor_P(), vct->getZleft_neighbor_P(), 2, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), ghostXsameYrightZrightEdge, ghostXsameYrightZleftEdge);
+    // parse
+    MPI_Barrier(MPI_COMM_WORLD);
+    addEdgeZ(nx, ny, nz, vector, ns, ghostXrightYrightZsameEdge, ghostXleftYleftZsameEdge, ghostXrightYleftZsameEdge, ghostXleftYrightZsameEdge, vct);
+    addEdgeY(nx, ny, nz, vector, ns, ghostXrightYsameZrightEdge, ghostXleftYsameZleftEdge, ghostXleftYsameZrightEdge, ghostXrightYsameZleftEdge, vct);
+    addEdgeX(nx, ny, nz, vector, ns, ghostXsameYrightZrightEdge, ghostXsameYleftZleftEdge, ghostXsameYleftZrightEdge, ghostXsameYrightZleftEdge, vct);
+  
+    makeNodeCorner(nx, ny, nz, ghostXsameYrightZrightEdge, ghostXsameYleftZleftEdge, ghostXsameYleftZrightEdge, ghostXsameYrightZleftEdge, &ghostXrightYrightZrightCorner, &ghostXleftYrightZrightCorner, &ghostXrightYleftZrightCorner, &ghostXleftYleftZrightCorner, &ghostXrightYrightZleftCorner, &ghostXleftYrightZleftCorner, &ghostXrightYleftZleftCorner, &ghostXleftYleftZleftCorner);
+    // communicate only in the X-DIRECTION
+    communicateGhostFace(1, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), &ghostXrightYrightZrightCorner, &ghostXleftYrightZrightCorner);
+    communicateGhostFace(1, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), &ghostXrightYleftZrightCorner, &ghostXleftYleftZrightCorner);
+    communicateGhostFace(1, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), &ghostXrightYleftZleftCorner, &ghostXleftYleftZleftCorner);
+    communicateGhostFace(1, vct->getCartesian_rank(), vct->getXright_neighbor_P(), vct->getXleft_neighbor_P(), 0, vct->getXLEN(), vct->getYLEN(), vct->getZLEN(), &ghostXrightYrightZleftCorner, &ghostXleftYrightZleftCorner);
+    // parse
+    addCorner(nx, ny, nz, vector, ns, &ghostXrightYrightZrightCorner, &ghostXleftYrightZrightCorner, &ghostXrightYleftZrightCorner, &ghostXleftYleftZrightCorner, &ghostXrightYrightZleftCorner, &ghostXleftYrightZleftCorner, &ghostXrightYleftZleftCorner, &ghostXleftYleftZleftCorner, vct);
+  
+  
+    delete[]ghostXrightFace;
+    delete[]ghostXleftFace;
+    delete[]ghostYrightFace;
+    delete[]ghostYleftFace;
+    delete[]ghostZrightFace;
+    delete[]ghostZleftFace;
+    // X EDGE
+    delete[]ghostXsameYleftZleftEdge;
+    delete[]ghostXsameYrightZleftEdge;
+    delete[]ghostXsameYleftZrightEdge;
+    delete[]ghostXsameYrightZrightEdge;
+    // Y EDGE
+    delete[]ghostXrightYsameZleftEdge;
+    delete[]ghostXleftYsameZleftEdge;
+    delete[]ghostXrightYsameZrightEdge;
+    delete[]ghostXleftYsameZrightEdge;
+    // Z EDGE
+    delete[]ghostXrightYleftZsameEdge;
+    delete[]ghostXrightYrightZsameEdge;
+    delete[]ghostXleftYleftZsameEdge;
+    delete[]ghostXleftYrightZsameEdge;
 }
 
 //* ============================================================================================================================ *//

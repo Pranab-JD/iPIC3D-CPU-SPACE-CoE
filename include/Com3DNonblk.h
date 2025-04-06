@@ -39,13 +39,14 @@ developers           : Stefano Markidis, Ivy Bo Peng
 #include "Alloc.h"
 #include "debug.h"
 #include "EMfields3D.h"
+#include "ComParser3D.h"
+#include "ComBasic3D.h"
+#include "ComNodes3D.h"
 
 //* Communicate ghost cells (nodes)
 void communicateNodeBC( int nx, int ny, int nz, arr3_double vector, 
                         int bcFaceXright, int bcFaceXleft, int bcFaceYright, int bcFaceYleft, int bcFaceZright, int bcFaceZleft, 
                         const VirtualTopology3D * vct, EMfields3D *EMf);
-
-
 
 void communicateNodeBoxStencilBC(int nx, int ny, int nz, arr3_double vector, 
                                 int bcFaceXright, int bcFaceXleft, int bcFaceYright, int bcFaceYleft, int bcFaceZright, int bcFaceZleft, 
@@ -90,7 +91,11 @@ void communicateInterp(int nx, int ny, int nz, arr3_double _vector, const Virtua
 void communicateNode_P(int nx, int ny, int nz, double*** vector, const VirtualTopology3D * vct, EMfields3D *EMf);
 void communicateNode_P(int nx, int ny, int nz, arr3_double _vector, const VirtualTopology3D * vct, EMfields3D *EMf);
 
-// void communicateInterp(int nx, int ny, int nz, int ns, double ****vector, const VirtualTopology3D * vct);
+void communicateNode_P_old(int nx, int ny, int nz, int ns, double ****vector, const VirtualTopology3D *vct, EMfields3D *EMf);
+// void communicateInterp(int nx, int ny, int nz, double ****vector, int ns, const VirtualTopology3D * vct);
+void communicateInterp_old(int nx, int ny, int nz, int ns, double ****vector, 
+                           int bcFaceXright, int bcFaceXleft, int bcFaceYright, int bcFaceYleft, int bcFaceZright, int bcFaceZleft, 
+                           const VirtualTopology3D *vct, EMfields3D *EMf);
 
 void addCorner(int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct);
 void addEdgeX (int nx, int ny, int nz, double ***vector, const VirtualTopology3D * vct);
