@@ -91,12 +91,16 @@ class Particles3D:public Particles3Dcomm
     /** mover with a Predictor-Corrector Scheme */
     void mover_PC(Field * EMf);
     
-    //* ECSIM velocity and position update
+    //* ECSIM - velocity and position update
     void ECSIM_velocity(Field * EMf);
     void ECSIM_position(Field * EMf);
+
+    //* ECSIM - moments
     void computeMoments(Field * EMf);
-    
+
+    //* ECSIM - fix dimension of the problem
     void fixPosition();
+
     /** array-of-structs version of mover_PC */
     void mover_PC_AoS(Field * EMf);
     /** Relativistic array-of-structs version of mover_PC with adaptive Subcycling and PC*/

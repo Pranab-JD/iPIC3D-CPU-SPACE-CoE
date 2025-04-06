@@ -369,6 +369,7 @@ protected:
 
     //* Limits to apply to particle velocity
     double umin, umax, vmin, vmax, wmin, wmax;
+
 };
 
 // find the particles with particular IDs and print them

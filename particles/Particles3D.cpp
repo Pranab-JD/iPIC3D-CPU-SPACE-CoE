@@ -45,6 +45,7 @@ developers: Stefano Markidis, Giovanni Lapenta
 #include "debug.h"
 #include <complex>
 #include <iomanip>
+#include <fstream>
 
 using std::cout;
 using std::cerr;
@@ -199,9 +200,6 @@ void Particles3D::maxwellian(Field * EMf)
 
     assert_eq(_pcls.size(),0);
 
-    double harvest;
-	double prob, theta, sign;
-
     const double q_sgn = (qom / fabs(qom));
     // multipled by charge density gives charge per particle
     const double q_factor =  q_sgn * grid->getVOL() / npcel;
@@ -211,39 +209,26 @@ void Particles3D::maxwellian(Field * EMf)
         for (int j = 1; j < grid->getNYC() - 1; j++)
             for (int k = 1; k < grid->getNZC() - 1; k++)
             {
-                const double q = q_factor * EMf->getRHOcs(i, j, k, ns);
+                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
                 
                 for (int ii = 0; ii < npcelx; ii++)
                     for (int jj = 0; jj < npcely; jj++)
                         for (int kk = 0; kk < npcelz; kk++)
                         {
-                            // double u = 0.1; double v = 0.1; double w = 0.1;
-
-                            double u, v, w;
-                            // sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
-
-							harvest = 0.1;
-							prob = sqrt(-2.0 * log(1.0 - .999999 * harvest));
-							// harvest = 500 / (double) RAND_MAX;
-							theta = 2.0 * M_PI * harvest;
-							u = u0 + uth * prob * cos(theta);
-							v = v0 + vth * prob * sin(theta);
-							
-                            // harvest = 1000 / (double) RAND_MAX;
-							prob = sqrt(-2.0 * log(1.0 - .999999 * harvest));
-							// harvest =  / (double) RAND_MAX;
-							theta = 2.0 * M_PI * harvest;
-							w = w0 + wth * prob * cos(theta);
-                            
-                            // could also sample positions randomly as in repopulate_particles();
                             const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
                             const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
                             const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-                            
+
+                            double u, v, w;
+                            sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
+                        
                             create_new_particle(u, v, w, q, x, y, z);
                             counter++;
+                            
                         }
             }
+
+    fixPosition();
 
     if(0)
     {
@@ -734,8 +719,6 @@ void Particles3D::computeMoments(Field *EMf)
     // convertParticlesToSoA();
 
     cout << "Number of particles of species " << ns << ": " << getNOP() << endl;
-    // cout << "Nodes (X, Y, Z): " << grid->getNXN() << ", " << grid->getNYN() << ", " << grid->getNZN() << endl;
-    // cout << "Cell Centres (X, Y, Z): " << grid->getNXC() << ", " << grid->getNYC() << ", " << grid->getNZC() << endl;
 
     #pragma omp parallel
     {
@@ -763,21 +746,6 @@ void Particles3D::computeMoments(Field *EMf)
             const double worig = pcl->get_w();
             const double q     = pcl->get_q();
 
-            if (pidx == 0)
-            {
-                cout << "Particle id: " << pidx << endl;
-                cout << setprecision(15) << "Velocity: " << uorig << ", " << vorig << ", " << worig << endl;
-                cout << setprecision(15) << "Position: " << xorig << ", " << yorig << ", " << zorig << endl << endl;
-            }
-
-            // if (pidx > 230)
-			//     cout << "Particle: " << pidx << ", velocity: " << uorig << ", " << vorig << ", " << worig << endl;
-
-            // cout << "Particle id: " << pidx << endl;
-            // cout << "Charge: " << q << endl;
-            // cout << "Position: " << xorig << "  "  << yorig << "  "  << zorig << endl;
-            // cout << "Velocity: " << uorig << "   " << vorig << "   " << worig << endl;
-
             //* Additional variables for storing old and new positions and velocities
             double xavg = xorig;
             double yavg = yorig;
@@ -796,12 +764,12 @@ void Particles3D::computeMoments(Field *EMf)
             double sampled_field[8] ALLOC_ALIGNED;
             for(int i=0;i<8;i++) sampled_field[i]=0;
             
-            double& Bxl=sampled_field[0];
-            double& Byl=sampled_field[1];
-            double& Bzl=sampled_field[2];
-            double& Exl=sampled_field[0+DFIELD_3or4];
-            double& Eyl=sampled_field[1+DFIELD_3or4];
-            double& Ezl=sampled_field[2+DFIELD_3or4];
+            double& Bxl = sampled_field[0];
+            double& Byl = sampled_field[1];
+            double& Bzl = sampled_field[2];
+            double& Exl = sampled_field[0+DFIELD_3or4];
+            double& Eyl = sampled_field[1+DFIELD_3or4];
+            double& Ezl = sampled_field[2+DFIELD_3or4];
             
             const int num_field_components = 2*DFIELD_3or4;
 
@@ -831,11 +799,6 @@ void Particles3D::computeMoments(Field *EMf)
 
             const pfloat omsq = (Omx * Omx + Omy * Omy + Omz * Omz);
             const pfloat denom = 1.0 / (1.0 + omsq)/Gamma;
-
-            // cout << "Bxl, Byl, Bzl: " << Bxl << "   " << Byl << "   " << Bzl << "   " << endl;
-            // cout << "qdto2mc: " << qdto2mc << endl;
-            // cout << "Omx: " << Omx << "      " << "Omy: " << Omy << "      " << "Omz: " << Omz << endl;
-            // cout << "denom: " << denom << endl;
             
             double alpha[3][3];
             alpha[0][0] = ( 1.0 + (Omx*Omx))*denom;
@@ -854,11 +817,6 @@ void Particles3D::computeMoments(Field *EMf)
             double qav = q * (alpha[1][0]*(uorig + dt/2.*Fxl) + alpha[1][1]*(vorig + dt/2.*Fyl) + alpha[1][2]*(worig + dt/2.*Fzl));
             double qaw = q * (alpha[2][0]*(uorig + dt/2.*Fxl) + alpha[2][1]*(vorig + dt/2.*Fyl) + alpha[2][2]*(worig + dt/2.*Fzl));
 
-            // cout << alpha[0][0] << "   " << alpha[0][1] << "   " << alpha[0][2] << endl;
-            // cout << alpha[1][0] << "   " << alpha[1][1] << "   " << alpha[1][2] << endl;
-            // cout << alpha[2][0] << "   " << alpha[2][1] << "   " << alpha[2][2] << endl;
-            // cout << "qau, qav, qaw: " << qau << "   " << qav << "   " << qaw << endl << endl;
-
             //* --------------------------------------- *//
 
             double temp[8];         //* Temporary variable used to add density and current density
@@ -866,31 +824,12 @@ void Particles3D::computeMoments(Field *EMf)
             //* index of cell of particle;
             const int ix = cx + 1;
             const int iy = cy + 1;
-            const int iz = cz + 1 ;
+            const int iz = cz + 1;
 
             //* Add charge density                 
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = q * weights[ii];
-
             EMf->add_Rho(temp, ix, iy, iz, ns);
-
-            // if (pidx == getNOP() - 1)
-            // {
-            //     cout << "Compute Moments, species: " << ns << endl;
-            //     for (int ii = 0; ii < grid->getNXN(); ii++)
-            //     {
-            //         for (int jj = 0; jj < grid->getNYN(); jj++)
-            //         {
-            //             for (int kk = 0; kk < grid->getNZN(); kk++)
-            //             {
-            //                 cout << EMf->getRHOns(ii, jj, kk, ns) << "    ";
-            //             }
-            //             cout << endl;
-            //         }
-            //         cout << endl;
-            //     }
-            //     cout << endl << endl;
-            // }
 
             //* Add implicit current density - X
             for (int ii = 0; ii < 8; ii++)
@@ -934,10 +873,7 @@ void Particles3D::computeMoments(Field *EMf)
                                 // Map (i, j, k) & (i2, j2, k2) to 1D
                                 int index1 = i * 4 + j * 2 + k;
                                 int index2 = i2 * 4 + j2 * 2 + k2; 
-
                                 double qww = q * qdto2mc * weights[index1] * weights[index2];
-                                
-                                // cout << "qww: " << qww << endl;
                                 double value[3][3];
                                 
                                 for (int ind1 = 0; ind1 < 3; ind1++)
