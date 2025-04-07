@@ -40,9 +40,9 @@ This version of iPIC3D (with the implicit moment method) has been developed by P
 If you use this iPIC3D code, please cite: <br />
 Stefano Markidis, Giovanni Lapenta, and Rizwan-uddin (2010), *Multi-scale simulations of plasma with iPIC3D*, Mathematics and Computers in Simulation, 80, 7, 1509-1519 [[DOI]](https://doi.org/10.1016/j.matcom.2009.08.038)
 
-If you use the ECSIM algorithm (within iPIC3D), please cite: <br />
+If you use the ECSIM algorithm (within iPIC3D), please cite (in addition to the aforementioned article): <br />
 Giovanni Lapenta (2017), *Exactly energy conserving semi-implicit particle in cell formulation*, Journal of Computational Physics, 334, 349 
 [[DOI]](http://dx.doi.org/10.1016/j.jcp.2017.01.002)
 
-If you use the RelSIM algorithm (within iPIC3D), please cite: <br />
+If you use the RelSIM algorithm (within iPIC3D), please cite (in addition to the aforementioned articles): <br />
 Fabio Bacchini (2023), *RelSIM: A Relativistic Semi-implicit Method for Particle-in-cell Simulations*, The Astrophysical Journal Supplement Series, 268:60 [[DOI]](https://doi.org/10.3847/1538-4365/acefba)
