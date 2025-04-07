@@ -206,6 +206,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     tempXN  (nxn, nyn, nzn),
     tempYN  (nxn, nyn, nzn),
     tempZN  (nxn, nyn, nzn),
+    smooth_temp(nxn, nyn, nzn),
     
     imageX  (nxn, nyn, nzn),
     imageY  (nxn, nyn, nzn),
@@ -2371,7 +2372,7 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     communicateNodeBC(nxn, nyn, nzn, Jzh, 2, 2, 2, 2, 2, 2, vct, this);
 
     //* Energy-conserving smoothing
-    // energy_conserve_smooth(Jxh, Jyh, Jzh, nxn, nyn, nzn);
+    energy_conserve_smooth(Jxh, Jyh, Jzh, nxn, nyn, nzn);
 
     for (int i = 0; i < nxn; i++)
         for (int j = 0; j < nyn; j++) 
@@ -2504,7 +2505,7 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
 
     // TODO: this if statement needs to be removed, right? - Ask Fabio
     // if (col->getEnergyConservingSmoothing())
-    //     energy_conserve_smooth(tempX, tempY, tempZ, nxn, nyn, nzn);
+    energy_conserve_smooth(tempX, tempY, tempZ, nxn, nyn, nzn);
 
     // if (col->getExactMM()) 
     // {
@@ -2527,7 +2528,7 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     communicateNodeBC(nxn, nyn, nzn, temp2Y, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, temp2Z, 2, 2, 2, 2, 2, 2, vct, this);
 
-    // energy_conserve_smooth(temp2X, temp2Y, temp2Z, nxn, nyn, nzn);
+    energy_conserve_smooth(temp2X, temp2Y, temp2Z, nxn, nyn, nzn);
 
     for (int i=1; i<nxn-1; i++)
         for (int j=1; j<nyn-1; j++)
@@ -2553,7 +2554,7 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     //     addscale(1.0, imageZ, temp3Z, nxn, nyn, nzn);
     // }
 
-    //TODO: To be implemented later - PJD
+    //TODO: To be implemented later - PJD; Ask Fabio
     // fixBC_Image(vct, imageX, imageY, imageZ, tempX, tempY, tempZ);
     // if (col->getCase() == "Dipole")
     //   fixBC_PlanetImage (vct, col, grid, imageX, imageY, imageZ, tempX, tempY, tempZ);
@@ -2850,7 +2851,7 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
     const Grid *grid = &get_grid();
 
     //? Initialise temporary arrays with zeros
-    eqValue(0.0, tempX, nxn, nyn, nzn);
+    eqValue(0.0, smooth_temp, nxn, nyn, nzn);
     
     int bc[6];
     if (dir == 0)      for (int i=0; i<6; i++) bc[i] = col->bcEx[i];
@@ -2871,12 +2872,12 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
                 for (int i = 1; i < nx - 1; i++)
                     for (int j = 1; j < ny - 1; j++)
                         for (int k = 1; k < nz - 1; k++)
-                            tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k));
+                            smooth_temp.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k));
 
                 for (int i = 1; i < nx - 1; i++)
                     for (int j = 1; j < nyn - 1; j++)
                         for (int k = 1; k < nzn - 1; k++)
-                            data.fetch(i, j, k) = tempX.get(i, 0, 0);
+                            data.fetch(i, j, k) = smooth_temp.get(i, 0, 0);
             } 
             else if (col->getDim() == 2) 
             { 
@@ -2886,13 +2887,13 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
                 for (int i = 1; i < ny - 1; i++)
                     for (int j = 1; j < ny - 1; j++)
                         for (int k = 1; k < nzn - 1; k++)
-                            tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
+                            smooth_temp.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
                                                                                        + data.get(i, j - 1, k) + data.get(i, j + 1, k));
                 
                 for (int i = 1; i < nz - 1; i++)
                     for (int j = 1; j < nyn - 1; j++)
                         for (int k = 1; k < nzn - 1; k++)
-                            data.fetch(i, j, k) = tempX.get(i, j, 0);
+                            data.fetch(i, j, k) = smooth_temp.get(i, j, 0);
             } 
             else 
             { 
@@ -2902,14 +2903,14 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
                 for (int i = 1; i < nx - 1; i++)
                     for (int j = 1; j < ny - 1; j++)
                         for (int k = 1; k < nz - 1; k++) 
-                            tempX.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
+                            smooth_temp.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
                                                                                        + data.get(i, j - 1, k) + data.get(i, j + 1, k)
                                                                                        + data.get(i, j, k - 1) + data.get(i, j, k + 1));
                 
                 for (int i = 1; i < nx - 1; i++)
                     for (int j = 1; j < ny - 1; j++)
                         for (int k = 1; k < nz - 1; k++)
-                            data.fetch(i, j, k) = tempX.get(i, j, k);
+                            data.fetch(i, j, k) = smooth_temp.get(i, j, k);
             }
         }
     }
@@ -2922,7 +2923,7 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
     const Grid *grid = &get_grid();
 
     //? Initialise temporary arrays with zeros
-    eqValue(0.0, tempX, nxn, nyn, nzn);
+    eqValue(0.0, smooth_temp, nxn, nyn, nzn);
 
     int bc[6];
     if (dir == 0)      for (int i=0; i<6; i++) bc[i] = col->bcEx[i];
@@ -2941,7 +2942,7 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
             for (int i = 1; i < nx - 1; i++)
                 for (int j = 1; j < ny - 1; j++) 
                     for (int k = 1; k < nz - 1; k++)
-                        tempX.fetch(i, j, k) = 0.015625 * (8.0 * data.get(i, j, k)
+                        smooth_temp.fetch(i, j, k) = 0.015625 * (8.0 * data.get(i, j, k)
                                                          + 4.0 *(data.get(i-1, j, k) + data.get(i+1, j, k)      //* Faces
                                                          +       data.get(i, j-1, k) + data.get(i, j+1, k)      //* Faces
                                                          +       data.get(i, j, k-1) + data.get(i, j, k+1))     //* Faces
@@ -2954,7 +2955,7 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
             for (int i = 1; i < nx - 1; i++)
                 for (int j = 1; j < ny - 1; j++)
                     for (int k = 1; k < nz - 1; k++)
-                        data.fetch(i, j, k) = tempX.get(i, j, k);
+                        data.fetch(i, j, k) = smooth_temp.get(i, j, k);
             
             communicateNodeBC(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
         }
@@ -3449,51 +3450,6 @@ void EMfields3D::calculateB()
     if (vct->getCartesian_rank() == 0)
         cout << "*** Magnetic field computation ***" << endl;
 
-    // cout << "Bxc (initial)" << endl;
-    // for (int ii = 0; ii < nxc; ii++)
-    // {
-    //     for (int jj = 0; jj < nyc; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzc; kk++)
-    //         {
-    //             cout << setprecision(10) << Bxc[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    // cout << "Byc (initial)" << endl;
-    // for (int ii = 0; ii < nxc; ii++)
-    // {
-    //     for (int jj = 0; jj < nyc; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzc; kk++)
-    //         {
-    //             cout << setprecision(10) << Byc[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    // cout << "Bzc (initial)" << endl;
-    // for (int ii = 0; ii < nxc; ii++)
-    // {
-    //     for (int jj = 0; jj < nyc; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzc; kk++)
-    //         {
-    //             cout << setprecision(10) << Bzc[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
     //? Compute curl of E_theta
     grid->curlN2C(tempXC, tempYC, tempZC, Exth, Eyth, Ezth);
 
@@ -3501,7 +3457,7 @@ void EMfields3D::calculateB()
     // if (col->getAddExternalCurlE()) 
     //     grid->curlN2C(tempXC2, tempYC2, tempZC2, Ex_ext, Ey_ext, Ez_ext);
 
-    // energy_conserve_smooth(Exth, Eyth, Ezth, nxn, nyn, nzn);
+    energy_conserve_smooth(Exth, Eyth, Ezth, nxn, nyn, nzn);
 
     communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
@@ -3523,52 +3479,6 @@ void EMfields3D::calculateB()
     communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
     communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
     communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
-
-    // cout << "Bxc (final)" << endl;
-    // for (int ii = 0; ii < nxc; ii++)
-    // {
-    //     for (int jj = 0; jj < nyc; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzc; kk++)
-    //         {
-    //             cout << setprecision(16) << Bxc[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    //! Print this out
-    // cout << "Byc (final)" << endl;
-    // for (int ii = 0; ii < nxc; ii++)
-    // {
-    //     for (int jj = 0; jj < nyc; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzc; kk++)
-    //         {
-    //             cout << setprecision(16) << Byc[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    // cout << "Bzc (final)" << endl;
-    // for (int ii = 0; ii < nxc; ii++)
-    // {
-    //     for (int jj = 0; jj < nyc; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzc; kk++)
-    //         {
-    //             cout << setprecision(16) << Bzc[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
 
     // TODO: Implement this later
     //? Boundary conditions for magnetic field

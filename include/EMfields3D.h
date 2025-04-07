@@ -557,7 +557,7 @@ private:
 
     //* Used in MaxwellSource()
     array3_double tempC, tempXC, tempYC, tempZC, tempXC2, tempYC2, tempZC2;
-    array3_double tempX, tempY, tempZ, temp2X, temp2Y, temp2Z, temp3X, temp3Y, temp3Z;
+    array3_double tempX, tempY, tempZ, temp2X, temp2Y, temp2Z, temp3X, temp3Y, temp3Z, smooth_temp;
     array3_double tempXN, tempYN, tempZN;
 
     //* Temporary arrays for MaxwellImage() *//
