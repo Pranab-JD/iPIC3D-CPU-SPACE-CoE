@@ -36,6 +36,9 @@ void makeCenterFace(int nx, int ny, int nz, double ***vector, double *ghostXrigh
 /** prepare ghost cells on 6 faces for communication */
 void makeCenterFace(int nx, int ny, int nz, double ****vector, int ns, double *ghostXrightFace, double *ghostXleftFace, double *ghostYrightFace, double *ghostYleftFace, double *ghostZrightFace, double *ghostZleftFace);
 
+/** communicate ghost along a direction **/
+void communicateGhostFace(int b_len, int myrank, int right_neighbor, int left_neighbor, int DIR, int XLEN, int YLEN, int ZLEN, double *ghostRightFace, double *ghostLeftFace);
+
 // ////////////////////
 // ///////////////////
 // EDGES
