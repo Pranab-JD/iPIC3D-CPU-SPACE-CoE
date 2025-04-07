@@ -40,7 +40,6 @@ developers           : Stefano Markidis, Ivy Bo Peng
 #include "debug.h"
 #include "EMfields3D.h"
 #include "ComParser3D.h"
-#include "ComBasic3D.h"
 
 //* Communicate ghost cells (nodes)
 void communicateNodeBC( int nx, int ny, int nz, arr3_double vector, 

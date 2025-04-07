@@ -101,7 +101,8 @@ void Particles3D::uniform_background(Field * EMf)
   </ul>
 
 */
-void Particles3D::constantVelocity(double vel, int dim, Field * EMf) {
+void Particles3D::constantVelocity(double vel, int dim, Field * EMf) 
+{
   switch (dim) {
     case 0:
       for (int i = 0; i < getNOP(); i++)
@@ -133,62 +134,61 @@ void Particles3D::constantVelocity(double vel, int dim, Field * EMf) {
 }
 
 /** alternative routine maxellian random velocity and uniform spatial distribution */
-void Particles3D::alt_maxwellian(Field * EMf) {
-  eprintf("unimplemented");
+void Particles3D::alt_maxwellian(Field * EMf) 
+{
+    eprintf("unimplemented");
 }
 
 #ifdef BATSRUS
 /** Maxellian random velocity and uniform spatial distribution */
-void Particles3D::MaxwellianFromFluid(Field* EMf,Collective *col, int is){
+void Particles3D::MaxwellianFromFluid(Field* EMf,Collective *col, int is)
+{
+    //* Constuctiong the distribution function from a Fluid model
 
-  /*
-   * Constuctiong the distrebution function from a Fluid model
-   */
-
-  // loop over grid cells and set position, velociy and charge of all particles indexed by counter
-  // there are multiple (27 or so) particles per grid cell.
-  int i,j,k,counter=0;
-  for (i=1; i< grid->getNXC()-1;i++)
-    for (j=1; j< grid->getNYC()-1;j++)
-      for (k=1; k< grid->getNZC()-1;k++)
-        MaxwellianFromFluidCell(col,is, i,j,k,counter,x,y,z,q,u,v,w,ParticleID);
+    // loop over grid cells and set position, velociy and charge of all particles indexed by counter
+    // there are multiple (27 or so) particles per grid cell.
+    int i,j,k,counter=0;
+    for (i=1; i< grid->getNXC()-1;i++)
+        for (j=1; j< grid->getNYC()-1;j++)
+            for (k=1; k< grid->getNZC()-1;k++)
+                MaxwellianFromFluidCell(col,is, i,j,k,counter,x,y,z,q,u,v,w,ParticleID);
 }
 
 void Particles3D::MaxwellianFromFluidCell(Collective *col, int is, int i, int j, int k, int &ip, double *x, double *y, double *z, double *q, double *vx, double *vy, double *vz, longid* ParticleID)
 {
-  /*
-   * grid           : local grid object (in)
-   * col            : collective (global) object (in)
-   * is             : species index (in)
-   * i,j,k          : grid cell index on proc (in)
-   * ip             : particle number counter (inout)
-   * x,y,z          : particle position (out)
-   * q              : particle charge (out)
-   * vx,vy,vz       : particle velocity (out)
-   * ParticleID     : particle tracking ID (out)
-   */
+    /*
+    * grid           : local grid object (in)
+    * col            : collective (global) object (in)
+    * is             : species index (in)
+    * i,j,k          : grid cell index on proc (in)
+    * ip             : particle number counter (inout)
+    * x,y,z          : particle position (out)
+    * q              : particle charge (out)
+    * vx,vy,vz       : particle velocity (out)
+    * ParticleID     : particle tracking ID (out)
+    */
 
-  // loop over particles inside grid cell i,j,k
-  for (int ii=0; ii < npcelx; ii++)
-    for (int jj=0; jj < npcely; jj++)
-      for (int kk=0; kk < npcelz; kk++){
-        // Assign particle positions: uniformly spaced. x_cellnode + dx_particle*(0.5+index_particle)
-        fetchX(ip) = (ii + .5)*(dx/npcelx) + grid->getXN(i,j,k);
-        fetchY(ip) = (jj + .5)*(dy/npcely) + grid->getYN(i,j,k);
-        fetchZ(ip) = (kk + .5)*(dz/npcelz) + grid->getZN(i,j,k);
-        // q = charge
-        fetchQ(ip) =  (qom/fabs(qom))*(col->getFluidRhoCenter(i,j,k,is)/npcel)*(1.0/grid->getInvVOL());
-        // u = X velocity
-        sample_maxwellian(
-          fetchU(ip),fetchV(ip),fetchW(ip),
-          col->getFluidUthx(i,j,k,is),
-          col->getFluidVthx(i,j,k,is),
-          col->getFluidWthx(i,j,k,is),
-          col->getFluidUx(i,j,k,is),
-          col->getFluidVx(i,j,k,is),
-          col->getFluidWx(i,j,k,is));
-        ip++ ;
-      }
+    // loop over particles inside grid cell i,j,k
+    for (int ii=0; ii < npcelx; ii++)
+        for (int jj=0; jj < npcely; jj++)
+            for (int kk=0; kk < npcelz; kk++){
+                // Assign particle positions: uniformly spaced. x_cellnode + dx_particle*(0.5+index_particle)
+                fetchX(ip) = (ii + .5)*(dx/npcelx) + grid->getXN(i,j,k);
+                fetchY(ip) = (jj + .5)*(dy/npcely) + grid->getYN(i,j,k);
+                fetchZ(ip) = (kk + .5)*(dz/npcelz) + grid->getZN(i,j,k);
+                // q = charge
+                fetchQ(ip) =  (qom/fabs(qom))*(col->getFluidRhoCenter(i,j,k,is)/npcel)*(1.0/grid->getInvVOL());
+                // u = X velocity
+                sample_maxwellian(
+                fetchU(ip),fetchV(ip),fetchW(ip),
+                col->getFluidUthx(i,j,k,is),
+                col->getFluidVthx(i,j,k,is),
+                col->getFluidWthx(i,j,k,is),
+                col->getFluidUx(i,j,k,is),
+                col->getFluidVx(i,j,k,is),
+                col->getFluidWx(i,j,k,is));
+                ip++ ;
+        }
 }
 #endif
 
@@ -290,40 +290,38 @@ void Particles3D::maxwellianNullPoints(Field * EMf)
 /** Maxellian random velocity and uniform spatial distribution - invert w0 for the upper current sheet */
 void Particles3D::maxwellianDoubleHarris(Field * EMf)
 {
-  /* initialize random generator with different seed on different processor */
-  srand(vct->getCartesian_rank() + 2);
+    /* initialize random generator with different seed on different processor */
+    srand(vct->getCartesian_rank() + 2);
 
-  assert_eq(_pcls.size(),0);
+    assert_eq(_pcls.size(),0);
 
-  const double q_sgn = (qom / fabs(qom));
-  const double Ly_upper = Ly/2.0;
-  // multipled by charge density gives charge per particle
-  const double q_factor =  q_sgn * grid->getVOL() / npcel;
+    const double q_sgn = (qom / fabs(qom));
+    const double Ly_upper = Ly/2.0;
+    // multipled by charge density gives charge per particle
+    const double q_factor =  q_sgn * grid->getVOL() / npcel;
 
-  for (int i = 1; i < grid->getNXC() - 1; i++)
-  {
-  for (int j = 1; j < grid->getNYC() - 1; j++)
-  for (int k = 1; k < grid->getNZC() - 1; k++)
-  {
-    const double q = q_factor * EMf->getRHOcs(i, j, k, ns);
-    for (int ii = 0; ii < npcelx; ii++)
-    for (int jj = 0; jj < npcely; jj++)
-    for (int kk = 0; kk < npcelz; kk++)
-    {
+    for (int i = 1; i < grid->getNXC() - 1; i++)
+        for (int j = 1; j < grid->getNYC() - 1; j++)
+            for (int k = 1; k < grid->getNZC() - 1; k++)
+            {
+                const double q = q_factor * EMf->getRHOcs(i, j, k, ns);
+                
+                for (int ii = 0; ii < npcelx; ii++)
+                    for (int jj = 0; jj < npcely; jj++)
+                        for (int kk = 0; kk < npcelz; kk++)
+                        {
+                            // could also sample positions randomly as in repopulate_particles();
+                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
 
-      // could also sample positions randomly as in repopulate_particles();
-      const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-      const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-      const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+                            double u,v,w;
+                            if(y> Ly_upper)  sample_maxwellian(u,v,w,uth, vth, wth,u0, v0, w0);//-1.0*w0
+                            else  sample_maxwellian(u,v,w,uth, vth, wth,u0, v0, w0);
 
-      double u,v,w;
-      if(y> Ly_upper)  sample_maxwellian(u,v,w,uth, vth, wth,u0, v0, w0);//-1.0*w0
-      else  sample_maxwellian(u,v,w,uth, vth, wth,u0, v0, w0);
-
-      create_new_particle(u,v,w,q,x,y,z);
-    }
-  }
-  }
+                            create_new_particle(u,v,w,q,x,y,z);
+                        }
+            }
 }
 
 

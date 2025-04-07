@@ -414,8 +414,6 @@ void parseFace(int nx, int ny, int nz, double ****vector, int ns, double *ghostX
 
 }
 
-
-
 /** add the values of ghost cells faces to the 3D phisical vector */
 void addFace(int nx, int ny, int nz, double ***vector, double *ghostXrightFace, double *ghostXleftFace, double *ghostYrightFace, double *ghostYleftFace, double *ghostZrightFace, double *ghostZleftFace, const VirtualTopology3D *vct) 
 {
