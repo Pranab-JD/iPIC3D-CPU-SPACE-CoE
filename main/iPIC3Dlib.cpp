@@ -47,6 +47,7 @@
 #include <iomanip>
 
 #include "Moments.h" // for debugging
+#include "../LeXInt_Timer.hpp"
 
 #ifdef USE_CATALYST
     #include "Adaptor.h"
@@ -353,27 +354,44 @@ void c_Solver::CalculateMoments()
     //     }
     // }
 
+    LeXInt::timer time_cm, time_total;
+
+    time_total.start();
+
     //? Set all moments and densities to 0
     EMf->setZeroDensities();
 
     convertParticlesToAoS();
 
+    time_cm.start();
+    
     //? Interpolate Particles to grid (nodes)
     for (int is = 0; is < ns; is++)
 		part[is].computeMoments(EMf);
+    
+    time_cm.stop();
 
     //? Communicate moments
     for (int is = 0; is < ns; is++)
         EMf->communicateGhostP2G_ecsim(is);
 
     EMf->communicateGhostP2G_mass_matrix();
-    
+
     //? Sum all over the species (mass and charge density)
     EMf->sumOverSpecies();
 
     //?  Communicate average densities
     for (int is = 0; is < ns; is++)
         EMf->interpolateCenterSpecies(is);
+
+    time_total.stop();
+
+    if(MPIdata::get_rank() == 0)
+    {
+        cout << endl << "Runtime of computeMoments(): " << time_cm.total() << " s" << endl;
+        cout << "Runtime of CalculateMoments(): " << time_total.total() << " s" << endl;
+        cout << "Fraction of time taken by 'computeMoments()' in 'CalculateMoments()': " << time_cm.total()/time_total.total() << endl << endl;
+    }
 }
 
 //! Compute electromagnetic field (E and B needs to computed inside 1 function for ECSim)

@@ -46,6 +46,7 @@ developers: Stefano Markidis, Giovanni Lapenta
 #include <complex>
 #include <iomanip>
 #include <fstream>
+#include "../LeXInt_Timer.hpp"
 
 using std::cout;
 using std::cerr;
@@ -689,11 +690,15 @@ void Particles3D::computeMoments(Field *EMf)
 {
     // convertParticlesToSoA();
 
-    cout << "Number of particles of species " << ns << ": " << getNOP() << endl;
+    LeXInt::timer time_1, time_2, time_3, time_4, time_5, time_6, time_7;
+
+    #pragma omp master
+    if (vct->getCartesian_rank() == 0) 
+        cout << "Number of particles of species " << ns << " per MPI process: " << getNOP() << endl;
 
     #pragma omp parallel
     {
-        convertParticlesToAoS();
+        // convertParticlesToAoS();
 
         //TODO: External forces are to be implemented
         double Fxl = 0.0, Fyl = 0.0, Fzl = 0.0;
@@ -732,17 +737,17 @@ void Particles3D::computeMoments(Field *EMf)
             const double* field_components[8] ALLOC_ALIGNED;
             get_field_components_for_cell(field_components, fieldForPcls, cx, cy, cz);
 
-            double sampled_field[8] ALLOC_ALIGNED;
-            for(int i=0;i<8;i++) sampled_field[i]=0;
+            double sampled_field[3] ALLOC_ALIGNED;
+            for(int i=0;i<3;i++) sampled_field[i]=0;
             
             double& Bxl = sampled_field[0];
             double& Byl = sampled_field[1];
             double& Bzl = sampled_field[2];
-            double& Exl = sampled_field[0+DFIELD_3or4];
-            double& Eyl = sampled_field[1+DFIELD_3or4];
-            double& Ezl = sampled_field[2+DFIELD_3or4];
+            // double& Exl = sampled_field[0+DFIELD_3or4];
+            // double& Eyl = sampled_field[1+DFIELD_3or4];
+            // double& Ezl = sampled_field[2+DFIELD_3or4];
             
-            const int num_field_components = 2*DFIELD_3or4;
+            const int num_field_components = 3;
 
             for(int c = 0; c < 8; c++)
             {
