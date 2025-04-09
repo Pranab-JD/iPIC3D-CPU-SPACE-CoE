@@ -354,22 +354,32 @@ void c_Solver::CalculateMoments()
     //     }
     // }
 
-    LeXInt::timer time_cm, time_total;
+    LeXInt::timer time_cm, time_com, time_int, time_total;
 
+    #ifdef __PROFILING__
     time_total.start();
+    #endif
 
     //? Set all moments and densities to 0
     EMf->setZeroDensities();
 
     convertParticlesToAoS();
 
+    #ifdef __PROFILING__
     time_cm.start();
+    #endif
     
     //? Interpolate Particles to grid (nodes)
     for (int is = 0; is < ns; is++)
 		part[is].computeMoments(EMf);
     
+    #ifdef __PROFILING__
     time_cm.stop();
+    #endif
+
+    #ifdef __PROFILING__
+    time_com.start();
+    #endif
 
     //? Communicate moments
     for (int is = 0; is < ns; is++)
@@ -377,6 +387,14 @@ void c_Solver::CalculateMoments()
 
     EMf->communicateGhostP2G_mass_matrix();
 
+    #ifdef __PROFILING__
+    time_com.stop();
+    #endif
+
+    #ifdef __PROFILING__
+    time_int.start();
+    #endif
+    
     //? Sum all over the species (charge and current density)
     EMf->sumOverSpecies();
 
@@ -384,14 +402,22 @@ void c_Solver::CalculateMoments()
     for (int is = 0; is < ns; is++)
         EMf->interpolateCenterSpecies(is);
 
+    #ifdef __PROFILING__
+    time_int.stop();
+    #endif
+
+    #ifdef __PROFILING__
     time_total.stop();
 
     if(MPIdata::get_rank() == 0)
     {
-        cout << endl << "Runtime of computeMoments(): " << time_cm.total() << " s" << endl;
-        cout << "Runtime of CalculateMoments(): " << time_total.total() << " s" << endl;
-        cout << "Fraction of time taken by 'computeMoments()' in 'CalculateMoments()': " << time_cm.total()/time_total.total() << endl << endl;
+        cout << endl << "Profiling of MOMENT GATHERER" << endl; 
+        cout << "Compute moments             : " << time_cm.total()    << " s, fraction of time taken in CalculateMoments(): " << time_cm.total()/time_total.total() << endl;
+        cout << "Communicate moments         : " << time_com.total()   << " s, fraction of time taken in CalculateMoments(): " << time_com.total()/time_total.total() << endl;
+        cout << "Summation & interpolation   : " << time_int.total()   << " s, fraction of time taken in CalculateMoments(): " << time_int.total()/time_total.total() << endl;
+        cout << "CalculateMoments()          : " << time_total.total() << " s" << endl << endl;
     }
+    #endif
 }
 
 //! Compute electromagnetic field
@@ -420,64 +446,99 @@ void c_Solver::ComputeEMFields(int cycle)
 //! Compute positions and velocities of particles
 bool c_Solver::ParticlesMover()
 {
-    //? Move all species of particles
+    LeXInt::timer time_vel, time_relvel, time_pos, time_com, time_mag, time_total;
+
+    timeTasks_set_main_task(TimeTasks::PARTICLES);
+    
+    #ifdef __PROFILING__
+    time_total.start();
+    #endif
+
+    // Should change this to add background field
+    EMf->set_fieldForPcls();
+
+    //* Avoid SIMD array overrun
+    pad_particle_capacities();
+
+    #ifdef __PROFILING__
+    time_vel.start();
+    #endif
+
+    //* Iterate over each species to update velocities
+    for (int i = 0; i < ns; i++)
     {
-        timeTasks_set_main_task(TimeTasks::PARTICLES);
-        
-        // Should change this to add background field
-        EMf->set_fieldForPcls();
-
-        //* Avoid SIMD array overrun
-        pad_particle_capacities();
-
-        //* Iterate over each species to update velocities
-        for (int i = 0; i < ns; i++)
+        switch(Parameters::get_MOVER_TYPE())
         {
-            switch(Parameters::get_MOVER_TYPE())
-            {
-                //? ECSim
-                case Parameters::SoA:
-                    part[i].ECSIM_velocity(EMf);
-                break;
-                case Parameters::AoS:
-                    part[i].ECSIM_velocity(EMf);
-                break;
-                default:
-                unsupported_value_error(Parameters::get_MOVER_TYPE());
-            }
-
-            //* Should integrate BC into separate_and_send_particles
-            // TODO: Are the following two statements needed in both position and velocity?
-            part[i].openbc_particles_outflow();
-            part[i].separate_and_send_particles();
+            //? ECSim
+            case Parameters::SoA:
+                part[i].ECSIM_velocity(EMf);
+            break;
+            case Parameters::AoS:
+                part[i].ECSIM_velocity(EMf);
+            break;
+            default:
+            unsupported_value_error(Parameters::get_MOVER_TYPE());
         }
 
-        //* Iterate over each species to update positions
-        for (int i = 0; i < ns; i++)
-        {
-            switch(Parameters::get_MOVER_TYPE())
-            {
-                case Parameters::SoA:
-                    part[i].ECSIM_position(EMf);
-                break;
-                case Parameters::AoS:
-                    part[i].ECSIM_position(EMf);
-                break;
-            }
-
-            //* Should integrate BC into separate_and_send_particles
-            //TODO: what does this do?
-            part[i].openbc_particles_outflow();
-            part[i].separate_and_send_particles();
-        }
-
-        //* Communicate each species
-        for (int i = 0; i < ns; i++)  
-            part[i].recommunicate_particles_until_done(1);
+        //* Should integrate BC into separate_and_send_particles
+        // TODO: Are the following two statements needed in both position and velocity?
+        // part[i].openbc_particles_outflow();
+        // part[i].separate_and_send_particles();
     }
+
+    #ifdef __PROFILING__
+    time_vel.stop();
+    #endif
+
+    #ifdef __PROFILING__
+    time_pos.start();
+    #endif
+
+    //* Iterate over each species to update positions
+    for (int i = 0; i < ns; i++)
+    {
+        switch(Parameters::get_MOVER_TYPE())
+        {
+            case Parameters::SoA:
+                part[i].ECSIM_position(EMf);
+            break;
+            case Parameters::AoS:
+                part[i].ECSIM_position(EMf);
+            break;
+        }
+
+        //* Should integrate BC into separate_and_send_particles
+        //TODO: what does this do?
+        part[i].openbc_particles_outflow();
+        part[i].separate_and_send_particles();
+    }
+
+    #ifdef __PROFILING__
+    time_pos.stop();
+    #endif
+
+    #ifdef __PROFILING__
+    time_com.start();
+    #endif
+
+    //* Communicate each species
+    for (int i = 0; i < ns; i++)  
+        part[i].recommunicate_particles_until_done(1);
+
+    #ifdef __PROFILING__
+    time_com.stop();
+    #endif
+
+    #ifdef __PROFILING__
+    time_mag.start();
+    #endif
 
     //? Update the values of magnetic field at the nodes at time n+1
     EMf->C2NB();
+
+    #ifdef __PROFILING__
+    time_mag.stop();
+    #endif
 
     //? Repopulate the buffer zone at the edge
     for (int i=0; i < ns; i++) 
@@ -500,42 +561,56 @@ bool c_Solver::ParticlesMover()
 
     //* =============== Test Particles =============== *//
 
-    for (int i = 0; i < nstestpart; i++)
-    {
-        switch(Parameters::get_MOVER_TYPE())
-        {
-            case Parameters::SoA:
-                testpart[i].ECSIM_velocity(EMf);
-            break;
+    // for (int i = 0; i < nstestpart; i++)
+    // {
+    //     switch(Parameters::get_MOVER_TYPE())
+    //     {
+    //         case Parameters::SoA:
+    //             testpart[i].ECSIM_velocity(EMf);
+    //         break;
             
-            default:
-                unsupported_value_error(Parameters::get_MOVER_TYPE());
-        }
+    //         default:
+    //             unsupported_value_error(Parameters::get_MOVER_TYPE());
+    //     }
 
-        testpart[i].openbc_delete_testparticles();
-        testpart[i].separate_and_send_particles();
-    }
+    //     testpart[i].openbc_delete_testparticles();
+    //     testpart[i].separate_and_send_particles();
+    // }
 
-    for (int i = 0; i < nstestpart; i++)
-    {
-        switch(Parameters::get_MOVER_TYPE())
-        {
-            case Parameters::SoA:
-                testpart[i].ECSIM_position(EMf);
-            break;
+    // for (int i = 0; i < nstestpart; i++)
+    // {
+    //     switch(Parameters::get_MOVER_TYPE())
+    //     {
+    //         case Parameters::SoA:
+    //             testpart[i].ECSIM_position(EMf);
+    //         break;
             
-            default:
-                unsupported_value_error(Parameters::get_MOVER_TYPE());
-        }
+    //         default:
+    //             unsupported_value_error(Parameters::get_MOVER_TYPE());
+    //     }
 
-        testpart[i].openbc_delete_testparticles();
-        testpart[i].separate_and_send_particles();
-    }
+    //     testpart[i].openbc_delete_testparticles();
+    //     testpart[i].separate_and_send_particles();
+    // }
 
-    for (int i = 0; i < nstestpart; i++)
-        testpart[i].recommunicate_particles_until_done(1);
+    // for (int i = 0; i < nstestpart; i++)
+    //     testpart[i].recommunicate_particles_until_done(1);
 
     //* ============================================== *//
+
+    #ifdef __PROFILING__
+    time_total.stop();
+
+    if(MPIdata::get_rank() == 0)
+    {
+        cout << endl << "Profiling of PARTICLE MOVER" << endl; 
+        cout << "Compute velocities            : " << time_vel.total()   << " s, fraction of time taken in ParticlesMover(): " << time_vel.total()/time_total.total() << endl;
+        cout << "Compute positions             : " << time_pos.total()   << " s, fraction of time taken in ParticlesMover(): " << time_pos.total()/time_total.total() << endl;
+        cout << "Communicate particles         : " << time_com.total()   << " s, fraction of time taken in ParticlesMover(): " << time_com.total()/time_total.total() << endl;
+        cout << "Interpolate B to cell centres : " << time_mag.total()   << " s, fraction of time taken in ParticlesMover(): " << time_mag.total()/time_total.total() << endl;
+        cout << "ParticlesMover()              : " << time_total.total() << " s" << endl << endl;
+    }
+    #endif
 
     return (false);
 }
