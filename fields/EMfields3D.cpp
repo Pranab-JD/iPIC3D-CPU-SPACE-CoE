@@ -2313,51 +2313,51 @@ void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz,
 }
 
 //? Compute MU dot using mass matrix ?//
-void EMfields3D::MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, 
-                                   arr3_double tempX, arr3_double tempY, arr3_double tempZ, 
-                                   const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
-{
-    const Grid *grid = &get_grid();
+// void EMfields3D::MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, 
+//                                    arr3_double tempX, arr3_double tempY, arr3_double tempZ, 
+//                                    const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
+// {
+//     const Grid *grid = &get_grid();
     
-    //? Initialise all arrays with zeros
-    eqValue(0.0, MUdotX, nxn, nyn, nzn);
-    eqValue(0.0, MUdotY, nxn, nyn, nzn);
-    eqValue(0.0, MUdotZ, nxn, nyn, nzn);
+//     //? Initialise all arrays with zeros
+//     eqValue(0.0, MUdotX, nxn, nyn, nzn);
+//     eqValue(0.0, MUdotY, nxn, nyn, nzn);
+//     eqValue(0.0, MUdotZ, nxn, nyn, nzn);
 
-    double beta, edotb, omcx, omcy, omcz, denom;
+//     double beta, edotb, omcx, omcy, omcz, denom;
 
-    //? Iterate over each species
-    for (int is = 0; is < ns; is++) 
-    {
-        beta = 0.5 * qom[is] * dt/c;
+//     //? Iterate over each species
+//     for (int is = 0; is < ns; is++) 
+//     {
+//         beta = 0.5 * qom[is] * dt/c;
         
-        for (int i = 1; i < nxn - 1; i++)
-            for (int j = 1; j < nyn - 1; j++)
-                for (int k = 1; k < nzn - 1; k++) 
-                {
-                    omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
-                    omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
-                    omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
-                    edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
-                    denom = FourPI / 2 * delt * dt / c * qom[is] * rhons[is][i][j][k] / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
-                    tempX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
-                    tempY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
-                    tempZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
-                }
+//         for (int i = 1; i < nxn - 1; i++)
+//             for (int j = 1; j < nyn - 1; j++)
+//                 for (int k = 1; k < nzn - 1; k++) 
+//                 {
+//                     omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
+//                     omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
+//                     omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
+//                     edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
+//                     denom = FourPI / 2 * delt * dt / c * qom[is] * rhons[is][i][j][k] / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
+//                     tempX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
+//                     tempY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
+//                     tempZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
+//                 }
 
-        for (int i = 1; i < nxn - 1; i++)
-            for (int j = 1; j < nyn - 1; j++)
-                for (int k = 1; k < nzn - 1; k++)
-                    for (int ix = -1; ix < 2; ix++)
-                        for (int iy = -1; iy < 2; iy++)
-                            for (int iz = -1; iz < 2; iz++) 
-                            {
-                                MUdotX.fetch(i,j,k) += tempX.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
-                                MUdotY.fetch(i,j,k) += tempY.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
-                                MUdotZ.fetch(i,j,k) += tempZ.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
-                            }
-    }
-}
+//         for (int i = 1; i < nxn - 1; i++)
+//             for (int j = 1; j < nyn - 1; j++)
+//                 for (int k = 1; k < nzn - 1; k++)
+//                     for (int ix = -1; ix < 2; ix++)
+//                         for (int iy = -1; iy < 2; iy++)
+//                             for (int iz = -1; iz < 2; iz++) 
+//                             {
+//                                 MUdotX.fetch(i,j,k) += tempX.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+//                                 MUdotY.fetch(i,j,k) += tempY.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+//                                 MUdotZ.fetch(i,j,k) += tempZ.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+//                             }
+//     }
+// }
 
 /*! communicate ghost for grid -> Particles interpolation */
 void EMfields3D::communicateGhostP2G(int ns)
@@ -2940,132 +2940,6 @@ void EMfields3D::calculateB()
 
 
 //! ===================================== Smoothing ===================================== !//
-
-/* Interpolation smoothing: Smoothing (vector must already have ghost cells) TO MAKE SMOOTH value as to be different from 1.0 type = 0 --> center based vector ; type = 1 --> node based vector ; */
-void EMfields3D::smooth(arr3_double vector, int type)
-{
-    //? No smoothing
-    if(Smooth == 1.0) return;
-    
-    const VirtualTopology3D *vct = &get_vct();
-    const Grid *grid = &get_grid();
-
-    double alpha   = Smooth;
-    double beta3D  = (1-alpha)/6.0;
-    double beta2D  = (1-alpha)/4.0;
-    int nx, ny, nz;
-
-    switch (type) 
-    {
-        case (0):
-            nx = grid->getNXC();
-            ny = grid->getNYC();
-            nz = grid->getNZC();
-            break;
-        case (1):
-            nx = grid->getNXN();
-            ny = grid->getNYN();
-            nz = grid->getNZN();
-            break;
-    }
-
-    double ***temp = newArr3(double, nx, ny, nz);
-
-    for (int icount = 1; icount < SmoothNiter + 1; icount++) 
-    {
-        switch (type) 
-        {
-            case (0):
-                communicateCenterBoxStencilBC_P(nx, ny, nz, vector, 2, 2, 2, 2, 2, 2, vct, this);
-                break;
-            case (1):
-                communicateNodeBoxStencilBC_P(nx, ny, nz, vector, 2, 2, 2, 2, 2, 2, vct, this);
-                break;
-        }
-
-        for (int i = 1; i < nx - 1; i++)
-            for (int j = 1; j < ny - 1; j++)
-                for (int k = 1; k < nz - 1; k++)
-                    temp[i][j][k] = alpha * vector[i][j][k] + beta3D * (vector[i - 1][j][k] + vector[i + 1][j][k] + vector[i][j - 1][k] + vector[i][j + 1][k] + vector[i][j][k - 1] + vector[i][j][k + 1]);
-                    //temp[i][j][k] = alpha * vector[i][j][k] + beta2D * (vector[i - 1][j][k] + vector[i + 1][j][k] + vector[i][j][k - 1] + vector[i][j][k + 1]);//2D smooth in XZ dimension
-                    //temp[i][j][k] = alpha * vector[i][j][k] + beta2D * (vector[i - 1][j][k] + vector[i + 1][j][k] + vector[i][j-1][k] + vector[i][j+1][k]);//2D smooth in XY dimension
-
-        for (int i = 1; i < nx - 1; i++)
-            for (int j = 1; j < ny - 1; j++)
-                for (int k = 1; k < nz - 1; k++)
-                vector[i][j][k] = temp[i][j][k];
-    }
-
-    delArr3(temp, nx, ny);
-}
-
-/* Interpolation smoothing: Smoothing (vector must already have ghost cells)
- * TO MAKE SMOOTH value as to be different from 1.0 type = 0 --> center based vector ; type = 1 --> node based vector ; */
-// void EMfields3D::smoothE()
-// {
-//   if(Smooth==1.0) return;
-//   const Collective *col = &get_col();
-//   const VirtualTopology3D *vct = &get_vct();
-
-//   double alpha   = Smooth;
-//   double beta3D  = (1-alpha)/6.0;
-//   double beta2D  = (1-alpha)/4.0;
-
-//   double ***temp = newArr3(double, nxn, nyn, nzn);
-
-//   for (int icount = 1; icount < SmoothNiter + 1; icount++) {
-//       communicateNodeBoxStencilBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
-//       communicateNodeBoxStencilBC(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
-//       communicateNodeBoxStencilBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
-
-//       // Exth
-//       for (int i = 1; i < nxn - 1; i++)
-//         for (int j = 1; j < nyn - 1; j++)
-//           for (int k = 1; k < nzn - 1; k++)
-//               temp[i][j][k] = alpha * Ex[i][j][k] + beta3D * (Ex[i - 1][j][k] + Ex[i + 1][j][k] + Ex[i][j - 1][k] + Ex[i][j + 1][k] + Ex[i][j][k - 1] + Ex[i][j][k + 1]);
-//       	    //temp[i][j][k] = alpha * Ex[i][j][k] + beta2D * (Ex[i - 1][j][k] + Ex[i + 1][j][k] + Ex[i][j][k - 1] + Ex[i][j][k + 1]);//2D smooth in XZ dimension
-//             //temp[i][j][k] = alpha * Ex[i][j][k] + beta2D * (Ex[i - 1][j][k] + Ex[i + 1][j][k] + Ex[i][j-1][k] + Ex[i][j+1][k]);//2D smooth in XY dimension
-
-//       for (int i = 1; i < nxn - 1; i++)
-//         for (int j = 1; j < nyn - 1; j++)
-//           for (int k = 1; k < nzn - 1; k++)
-//             Ex[i][j][k] = temp[i][j][k];
-
-//       // Eyth
-//       for (int i = 1; i < nxn - 1; i++)
-//         for (int j = 1; j < nyn - 1; j++)
-//           for (int k = 1; k < nzn - 1; k++)
-// 	         temp[i][j][k] = alpha * Ey[i][j][k] + beta3D * (Ey[i - 1][j][k] + Ey[i + 1][j][k] + Ey[i][j - 1][k] + Ey[i][j + 1][k] + Ey[i][j][k - 1] + Ey[i][j][k + 1]);
-//            //temp[i][j][k] = alpha * Ey[i][j][k] + beta2D * (Ey[i - 1][j][k] + Ey[i + 1][j][k] + Ey[i][j][k - 1] + Ey[i][j][k + 1]);//2D smooth in XZ dimension
-// 	       //temp[i][j][k] = alpha * Ey[i][j][k] + beta2D * (Ey[i - 1][j][k] + Ey[i + 1][j][k] + Ey[i][j-1][k]   + Ey[i][j+1][k]);//2D smooth in XY dimension
-
-//       for (int i = 1; i < nxn - 1; i++)
-//         for (int j = 1; j < nyn - 1; j++)
-//           for (int k = 1; k < nzn - 1; k++)
-//             Ey[i][j][k] = temp[i][j][k];
-
-//       // Ezth
-//       for (int i = 1; i < nxn - 1; i++)
-//         for (int j = 1; j < nyn - 1; j++)
-//           for (int k = 1; k < nzn - 1; k++)
-//              temp[i][j][k] = alpha * Ez[i][j][k] + beta3D * (Ez[i - 1][j][k] + Ez[i + 1][j][k] + Ez[i][j - 1][k] + Ez[i][j + 1][k] + Ez[i][j][k - 1] + Ez[i][j][k + 1]);
-//            //temp[i][j][k] = alpha * Ez[i][j][k] + beta2D * (Ez[i - 1][j][k] + Ez[i + 1][j][k] + Ez[i][j][k - 1] + Ez[i][j][k + 1]);//2D smooth in XZ dimension
-// 	       //temp[i][j][k] = alpha * Ez[i][j][k] + beta2D * (Ez[i - 1][j][k] + Ez[i + 1][j][k] + Ez[i][j-1][k]   + Ez[i][j+1][k]);//2D smooth in XY dimension
-
-//       for (int i = 1; i < nxn - 1; i++)
-//         for (int j = 1; j < nyn - 1; j++)
-//           for (int k = 1; k < nzn - 1; k++)
-//             Ez[i][j][k] = temp[i][j][k];
-
-//   }
-//   delArr3(temp, nxn, nyn);
-// }
-
-// /* SPECIES: Interpolation smoothing TO MAKE SMOOTH value as to be different from 1.0 type = 0 --> center based vector type = 1 --> node based vector */
-// void EMfields3D::smooth(double value, arr4_double vector, int is, int type)
-// {
-//     eprintf("Smoothing for Species not implemented in 3D");
-// }
 
 void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz, int dir, double smooth)
 {
@@ -3732,69 +3606,6 @@ void EMfields3D::AddPerturbation(double deltaBoB, double kx, double ky, double E
 
 }
 
-//* Calculate hat rho hat, Jx hat, Jy hat, Jz hat -- Not needed for ECSim *//
-void EMfields3D::calculateHatFunctions()
-{
-  const VirtualTopology3D *vct = &get_vct();
-  const Grid *grid = &get_grid();
-  // smoothing
-  smooth(rhoc, 0);
-  // calculate j hat
-
-  for (int is = 0; is < ns; is++) {
-    grid->divSymmTensorN2C(tempXC, tempYC, tempZC, pXXsn, pXYsn, pXZsn, pYYsn, pYZsn, pZZsn, is);
-
-    scale(tempXC, -dt / 2.0, nxc, nyc, nzc);
-    scale(tempYC, -dt / 2.0, nxc, nyc, nzc);
-    scale(tempZC, -dt / 2.0, nxc, nyc, nzc);
-    // communicate before interpolating
-    communicateCenterBC_P(nxc, nyc, nzc, tempXC, 2, 2, 2, 2, 2, 2, vct, this);
-    communicateCenterBC_P(nxc, nyc, nzc, tempYC, 2, 2, 2, 2, 2, 2, vct, this);
-    communicateCenterBC_P(nxc, nyc, nzc, tempZC, 2, 2, 2, 2, 2, 2, vct, this);
-
-    grid->interpC2N(tempXN, tempXC);
-    grid->interpC2N(tempYN, tempYC);
-    grid->interpC2N(tempZN, tempZC);
-    sum(tempXN, Jxs, nxn, nyn, nzn, is);
-    sum(tempYN, Jys, nxn, nyn, nzn, is);
-    sum(tempZN, Jzs, nxn, nyn, nzn, is);
-    // PIDOT
-    PIdot(Jxh, Jyh, Jzh, tempXN, tempYN, tempZN, is);
-
-  }
-  // smooth j
-  smooth(Jxh, 1);
-  smooth(Jyh, 1);
-  smooth(Jzh, 1);
-
-  // calculate rho hat = rho - (dt*theta)div(jhat)
-  grid->divN2C(tempXC, Jxh, Jyh, Jzh);
-  scale(tempXC, -dt * th, nxc, nyc, nzc);
-  sum(tempXC, rhoc, nxc, nyc, nzc);
-  eq(rhoh, tempXC, nxc, nyc, nzc);
-  // communicate rhoh
-  communicateCenterBC_P(nxc, nyc, nzc, rhoh, 2, 2, 2, 2, 2, 2, vct, this);
-}
-
-//* Image of Poisson Solver -- Not needed for ECSim *//
-void EMfields3D::PoissonImage(double *image, double *vector)
-{
-  const VirtualTopology3D *vct = &get_vct();
-  const Grid *grid = &get_grid();
-
-  // allocate 2 three dimensional service vectors
-  array3_double temp(nxc, nyc, nzc);
-  array3_double im(nxc, nyc, nzc);
-  eqValue(0.0, image, (nxc - 2) * (nyc - 2) * (nzc - 2));
-  eqValue(0.0, temp, nxc, nyc, nzc);
-  eqValue(0.0, im, nxc, nyc, nzc);
-  // move from krylov space to physical space and communicate ghost cells
-  solver2phys(temp, vector, nxc, nyc, nzc);
-  // calculate the laplacian
-  grid->lapC2Cpoisson(im, temp, this);
-  // move from physical space to krylov space
-  phys2solver(image, im, nxc, nyc, nzc);
-}
 
 //! ===================================== Helper Functions (Fields) ===================================== !//
 
@@ -3868,56 +3679,26 @@ void EMfields3D::setZeroMassMatrix()
 //? Set the derived moments to zero
 void EMfields3D::setZeroDerivedMoments()
 {
-    for (int i = 0; i < nxn; i++)
-        for (int j = 0; j < nyn; j++)
-            for (int k = 0; k < nzn; k++) 
-            {
-                Jx  [i][j][k] = 0.0;
-                Jxh [i][j][k] = 0.0;
-                Jy  [i][j][k] = 0.0;
-                Jyh [i][j][k] = 0.0;
-                Jz  [i][j][k] = 0.0;
-                Jzh [i][j][k] = 0.0;
-                rhon[i][j][k] = 0.0;
-            }
-
-    for (int i = 0; i < nxc; i++)
-        for (int j = 0; j < nyc; j++)
-            for (int k = 0; k < nzc; k++) 
-            {
-                rhoc[i][j][k] = 0.0;
-                rhoh[i][j][k] = 0.0;
-            }
+    eqValue(0.0, Jx, nxn, nyn, nzn);
+    eqValue(0.0, Jxh, nxn, nyn, nzn);
+    eqValue(0.0, Jy, nxn, nyn, nzn);
+    eqValue(0.0, Jyh, nxn, nyn, nzn);
+    eqValue(0.0, Jz, nxn, nyn, nzn);
+    eqValue(0.0, Jzh, nxn, nyn, nzn);
+    eqValue(0.0, rhoc, nxc, nyc, nzc);
+    eqValue(0.0, rhoh, nxc, nyc, nzc);
 }
 
 //? Set the primary moments to zero
 void EMfields3D::setZeroPrimaryMoments() 
 {
-    for (int kk = 0; kk < ns; kk++)
-        for (int i = 0; i < nxn; i++)
-            for (int j = 0; j < nyn; j++)
-                for (int k = 0; k < nzn; k++) 
-                {
-                    rhons[kk][i][j][k] = 0.0;
-                    Jxs  [kk][i][j][k] = 0.0;
-                    Jys  [kk][i][j][k] = 0.0;
-                    Jzs  [kk][i][j][k] = 0.0;
-                    Jxhs [kk][i][j][k] = 0.0;
-                    Jyhs [kk][i][j][k] = 0.0;
-                    Jzhs [kk][i][j][k] = 0.0;
-
-                    //TODO: Energy fluxes need to be computed to write data to files
-                    // EFxs [kk][i][j][k] = 0.0;
-                    // EFys [kk][i][j][k] = 0.0;
-                    // EFzs [kk][i][j][k] = 0.0;
-                    // pXXsn[kk][i][j][k] = 0.0;
-                    // pXYsn[kk][i][j][k] = 0.0;
-                    // pXZsn[kk][i][j][k] = 0.0;
-                    // pYYsn[kk][i][j][k] = 0.0;
-                    // pYZsn[kk][i][j][k] = 0.0;
-                    // pZZsn[kk][i][j][k] = 0.0;
-                }
-
+    eqValue(0.0, rhons, ns, nxn, nyn, nzn);     //* Rho, for each species, at nodes
+    eqValue(0.0, Jxs, ns, nxn, nyn, nzn);       //* J, for each species, at nodes
+    eqValue(0.0, Jys, ns, nxn, nyn, nzn);       //* J, for each species, at nodes
+    eqValue(0.0, Jzs, ns, nxn, nyn, nzn);       //* J, for each species, at nodes
+    eqValue(0.0, Jxhs, ns, nxn, nyn, nzn);      //* J hat, for each species, at nodes
+    eqValue(0.0, Jyhs, ns, nxn, nyn, nzn);      //* J hat, for each species, at nodes
+    eqValue(0.0, Jzhs, ns, nxn, nyn, nzn);      //* J hat, for each species, at nodes
 }
 
 //? Set all moments to zero
@@ -3932,8 +3713,8 @@ void EMfields3D::setZeroDensities()
 //? Set densities (at nodes and cell centres) of all species to 0
 void EMfields3D::setZeroRho() 
 {
-    eqValue(0.0, rhocs, ns, nxc, nyc, nzc);     //* Rho, for each species, at cell centres
-    eqValue(0.0, rhons, ns, nxn, nyn, nzn);     //* Rho, for each species, at nodes
+    eqValue(0.0, rhon, nxn, nyn, nzn);
+    eqValue(0.0, rhocs, ns, nxc, nyc, nzc);     //* Rho, for each species, at cell centres  
     eqValue(0.0, Nns, ns, nxn, nyn, nzn);       //*
 }
 
