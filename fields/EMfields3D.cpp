@@ -575,6 +575,8 @@ void EMfields3D::freeDataType()
     }
 }
 
+//! ===================================== Compute Moments ===================================== !//
+
 //? This was Particles3Dcomm::interpP2G()
 void EMfields3D::sumMomentsOld(const Particles3Dcomm& pcls)
 {
@@ -2219,7 +2221,299 @@ void EMfields3D::sumMoments_vectorized_AoS(const Particles3Dcomm* part)
   }
 }
 
-/** method to convert a 1D field in a 3D field not considering guard cells*/
+//* Calculate PI dot (vectX, vectY, vectZ) -- Not needed for ECSim *//
+void EMfields3D::PIdot(arr3_double PIdotX, arr3_double PIdotY, arr3_double PIdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int ns)
+{
+  const Grid *grid = &get_grid();
+  double beta, edotb, omcx, omcy, omcz, denom;
+  beta = .5 * qom[ns] * dt / c;
+  for (int i = 1; i < nxn - 1; i++)
+    for (int j = 1; j < nyn - 1; j++)
+      for (int k = 1; k < nzn - 1; k++) {
+        omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
+        omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
+        omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
+        edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
+        denom = 1 / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
+        PIdotX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
+        PIdotY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
+        PIdotZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
+      }
+}
+
+//* Calculate MU dot (vectX, vectY, vectZ) -- Not needed for ECSim *//
+void EMfields3D::MUdot(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
+{
+    const Grid *grid = &get_grid();
+    
+    //? Initialise all arrays with zeros
+    for (int i = 1; i < nxn - 1; i++)
+        for (int j = 1; j < nyn - 1; j++)
+            for (int k = 1; k < nzn - 1; k++) 
+            {
+                MUdotX[i][j][k] = 0.0;
+                MUdotY[i][j][k] = 0.0;
+                MUdotZ[i][j][k] = 0.0;
+            }
+
+    double beta, edotb, omcx, omcy, omcz, denom;
+
+    for (int is = 0; is < ns; is++) 
+    {
+        beta = .5 * qom[is] * dt / c;
+        
+        for (int i = 1; i < nxn - 1; i++)
+            for (int j = 1; j < nyn - 1; j++)
+                for (int k = 1; k < nzn - 1; k++) 
+                {
+                    omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
+                    omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
+                    omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
+                    edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
+                    denom = FourPI / 2 * delt * dt / c * qom[is] * rhons[is][i][j][k] / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
+                    MUdotX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
+                    MUdotY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
+                    MUdotZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
+                }
+    }
+}
+
+//* Compute the product of mass matrix with vector "V = (Vx, Vy, Vz)"
+void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int i, int j, int k)
+{
+    double resX = 0.0;
+    double resY = 0.0;
+    double resZ = 0.0;
+
+    for (int g = 0; g < NE_MASS; g++) 
+    {
+        int i1 = i + NeNo.getX(g);
+        int j1 = j + NeNo.getY(g);
+        int k1 = k + NeNo.getZ(g);
+
+        resX += vectX.get(i1, j1, k1)*Mxx[g][i][j][k] + vectY.get(i1, j1, k1)*Myx[g][i][j][k] + vectZ.get(i1, j1, k1)*Mzx[g][i][j][k];
+        resY += vectX.get(i1, j1, k1)*Mxy[g][i][j][k] + vectY.get(i1, j1, k1)*Myy[g][i][j][k] + vectZ.get(i1, j1, k1)*Mzy[g][i][j][k];
+        resZ += vectX.get(i1, j1, k1)*Mxz[g][i][j][k] + vectY.get(i1, j1, k1)*Myz[g][i][j][k] + vectZ.get(i1, j1, k1)*Mzz[g][i][j][k];
+
+        if (g == 0)
+            continue;
+        
+        int i2 = i - NeNo.getX(g);
+        int j2 = j - NeNo.getY(g);
+        int k2 = k - NeNo.getZ(g);
+
+        resX += vectX.get(i2, j2, k2)*Mxx[g][i2][j2][k2] + vectY.get(i2, j2, k2)*Myx[g][i2][j2][k2] + vectZ.get(i2, j2, k2)*Mzx[g][i2][j2][k2];
+        resY += vectX.get(i2, j2, k2)*Mxy[g][i2][j2][k2] + vectY.get(i2, j2, k2)*Myy[g][i2][j2][k2] + vectZ.get(i2, j2, k2)*Mzy[g][i2][j2][k2];
+        resZ += vectX.get(i2, j2, k2)*Mxz[g][i2][j2][k2] + vectY.get(i2, j2, k2)*Myz[g][i2][j2][k2] + vectZ.get(i2, j2, k2)*Mzz[g][i2][j2][k2];
+    }
+
+    *MEx = resX;
+    *MEy = resY;
+    *MEz = resZ;
+}
+
+//? Compute MU dot using mass matrix ?//
+void EMfields3D::MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, 
+                                   arr3_double tempX, arr3_double tempY, arr3_double tempZ, 
+                                   const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
+{
+    const Grid *grid = &get_grid();
+    
+    //? Initialise all arrays with zeros
+    eqValue(0.0, MUdotX, nxn, nyn, nzn);
+    eqValue(0.0, MUdotY, nxn, nyn, nzn);
+    eqValue(0.0, MUdotZ, nxn, nyn, nzn);
+
+    double beta, edotb, omcx, omcy, omcz, denom;
+
+    //? Iterate over each species
+    for (int is = 0; is < ns; is++) 
+    {
+        beta = 0.5 * qom[is] * dt/c;
+        
+        for (int i = 1; i < nxn - 1; i++)
+            for (int j = 1; j < nyn - 1; j++)
+                for (int k = 1; k < nzn - 1; k++) 
+                {
+                    omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
+                    omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
+                    omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
+                    edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
+                    denom = FourPI / 2 * delt * dt / c * qom[is] * rhons[is][i][j][k] / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
+                    tempX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
+                    tempY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
+                    tempZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
+                }
+
+        for (int i = 1; i < nxn - 1; i++)
+            for (int j = 1; j < nyn - 1; j++)
+                for (int k = 1; k < nzn - 1; k++)
+                    for (int ix = -1; ix < 2; ix++)
+                        for (int iy = -1; iy < 2; iy++)
+                            for (int iz = -1; iz < 2; iz++) 
+                            {
+                                MUdotX.fetch(i,j,k) += tempX.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+                                MUdotY.fetch(i,j,k) += tempY.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+                                MUdotZ.fetch(i,j,k) += tempZ.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
+                            }
+    }
+}
+
+/*! communicate ghost for grid -> Particles interpolation */
+void EMfields3D::communicateGhostP2G(int ns)
+{
+    //* interpolate adding common nodes among processors
+    timeTasks_set_communicating();
+
+    const VirtualTopology3D *vct = &get_vct();
+
+    double ***moment0 = convert_to_arr3(rhons[ns]);
+    double ***moment1 = convert_to_arr3(Jxs  [ns]);
+    double ***moment2 = convert_to_arr3(Jys  [ns]);
+    double ***moment3 = convert_to_arr3(Jzs  [ns]);
+    double ***moment4 = convert_to_arr3(pXXsn[ns]);
+    double ***moment5 = convert_to_arr3(pXYsn[ns]);
+    double ***moment6 = convert_to_arr3(pXZsn[ns]);
+    double ***moment7 = convert_to_arr3(pYYsn[ns]);
+    double ***moment8 = convert_to_arr3(pYZsn[ns]);
+    double ***moment9 = convert_to_arr3(pZZsn[ns]);
+    // add the values for the shared nodes
+
+    //* NonBlocking Halo Exchange for Interpolation
+    communicateInterp(nxn, nyn, nzn, moment0, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment1, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment2, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment3, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment4, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment5, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment6, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment7, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment8, vct, this);
+    communicateInterp(nxn, nyn, nzn, moment9, vct, this);
+    
+    //* Calculate correct densities on the boundaries
+    adjustNonPeriodicDensities(ns);
+
+    //* Populate the ghost nodes - Nonblocking Halo Exchange
+    communicateNode_P(nxn, nyn, nzn, moment0, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment1, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment2, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment3, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment4, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment5, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment6, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment7, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment8, vct, this);
+    communicateNode_P(nxn, nyn, nzn, moment9, vct, this);
+}
+
+void EMfields3D::communicateGhostP2G_ecsim(int is)
+{
+    const VirtualTopology3D * vct = &get_vct();
+    int rank = vct->getCartesian_rank();
+
+    //* Convert ECSIM/RelSIM moments from type array4_double to *** for communication
+    // double ***moment_rhons = convert_to_arr3(rhons[is]);
+    // double ***moment_Jxhs  = convert_to_arr3(Jxhs[is]);
+    // double ***moment_Jyhs  = convert_to_arr3(Jyhs[is]);
+    // double ***moment_Jzhs  = convert_to_arr3(Jzhs[is]);
+
+    // interpolate adding common nodes among processors
+    communicateInterp(nxn, nyn, nzn, Jxh, vct, this);
+    communicateInterp(nxn, nyn, nzn, Jyh, vct, this);
+    communicateInterp(nxn, nyn, nzn, Jzh, vct, this);
+
+    //* NonBlocking Halo Exchange for Interpolation
+    // communicateInterp(nxn, nyn, nzn, moment_rhons, vct, this);
+    // communicateInterp(nxn, nyn, nzn, moment_Jxhs,  vct, this);
+    // communicateInterp(nxn, nyn, nzn, moment_Jyhs,  vct, this);
+    // communicateInterp(nxn, nyn, nzn, moment_Jzhs,  vct, this);
+
+    communicateInterp_old(nxn, nyn, nzn, is, Jxhs,  0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, Jyhs,  0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, Jzhs,  0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, rhons, 0, 0, 0, 0, 0, 0, vct, this);
+
+    //* Populate the ghost nodes - Nonblocking Halo Exchange
+    communicateNode_P(nxn, nyn, nzn, Jxh, vct, this);
+    communicateNode_P(nxn, nyn, nzn, Jyh, vct, this);
+    communicateNode_P(nxn, nyn, nzn, Jzh, vct, this);
+
+    // communicateNode_P(nxn, nyn, nzn, moment_Jxhs,  vct, this);
+    // communicateNode_P(nxn, nyn, nzn, moment_Jyhs,  vct, this);
+    // communicateNode_P(nxn, nyn, nzn, moment_Jzhs,  vct, this);
+    // communicateNode_P(nxn, nyn, nzn, moment_rhons, vct, this);
+
+    communicateNode_P_old(nxn, nyn, nzn, is, Jxhs,  vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, Jyhs,  vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, Jzhs,  vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, rhons, vct, this);
+}
+
+void EMfields3D::communicateGhostP2G_mass_matrix()
+{
+    const VirtualTopology3D * vct = &get_vct();
+    int rank = vct->getCartesian_rank();
+
+    for (int m = 0; m < NE_MASS; m++)
+    {
+        //! This gives wrong results
+        // double ***moment_Mxx = convert_to_arr3(Mxx[m]);
+        // double ***moment_Mxy = convert_to_arr3(Mxy[m]);
+        // double ***moment_Mxz = convert_to_arr3(Mxz[m]);
+        // double ***moment_Myx = convert_to_arr3(Myx[m]);
+        // double ***moment_Myy = convert_to_arr3(Myy[m]);
+        // double ***moment_Myz = convert_to_arr3(Myz[m]);
+        // double ***moment_Mzx = convert_to_arr3(Mzx[m]);
+        // double ***moment_Mzy = convert_to_arr3(Mzy[m]);
+        // double ***moment_Mzz = convert_to_arr3(Mzz[m]);
+
+        // communicateInterp(nxn, nyn, nzn, moment_Mxx, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Mxy, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Mxz, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Myx, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Myy, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Myz, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Mzx, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Mzy, vct, this);
+        // communicateInterp(nxn, nyn, nzn, moment_Mzz, vct, this);
+
+        // communicateNode_P(nxn, nyn, nzn, moment_Mxx, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Mxy, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Mxz, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Myx, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Myy, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Myz, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Mzx, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Mzy, vct, this);
+        // communicateNode_P(nxn, nyn, nzn, moment_Mzz, vct, this);
+
+        communicateInterp_old(nxn, nyn, nzn, m, Mxx, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Mxy, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Mxz, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Myx, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Myy, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Myz, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Mzx, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Mzy, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, m, Mzz, 0, 0, 0, 0, 0, 0, vct, this);
+
+        communicateNode_P_old(nxn, nyn, nzn, m, Mxx, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Mxy, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Mxz, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Myx, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Myy, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Myz, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Mzx, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Mzy, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, m, Mzz, vct, this);
+
+    }
+}
+
+//! ===================================== Compute Fields ===================================== !//
+
+//? Convert a 3D field to a 1D array (not considering guard cells)
 void solver2phys(arr3_double vectPhys, double *vectSolver, int nx, int ny, int nz) 
 {
     for (int i = 1; i < nx - 1; i++)
@@ -2229,7 +2523,7 @@ void solver2phys(arr3_double vectPhys, double *vectSolver, int nx, int ny, int n
 
 }
 
-/** method to convert a 1D field in a 3D field not considering guard cells*/
+//? Convert three 3D fields to a 1D array (not considering guard cells)
 void solver2phys(arr3_double vectPhys1, arr3_double vectPhys2, arr3_double vectPhys3, double *vectSolver, int nx, int ny, int nz) 
 {
     for (int i = 1; i < nx - 1; i++)
@@ -2242,7 +2536,7 @@ void solver2phys(arr3_double vectPhys1, arr3_double vectPhys2, arr3_double vectP
             }
 }
 
-/** method to convert a 3D field in a 1D field not considering guard cells*/
+//? Convert a 1D vector to 3D field (not considering guard cells)
 void phys2solver(double *vectSolver, const arr3_double vectPhys, int nx, int ny, int nz) 
 {
     for (int i = 1; i < nx - 1; i++)
@@ -2251,7 +2545,7 @@ void phys2solver(double *vectSolver, const arr3_double vectPhys, int nx, int ny,
                 *vectSolver++ = vectPhys.get(i,j,k);
 }
 
-/** method to convert a 3D field in a 1D field not considering guard cells*/
+//? Convert a 1D vector to three 3D fields (not considering guard cells)
 void phys2solver(double *vectSolver, const arr3_double vectPhys1, const arr3_double vectPhys2, const arr3_double vectPhys3, int nx, int ny, int nz) 
 {
     for (int i = 1; i < nx - 1; i++)
@@ -2263,7 +2557,8 @@ void phys2solver(double *vectSolver, const arr3_double vectPhys1, const arr3_dou
                 *vectSolver++ = vectPhys3.get(i,j,k);
             }
 }
-/*! Calculate Electric field with the implicit solver: the Maxwell solver method is called here */
+
+//? Calculate electric field using GMRes
 void EMfields3D::calculateE()
 {
     const Collective *col = &get_col();
@@ -2318,7 +2613,7 @@ void EMfields3D::calculateE()
     delete[]bkrylov;
 }
 
-//! Calculate sorgent for Maxwell solver !//
+//? LHS of the Maxwell solver
 void EMfields3D::MaxwellSource(double *bkrylov)
 {
     //! Cylindrical coordinates not implemented - PJD
@@ -2422,7 +2717,7 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     phys2solver(bkrylov, tempX, tempY, tempZ, nxn, nyn, nzn);
 }
 
-//*! Mapping of Maxwell image to give to solver !//
+//? RHS of the Maxwell solver
 //
 // In the field solver, there is one layer of ghost cells. The nodes on the ghost cells define two outer layers of nodes: the
 // outermost nodes are clearly in the interior of the neighboring subdomain and can naturally be referred to as "ghost nodes",
@@ -2580,144 +2875,71 @@ void EMfields3D::C2NB()
     communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 }
 
-//* Calculate PI dot (vectX, vectY, vectZ) -- Not needed for ECSim *//
-void EMfields3D::PIdot(arr3_double PIdotX, arr3_double PIdotY, arr3_double PIdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int ns)
+//? Populate the field data used to push particles
+void EMfields3D::set_fieldForPcls()
 {
-  const Grid *grid = &get_grid();
-  double beta, edotb, omcx, omcy, omcz, denom;
-  beta = .5 * qom[ns] * dt / c;
-  for (int i = 1; i < nxn - 1; i++)
-    for (int j = 1; j < nyn - 1; j++)
-      for (int k = 1; k < nzn - 1; k++) {
-        omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
-        omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
-        omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
-        edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
-        denom = 1 / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
-        PIdotX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
-        PIdotY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
-        PIdotZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
-      }
-}
-
-//* Calculate MU dot (vectX, vectY, vectZ) -- Not needed for ECSim *//
-void EMfields3D::MUdot(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
-{
-    const Grid *grid = &get_grid();
-    
-    //? Initialise all arrays with zeros
-    for (int i = 1; i < nxn - 1; i++)
-        for (int j = 1; j < nyn - 1; j++)
-            for (int k = 1; k < nzn - 1; k++) 
+    #pragma omp parallel for collapse(3)
+    for(int i = 0; i < nxn; i++)
+        for(int j = 0; j < nyn; j++)
+            for(int k = 0; k < nzn; k++)
             {
-                MUdotX[i][j][k] = 0.0;
-                MUdotY[i][j][k] = 0.0;
-                MUdotZ[i][j][k] = 0.0;
+                fieldForPcls[i][j][k][0] = (pfloat) (Bxn[i][j][k] + Bx_ext[i][j][k]);
+                fieldForPcls[i][j][k][1] = (pfloat) (Byn[i][j][k] + By_ext[i][j][k]);
+                fieldForPcls[i][j][k][2] = (pfloat) (Bzn[i][j][k] + Bz_ext[i][j][k]);
+                
+                fieldForPcls[i][j][k][0+DFIELD_3or4] = (pfloat) Exth[i][j][k];
+                fieldForPcls[i][j][k][1+DFIELD_3or4] = (pfloat) Eyth[i][j][k];
+                fieldForPcls[i][j][k][2+DFIELD_3or4] = (pfloat) Ezth[i][j][k];
             }
-
-    double beta, edotb, omcx, omcy, omcz, denom;
-
-    for (int is = 0; is < ns; is++) 
-    {
-        beta = .5 * qom[is] * dt / c;
-        
-        for (int i = 1; i < nxn - 1; i++)
-            for (int j = 1; j < nyn - 1; j++)
-                for (int k = 1; k < nzn - 1; k++) 
-                {
-                    omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
-                    omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
-                    omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
-                    edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
-                    denom = FourPI / 2 * delt * dt / c * qom[is] * rhons[is][i][j][k] / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
-                    MUdotX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
-                    MUdotY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
-                    MUdotZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
-                }
-    }
 }
 
-//* Compute the product of mass matrix with vector "V = (Vx, Vy, Vz)"
-void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int i, int j, int k)
+//? Calculate magnetic field (defined on nodes) using precomputed E(n + theta), the magnetic field is evaluated from Faraday's law 
+void EMfields3D::calculateB()
 {
-    double resX = 0.0;
-    double resY = 0.0;
-    double resZ = 0.0;
-
-    for (int g = 0; g < NE_MASS; g++) 
-    {
-        int i1 = i + NeNo.getX(g);
-        int j1 = j + NeNo.getY(g);
-        int k1 = k + NeNo.getZ(g);
-
-        resX += vectX.get(i1, j1, k1)*Mxx[g][i][j][k] + vectY.get(i1, j1, k1)*Myx[g][i][j][k] + vectZ.get(i1, j1, k1)*Mzx[g][i][j][k];
-        resY += vectX.get(i1, j1, k1)*Mxy[g][i][j][k] + vectY.get(i1, j1, k1)*Myy[g][i][j][k] + vectZ.get(i1, j1, k1)*Mzy[g][i][j][k];
-        resZ += vectX.get(i1, j1, k1)*Mxz[g][i][j][k] + vectY.get(i1, j1, k1)*Myz[g][i][j][k] + vectZ.get(i1, j1, k1)*Mzz[g][i][j][k];
-
-        if (g == 0)
-            continue;
-        
-        int i2 = i - NeNo.getX(g);
-        int j2 = j - NeNo.getY(g);
-        int k2 = k - NeNo.getZ(g);
-
-        resX += vectX.get(i2, j2, k2)*Mxx[g][i2][j2][k2] + vectY.get(i2, j2, k2)*Myx[g][i2][j2][k2] + vectZ.get(i2, j2, k2)*Mzx[g][i2][j2][k2];
-        resY += vectX.get(i2, j2, k2)*Mxy[g][i2][j2][k2] + vectY.get(i2, j2, k2)*Myy[g][i2][j2][k2] + vectZ.get(i2, j2, k2)*Mzy[g][i2][j2][k2];
-        resZ += vectX.get(i2, j2, k2)*Mxz[g][i2][j2][k2] + vectY.get(i2, j2, k2)*Myz[g][i2][j2][k2] + vectZ.get(i2, j2, k2)*Mzz[g][i2][j2][k2];
-    }
-
-    *MEx = resX;
-    *MEy = resY;
-    *MEz = resZ;
-}
-
-//? Compute MU dot using mass matrix ?//
-void EMfields3D::MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, 
-                                   arr3_double tempX, arr3_double tempY, arr3_double tempZ, 
-                                   const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
-{
+    const Collective *col = &get_col();
+    const VirtualTopology3D *vct = &get_vct();
     const Grid *grid = &get_grid();
+
+    if (vct->getCartesian_rank() == 0)
+        cout << "*** Magnetic field computation ***" << endl;
+
+    //? Compute curl of E_theta
+    grid->curlN2C(tempXC, tempYC, tempZC, Exth, Eyth, Ezth);
+
+    //? Compute curl of E_ext
+    // if (col->getAddExternalCurlE()) 
+    //     grid->curlN2C(tempXC2, tempYC2, tempZC2, Ex_ext, Ey_ext, Ez_ext);
+
+    energy_conserve_smooth(Exth, Eyth, Ezth, nxn, nyn, nzn);
+
+    communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
+    communicateNodeBC(nxn, nyn, nzn, Ezth, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
+
+    //? Update magnetic field: Second order formulation
+    addscale(-c * dt, 1, Bxc, tempXC, nxc, nyc, nzc);
+    addscale(-c * dt, 1, Byc, tempYC, nxc, nyc, nzc);
+    addscale(-c * dt, 1, Bzc, tempZC, nxc, nyc, nzc);
     
-    //? Initialise all arrays with zeros
-    eqValue(0.0, MUdotX, nxn, nyn, nzn);
-    eqValue(0.0, MUdotY, nxn, nyn, nzn);
-    eqValue(0.0, MUdotZ, nxn, nyn, nzn);
+    // if (col->getAddExternalCurlE()) 
+    // {
+    //     addscale(-c * dt, 1, Bxc, tempXC2, nxc, nyc, nzc);
+    //     addscale(-c * dt, 1, Byc, tempYC2, nxc, nyc, nzc);
+    //     addscale(-c * dt, 1, Bzc, tempZC2, nxc, nyc, nzc);
+    // }
 
-    double beta, edotb, omcx, omcy, omcz, denom;
+    //? Communicate ghost cells -- centres for magnetic field
+    communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+    communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+    communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
-    //? Iterate over each species
-    for (int is = 0; is < ns; is++) 
-    {
-        beta = 0.5 * qom[is] * dt/c;
-        
-        for (int i = 1; i < nxn - 1; i++)
-            for (int j = 1; j < nyn - 1; j++)
-                for (int k = 1; k < nzn - 1; k++) 
-                {
-                    omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
-                    omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
-                    omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
-                    edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
-                    denom = FourPI / 2 * delt * dt / c * qom[is] * rhons[is][i][j][k] / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
-                    tempX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
-                    tempY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
-                    tempZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
-                }
-
-        for (int i = 1; i < nxn - 1; i++)
-            for (int j = 1; j < nyn - 1; j++)
-                for (int k = 1; k < nzn - 1; k++)
-                    for (int ix = -1; ix < 2; ix++)
-                        for (int iy = -1; iy < 2; iy++)
-                            for (int iz = -1; iz < 2; iz++) 
-                            {
-                                MUdotX.fetch(i,j,k) += tempX.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
-                                MUdotY.fetch(i,j,k) += tempY.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
-                                MUdotZ.fetch(i,j,k) += tempZ.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
-                            }
-    }
+    // TODO: Implement this later
+    //? Boundary conditions for magnetic field
+    // fixBC_B(vct, col);
 }
 
+
+//! ===================================== Smoothing ===================================== !//
 
 /* Interpolation smoothing: Smoothing (vector must already have ghost cells) TO MAKE SMOOTH value as to be different from 1.0 type = 0 --> center based vector ; type = 1 --> node based vector ; */
 void EMfields3D::smooth(arr3_double vector, int type)
@@ -2847,6 +3069,9 @@ void EMfields3D::smooth(arr3_double vector, int type)
 
 void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz, int dir, double smooth)
 {
+    //? No smoothing
+    if(Smooth == 1.0) return;
+
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
     const Grid *grid = &get_grid();
@@ -2919,6 +3144,9 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
 
 void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int ny, int nz, int dir, double smooth)
 {
+    //? No smoothing
+    if(Smooth == 1.0) return;
+
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
     const Grid *grid = &get_grid();
@@ -2973,7 +3201,6 @@ void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, 
 
     int current_cycle = col->getCurrentCycle();
 
-    //! Check the variable "Smooth"
     if (smooth_cycle > 0 and current_cycle % smooth_cycle == 0) 
     {
         if (col->getSmoothType() == "directional") 
@@ -2992,6 +3219,9 @@ void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, 
         }
     }
 }
+
+
+//! ===================================== Initial Field Distributions ===================================== !//
 
 //? B boundary for GEM (cell centres) - this assumes non-periodic boundaries along Y ?//
 void EMfields3D::fixBcGEM()
@@ -3425,69 +3655,6 @@ void EMfields3D::ConstantChargePlanet2DPlaneXZ(double R,  double x_center,double
 
 }
 
-/*! Populate the field data used to push particles */
-void EMfields3D::set_fieldForPcls()
-{
-    #pragma omp parallel for collapse(3)
-    for(int i = 0; i < nxn; i++)
-        for(int j = 0; j < nyn; j++)
-            for(int k = 0; k < nzn; k++)
-            {
-                fieldForPcls[i][j][k][0] = (pfloat) (Bxn[i][j][k] + Bx_ext[i][j][k]);
-                fieldForPcls[i][j][k][1] = (pfloat) (Byn[i][j][k] + By_ext[i][j][k]);
-                fieldForPcls[i][j][k][2] = (pfloat) (Bzn[i][j][k] + Bz_ext[i][j][k]);
-                
-                fieldForPcls[i][j][k][0+DFIELD_3or4] = (pfloat) Exth[i][j][k];
-                fieldForPcls[i][j][k][1+DFIELD_3or4] = (pfloat) Eyth[i][j][k];
-                fieldForPcls[i][j][k][2+DFIELD_3or4] = (pfloat) Ezth[i][j][k];
-            }
-}
-
-//! Calculate magnetic field with the implicit solver: calculate B defined on nodes with E(n + theta) computed, the magnetic field is evaluated from Faraday's law !//
-void EMfields3D::calculateB()
-{
-    const Collective *col = &get_col();
-    const VirtualTopology3D *vct = &get_vct();
-    const Grid *grid = &get_grid();
-
-    if (vct->getCartesian_rank() == 0)
-        cout << "*** Magnetic field computation ***" << endl;
-
-    //? Compute curl of E_theta
-    grid->curlN2C(tempXC, tempYC, tempZC, Exth, Eyth, Ezth);
-
-    //? Compute curl of E_ext
-    // if (col->getAddExternalCurlE()) 
-    //     grid->curlN2C(tempXC2, tempYC2, tempZC2, Ex_ext, Ey_ext, Ez_ext);
-
-    energy_conserve_smooth(Exth, Eyth, Ezth, nxn, nyn, nzn);
-
-    communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Ezth, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
-
-    //? Update magnetic field: Second order formulation
-    addscale(-c * dt, 1, Bxc, tempXC, nxc, nyc, nzc);
-    addscale(-c * dt, 1, Byc, tempYC, nxc, nyc, nzc);
-    addscale(-c * dt, 1, Bzc, tempZC, nxc, nyc, nzc);
-    
-    // if (col->getAddExternalCurlE()) 
-    // {
-    //     addscale(-c * dt, 1, Bxc, tempXC2, nxc, nyc, nzc);
-    //     addscale(-c * dt, 1, Byc, tempYC2, nxc, nyc, nzc);
-    //     addscale(-c * dt, 1, Bzc, tempZC2, nxc, nyc, nzc);
-    // }
-
-    //? Communicate ghost cells -- centres for magnetic field
-    communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
-    communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
-    communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
-
-    // TODO: Implement this later
-    //? Boundary conditions for magnetic field
-    // fixBC_B(vct, col);
-}
-
 /*! initialize EM field with transverse electric waves 1D and rotate anticlockwise (theta degrees) */
 void EMfields3D::initEM_rotate(double B, double theta)
 {
@@ -3629,240 +3796,7 @@ void EMfields3D::PoissonImage(double *image, double *vector)
   phys2solver(image, im, nxc, nyc, nzc);
 }
 
-/*! interpolate charge density and pressure density from node to center */
-void EMfields3D::interpDensitiesN2C()
-{
-    // do we need communication or not really?
-    get_grid().interpN2C(rhoc, rhon);
-}
-
-/*! communicate ghost for grid -> Particles interpolation */
-void EMfields3D::communicateGhostP2G(int ns)
-{
-    //* interpolate adding common nodes among processors
-    timeTasks_set_communicating();
-
-    const VirtualTopology3D *vct = &get_vct();
-
-    double ***moment0 = convert_to_arr3(rhons[ns]);
-    double ***moment1 = convert_to_arr3(Jxs  [ns]);
-    double ***moment2 = convert_to_arr3(Jys  [ns]);
-    double ***moment3 = convert_to_arr3(Jzs  [ns]);
-    double ***moment4 = convert_to_arr3(pXXsn[ns]);
-    double ***moment5 = convert_to_arr3(pXYsn[ns]);
-    double ***moment6 = convert_to_arr3(pXZsn[ns]);
-    double ***moment7 = convert_to_arr3(pYYsn[ns]);
-    double ***moment8 = convert_to_arr3(pYZsn[ns]);
-    double ***moment9 = convert_to_arr3(pZZsn[ns]);
-    // add the values for the shared nodes
-
-    //* NonBlocking Halo Exchange for Interpolation
-    communicateInterp(nxn, nyn, nzn, moment0, vct, this);
-    communicateInterp(nxn, nyn, nzn, moment1, vct, this);
-    communicateInterp(nxn, nyn, nzn, moment2, vct, this);
-    communicateInterp(nxn, nyn, nzn, moment3, vct, this);
-    communicateInterp(nxn, nyn, nzn, moment4, vct, this);
-    communicateInterp(nxn, nyn, nzn, moment5, vct, this);
-    communicateInterp(nxn, nyn, nzn, moment6, vct, this);
-    communicateInterp(nxn, nyn, nzn, moment7, vct, this);
-    communicateInterp(nxn, nyn, nzn, moment8, vct, this);
-    communicateInterp(nxn, nyn, nzn, moment9, vct, this);
-    
-    //* Calculate correct densities on the boundaries
-    adjustNonPeriodicDensities(ns);
-
-    //* Populate the ghost nodes - Nonblocking Halo Exchange
-    communicateNode_P(nxn, nyn, nzn, moment0, vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment1, vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment2, vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment3, vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment4, vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment5, vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment6, vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment7, vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment8, vct, this);
-    communicateNode_P(nxn, nyn, nzn, moment9, vct, this);
-}
-
-void EMfields3D::communicateGhostP2G_ecsim(int is)
-{
-    const VirtualTopology3D * vct = &get_vct();
-    int rank = vct->getCartesian_rank();
-
-    //* Convert ECSIM/RelSIM moments from type array4_double to *** for communication
-    // double ***moment_rhons = convert_to_arr3(rhons[is]);
-    // double ***moment_Jxhs  = convert_to_arr3(Jxhs[is]);
-    // double ***moment_Jyhs  = convert_to_arr3(Jyhs[is]);
-    // double ***moment_Jzhs  = convert_to_arr3(Jzhs[is]);
-
-    // cout << "Jzhs (initial)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Jzhs[is][ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-    // interpolate adding common nodes among processors
-    communicateInterp(nxn, nyn, nzn, Jxh, vct, this);
-    communicateInterp(nxn, nyn, nzn, Jyh, vct, this);
-    communicateInterp(nxn, nyn, nzn, Jzh, vct, this);
-
-    //* NonBlocking Halo Exchange for Interpolation
-    // communicateInterp(nxn, nyn, nzn, moment_rhons, vct, this);
-    // communicateInterp(nxn, nyn, nzn, moment_Jxhs,  vct, this);
-    // communicateInterp(nxn, nyn, nzn, moment_Jyhs,  vct, this);
-    // communicateInterp(nxn, nyn, nzn, moment_Jzhs,  vct, this);
-
-    communicateInterp_old(nxn, nyn, nzn, is, Jxhs,  0, 0, 0, 0, 0, 0, vct, this);
-    communicateInterp_old(nxn, nyn, nzn, is, Jyhs,  0, 0, 0, 0, 0, 0, vct, this);
-    communicateInterp_old(nxn, nyn, nzn, is, Jzhs,  0, 0, 0, 0, 0, 0, vct, this);
-    communicateInterp_old(nxn, nyn, nzn, is, rhons, 0, 0, 0, 0, 0, 0, vct, this);
-
-    //! NOTE: boundary data is different in this code compared to the ECSIM code (on BitBucket)
-    // cout << "Jzhs (communicateInterp)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Jzhs[is][ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-    //* Populate the ghost nodes - Nonblocking Halo Exchange
-    communicateNode_P(nxn, nyn, nzn, Jxh, vct, this);
-    communicateNode_P(nxn, nyn, nzn, Jyh, vct, this);
-    communicateNode_P(nxn, nyn, nzn, Jzh, vct, this);
-
-    // communicateNode_P(nxn, nyn, nzn, moment_Jxhs,  vct, this);
-    // communicateNode_P(nxn, nyn, nzn, moment_Jyhs,  vct, this);
-    // communicateNode_P(nxn, nyn, nzn, moment_Jzhs,  vct, this);
-    // communicateNode_P(nxn, nyn, nzn, moment_rhons, vct, this);
-
-    communicateNode_P_old(nxn, nyn, nzn, is, Jxhs,  vct, this);
-    communicateNode_P_old(nxn, nyn, nzn, is, Jyhs,  vct, this);
-    communicateNode_P_old(nxn, nyn, nzn, is, Jzhs,  vct, this);
-    communicateNode_P_old(nxn, nyn, nzn, is, rhons, vct, this);
-
-    // cout << "Jyhs (communicateNode_P)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Jyhs[is][ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-    // cout << "Jzhs (communicateNode_P)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Jzhs[is][ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-    // cout << "Jxh (communicateNode_P)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Jxh[ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-}
-
-void EMfields3D::communicateGhostP2G_mass_matrix()
-{
-    const VirtualTopology3D * vct = &get_vct();
-    int rank = vct->getCartesian_rank();
-
-    for (int m = 0; m < NE_MASS; m++)
-    {
-        //! This gives wrong results
-        // double ***moment_Mxx = convert_to_arr3(Mxx[m]);
-        // double ***moment_Mxy = convert_to_arr3(Mxy[m]);
-        // double ***moment_Mxz = convert_to_arr3(Mxz[m]);
-        // double ***moment_Myx = convert_to_arr3(Myx[m]);
-        // double ***moment_Myy = convert_to_arr3(Myy[m]);
-        // double ***moment_Myz = convert_to_arr3(Myz[m]);
-        // double ***moment_Mzx = convert_to_arr3(Mzx[m]);
-        // double ***moment_Mzy = convert_to_arr3(Mzy[m]);
-        // double ***moment_Mzz = convert_to_arr3(Mzz[m]);
-
-        // communicateInterp(nxn, nyn, nzn, moment_Mxx, vct, this);
-        // communicateInterp(nxn, nyn, nzn, moment_Mxy, vct, this);
-        // communicateInterp(nxn, nyn, nzn, moment_Mxz, vct, this);
-        // communicateInterp(nxn, nyn, nzn, moment_Myx, vct, this);
-        // communicateInterp(nxn, nyn, nzn, moment_Myy, vct, this);
-        // communicateInterp(nxn, nyn, nzn, moment_Myz, vct, this);
-        // communicateInterp(nxn, nyn, nzn, moment_Mzx, vct, this);
-        // communicateInterp(nxn, nyn, nzn, moment_Mzy, vct, this);
-        // communicateInterp(nxn, nyn, nzn, moment_Mzz, vct, this);
-
-        // communicateNode_P(nxn, nyn, nzn, moment_Mxx, vct, this);
-        // communicateNode_P(nxn, nyn, nzn, moment_Mxy, vct, this);
-        // communicateNode_P(nxn, nyn, nzn, moment_Mxz, vct, this);
-        // communicateNode_P(nxn, nyn, nzn, moment_Myx, vct, this);
-        // communicateNode_P(nxn, nyn, nzn, moment_Myy, vct, this);
-        // communicateNode_P(nxn, nyn, nzn, moment_Myz, vct, this);
-        // communicateNode_P(nxn, nyn, nzn, moment_Mzx, vct, this);
-        // communicateNode_P(nxn, nyn, nzn, moment_Mzy, vct, this);
-        // communicateNode_P(nxn, nyn, nzn, moment_Mzz, vct, this);
-
-        communicateInterp_old(nxn, nyn, nzn, m, Mxx, 0, 0, 0, 0, 0, 0, vct, this);
-        communicateInterp_old(nxn, nyn, nzn, m, Mxy, 0, 0, 0, 0, 0, 0, vct, this);
-        communicateInterp_old(nxn, nyn, nzn, m, Mxz, 0, 0, 0, 0, 0, 0, vct, this);
-        communicateInterp_old(nxn, nyn, nzn, m, Myx, 0, 0, 0, 0, 0, 0, vct, this);
-        communicateInterp_old(nxn, nyn, nzn, m, Myy, 0, 0, 0, 0, 0, 0, vct, this);
-        communicateInterp_old(nxn, nyn, nzn, m, Myz, 0, 0, 0, 0, 0, 0, vct, this);
-        communicateInterp_old(nxn, nyn, nzn, m, Mzx, 0, 0, 0, 0, 0, 0, vct, this);
-        communicateInterp_old(nxn, nyn, nzn, m, Mzy, 0, 0, 0, 0, 0, 0, vct, this);
-        communicateInterp_old(nxn, nyn, nzn, m, Mzz, 0, 0, 0, 0, 0, 0, vct, this);
-
-        communicateNode_P_old(nxn, nyn, nzn, m, Mxx, vct, this);
-        communicateNode_P_old(nxn, nyn, nzn, m, Mxy, vct, this);
-        communicateNode_P_old(nxn, nyn, nzn, m, Mxz, vct, this);
-        communicateNode_P_old(nxn, nyn, nzn, m, Myx, vct, this);
-        communicateNode_P_old(nxn, nyn, nzn, m, Myy, vct, this);
-        communicateNode_P_old(nxn, nyn, nzn, m, Myz, vct, this);
-        communicateNode_P_old(nxn, nyn, nzn, m, Mzx, vct, this);
-        communicateNode_P_old(nxn, nyn, nzn, m, Mzy, vct, this);
-        communicateNode_P_old(nxn, nyn, nzn, m, Mzz, vct, this);
-
-    }
-}
+//! ===================================== Helper Functions (Fields) ===================================== !//
 
 //? Compute divergence of electric field
 void EMfields3D::divergenceOfE(double ma, int is) 
@@ -3909,7 +3843,7 @@ void EMfields3D::timeAveragedDivE(double ma)
     addscale(ma, divE_average, divE, nxc, nyc, nzc);
 }
 
-//* =========================================================================================================== *//
+//! ===================================== Helper Functions (Moments) ===================================== !//
 
 //? Set all elements of mass matrix to 0
 void EMfields3D::setZeroMassMatrix()
@@ -4026,14 +3960,14 @@ void EMfields3D::sumOverSpecies()
 }
 
 //* Sum mass and charge density of different species (on nodes) *//
-void EMfields3D::sumOverSpeciesRho()
-{
-    for (int is = 0; is < ns; is++)
-        for (int i = 0; i < nxn; i++)
-            for (int j = 0; j < nyn; j++)
-                for (int k = 0; k < nzn; k++)
-                    rhon[i][j][k] += rhons[is][i][j][k];
-}
+// void EMfields3D::sumOverSpeciesRho()
+// {
+//     for (int is = 0; is < ns; is++)
+//         for (int i = 0; i < nxn; i++)
+//             for (int j = 0; j < nyn; j++)
+//                 for (int k = 0; k < nzn; k++)
+//                     rhon[i][j][k] += rhons[is][i][j][k];
+// }
 
 //* Sum current density for different species //
 void EMfields3D::sumOverSpeciesJ() 
@@ -4087,9 +4021,8 @@ void EMfields3D::setZeroCurrent()
     communicateNode_P(nxn, nyn, nzn, Jz_ext, vct, this);
 }
 
-//* =========================================================================================================== *//
+//! ===================================== Initial Field Distributions ===================================== !//
 
-//! Initialize Magnetic and Electric Field with initial configuration !//
 void EMfields3D::init()
 {
     const Collective *col = &get_col();

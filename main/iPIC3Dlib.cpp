@@ -377,7 +377,7 @@ void c_Solver::CalculateMoments()
 
     EMf->communicateGhostP2G_mass_matrix();
 
-    //? Sum all over the species (mass and charge density)
+    //? Sum all over the species (charge and current density)
     EMf->sumOverSpecies();
 
     //?  Communicate average densities
