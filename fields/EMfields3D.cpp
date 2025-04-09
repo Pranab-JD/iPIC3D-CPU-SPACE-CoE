@@ -2481,6 +2481,7 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
 	// communicateNodeBC(nxn, nyn, nzn, tempY, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
 	// communicateNodeBC(nxn, nyn, nzn, tempZ, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
 
+    //! Using new communication routines results in energy growth
     communicateNodeBC_old(nxn, nyn, nzn, tempX, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
 	communicateNodeBC_old(nxn, nyn, nzn, tempY, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
 	communicateNodeBC_old(nxn, nyn, nzn, tempZ, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
@@ -2934,7 +2935,8 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
     // TODO: is directional smoothing preferred because if has fewer communications? - Ask Fabio
     if (smooth != 1.0) 
     {
-        communicateNodeBC(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
+        //! Using new communication routines results in energy growth
+        communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
 
         for (int icount = 1; icount < num_smoothings + 1; icount++) 
         {
@@ -2957,7 +2959,8 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
                     for (int k = 1; k < nz - 1; k++)
                         data.fetch(i, j, k) = smooth_temp.get(i, j, k);
             
-            communicateNodeBC(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
+            //! Using new communication routines results in energy growth
+            communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
         }
     }
 }
@@ -4006,66 +4009,6 @@ void EMfields3D::sumOverSpecies()
     const Grid *grid = &get_grid();
     const VirtualTopology3D * vct = &get_vct();
 
-    // cout << "Jxhs (before)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Jxhs[0][ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-    // cout << "Jyhs (before)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Jyhs[0][ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-    // cout << "Jzhs (before)" << endl;
-	// for (int ii = 0; ii < nxn; ii++)
-	// {
-	// 	for (int jj = 0; jj < nyn; jj++)
-	// 	{
-	// 		for (int kk = 0; kk < nzn; kk++)
-	// 		{
-	// 			cout << setprecision(16) << Jzhs[0][ii][jj][kk] << "    ";
-	// 		}
-	// 		cout << endl;
-	// 	}
-	// 	cout << endl;
-	// }
-	// cout << endl << endl;
-
-    // cout << "rhons (before)" << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-    //             cout << setprecision(16) << rhons[0][ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
     for (int is = 0; is < ns; is++)
         for (int i = 0; i < nxn; i++)
             for (int j = 0; j < nyn; j++)
@@ -4076,76 +4019,10 @@ void EMfields3D::sumOverSpecies()
                     Jyh[i][j][k]   += Jyhs[is][i][j][k];
                     Jzh[i][j][k]   += Jzhs[is][i][j][k];
                 }
-    
-    // cout << "Jxh (after)" << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-    //             cout << setprecision(16) << Jxh[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    // cout << "Jyh (after)" << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-    //             cout << setprecision(16) << Jyh[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    // cout << "Jzh (after)" << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-    //             cout << setprecision(16) << Jzh[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
-
-    // cout << "rhon (after)" << endl;
-    // for (int ii = 0; ii < nxn; ii++)
-    // {
-    //     for (int jj = 0; jj < nyn; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzn; kk++)
-    //         {
-    //             cout << setprecision(16) << rhon[ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl << endl;
 
     communicateNode_P(nxn, nyn, nzn, rhon, vct, this);
     grid->interpN2C(rhoc, rhon);
     communicateCenterBC(nxc, nyc, nzc, rhoc, 2, 2, 2, 2, 2, 2, vct, this);
-
-    // cout << "Norm Rho_n: " << norm2(rhon, nxn, nyn) << "  " << norm2(rhon, nyn, nzn) << "  " << norm2(rhon, nzn, nxn) << endl;
-    // cout << "Norm Rho_c: " << norm2(rhoc, nxc, nyc) << "  " << norm2(rhoc, nyc, nzc) << "  " << norm2(rhoc, nzc, nxc) << endl;
-    // cout << "Norm Jxh: " << norm2(Jxh, nxn, nyn) << "  " << norm2(Jxh, nyn, nzn) << "  " << norm2(Jxh, nzn, nxn) << endl;
-    // cout << "Norm Jyh: " << norm2(Jyh, nxn, nyn) << "  " << norm2(Jyh, nyn, nzn) << "  " << norm2(Jyh, nzn, nxn) << endl;
-    // cout << "Norm Jzh: " << norm2(Jzh, nxn, nyn) << "  " << norm2(Jzh, nyn, nzn) << "  " << norm2(Jzh, nzn, nxn) << endl << endl;
 }
 
 //* Sum mass and charge density of different species (on nodes) *//
@@ -4177,25 +4054,8 @@ void EMfields3D::interpolateCenterSpecies(int is)
     const Grid *grid = &get_grid();
     const VirtualTopology3D * vct = &get_vct();
 
-    //! nan value in rhocs_avg!!
-
     grid->interpN2C(rhocs_avg, is, rhons);
     communicateCenterBC(nxc, nyc, nzc, rhocs_avg[is], 2, 2, 2, 2, 2, 2, vct, this);
-
-    // cout << "rhocs_avg: " << endl;
-    // for (int ii = 0; ii < nxc; ii++)
-    // {
-    //     for (int jj = 0; jj < nyc; jj++)
-    //     {
-    //         for (int kk = 0; kk < nzc; kk++)
-    //         {
-    //             cout << setprecision(16) << rhocs_avg[is][ii][jj][kk] << "    ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
-    // cout << endl;
 }
 
 void EMfields3D::setZeroCurrent()
