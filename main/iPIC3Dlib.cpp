@@ -394,7 +394,7 @@ void c_Solver::CalculateMoments()
     }
 }
 
-//! Compute electromagnetic field (E and B needs to computed inside 1 function for ECSim)
+//! Compute electromagnetic field
 void c_Solver::ComputeEMFields(int cycle)
 {
     //TODO: Only needed for the cases "Shock1D_DoublePiston" and "LangevinAntenna"; TBD later

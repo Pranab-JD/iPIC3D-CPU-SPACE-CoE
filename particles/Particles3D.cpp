@@ -72,7 +72,11 @@ static bool cap_velocity(){return false;}
  *
  */
 
-/** particles are uniformly distributed with zero velocity   */
+//! ============================================================================= !//
+
+//! Initial particle distributions !//
+
+//? Particles are uniformly distributed with zero velocity
 void Particles3D::uniform_background(Field * EMf)
 {
     for (int i = 1; i < grid->getNXC() - 1; i++)
@@ -85,59 +89,48 @@ void Particles3D::uniform_background(Field * EMf)
                             double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
                             double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
                             double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-                            double u = 0.1;
+                            double u = 0.0;
                             double v = 0.0;
                             double w = 0.0;
                             double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / grid->getInvVOL());
                             _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,0));
                         }
+
+    fixPosition();
     
 }
 
-/** Initialize particles with a constant velocity in dim direction. Depending on the value of dim:
-  <ul>
-  <li> dim = 0 --> constant velocity on X direction </li>
-  <li> dim = 1 --> constant velocity on Y direction </li>
-  <li> dim = 2 --> constant velocity on Z direction </li>
-  </ul>
-
-*/
+//? Initialize particles with a constant velocity along "dim" direction
 void Particles3D::constantVelocity(double vel, int dim, Field * EMf) 
 {
-  switch (dim) {
-    case 0:
-      for (int i = 0; i < getNOP(); i++)
-      {
-        setU(i,vel);
-        setV(i,0.);
-        setW(i,0.);
-      }
-      break;
-    case 1:
-      for (int i = 0; i < getNOP(); i++)
-      {
-        setU(i,0.);
-        setV(i,vel);
-        setW(i,0.);
-      }
-      break;
-    case 2:
-      for (int i = 0; i < getNOP(); i++)
-      {
-        setU(i,0.);
-        setV(i,0.);
-        setW(i,vel);
-      }
-      break;
+    switch (dim) 
+    {
+        case 0:
+        for (int i = 0; i < getNOP(); i++)
+        {
+            setU(i,vel);
+            setV(i,0.);
+            setW(i,0.);
+        }
+        break;
+        case 1:
+        for (int i = 0; i < getNOP(); i++)
+        {
+            setU(i,0.);
+            setV(i,vel);
+            setW(i,0.);
+        }
+        break;
+        case 2:
+        for (int i = 0; i < getNOP(); i++)
+        {
+            setU(i,0.);
+            setV(i,0.);
+            setW(i,vel);
+        }
+        break;
 
-  }
-
-}
-
-/** alternative routine maxellian random velocity and uniform spatial distribution */
-void Particles3D::alt_maxwellian(Field * EMf) 
-{
-    eprintf("unimplemented");
+    }
 }
 
 #ifdef BATSRUS
@@ -193,7 +186,7 @@ void Particles3D::MaxwellianFromFluidCell(Collective *col, int is, int i, int j,
 }
 #endif
 
-/** Maxellian random velocity and uniform spatial distribution */
+//? Initialise unifrom distribution of partiles with a Maxellian velocity distribution
 void Particles3D::maxwellian(Field * EMf)
 {
     /* initialize random generator with different seed on different processor */
@@ -287,7 +280,6 @@ void Particles3D::maxwellianNullPoints(Field * EMf)
 	}
 }
 
-
 /** Maxellian random velocity and uniform spatial distribution - invert w0 for the upper current sheet */
 void Particles3D::maxwellianDoubleHarris(Field * EMf)
 {
@@ -325,10 +317,9 @@ void Particles3D::maxwellianDoubleHarris(Field * EMf)
             }
 }
 
-
 /** pitch_angle_energy initialization (Assume B on z only) for test particles */
-void Particles3D::pitch_angle_energy(Field * EMf) {
-
+void Particles3D::pitch_angle_energy(Field * EMf) 
+{
     /* initialize random generator with different seed on different processor */
     srand(vct->getCartesian_rank() + 3 + ns);
     assert_eq(_pcls.size(),0);
@@ -373,7 +364,6 @@ void Particles3D::pitch_angle_energy(Field * EMf) {
         cout << "------------------------------------------" << endl;
     }
 }
-
 
 /** Force Free initialization (JxB=0) for particles */
 void Particles3D::force_free(Field * EMf)
@@ -436,12 +426,6 @@ void Particles3D::AddPerturbationJ(double deltaBoB, double kx, double ky, double
   }
 }
 
-/** explicit mover */
-void Particles3D::mover_explicit(Field * EMf) 
-{
-    eprintf("unimplemented");
-}
-//
 // Create a vectorized version of this mover as follows.
 //
 // Let N be the number of doubles that fit in the vector unit.
@@ -608,14 +592,12 @@ void Particles3D::ECSIM_position(Field *EMf)
         if (vct->getCartesian_rank() == 0) 
             cout << "*** ECSIM MOVER (positions) for species " << ns << " ***" << endl;
 
-        double correct_x = 1.0;
-        double correct_y = 1.0;
-        double correct_z = 1.0;
+        double correct_x = 1.0, correct_y = 1.0, correct_z = 1.0;
+        const double inv_dx = 1.0/dx, inv_dy = 1.0/dy, inv_dz = 1.0/dz;
+        double dxp = 0.0, dyp = 0.0, dzp = 0.0;
 
         //TODO: Needed for charge conservation; TBD after the first run
-        // double ***R = asgArr3(double, grid->getNXC(), grid->getNYC(), grid->getNZC(), EMf->getResDiv(ns));
-
-        double dxp = 0.0, dyp = 0.0, dzp = 0.0;
+        // double ***R = asgArr3(double, grid->getNXC(), grid->getNYC(), grid->getNZC(), EMf->getResDiv(ns));        
         // double eta0, eta1, zeta0, zeta1, xi0, xi1; 
         // double invSURF;
 
@@ -641,13 +623,38 @@ void Particles3D::ECSIM_position(Field *EMf)
             double yavg = yorig;
             double zavg = zorig;
 
+            //* --------------------------------------- *//
+
             //? Lorentz factor at time step "n"
             double lorentz_factor = 1.0;
-            // if (Relativistic) lorentz_factor = sqrt(1.+(u[rest]*u[rest]+v[rest]*v[rest]+w[rest]*w[rest])/c/c);
+            // if (Relativistic) lorentz_factor = sqrt(1.0 + (uorig*uorig + vorig*vorig + worig*worig)/(c*c));
 
             // TODO: Must be implemented (not needed for the first run) 
             //? Energy conservation inherently violates charge conservation --> charge has to be conserved separately
             //? gn = lorentz_factor
+
+            //* --------------------------------------- *//
+
+            //? Charge Conservation
+
+            // const double ixd = floor((xp - dx/2.0 - xavg) * inv_dx);
+			// const double iyd = floor((yp - dy/2.0 - yavg) * inv_dy);
+			// const double izd = floor((zp - dz/2.0 - zavg) * inv_dz);
+			// int ix = 2 + int (ixd);
+			// int iy = 2 + int (iyd);
+			// int iz = 2 + int (izd);
+		
+			// double xi[2], eta[2], zeta[2];
+		
+			// //* Difference along x
+			// eta [0] = yp - grid->getYC(ix  ,iy-1,iz  );
+			// zeta[0] = zp - grid->getZC(ix  ,iy  ,iz-1);
+			// eta [1] = grid->getYC(ix,iy,iz) - yp;
+			// zeta[1] = grid->getZC(ix,iy,iz) - zp;
+			// invSURF = 1.0/(dy*dz);
+
+
+            //* --------------------------------------- *//
 
             //? Update the positions with the new velocity
             pcl->set_x(xavg + uorig/lorentz_factor * dt * correct_x + dxp);
@@ -662,7 +669,7 @@ void Particles3D::ECSIM_position(Field *EMf)
     }
 }
 
-//* Set particles' poitions to 0 along unused dimensions
+//? Set particles' poitions to 0 along unused dimensions
 void Particles3D::fixPosition()
 {
     if (col->getDim() == 1) 
@@ -686,6 +693,7 @@ void Particles3D::fixPosition()
     }
 }
 
+//? Compute ECSIM moments (rho, J_hat, and mass matrix)
 void Particles3D::computeMoments(Field *EMf) 
 {
     // convertParticlesToSoA();
@@ -869,7 +877,7 @@ void Particles3D::computeMoments(Field *EMf)
 
 //! ============================================================================= !//
 
-//! IMM - mover with a Predictor-Corrector scheme !//
+//! IMM - Implicit moment method - mover with a Predictor-Corrector scheme !//
 void Particles3D::mover_PC(Field * EMf) 
 {
     #pragma omp parallel
@@ -1688,6 +1696,10 @@ int Particles3D::mover_relativistic(Field * EMf)
   eprintf("Mover_relativistic not implemented");
   return (0);
 }
+
+//! End of IMM
+
+//! ============================================================================= !//
 
 inline void Particles3D::populate_cell_with_particles(int i, int j, int k, double q_per_particle,
                                                     double dx_per_pcl, double dy_per_pcl, double dz_per_pcl)
