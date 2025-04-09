@@ -423,6 +423,12 @@ void c_Solver::CalculateMoments()
 //! Compute electromagnetic field
 void c_Solver::ComputeEMFields(int cycle)
 {
+    LeXInt::timer time_e, time_b, time_div, time_total;
+
+    #ifdef __PROFILING__
+    time_total.start();
+    #endif
+
     //TODO: Only needed for the cases "Shock1D_DoublePiston" and "LangevinAntenna"; TBD later
 	//* Update external fields to n+1/2
 	// EMf->updateExternalFields(vct, grid, col, cycle); 
@@ -431,16 +437,56 @@ void c_Solver::ComputeEMFields(int cycle)
 	//* Update particle external forces to n+1/2
 	// EMf->updateParticleExternalForces(vct, grid, col, cycle); 
 
-    //? Compute E and B fields
+    #ifdef __PROFILING__
+    time_e.start();
+    #endif
+    
+    //? Compute E
     EMf->calculateE();
+    
+    #ifdef __PROFILING__
+    time_e.stop();
+    #endif
+    
+    #ifdef __PROFILING__
+    time_b.start();
+    #endif
+    
+    //? Compute B
     EMf->calculateB();
 	
+    #ifdef __PROFILING__
+    time_b.stop();
+    #endif
+
+    #ifdef __PROFILING__
+    time_div.start();
+    #endif
+
+    //? Compute divergence of B
     EMf->divergenceOfB();
+
+    #ifdef __PROFILING__
+    time_div.stop();
+    #endif
 
     //TODO: TBD later
     // double dt = col->getDt();
 	// if (col->getTimeFile() != "none")
 	// 	EMf->updateReferenceStateFromFile(grid, col, vct, cycle * dt);
+
+    #ifdef __PROFILING__
+    time_total.stop();
+
+    if(MPIdata::get_rank() == 0)
+    {
+        cout << endl << "Profiling of FIELD SOLVER" << endl; 
+        cout << "Compute electric field     : " << time_e.total()     << " s, fraction of time taken in FieldSolver(): " << time_e.total()/time_total.total() << endl;
+        cout << "Compute magnetic field     : " << time_b.total()     << " s, fraction of time taken in FieldSolver(): " << time_b.total()/time_total.total() << endl;
+        cout << "Compute divergence of B    : " << time_div.total()   << " s, fraction of time taken in FieldSolver(): " << time_div.total()/time_total.total() << endl;
+        cout << "FieldSolver()              : " << time_total.total() << " s" << endl << endl;
+    }
+    #endif
 }
 
 //! Compute positions and velocities of particles
