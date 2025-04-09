@@ -102,8 +102,8 @@ void Collective::ReadInput(string inputfile)
         th      = config.read<double>    ("th", 1.0);
 
         Smooth          = config.read<double>    ("Smooth",1.0);            //1.0 means no smoothing
-        SmoothNiter     = config.read<int>       ("SmoothNiter",6);
-        SmoothCycle     = config.read<int>       ("SmoothCycle", 1);                   //TODO: SmoothNiter is to be replaced with SmoothCycle - PJD
+        // SmoothNiter     = config.read<int>       ("SmoothNiter",6);
+        SmoothCycle     = config.read<int>       ("SmoothCycle", 1);       //TODO: SmoothNiter is to be replaced with SmoothCycle - PJD
         SmoothType      = config.read<string>    ("SmoothType", "default");
         config.readInto(num_smoothings, "num_smoothings",0);
 
@@ -150,16 +150,7 @@ void Collective::ReadInput(string inputfile)
         Case                        = config.read<string>   ("Case");
         wmethod                     = config.read<string>   ("WriteMethod");
         SimName                     = config.read<string>   ("SimulationName");
-        
-        //* Poisson correction
-        // PoissonCorrection           = config.read<string>   ("PoissonCorrection");
-        // PoissonCorrectionCycle      = config.read<int>      ("PoissonCorrectionCycle",10);
-        
-        // //* Parameters for charge conservation (changing is not recommended)
-        // PoissonMArho                = config.read<double>   ("PoissonMArho", 0.01);
-        // PoissonMAdiv                = config.read<double>   ("PoissonMAdiv", 1.0);
-        // PoissonMAres                = config.read<double>   ("PoissonMAres", 0.01);
-        
+                
         RemoveDivE                  = config.read<string>   ("RemoveDivE","no");
         AddExternalCurlB            = config.read<bool>     ("AddExternalCurlB",false);
         AddExternalCurlE            = config.read<bool>     ("AddExternalCurlE",false);
@@ -849,8 +840,8 @@ int Collective::ReadRestart(string inputfile) {
     dataset_id = H5Dopen2(file_id, "/collective/Smooth", H5P_DEFAULT); // HDF 1.8.8
     status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Smooth);
     status = H5Dclose(dataset_id);
-    dataset_id = H5Dopen2(file_id, "/collective/SmoothNiter", H5P_DEFAULT); // HDF 1.8.8
-    status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &SmoothNiter);
+    dataset_id = H5Dopen2(file_id, "/collective/SmoothCycle", H5P_DEFAULT); // HDF 1.8.8
+    status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &SmoothCycle);
     status = H5Dclose(dataset_id);
   }
 
@@ -1346,7 +1337,7 @@ void Collective::save() {
   my_file << "B0z                      = " << B0z << endl;
   my_file << "---------------------------" << endl;
   my_file << "Smooth                   = " << Smooth << endl;
-  my_file << "SmoothNiter              = " << SmoothNiter<< endl;
+  my_file << "SmoothCycle              = " << SmoothCycle<< endl;
   my_file << "GMRES error tolerance    = " << GMREStol << endl;
   my_file << "CG error tolerance       = " << CGtol << endl;
   my_file << "Mover error tolerance    = " << NiterMover << endl;
@@ -1358,3 +1349,4 @@ void Collective::save() {
 
 }
 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 

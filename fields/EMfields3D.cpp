@@ -283,7 +283,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     B0z = col->getB0z();
     delta = col->getDelta();
     Smooth = col->getSmooth();
-    SmoothNiter = col->getSmoothNiter();
+    // SmoothNiter = col->getSmoothNiter();
     smooth_cycle = col->getSmoothCycle();
     num_smoothings = col->getNumSmoothings();
     
@@ -2779,71 +2779,71 @@ void EMfields3D::smooth(arr3_double vector, int type)
 
 /* Interpolation smoothing: Smoothing (vector must already have ghost cells)
  * TO MAKE SMOOTH value as to be different from 1.0 type = 0 --> center based vector ; type = 1 --> node based vector ; */
-void EMfields3D::smoothE()
-{
-  if(Smooth==1.0) return;
-  const Collective *col = &get_col();
-  const VirtualTopology3D *vct = &get_vct();
+// void EMfields3D::smoothE()
+// {
+//   if(Smooth==1.0) return;
+//   const Collective *col = &get_col();
+//   const VirtualTopology3D *vct = &get_vct();
 
-  double alpha   = Smooth;
-  double beta3D  = (1-alpha)/6.0;
-  double beta2D  = (1-alpha)/4.0;
+//   double alpha   = Smooth;
+//   double beta3D  = (1-alpha)/6.0;
+//   double beta2D  = (1-alpha)/4.0;
 
-  double ***temp = newArr3(double, nxn, nyn, nzn);
+//   double ***temp = newArr3(double, nxn, nyn, nzn);
 
-  for (int icount = 1; icount < SmoothNiter + 1; icount++) {
-      communicateNodeBoxStencilBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
-      communicateNodeBoxStencilBC(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
-      communicateNodeBoxStencilBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
+//   for (int icount = 1; icount < SmoothNiter + 1; icount++) {
+//       communicateNodeBoxStencilBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
+//       communicateNodeBoxStencilBC(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
+//       communicateNodeBoxStencilBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
 
-      // Exth
-      for (int i = 1; i < nxn - 1; i++)
-        for (int j = 1; j < nyn - 1; j++)
-          for (int k = 1; k < nzn - 1; k++)
-              temp[i][j][k] = alpha * Ex[i][j][k] + beta3D * (Ex[i - 1][j][k] + Ex[i + 1][j][k] + Ex[i][j - 1][k] + Ex[i][j + 1][k] + Ex[i][j][k - 1] + Ex[i][j][k + 1]);
-      	    //temp[i][j][k] = alpha * Ex[i][j][k] + beta2D * (Ex[i - 1][j][k] + Ex[i + 1][j][k] + Ex[i][j][k - 1] + Ex[i][j][k + 1]);//2D smooth in XZ dimension
-            //temp[i][j][k] = alpha * Ex[i][j][k] + beta2D * (Ex[i - 1][j][k] + Ex[i + 1][j][k] + Ex[i][j-1][k] + Ex[i][j+1][k]);//2D smooth in XY dimension
+//       // Exth
+//       for (int i = 1; i < nxn - 1; i++)
+//         for (int j = 1; j < nyn - 1; j++)
+//           for (int k = 1; k < nzn - 1; k++)
+//               temp[i][j][k] = alpha * Ex[i][j][k] + beta3D * (Ex[i - 1][j][k] + Ex[i + 1][j][k] + Ex[i][j - 1][k] + Ex[i][j + 1][k] + Ex[i][j][k - 1] + Ex[i][j][k + 1]);
+//       	    //temp[i][j][k] = alpha * Ex[i][j][k] + beta2D * (Ex[i - 1][j][k] + Ex[i + 1][j][k] + Ex[i][j][k - 1] + Ex[i][j][k + 1]);//2D smooth in XZ dimension
+//             //temp[i][j][k] = alpha * Ex[i][j][k] + beta2D * (Ex[i - 1][j][k] + Ex[i + 1][j][k] + Ex[i][j-1][k] + Ex[i][j+1][k]);//2D smooth in XY dimension
 
-      for (int i = 1; i < nxn - 1; i++)
-        for (int j = 1; j < nyn - 1; j++)
-          for (int k = 1; k < nzn - 1; k++)
-            Ex[i][j][k] = temp[i][j][k];
+//       for (int i = 1; i < nxn - 1; i++)
+//         for (int j = 1; j < nyn - 1; j++)
+//           for (int k = 1; k < nzn - 1; k++)
+//             Ex[i][j][k] = temp[i][j][k];
 
-      // Eyth
-      for (int i = 1; i < nxn - 1; i++)
-        for (int j = 1; j < nyn - 1; j++)
-          for (int k = 1; k < nzn - 1; k++)
-	         temp[i][j][k] = alpha * Ey[i][j][k] + beta3D * (Ey[i - 1][j][k] + Ey[i + 1][j][k] + Ey[i][j - 1][k] + Ey[i][j + 1][k] + Ey[i][j][k - 1] + Ey[i][j][k + 1]);
-           //temp[i][j][k] = alpha * Ey[i][j][k] + beta2D * (Ey[i - 1][j][k] + Ey[i + 1][j][k] + Ey[i][j][k - 1] + Ey[i][j][k + 1]);//2D smooth in XZ dimension
-	       //temp[i][j][k] = alpha * Ey[i][j][k] + beta2D * (Ey[i - 1][j][k] + Ey[i + 1][j][k] + Ey[i][j-1][k]   + Ey[i][j+1][k]);//2D smooth in XY dimension
+//       // Eyth
+//       for (int i = 1; i < nxn - 1; i++)
+//         for (int j = 1; j < nyn - 1; j++)
+//           for (int k = 1; k < nzn - 1; k++)
+// 	         temp[i][j][k] = alpha * Ey[i][j][k] + beta3D * (Ey[i - 1][j][k] + Ey[i + 1][j][k] + Ey[i][j - 1][k] + Ey[i][j + 1][k] + Ey[i][j][k - 1] + Ey[i][j][k + 1]);
+//            //temp[i][j][k] = alpha * Ey[i][j][k] + beta2D * (Ey[i - 1][j][k] + Ey[i + 1][j][k] + Ey[i][j][k - 1] + Ey[i][j][k + 1]);//2D smooth in XZ dimension
+// 	       //temp[i][j][k] = alpha * Ey[i][j][k] + beta2D * (Ey[i - 1][j][k] + Ey[i + 1][j][k] + Ey[i][j-1][k]   + Ey[i][j+1][k]);//2D smooth in XY dimension
 
-      for (int i = 1; i < nxn - 1; i++)
-        for (int j = 1; j < nyn - 1; j++)
-          for (int k = 1; k < nzn - 1; k++)
-            Ey[i][j][k] = temp[i][j][k];
+//       for (int i = 1; i < nxn - 1; i++)
+//         for (int j = 1; j < nyn - 1; j++)
+//           for (int k = 1; k < nzn - 1; k++)
+//             Ey[i][j][k] = temp[i][j][k];
 
-      // Ezth
-      for (int i = 1; i < nxn - 1; i++)
-        for (int j = 1; j < nyn - 1; j++)
-          for (int k = 1; k < nzn - 1; k++)
-             temp[i][j][k] = alpha * Ez[i][j][k] + beta3D * (Ez[i - 1][j][k] + Ez[i + 1][j][k] + Ez[i][j - 1][k] + Ez[i][j + 1][k] + Ez[i][j][k - 1] + Ez[i][j][k + 1]);
-           //temp[i][j][k] = alpha * Ez[i][j][k] + beta2D * (Ez[i - 1][j][k] + Ez[i + 1][j][k] + Ez[i][j][k - 1] + Ez[i][j][k + 1]);//2D smooth in XZ dimension
-	       //temp[i][j][k] = alpha * Ez[i][j][k] + beta2D * (Ez[i - 1][j][k] + Ez[i + 1][j][k] + Ez[i][j-1][k]   + Ez[i][j+1][k]);//2D smooth in XY dimension
+//       // Ezth
+//       for (int i = 1; i < nxn - 1; i++)
+//         for (int j = 1; j < nyn - 1; j++)
+//           for (int k = 1; k < nzn - 1; k++)
+//              temp[i][j][k] = alpha * Ez[i][j][k] + beta3D * (Ez[i - 1][j][k] + Ez[i + 1][j][k] + Ez[i][j - 1][k] + Ez[i][j + 1][k] + Ez[i][j][k - 1] + Ez[i][j][k + 1]);
+//            //temp[i][j][k] = alpha * Ez[i][j][k] + beta2D * (Ez[i - 1][j][k] + Ez[i + 1][j][k] + Ez[i][j][k - 1] + Ez[i][j][k + 1]);//2D smooth in XZ dimension
+// 	       //temp[i][j][k] = alpha * Ez[i][j][k] + beta2D * (Ez[i - 1][j][k] + Ez[i + 1][j][k] + Ez[i][j-1][k]   + Ez[i][j+1][k]);//2D smooth in XY dimension
 
-      for (int i = 1; i < nxn - 1; i++)
-        for (int j = 1; j < nyn - 1; j++)
-          for (int k = 1; k < nzn - 1; k++)
-            Ez[i][j][k] = temp[i][j][k];
+//       for (int i = 1; i < nxn - 1; i++)
+//         for (int j = 1; j < nyn - 1; j++)
+//           for (int k = 1; k < nzn - 1; k++)
+//             Ez[i][j][k] = temp[i][j][k];
 
-  }
-  delArr3(temp, nxn, nyn);
-}
+//   }
+//   delArr3(temp, nxn, nyn);
+// }
 
-/* SPECIES: Interpolation smoothing TO MAKE SMOOTH value as to be different from 1.0 type = 0 --> center based vector type = 1 --> node based vector */
-void EMfields3D::smooth(double value, arr4_double vector, int is, int type)
-{
-    eprintf("Smoothing for Species not implemented in 3D");
-}
+// /* SPECIES: Interpolation smoothing TO MAKE SMOOTH value as to be different from 1.0 type = 0 --> center based vector type = 1 --> node based vector */
+// void EMfields3D::smooth(double value, arr4_double vector, int is, int type)
+// {
+//     eprintf("Smoothing for Species not implemented in 3D");
+// }
 
 void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz, int dir, double smooth)
 {
@@ -5212,7 +5212,7 @@ void EMfields3D::initDipole2D()
       cout << "Center dipole - Z                = " << z_center << endl;
       cout << "Solar Wind drift velocity        = " << ue0 << endl;
       cout << "2D Smoothing Factor              = " << Smooth << endl;
-      cout << "Smooth Iteration                 = " << SmoothNiter << endl;
+      cout << "Smooth Iteration                 = " << smooth_cycle << endl;
   }
 
 
