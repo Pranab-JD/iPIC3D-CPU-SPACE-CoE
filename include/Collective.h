@@ -113,7 +113,7 @@ class Collective
     double getImplSusceptTime()const{ return ImplSusceptTime; }
     double getSmooth()const{ return (Smooth); }
     int getImplSusceptMode()const{ return ImplSusceptMode; }
-    int getSmoothNiter()const{ return SmoothNiter; }
+    // int getSmoothNiter()const{ return SmoothNiter; }
     
     int getNcycles()const{ return (ncycles); }
     int getNs()const{ return (ns); }
@@ -246,7 +246,7 @@ class Collective
     
     //* Smoothing parameters
     double Smooth;
-    int SmoothNiter;
+    // int SmoothNiter;
     int num_smoothings;
     int SmoothCycle;
     string SmoothType;

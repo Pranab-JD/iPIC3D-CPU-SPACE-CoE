@@ -102,7 +102,6 @@ void Collective::ReadInput(string inputfile)
         th      = config.read<double>    ("th", 1.0);
 
         Smooth          = config.read<double>    ("Smooth",1.0);            //1.0 means no smoothing
-        // SmoothNiter     = config.read<int>       ("SmoothNiter",6);
         SmoothCycle     = config.read<int>       ("SmoothCycle", 1);       //TODO: SmoothNiter is to be replaced with SmoothCycle - PJD
         SmoothType      = config.read<string>    ("SmoothType", "default");
         config.readInto(num_smoothings, "num_smoothings",0);
@@ -1349,4 +1348,3 @@ void Collective::save() {
 
 }
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
