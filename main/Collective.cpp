@@ -154,8 +154,6 @@ void Collective::ReadInput(string inputfile)
         AddExternalCurlB            = config.read<bool>     ("AddExternalCurlB",false);
         AddExternalCurlE            = config.read<bool>     ("AddExternalCurlE",false);
         EnergyConservingSmoothing   = config.read<bool>     ("EnergyConservingSmoothing",false);
-        CurlCurl                    = config.read<bool>     ("CurlCurl",false);
-        ExactMM                     = config.read<bool>     ("ExactMM",true);
 
         rhoINIT = std::make_unique<double[]>(ns);
         array_double rhoINIT0 = config.read < array_double > ("rhoINIT");
@@ -185,9 +183,7 @@ void Collective::ReadInput(string inputfile)
         if (ns > 5)
         rhoINJECT[5]=rhoINJECT0.f;
 
-        // take the tolerance of the solvers
-        CGtol = config.read < double >("CGtol",1e-3);
-        GMREStol = config.read < double >("GMREStol",1e-3);
+        GMREStol = config.read < double >("GMREStol",1e-8);
         NiterMover = config.read < int >("NiterMover",3);
         // take the injection of the particless
         Vinj = config.read < double >("Vinj",0.0);
@@ -1267,7 +1263,7 @@ void Collective::Print() {
   cout << "Results saved in  : " << SaveDirName << endl;
   cout << "Case type         : " << Case << endl;
   cout << "Simulation name   : " << SimName << endl;
-  cout << "Poisson correction: " << PoissonCorrection << endl;
+//   cout << "Poisson correction: " << PoissonCorrection << endl;
   cout << "---------------------" << endl;
   cout << "Check Simulation Constraints" << endl;
   cout << "---------------------" << endl;
@@ -1338,7 +1334,7 @@ void Collective::save() {
   my_file << "Smooth                   = " << Smooth << endl;
   my_file << "SmoothCycle              = " << SmoothCycle<< endl;
   my_file << "GMRES error tolerance    = " << GMREStol << endl;
-  my_file << "CG error tolerance       = " << CGtol << endl;
+//   my_file << "CG error tolerance       = " << CGtol << endl;
   my_file << "Mover error tolerance    = " << NiterMover << endl;
   my_file << "---------------------------" << endl;
   my_file << "Results saved in: " << SaveDirName << endl;

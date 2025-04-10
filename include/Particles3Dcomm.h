@@ -256,7 +256,7 @@ protected:
     doubleIDgenerator pclIDgenerator;
 
     //* Compute exact mass matrix
-    bool ComputeMM;
+    // bool ComputeMM;
 
     ParticleType::Type particleType;
 

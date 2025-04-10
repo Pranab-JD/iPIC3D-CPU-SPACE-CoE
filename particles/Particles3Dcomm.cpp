@@ -235,7 +235,7 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
 
     // info from VirtualTopology3D
     cVERBOSE = vct->getcVERBOSE();
-    ComputeMM = col->getExactMM();
+    // ComputeMM = col->getExactMM();
 
 
     //? Preallocate space in arrays ?//
@@ -305,7 +305,7 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
     if(false && is_output_thread())
         printf("species %d velocity cap: umax=%g,vmax=%g,wmax=%g\n", ns, umax,vmax,wmax);
 
-    ComputeMM = col->getExactMM();
+    // ComputeMM = col->getExactMM();
 
 }
 

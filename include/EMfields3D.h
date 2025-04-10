@@ -355,8 +355,6 @@ public:
     /*! get bulk kinetic energy */
     double getBulkEnergy(int is);
 
-    bool getPCnonzero();
-
     void setZeroCurrent();
     void setZeroRho();
 
@@ -607,12 +605,7 @@ private:
     /*! RESTART BOOLEAN */
     int restart1;
 
-    double CGtol;                               //* CG tolerance criterium for stopping iterations
     double GMREStol;                            //* GMRES tolerance criterium for stopping iterations
-
-    //? Lambda damping
-    int damping;
-    bool PCnonzero;
 
     double Fext;
     double Fzro;

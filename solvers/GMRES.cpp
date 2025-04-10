@@ -91,8 +91,8 @@ void GMRES(FIELD_IMAGE FunctionImage, double *xkrylov, int xkrylovlen,  const do
 
         if (itr == 0) 
         {
-            if (is_output_thread())
-                cout << "Initial residual = " << initial_error << "; norm b vector (source) = " << normb << endl;
+            // if (is_output_thread())
+                // cout << "Initial residual = " << initial_error << "; norm b vector (source) = " << normb << endl;
 
             rho_tol = initial_error * tol;
 

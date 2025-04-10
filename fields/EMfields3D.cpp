@@ -236,13 +236,6 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     By_tot.setall(0.);
     Bz_tot.setall(0.);
 
-    PoissonCorrection = false;
-    // if (col->getPoissonCorrection()=="yes")
-    // {
-    //     PoissonCorrection = true;
-    //     PoissonCorrectionCycle = col->getPoissonCorrectionCycle();
-    // }
-    CGtol = col->getCGtol();
     GMREStol = col->getGMREStol();
     zeroCurrent = (col->getZeroCurrent() == 1 ? 1 : 0);
     
@@ -264,18 +257,6 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     bcEMfaceYleft   = col->getBcEMfaceYleft();
     bcEMfaceZright  = col->getBcEMfaceZright();
     bcEMfaceZleft   = col->getBcEMfaceZleft();
-
-   //* getLambdaDamping() == "zero"
-   //* Replaces the Maxwell equations with E=0 in the region where Lambda > Lambda_treshold
-   //* SET damping = -1
-
-   //* getLambdaDamping() == "yes"
-   //* Proper damping is done by introducing a "Lambda E" term in the Ampere's law that will damp "E"
-   //* SET damping = 1
-
-   //* For no damping, SET damping = 0
-
-    damping = 0;
 
     //? GEM challenge parameters
     B0x = col->getB0x();
@@ -1203,11 +1184,6 @@ void EMfields3D::sumMoments_AoS(const Particles3Dcomm* part)
         cell_moments[9] += ww_weights;
     }
 #endif // __MIC__
-
-bool EMfields3D::getPCnonzero() 
-{
-    return PCnonzero;
-}
 
 // sum moments of AoS using MIC intrinsics
 // 
@@ -2673,9 +2649,9 @@ void EMfields3D::MaxwellSource(double *bkrylov)
         for (int j = 0; j < nyn; j++) 
             for (int k = 0; k < nzn; k++)
             {
-                double Jx_tot = Jxh.get(i, j, k); //+ zeroCurrent*Jx_ext.get(i, j, k);
-                double Jy_tot = Jyh.get(i, j, k); //+ zeroCurrent*Jy_ext.get(i, j, k);
-                double Jz_tot = Jzh.get(i, j, k); //+ zeroCurrent*Jz_ext.get(i, j, k);
+                double Jx_tot = Jxh.get(i, j, k) + zeroCurrent*Jx_ext.get(i, j, k);
+                double Jy_tot = Jyh.get(i, j, k) + zeroCurrent*Jy_ext.get(i, j, k);
+                double Jz_tot = Jzh.get(i, j, k) + zeroCurrent*Jz_ext.get(i, j, k);
                 
                 temp3X.fetch(i, j, k) = Jxh.get(i, j, k)*invVOL;
                 temp3Y.fetch(i, j, k) = Jyh.get(i, j, k)*invVOL;
@@ -2767,6 +2743,9 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     const Grid *grid = &get_grid();
 
     eqValue(0.0, im, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
+    eqValue(0.0, tempX, nxn, nyn, nzn);
+    eqValue(0.0, tempY, nxn, nyn, nzn);
+    eqValue(0.0, tempZ, nxn, nyn, nzn);
 
     //? Move from Krylov space to physical space
     solver2phys(tempX, tempY, tempZ, vector, nxn, nyn, nzn);
@@ -2844,7 +2823,6 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     //     //? Add mass matrix applied to E but using the poor man approximation
     // TODO: Is this needed? Ask Fabio
     //     MUdot_mass_matrix(temp3X, temp3Y, temp3Z, temp2X, temp2Y, temp2Z, tempX, tempY, tempZ);
-        
     //     addscale(1.0, imageX, temp3X, nxn, nyn, nzn);
     //     addscale(1.0, imageY, temp3Y, nxn, nyn, nzn);
     //     addscale(1.0, imageZ, temp3Z, nxn, nyn, nzn);
@@ -3029,9 +3007,9 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
     eqValue(0.0, smooth_temp, nxn, nyn, nzn);
 
     int bc[6];
-    if (dir == 0)      for (int i=0; i<6; i++) bc[i] = col->bcEx[i];
-    else if (dir == 1) for (int i=0; i<6; i++) bc[i] = col->bcEy[i];
-    else if (dir == 2) for (int i=0; i<6; i++) bc[i] = col->bcEz[i];
+    if (dir == 0)      for (int i=0; i<6; i++) bc[i] = col->bcEx[i];    //* BC along X
+    else if (dir == 1) for (int i=0; i<6; i++) bc[i] = col->bcEy[i];    //* BC along Y
+    else if (dir == 2) for (int i=0; i<6; i++) bc[i] = col->bcEz[i];    //* BC along Z
 
     // TODO: the smoothing value is not used anywhere! Why? - Ask Fabio
     // TODO: is directional smoothing preferred because if has fewer communications? - Ask Fabio
@@ -3680,10 +3658,10 @@ void EMfields3D::setZeroMassMatrix()
 void EMfields3D::setZeroDerivedMoments()
 {
     eqValue(0.0, Jx, nxn, nyn, nzn);
-    eqValue(0.0, Jxh, nxn, nyn, nzn);
     eqValue(0.0, Jy, nxn, nyn, nzn);
-    eqValue(0.0, Jyh, nxn, nyn, nzn);
     eqValue(0.0, Jz, nxn, nyn, nzn);
+    eqValue(0.0, Jxh, nxn, nyn, nzn);
+    eqValue(0.0, Jyh, nxn, nyn, nzn);
     eqValue(0.0, Jzh, nxn, nyn, nzn);
     eqValue(0.0, rhoc, nxc, nyc, nzc);
     eqValue(0.0, rhoh, nxc, nyc, nzc);
@@ -3773,34 +3751,34 @@ void EMfields3D::interpolateCenterSpecies(int is)
     communicateCenterBC(nxc, nyc, nzc, rhocs_avg[is], 2, 2, 2, 2, 2, 2, vct, this);
 }
 
-void EMfields3D::setZeroCurrent()
-{
-    const VirtualTopology3D *vct = &get_vct();
+// void EMfields3D::setZeroCurrent()
+// {
+//     const VirtualTopology3D *vct = &get_vct();
 
-    for (int k=1; k<nzn-1; k++) 
-        for (int j=1; j<nyn-1; j++) 
-            for (int i=1; i<nxn-1; i++) 
-            {
-                Jx_ext.fetch(i, j, k) = 0.0;
-                Jx_ext.fetch(i, j, k) = 0.0;
-                Jx_ext.fetch(i, j, k) = 0.0;
+//     for (int k=1; k<nzn-1; k++) 
+//         for (int j=1; j<nyn-1; j++) 
+//             for (int i=1; i<nxn-1; i++) 
+//             {
+//                 Jx_ext.fetch(i, j, k) = 0.0;
+//                 Jx_ext.fetch(i, j, k) = 0.0;
+//                 Jx_ext.fetch(i, j, k) = 0.0;
 
-                for (int s=0; s<ns; s++) 
-                {
-                    Jx_ext.fetch(i, j, k) -= Jxs.get(s, i, j, k);
-                    Jy_ext.fetch(i, j, k) -= Jys.get(s, i, j, k);
-                    Jz_ext.fetch(i, j, k) -= Jzs.get(s, i, j, k);
-                }
-            }
+//                 for (int s=0; s<ns; s++) 
+//                 {
+//                     Jx_ext.fetch(i, j, k) -= Jxs.get(s, i, j, k);
+//                     Jy_ext.fetch(i, j, k) -= Jys.get(s, i, j, k);
+//                     Jz_ext.fetch(i, j, k) -= Jzs.get(s, i, j, k);
+//                 }
+//             }
 
-    communicateInterp(nxn, nyn, nzn, Jx_ext, vct, this);
-    communicateInterp(nxn, nyn, nzn, Jy_ext, vct, this);
-    communicateInterp(nxn, nyn, nzn, Jz_ext, vct, this);
+//     communicateInterp(nxn, nyn, nzn, Jx_ext, vct, this);
+//     communicateInterp(nxn, nyn, nzn, Jy_ext, vct, this);
+//     communicateInterp(nxn, nyn, nzn, Jz_ext, vct, this);
   
-    communicateNode_P(nxn, nyn, nzn, Jx_ext, vct, this);
-    communicateNode_P(nxn, nyn, nzn, Jy_ext, vct, this);
-    communicateNode_P(nxn, nyn, nzn, Jz_ext, vct, this);
-}
+//     communicateNode_P(nxn, nyn, nzn, Jx_ext, vct, this);
+//     communicateNode_P(nxn, nyn, nzn, Jy_ext, vct, this);
+//     communicateNode_P(nxn, nyn, nzn, Jz_ext, vct, this);
+// }
 
 //! ===================================== Initial Field Distributions ===================================== !//
 

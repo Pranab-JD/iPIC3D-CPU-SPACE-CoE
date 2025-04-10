@@ -178,7 +178,7 @@ class Collective
     string getPclOutputTag()            const{ return ParticlesOutputTag;}
     // string getPoissonCorrection()       const{ return (PoissonCorrection); }
     double getVinj()                    const{ return (Vinj); }
-    double getCGtol()                   const{ return (CGtol); }
+    // double getCGtol()                   const{ return (CGtol); }
     double getGMREStol()                const{ return (GMREStol); }
     // int getPoissonCorrectionCycle()     const{ return (PoissonCorrectionCycle); }
     int getLast_cycle()                 const{ return (last_cycle); }
@@ -198,12 +198,7 @@ class Collective
     bool getAddExternalCurlB()          const { return AddExternalCurlB; }
     bool getAddExternalCurlE()          const { return AddExternalCurlE; }
     bool getEnergyConservingSmoothing() const { return EnergyConservingSmoothing; }
-    bool getExactMM()                   const { return ExactMM; }
-
-    //* Parameters for charge conservation
-    // double getPoissonMArho()            const { return PoissonMArho;}
-    // double getPoissonMAdiv()            const { return PoissonMAdiv;}
-    // double getPoissonMAres()            const { return PoissonMAres;}
+    // bool getExactMM()                   const { return ExactMM; }
 
     int getZeroCurrent()                      { return zeroCurrent; }
 
@@ -344,8 +339,8 @@ class Collective
     /*! Simulation name */
     string SimName;
     /*! Poisson correction flag */
-    string PoissonCorrection;
-    int PoissonCorrectionCycle;
+    // string PoissonCorrection;
+    // int PoissonCorrectionCycle;
     /*! TrackParticleID */
     //bool *TrackParticleID;
     /*! SaveDirName */
@@ -418,10 +413,9 @@ class Collective
     /*! velocity of the injection from the wall */
     double Vinj;
 
-    /*! CG solver stopping criterium tolerance */
-    double CGtol;
     /*! GMRES solver stopping criterium tolerance */
     double GMREStol;
+
     /*! mover predictor correcto iteration */
     int NiterMover;
 
@@ -429,35 +423,43 @@ class Collective
     int FieldOutputCycle;
     string  FieldOutputTag;
     string  MomentsOutputTag;
+
     /*! Output for particles */
     int ParticlesOutputCycle;
     string ParticlesOutputTag;
+    
     /*! Output for test particles */
     int TestParticlesOutputCycle;
+    
     /*! test particles are flushed to disk every testPartFlushCycle  */
     int testPartFlushCycle;
+    
     /*! restart cycle */
     int RestartOutputCycle;
+    
     /*! Output for diagnostics */
     int DiagnosticsOutputCycle;
+    
     /*! Call Finalize() at end of program execution (true by default) */
     bool CallFinalize;
 
-    //* Parameters for charge conservation
-    // double PoissonMArho, PoissonMAdiv, PoissonMAres;
-
     /** AddExternalCurlB */
     bool AddExternalCurlB;
+    
     /** AddExternalCurlE */
     bool AddExternalCurlE;
+    
     /** EnergyConservingSmoothing */
     bool EnergyConservingSmoothing;
+    
     /** Remove the div(E) term from the Maxwell equations */
     string RemoveDivE;
+    
     /** Determines whether to use cur(curl) or -del2 + grad(div) */
-    bool CurlCurl;
+    // bool CurlCurl;
+    
     /** Exact MAss Matrix Formulation */
-    bool ExactMM;
+    // bool ExactMM;
 };
 typedef Collective CollectiveIO;
 
