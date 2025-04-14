@@ -89,9 +89,9 @@ void Particles3D::uniform_background(Field * EMf)
                             double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
                             double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
                             double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-                            double u = 0.0;
-                            double v = 0.0;
-                            double w = 0.0;
+                            double u = uth + u0;
+                            double v = vth + v0;
+                            double w = wth + w0;
                             double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / grid->getInvVOL());
                             _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,0));
                         }
@@ -426,6 +426,8 @@ void Particles3D::AddPerturbationJ(double deltaBoB, double kx, double ky, double
   }
 }
 
+//! ============================================================================= !//
+
 // Create a vectorized version of this mover as follows.
 //
 // Let N be the number of doubles that fit in the vector unit.
@@ -472,8 +474,6 @@ void Particles3D::AddPerturbationJ(double deltaBoB, double kx, double ky, double
 //
 // Compare the vectorization notes at the top of sumMoments()
 //
-
-//! ============================================================================= !//
 
 //! ECSIM - energy conserving semi-implicit method !//
 void Particles3D::ECSIM_velocity(Field *EMf) 
@@ -594,12 +594,36 @@ void Particles3D::ECSIM_position(Field *EMf)
 
         double correct_x = 1.0, correct_y = 1.0, correct_z = 1.0;
         const double inv_dx = 1.0/dx, inv_dy = 1.0/dy, inv_dz = 1.0/dz;
-        double dxp = 0.0, dyp = 0.0, dzp = 0.0;
+        double dxp = 0.0, dyp = 0.0, dzp = 0.0; double limiter = 1.0;
 
-        //TODO: Needed for charge conservation; TBD after the first run
-        // double ***R = asgArr3(double, grid->getNXC(), grid->getNYC(), grid->getNZC(), EMf->getResDiv(ns));        
-        // double eta0, eta1, zeta0, zeta1, xi0, xi1; 
-        // double invSURF;
+        //* Parameters for charge conservation
+        // if (Conserve_charge)
+
+        double eta0, eta1, zeta0, zeta1, xi0, xi1;
+        double weight00, weight01, weight10, weight11;
+        double invSURF; double lorentz_factor = 1.0;
+        
+        array3_double temp_R(nxc, nyc, nzc);
+        eqValue(0.0, temp_R, nxc, nyc, nzc);
+
+        for (int ii = 0; ii < nxc; ii++)
+            for (int jj = 0; jj < nyc; jj++)
+                for (int kk = 0; kk < nzc; kk++)
+                    temp_R.fetch(ii, jj, kk) = EMf->getResDiv(ii, jj, kk, ns);
+
+        // cout << "temp_R" << endl;
+        // for (int ii = 0; ii < nxc; ii++)
+        // {
+        //     for (int jj = 0; jj < nyc; jj++)
+        //     {
+        //         for (int kk = 0; kk < nzc; kk++)
+        //             cout << temp_R.fetch(ii, jj, kk) << "    ";
+        //         cout << endl;
+        //     }
+        //     cout << endl;
+        // }
+        // cout << endl;
+
 
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++) 
@@ -626,33 +650,108 @@ void Particles3D::ECSIM_position(Field *EMf)
             //* --------------------------------------- *//
 
             //? Lorentz factor at time step "n"
-            double lorentz_factor = 1.0;
-            // if (Relativistic) lorentz_factor = sqrt(1.0 + (uorig*uorig + vorig*vorig + worig*worig)/(c*c));
-
-            // TODO: Must be implemented (not needed for the first run) 
-            //? Energy conservation inherently violates charge conservation --> charge has to be conserved separately
+            if (Relativistic) lorentz_factor = sqrt(1.0 + (uorig*uorig + vorig*vorig + worig*worig)/(c*c));
             //? gn = lorentz_factor
 
             //* --------------------------------------- *//
 
-            //? Charge Conservation
+            //! This may be further optimised
+            //? Charge Conservation (Energy conservation inherently violates charge conservation --> charge has to be conserved separately)
+            // if (Conserve_charge)     //TODO: Is this if statement needed? Ask Fabio
+            // TODO: How to test for correctness in conserving charge? Ask Fabio
 
-            // const double ixd = floor((xp - dx/2.0 - xavg) * inv_dx);
-			// const double iyd = floor((yp - dy/2.0 - yavg) * inv_dy);
-			// const double izd = floor((zp - dz/2.0 - zavg) * inv_dz);
-			// int ix = 2 + int (ixd);
-			// int iy = 2 + int (iyd);
-			// int iz = 2 + int (izd);
+            const double ixd = floor((xavg - dx/2.0 - xstart) * inv_dx);
+			const double iyd = floor((yavg - dy/2.0 - ystart) * inv_dy);
+			const double izd = floor((zavg - dz/2.0 - zstart) * inv_dz);
+			int ix = 2 + int (ixd);
+			int iy = 2 + int (iyd);
+			int iz = 2 + int (izd);
 		
-			// double xi[2], eta[2], zeta[2];
-		
-			// //* Difference along x
-			// eta [0] = yp - grid->getYC(ix  ,iy-1,iz  );
-			// zeta[0] = zp - grid->getZC(ix  ,iy  ,iz-1);
-			// eta [1] = grid->getYC(ix,iy,iz) - yp;
-			// zeta[1] = grid->getZC(ix,iy,iz) - zp;
-			// invSURF = 1.0/(dy*dz);
+			//* Difference along X
+			eta0  = yavg - grid->getYC(ix, iy - 1, iz);
+			zeta0 = zavg - grid->getZC(ix, iy, iz - 1);
+			eta1  = grid->getYC(ix, iy, iz) - yavg;
+			zeta1 = grid->getZC(ix, iy, iz) - zavg;
+			invSURF = 1.0/(dy*dz);
 
+            double RxP = 0.0;
+			double RxM = 0.0;
+		
+			weight00 = eta0 * zeta0 * invSURF;
+			weight01 = eta0 * zeta1 * invSURF;
+			weight10 = eta1 * zeta0 * invSURF;
+			weight11 = eta1 * zeta1 * invSURF;
+
+            RxP  = weight00 * temp_R.get(ix, iy, iz);
+			RxP += weight01 * temp_R.get(ix, iy, iz - 1);
+			RxP += weight10 * temp_R.get(ix, iy - 1, iz);
+			RxP += weight11 * temp_R.get(ix, iy - 1, iz - 1);
+
+            RxM  = weight00 * temp_R.get(ix - 1, iy, iz);
+			RxM += weight01 * temp_R.get(ix - 1, iy, iz - 1);
+			RxM += weight10 * temp_R.get(ix - 1, iy - 1, iz);
+			RxM += weight11 * temp_R.get(ix - 1, iy - 1, iz - 1);
+
+            // cout << endl << RxP << "   " << RxM << endl;
+
+            //* Difference along Y
+			xi0   = xavg - grid->getXC(ix - 1, iy, iz);
+			zeta0 = zavg - grid->getZC(ix, iy, iz - 1);
+			xi1   = grid->getXC(ix, iy, iz) - xavg;
+			zeta1 = grid->getZC(ix, iy, iz) - zavg;
+			invSURF = 1.0/(dx*dz);
+		
+			double RyP = 0.0;
+			double RyM = 0.0;
+
+            weight00 = xi0 * zeta0 * invSURF;
+			weight01 = xi0 * zeta1 * invSURF;
+			weight10 = xi1 * zeta0 * invSURF;
+			weight11 = xi1 * zeta1 * invSURF;
+
+            RyP  = weight00 * temp_R.get(ix, iy, iz);
+			RyP += weight01 * temp_R.get(ix, iy, iz - 1);
+			RyP += weight10 * temp_R.get(ix - 1, iy, iz);
+			RyP += weight11 * temp_R.get(ix - 1, iy, iz - 1);
+		
+            RyM  = weight00 * temp_R.get(ix, iy - 1, iz);
+			RyM += weight01 * temp_R.get(ix, iy - 1, iz - 1);
+			RyM += weight10 * temp_R.get(ix - 1, iy - 1, iz);
+			RyM += weight11 * temp_R.get(ix - 1, iy - 1, iz - 1);
+
+            //* Difference along Z
+			double RzP = 0.0;
+			double RzM = 0.0;
+		
+			xi0  = xavg - grid->getXC(ix - 1, iy, iz);
+			eta0 = yavg - grid->getYC(ix, iy - 1, iz);
+			xi1  = grid->getXC(ix, iy, iz) - xavg;
+			eta1 = grid->getYC(ix, iy, iz) - yavg;
+			invSURF = 1.0/(dx*dy);
+
+            weight00 = xi0 * eta0 * invSURF;
+			weight01 = xi0 * eta1 * invSURF;
+			weight10 = xi1 * eta0 * invSURF;
+			weight11 = xi1 * eta1 * invSURF;
+
+            RzP  = weight00 * temp_R.get(ix, iy, iz);
+			RzP += weight01 * temp_R.get(ix, iy - 1, iz);
+			RzP += weight10 * temp_R.get(ix - 1, iy, iz);
+			RzP += weight11 * temp_R.get(ix - 1, iy - 1, iz);
+		
+            RzM  = weight00 * temp_R.get(ix, iy, iz - 1);
+			RzM += weight01 * temp_R.get(ix, iy - 1, iz - 1);
+			RzM += weight10 * temp_R.get(ix - 1, iy, iz - 1);
+			RzM += weight11 * temp_R.get(ix - 1, iy - 1, iz - 1);
+
+            dxp = 0.25 * (RxP - RxM) * dx;
+			dxp = -dxp/abs(dxp+1e-10) * min(abs(dxp), abs(uorig/lorentz_factor*dt)/limiter);
+		
+			dyp = 0.25 * (RyP - RyM) * dy;
+			dyp = -dyp/abs(dyp+1e-10) * min(abs(dyp), abs(vorig/lorentz_factor*dt)/limiter);
+		
+			dzp = 0.25 * (RzP - RzM) * dz;
+			dzp = -dzp/abs(dzp+1e-10) * min(abs(dzp), abs(worig/lorentz_factor*dt)/limiter);
 
             //* --------------------------------------- *//
 
