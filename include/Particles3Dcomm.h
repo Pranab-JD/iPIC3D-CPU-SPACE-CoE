@@ -37,6 +37,8 @@ developers: Stefano Markidis, Giovanni Lapenta
 #include "IDgenerator.h"
 #include "Neighbouring_Nodes.h"
 
+using namespace std;
+
 namespace BCparticles
 {
     enum Enum
@@ -351,17 +353,22 @@ protected:
     int bcPfaceZright;
     int bcPfaceZleft;
 
-    /** speed of light in vacuum */
+    //* Speed of light in vacuum
     double c;
-    /** restart variable for loading particles from restart file */
+
+    //* restart variable for loading particles from restart file
     int restart;
+
     /** Number of iteration of the mover*/
     int NiterMover;
-    /** velocity of the injection of the particles */
+    
+    //* Velocity of injection of particles
     double Vinj;
-    /** removed charge from species */
+
+    //* Removed charge from species
     double Q_removed;
-    /** density of the injection of the particles */
+
+    //* density of the injection of the particles
     double Ninj;
 
     //* Object of class to handle which nodes have to be computed when the mass matrix is calculated
@@ -369,6 +376,15 @@ protected:
 
     //* Limits to apply to particle velocity
     double umin, umax, vmin, vmax, wmin, wmax;
+
+    //* RelSIM
+    bool Relativistic;
+
+    //* Relativistic particle pusher
+    string Relativistic_pusher;
+
+    //* Charge Conserving Switch in Position Update */
+    bool Conserve_charge;
 
 };
 
