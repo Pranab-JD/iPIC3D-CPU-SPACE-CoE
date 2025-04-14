@@ -355,7 +355,7 @@ public:
     make_cell_coordinates_safe(cx,cy,cz);
   }
 
-void get_safe_cell_and_weights(double xpos, double ypos, double zpos,
+    void get_safe_cell_and_weights(double xpos, double ypos, double zpos,
                                int &cx, int& cy, int& cz, double weights[8])const
     {
         //convert_xpos_to_cxpos(xpos,ypos,zpos,cx_pos,cy_pos,cz_pos);

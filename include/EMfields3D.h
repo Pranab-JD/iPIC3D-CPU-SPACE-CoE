@@ -235,18 +235,19 @@ public:
     /*! get Potential array */
     arr3_double getPHI() {return PHI;}
 
-    // field components defined on nodes
+    //* Field components
+    const_arr4_pfloat get_fieldForPcls() { return fieldForPcls; }
+
     double getEx(int X, int Y, int Z) const { return Ex.get(X,Y,Z);  }
     double getEy(int X, int Y, int Z) const { return Ey.get(X,Y,Z);  }
     double getEz(int X, int Y, int Z) const { return Ez.get(X,Y,Z);  }
-    double getBx(int X, int Y, int Z) const { return Bxn.get(X,Y,Z); }
-    double getBy(int X, int Y, int Z) const { return Byn.get(X,Y,Z); }
-    double getBz(int X, int Y, int Z) const { return Bzn.get(X,Y,Z); }
-    
-    const_arr4_pfloat get_fieldForPcls() { return fieldForPcls; }
     arr3_double getEx() { return Ex;  }
     arr3_double getEy() { return Ey;  }
     arr3_double getEz() { return Ez;  }
+    
+    double getBx(int X, int Y, int Z) const { return Bxn.get(X,Y,Z); }
+    double getBy(int X, int Y, int Z) const { return Byn.get(X,Y,Z); }
+    double getBz(int X, int Y, int Z) const { return Bzn.get(X,Y,Z); }
     arr3_double getBx() { return Bxn; }
     arr3_double getBy() { return Byn; }
     arr3_double getBz() { return Bzn; }
@@ -260,7 +261,6 @@ public:
     double getRHOcs(int X, int Y, int Z, int is) const { return rhocs.get(is, X, Y, Z); }
     double getRHOns(int X, int Y, int Z, int is) const { return rhons.get(is, X, Y, Z); }
     double getRHOc_avg(int X, int Y, int Z) const { return rhoc_avg.get(X, Y, Z); }
-    
     arr4_double getRHOns() { return rhons; }
     arr4_double getRHOcs() { return rhocs; }
     arr3_double getRHOc_avg() { return rhoc_avg; }
@@ -270,7 +270,6 @@ public:
     double getBx_ext(int X, int Y, int Z) const { return Bx_ext.get(X,Y,Z); }
     double getBy_ext(int X, int Y, int Z) const { return By_ext.get(X,Y,Z); }
     double getBz_ext(int X, int Y, int Z) const { return Bz_ext.get(X,Y,Z); }
-    
     arr3_double getBx_ext() { return Bx_ext; }
     arr3_double getBy_ext() { return By_ext; }
     arr3_double getBz_ext() { return Bz_ext; }
@@ -278,7 +277,6 @@ public:
     double getEx_ext(int X, int Y, int Z) const { return Ex_ext.get(X,Y,Z); }
     double getEy_ext(int X, int Y, int Z) const { return Ey_ext.get(X,Y,Z); }
     double getEz_ext(int X, int Y, int Z) const { return Ez_ext.get(X,Y,Z); }
-
     arr3_double getEx_ext() { return Ex_ext; }
     arr3_double getEy_ext() { return Ey_ext; }
     arr3_double getEz_ext() { return Ez_ext; }
@@ -292,18 +290,17 @@ public:
     double getBxc_ext(int X, int Y, int Z) const { return Bxc_ext.get(X,Y,Z); }
     double getByc_ext(int X, int Y, int Z) const { return Byc_ext.get(X,Y,Z); }
     double getBzc_ext(int X, int Y, int Z) const { return Bzc_ext.get(X,Y,Z); }
-
     arr3_double getBxc_ext() { return Bxc_ext; }
     arr3_double getByc_ext() { return Byc_ext; }
     arr3_double getBzc_ext() { return Bzc_ext; }
 
     //* B_tot = B + B_ext (defined on nodes)
-    arr3_double getBxTot() { addscale(1.0,Bxn,Bx_ext,Bx_tot,nxn,nyn,nzn); return Bx_tot; }
-    arr3_double getByTot() { addscale(1.0,Byn,By_ext,By_tot,nxn,nyn,nzn); return By_tot; }
-    arr3_double getBzTot() { addscale(1.0,Bzn,Bz_ext,Bz_tot,nxn,nyn,nzn); return Bz_tot; }
     double getBxTot(int X, int Y, int Z) const { return Bxn.get(X,Y,Z) + Bx_ext.get(X,Y,Z); }
     double getByTot(int X, int Y, int Z) const { return Byn.get(X,Y,Z) + By_ext.get(X,Y,Z); }
     double getBzTot(int X, int Y, int Z) const { return Bzn.get(X,Y,Z) + Bz_ext.get(X,Y,Z); }
+    arr3_double getBxTot() { addscale(1.0,Bxn,Bx_ext,Bx_tot,nxn,nyn,nzn); return Bx_tot; }
+    arr3_double getByTot() { addscale(1.0,Byn,By_ext,By_tot,nxn,nyn,nzn); return By_tot; }
+    arr3_double getBzTot() { addscale(1.0,Bzn,Bz_ext,Bz_tot,nxn,nyn,nzn); return Bz_tot; }
 
     //* Pressure Tensor (not needed for ECSim)
     arr4_double getpXXsn() { return pXXsn; }
@@ -325,13 +322,13 @@ public:
     arr3_double getJx() { return Jx; }
     arr3_double getJy() { return Jy; }
     arr3_double getJz() { return Jz; }
-    arr4_double getJxs() { return Jxs; }
-    arr4_double getJys() { return Jys; }
-    arr4_double getJzs() { return Jzs; }
 
     double getJxs(int X,int Y,int Z,int is) const { return Jxs.get(is,X,Y,Z); }
     double getJys(int X,int Y,int Z,int is) const { return Jys.get(is,X,Y,Z); }
     double getJzs(int X,int Y,int Z,int is) const { return Jzs.get(is,X,Y,Z); }
+    arr4_double getJxs() { return Jxs; }
+    arr4_double getJys() { return Jys; }
+    arr4_double getJzs() { return Jzs; }
 
     arr3_double getDivE() { return divE; }
     arr3_double getDivB() { return divB; }
@@ -342,8 +339,8 @@ public:
     // arr3_double getResDiv(int is) { return residual_divergence.get(is); }
     // TODO: get 3D array corresponding to 1st element - used in updatePosition --> charge conservation
 
-    void divergenceOfE(double ma, int ns);
-    void divergenceOfB();
+    void divergence_E(double ma);
+    void divergence_B();
     void timeAveragedRho(double ma);
     void timeAveragedDivE(double ma);
 
@@ -758,7 +755,6 @@ inline void get_field_components_for_cell(const double* field_components[8], con
     field_components[5] = field10[cz]; // field101 
     field_components[6] = field11[iz]; // field110 
     field_components[7] = field11[cz]; // field111 
-
 }
 
 typedef EMfields3D Field;

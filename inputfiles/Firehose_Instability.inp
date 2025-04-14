@@ -48,7 +48,7 @@ verbose                        = 1                                             #
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.50	                                       # Time step this is still in wp-1
-ncycles                        = 12000                                         # Total number of iteration
+ncycles                        = 10000                                         # Total number of iteration
 th                             = 0.5                                           # Decentering parameter
 c                              = 1.0                                           # Light speed 
 
