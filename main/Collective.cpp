@@ -101,10 +101,10 @@ void Collective::ReadInput(string inputfile)
         ncycles = config.read<int>       ("ncycles");
         th      = config.read<double>    ("th", 1.0);
 
-        Smooth          = config.read<double>    ("Smooth",1.0);            //1.0 means no smoothing
-        SmoothCycle     = config.read<int>       ("SmoothCycle", 1);       //TODO: SmoothNiter is to be replaced with SmoothCycle - PJD
+        Smooth          = config.read<double>    ("Smooth", 1.0);            //1.0 means no smoothing
+        SmoothCycle     = config.read<int>       ("SmoothCycle", 1); 
         SmoothType      = config.read<string>    ("SmoothType", "default");
-        config.readInto(num_smoothings, "num_smoothings",0);
+        config.readInto(num_smoothings, "num_smoothings", 0);
 
         SaveDirName     = config.read<string>    ("SaveDirName","data");
         RestartDirName  = config.read<string>    ("RestartDirName","data");
@@ -132,17 +132,17 @@ void Collective::ReadInput(string inputfile)
         }
         
         // GEM Challenge 
-        B0x = config.read<double>("B0x",0.0);
-        B0y = config.read<double>("B0y",0.0);
-        B0z = config.read<double>("B0z",0.0);
+        B0x = config.read<double>("B0x", 0.0);
+        B0y = config.read<double>("B0y", 0.0);
+        B0z = config.read<double>("B0z", 0.0);
 
         // Earth parameters
         B1x = 0.0;
         B1y = 0.0;
         B1z = 0.0;
-        B1x = config.read<double>("B1x",0.0);
-        B1y = config.read<double>("B1y",0.0);
-        B1z = config.read<double>("B1z",0.0);
+        B1x = config.read<double>("B1x", 0.0);
+        B1y = config.read<double>("B1y", 0.0);
+        B1z = config.read<double>("B1z", 0.0);
 
         delta = config.read < double >("delta",0.5);
 
@@ -150,10 +150,16 @@ void Collective::ReadInput(string inputfile)
         wmethod                     = config.read<string>   ("WriteMethod");
         SimName                     = config.read<string>   ("SimulationName");
                 
-        RemoveDivE                  = config.read<string>   ("RemoveDivE","no");
-        AddExternalCurlB            = config.read<bool>     ("AddExternalCurlB",false);
-        AddExternalCurlE            = config.read<bool>     ("AddExternalCurlE",false);
-        EnergyConservingSmoothing   = config.read<bool>     ("EnergyConservingSmoothing",false);
+        // RemoveDivE                  = config.read<string>   ("RemoveDivE","no");
+        AddExternalCurlB            = config.read<bool>     ("AddExternalCurlB", false);
+        AddExternalCurlE            = config.read<bool>     ("AddExternalCurlE", false);
+        // EnergyConservingSmoothing   = config.read<bool>     ("EnergyConservingSmoothing", true);
+        Relativistic                = config.read<bool>     ("Relativistic", false);
+        Relativistic_pusher         = config.read<string>   ("RelativisticPusher", "Boris");
+        Conserve_charge             = config.read<bool>     ("Conserve_charge", true);
+        PoissonMAdiv                = config.read<double>   ("PoissonMAdiv", 1.0);
+        PoissonMAres                = config.read<double>   ("PoissonMAres", 0.01);
+        PoissonMArho                = config.read<double>   ("PoissonMArho", 0.01);
 
         rhoINIT = std::make_unique<double[]>(ns);
         array_double rhoINIT0 = config.read < array_double > ("rhoINIT");
@@ -183,23 +189,22 @@ void Collective::ReadInput(string inputfile)
         if (ns > 5)
         rhoINJECT[5]=rhoINJECT0.f;
 
-        GMREStol = config.read < double >("GMREStol",1e-8);
-        NiterMover = config.read < int >("NiterMover",3);
-        // take the injection of the particless
-        Vinj = config.read < double >("Vinj",0.0);
+        GMREStol    = config.read <double>  ("GMREStol", 1e-8);
+        NiterMover  = config.read <int>     ("NiterMover", 3);
+        Vinj        = config.read <double>  ("Vinj", 0.0);
 
         // take the output cycles
-        FieldOutputCycle = config.read < int >("FieldOutputCycle",100);
-        ParticlesOutputCycle = config.read < int >("ParticlesOutputCycle",0);
-        FieldOutputTag     =   config.read <string>("FieldOutputTag","");
-        ParticlesOutputTag =   config.read <string>("ParticlesOutputTag","");
-        MomentsOutputTag   =   config.read <string>("MomentsOutputTag","");
-        TestParticlesOutputCycle = config.read < int >("TestPartOutputCycle",0);
-        testPartFlushCycle = config.read < int >("TestParticlesOutputCycle",10);
-        RestartOutputCycle = config.read < int >("RestartOutputCycle",5000);
-        DiagnosticsOutputCycle = config.read < int >("DiagnosticsOutputCycle", FieldOutputCycle);
-        ParaviewScriptPath     =   config.read <string>("ParaviewScriptPath", "");
-        CallFinalize = config.read < bool >("CallFinalize", true);
+        FieldOutputCycle            = config.read <int>     ("FieldOutputCycle", 100);
+        ParticlesOutputCycle        = config.read <int>     ("ParticlesOutputCycle", 0);
+        FieldOutputTag              = config.read <string>  ("FieldOutputTag", "");
+        ParticlesOutputTag          = config.read <string>  ("ParticlesOutputTag", "");
+        MomentsOutputTag            = config.read <string>  ("MomentsOutputTag", "");
+        TestParticlesOutputCycle    = config.read <int>     ("TestPartOutputCycle", 0);
+        testPartFlushCycle          = config.read <int>     ("TestParticlesOutputCycle", 10);
+        RestartOutputCycle          = config.read <int>     ("RestartOutputCycle", 5000);
+        DiagnosticsOutputCycle      = config.read <int>     ("DiagnosticsOutputCycle", FieldOutputCycle);
+        ParaviewScriptPath          = config.read <string>  ("ParaviewScriptPath", "");
+        CallFinalize                = config.read <bool>    ("CallFinalize", true);
     }
 
     //* read everything from input file, if restart is true, overwrite the setting - bug fixing
@@ -244,8 +249,7 @@ void Collective::ReadInput(string inputfile)
         {
             cout << "ERROR: A 1D case has to be along the X direction (nyc = 1 & nzc = 1) and a 2D case has to be in the XY plane (nzc = 1)" << endl;
             MPI_Abort(MPI_COMM_WORLD, -1);
-        }
-        
+        }   
     }
 
     XLEN = config.read < int >("XLEN",1);

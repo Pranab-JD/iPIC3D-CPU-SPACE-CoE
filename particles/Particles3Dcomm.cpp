@@ -237,6 +237,9 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
     cVERBOSE = vct->getcVERBOSE();
     // ComputeMM = col->getExactMM();
 
+    Conserve_charge = col->getConserveCharge();
+    Relativistic = col->getRelativistic();
+    Relativistic_pusher = col->getRelativisticPusher();
 
     //? Preallocate space in arrays ?//
 

@@ -31,6 +31,7 @@
 #ifdef BATSRUS
 #include "InterfaceFluid.h"
 #endif
+#include <iostream>
 #include <string>
 #include <memory>
 #include "VCtopology3D.h"
@@ -197,7 +198,7 @@ class Collective
     //? ECSim functions
     bool getAddExternalCurlB()          const { return AddExternalCurlB; }
     bool getAddExternalCurlE()          const { return AddExternalCurlE; }
-    bool getEnergyConservingSmoothing() const { return EnergyConservingSmoothing; }
+    // bool getEnergyConservingSmoothing() const { return EnergyConservingSmoothing; }
     // bool getExactMM()                   const { return ExactMM; }
 
     int getZeroCurrent()                      { return zeroCurrent; }
@@ -207,12 +208,20 @@ class Collective
     int getNumSmoothings()              const { return num_smoothings; }
     int getCurrentCycle()               const { return CurrentCycle; }
     void setCurrentCycle(int cycle)           { CurrentCycle = cycle; }
+
+    double getPoissonMAdiv()                  { return PoissonMAdiv;}
+    double getPoissonMAres()                  { return PoissonMAres;}
+    double getPoissonMArho()                  { return PoissonMArho;}
+
+    bool getConserveCharge()            const { return Conserve_charge;}
+    bool getRelativistic()              const { return Relativistic; }
+    string getRelativisticPusher()      const { return Relativistic_pusher; }   
     
     /*! Boundary condition selection for BCFace for the electric field components */
     int bcEx[6], bcEy[6], bcEz[6];
     /*! Boundary condition selection for BCFace for the magnetic field components */
     int bcBx[6], bcBy[6], bcBz[6];
-    string getParaviewScriptPath()const{return ParaviewScriptPath;}
+    string getParaviewScriptPath()      const { return ParaviewScriptPath; }
 
   private:
     /*! inputfile */
@@ -241,7 +250,6 @@ class Collective
     
     //* Smoothing parameters
     double Smooth;
-    // int SmoothNiter;
     int num_smoothings;
     int SmoothCycle;
     string SmoothType;
@@ -405,55 +413,63 @@ class Collective
     double B1y;
     double B1z;
 
-    /*! boolean value for verbose results */
-    //bool verbose;
-    /*! RESTART */
+    //* RESTART simulations
     bool RESTART1;
+    
+    //* Restart cycle
+    int RestartOutputCycle;
 
-    /*! velocity of the injection from the wall */
+    //* Velocity of the injection from the wall
     double Vinj;
 
-    /*! GMRES solver stopping criterium tolerance */
+    //* Tolerance for GMRES solver
     double GMREStol;
 
-    /*! mover predictor correcto iteration */
+    //* mover predictor correction iteration (not needed for ECSIM)
     int NiterMover;
 
-    /*! Output for field */
+    //* Output for field
     int FieldOutputCycle;
-    string  FieldOutputTag;
-    string  MomentsOutputTag;
+    string FieldOutputTag;
+    string MomentsOutputTag;
 
-    /*! Output for particles */
+    //* Output for particles
     int ParticlesOutputCycle;
     string ParticlesOutputTag;
     
-    /*! Output for test particles */
+    //* Output for test particles
     int TestParticlesOutputCycle;
     
-    /*! test particles are flushed to disk every testPartFlushCycle  */
+    //* Test particles are flushed to disk every testPartFlushCycle
     int testPartFlushCycle;
     
-    /*! restart cycle */
-    int RestartOutputCycle;
-    
-    /*! Output for diagnostics */
+    //* Output for diagnostics
     int DiagnosticsOutputCycle;
     
     /*! Call Finalize() at end of program execution (true by default) */
     bool CallFinalize;
 
-    /** AddExternalCurlB */
+    //* Add External CurlB and External CurlE
     bool AddExternalCurlB;
-    
-    /** AddExternalCurlE */
     bool AddExternalCurlE;
-    
+
+    //* RelSIM
+    bool Relativistic;
+
+    //* Relativistic particle pusher
+    string Relativistic_pusher;
+
+    //* Conserve charge in ECSIM position update
+    bool Conserve_charge;
+
+    //* Moving average value for rho density (Poisson correction)
+    double PoissonMArho, PoissonMAdiv, PoissonMAres;
+
     /** EnergyConservingSmoothing */
-    bool EnergyConservingSmoothing;
+    // bool EnergyConservingSmoothing;
     
     /** Remove the div(E) term from the Maxwell equations */
-    string RemoveDivE;
+    // string RemoveDivE;
     
     /** Determines whether to use cur(curl) or -del2 + grad(div) */
     // bool CurlCurl;
