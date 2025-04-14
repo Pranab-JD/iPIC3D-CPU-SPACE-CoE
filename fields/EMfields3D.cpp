@@ -60,7 +60,7 @@ using namespace iPic3D;
 //
 // in particular, nxc, nyc, nzc and nxn, nyn, nzn are assumed
 // initialized when subsequently used.
-//
+
 EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) : 
     _col(*col),
     _grid(*grid),
@@ -149,9 +149,9 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     Mzy (NE_MASS, nxn, nyn, nzn),
 
     //! Species-specific quantities
-    rhocs_avg (ns, nxn, nyn, nzn),
+    rhocs_avg (ns, nxc, nyc, nzc),
     rhons     (ns, nxn, nyn, nzn),
-    rhocs     (ns, nxc, nyc, nzc),      //* Data defined on cell centres
+    rhocs     (ns, nxc, nyc, nzc),              //* Data defined on cell centres
     Jxs       (ns, nxn, nyn, nzn),
     Jys       (ns, nxn, nyn, nzn),
     Jzs       (ns, nxn, nyn, nzn),
@@ -162,6 +162,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     EFys      (ns, nxn, nyn, nzn),
     EFzs      (ns, nxn, nyn, nzn),
     Nns       (ns, nxn, nyn, nzn),
+    residual_divergence (ns, nxc, nyc, nzc),    //* Data defined on cell centres
 
     pXXsn (ns, nxn, nyn, nzn),
     pXYsn (ns, nxn, nyn, nzn),
@@ -181,9 +182,8 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     //? Divergence
     divC        (nxc, nyc, nzc),
     divE        (nxc, nyc, nzc),
-    divB        (nxc, nyc, nzc),
+    divB        (nxn, nyn, nzn),
     divE_average(nxc, nyc, nzc),
-    residual_divergence      (ns, nxc, nyc, nzc),
     
     //? Temporary arrays
     tempC   (nxc, nyc, nzc),
@@ -225,10 +225,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     B1x = col->getB1x();
     B1y = col->getB1y();
     B1z = col->getB1z();
-    //if(B1x!=0. || B1y !=0. || B1z!=0.)
-    //{
-    //  eprintf("This functionality has not yet been implemented");
-    //}
+
     Bx_ext.setall(0.);
     By_ext.setall(0.);
     Bz_ext.setall(0.);
@@ -482,11 +479,11 @@ void EMfields3D::setAllzero()
     eqValue(0.0, rhocs, ns, nxc, nyc, nzc);
     eqValue(0.0, Nns, ns, nxn, nyn, nzn);
     
-    eqValue(0.0, divE_average, nxc, nyc, nzc);
+    eqValue(0.0, divB, nxn, nyn, nzn);
     eqValue(0.0, divE, nxc, nyc, nzc);
-    eqValue(0.0, divB, nxc, nyc, nzc);
+    eqValue(0.0, divE_average, nxc, nyc, nzc);
     eqValue(0.0, rhoc_avg, nxc, nyc, nzc);
-    eqValue(0.0, rhocs_avg, ns, nxn, nyn, nzn);
+    eqValue(0.0, rhocs_avg, ns, nxc, nyc, nzc);
     eqValue(0.0, residual_divergence, ns, nxc, nyc, nzc);
 
     eqValue(0.0, tempC, nxc, nyc, nzc);
@@ -497,7 +494,6 @@ void EMfields3D::setAllzero()
     eqValue(0.0, tempYC2, nxc, nyc, nzc);
     eqValue(0.0, tempZC2, nxc, nyc, nzc);
 
- 
     eqValue(0.0, tempX, nxn, nyn, nzn);
     eqValue(0.0, tempY, nxn, nyn, nzn);
     eqValue(0.0, tempZ, nxn, nyn, nzn);
@@ -2592,23 +2588,9 @@ void EMfields3D::calculateE()
 //? LHS of the Maxwell solver
 void EMfields3D::MaxwellSource(double *bkrylov)
 {
-    //! Cylindrical coordinates not implemented - PJD
-
     const Collective *col = &get_col();
     const VirtualTopology3D * vct = &get_vct();
     const Grid *grid = &get_grid();
-
-    //* Temporary arrays - set to 0
-    // eqValue(0.0, tempC, nxc, nyc, nzc);
-    // eqValue(0.0, tempX, nxn, nyn, nzn);
-    // eqValue(0.0, tempY, nxn, nyn, nzn);
-    // eqValue(0.0, tempZ, nxn, nyn, nzn);
-    // eqValue(0.0, temp2X, nxn, nyn, nzn);
-    // eqValue(0.0, temp2Y, nxn, nyn, nzn);
-    // eqValue(0.0, temp2Z, nxn, nyn, nzn);
-    // eqValue(0.0, temp3X, nxn, nyn, nzn);
-    // eqValue(0.0, temp3Y, nxn, nyn, nzn);
-    // eqValue(0.0, temp3Z, nxn, nyn, nzn);
 
     //* Valid for second-order formulation
     communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
@@ -3588,7 +3570,7 @@ void EMfields3D::AddPerturbation(double deltaBoB, double kx, double ky, double E
 //! ===================================== Helper Functions (Fields) ===================================== !//
 
 //? Compute divergence of electric field
-void EMfields3D::divergenceOfE(double ma, int is) 
+void EMfields3D::divergence_E(double ma) 
 {
     const VirtualTopology3D * vct = &get_vct();
 
@@ -3596,18 +3578,18 @@ void EMfields3D::divergenceOfE(double ma, int is)
     addscale(1.0, residual_divergence, rhoc_avg, ns, nxc, nyc, nzc);
 
     //! Potential checkpoint for error -- species
-    for (int i = 0; i < nxc; i++)
-        for (int j = 0; j < nyc; j++)
-            for (int k = 0; k < nzc; k++) 
-                residual_divergence.fetch(is, i, j, k) = residual_divergence.get(is, i, j, k)/(rhocs_avg.get(is, i, j, k) - 1e-10) * ma;
+    for (int is = 0; is < ns; is++)
+        for (int i = 0; i < nxc; i++)
+            for (int j = 0; j < nyc; j++)
+                for (int k = 0; k < nzc; k++) 
+                    residual_divergence.fetch(is, i, j, k) = residual_divergence.get(is, i, j, k)/(rhocs_avg.get(is, i, j, k) - 1e-10) * ma;
 
-
-    double ***residual_div = convert_to_arr3(residual_divergence[is]);
-    communicateCenterBC(nxc, nyc, nzc, residual_div, 2, 2, 2, 2, 2, 2, vct, this);
+    for (int is = 0; is < ns; is++)
+        communicateCenterBC(nxc, nyc, nzc, residual_divergence[is], 2, 2, 2, 2, 2, 2, vct, this);
 }
 
 //? Compute divergence of magnetic field
-void EMfields3D::divergenceOfB() 
+void EMfields3D::divergence_B() 
 {
     const Grid *grid = &get_grid();
     grid->divC2N(divB, Bxc, Byc, Bzc);
@@ -3624,13 +3606,14 @@ void EMfields3D::timeAveragedDivE(double ma)
 {
     // TODO: Boundary conditions - TBD later
     // EMfields3D::BC_E_Poisson(vct,  Ex, Ey, Ez);
-    
+
     const Grid *grid = &get_grid();
     grid->divN2C(divE, Ex, Ey, Ez);
 
     scale(divE_average, (1.0-ma), nxc, nyc, nzc);
     addscale(ma, divE_average, divE, nxc, nyc, nzc);
 }
+
 
 //! ===================================== Helper Functions (Moments) ===================================== !//
 
