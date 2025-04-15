@@ -49,23 +49,30 @@ public:
 
     void setAllzero();
 
+    //! ===================================== Initial Field Distributions ===================================== !//
+
     /*! initialize the electromagnetic fields with constant values */
     void init();
     /*! init beam */
     void initBEAM(double x_center, double y_center, double z_center, double radius);
     /*! initialize GEM challenge */
     void initGEM();
+
     void initOriginalGEM();
-    void initGEMDoubleHarris();
+    
+    void initDoubleHarris();
+
     void initDoublePeriodicHarrisWithGaussianHumpPerturbation();
     /*! initialize GEM challenge with dipole-like tail without perturbation */
     void initGEMDipoleLikeTailNoPert();
     /*! initialize GEM challenge with no Perturbation */
     void initGEMnoPert();
-#ifdef BATSRUS
+
     /*! initialize from BATSRUS */
-    void initBATSRUS();
-#endif
+    #ifdef BATSRUS
+        void initBATSRUS();
+    #endif
+
     /*! Random initial field */
     void initRandomField();
     /*! Init Force Free (JxB=0) */
@@ -83,6 +90,9 @@ public:
     void initNullPoints();
     /*! Initialise Taylor-Green flow */
     void initTaylorGreen();
+
+    //! ======================================================================================================= !//
+
     /*! Calculate Electric field using the implicit Maxwell solver */
     void calculateE();
     /*! Image of Poisson Solver (for SOLVER) */

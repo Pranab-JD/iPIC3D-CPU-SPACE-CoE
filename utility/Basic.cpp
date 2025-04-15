@@ -392,42 +392,44 @@ void neg(arr3_double vect, int nx) {
     vect.fetch(i,0,0) = -vect.get(i,0,0);
 }
 /** method to calculate the opposite of a vector */
-void neg(double *vect, int n) {
-  for (int i = 0; i < n; i++)
-    vect[i] = -vect[i];
-
-
-}
-/** method to set equal two vectors */
-void eq(arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      for (int k = 0; k < nz; k++)
-        vect1.fetch(i,j,k) = vect2.get(i,j,k);
-
-}
-/** method to set equal two vectors */
-void eq(arr3_double vect1, const arr3_double vect2, int nx, int ny) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      vect1.fetch(i,j,0) = vect2.get(i,j,0);
-
+void neg(double *vect, int n) 
+{
+    for (int i = 0; i < n; i++)
+        vect[i] = -vect[i];
 }
 
-/** method to set equal two vectors */
-void eq(arr4_double vect1, const arr3_double vect2, int nx, int ny, int is) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      vect1.fetch(is,i,j,0) = vect2.get(i,j,0);
-
+//* vect1(i, j, k) = vect2(i, j, k)
+void eq(arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz) 
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            for (int k = 0; k < nz; k++)
+                vect1.fetch(i, j, k) = vect2.get(i, j, k);
 }
-/** method to set equal two vectors */
-void eq(arr4_double vect1, const arr3_double vect2, int nx, int ny, int nz, int is) {
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      for (int k = 0; k < nz; k++)
-        vect1.fetch(is,i,j,k) = vect2.get(i,j,k);
 
+//* vect1(i, j, 0) = vect2(i, j, 0)
+void eq(arr3_double vect1, const arr3_double vect2, int nx, int ny) 
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            vect1.fetch(i, j, 0) = vect2.get(i, j, 0);
+}
+
+//* vect1(is, i, j, 0) = vect2(is, i, j, 0)
+void eq(arr4_double vect1, const arr3_double vect2, int nx, int ny, int is)
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            vect1.fetch(is, i, j, 0) = vect2.get(i, j, 0);
+}
+
+//* vect1(is, i, j, k) = vect2(is, i, j, k)
+void eq(arr4_double vect1, const arr3_double vect2, int nx, int ny, int nz, int is) 
+{
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            for (int k = 0; k < nz; k++)
+                vect1.fetch(is,i,j,k) = vect2.get(i,j,k);
 }
 
 //* Set a vector (arr3_double/arr4_double) to a value
@@ -454,11 +456,11 @@ void eqValue(double value, arr3_double vect, int nx)
 
 void eqValue(double value, arr4_double vect, int ns, int nx, int ny, int nz) 
 {
-    for (int s = 0; s < ns; s++)
+    for (int is = 0; is < ns; is++)
         for (int i = 0; i < nx; i++)
             for (int j = 0; j < ny; j++)
                 for (int k = 0; k < nz; k++)
-                    vect.fetch(s, i, j, k) = value;
+                    vect.fetch(is, i, j, k) = value;
 }
 
 void eqValue(double value, arr4_double vect, int ns, int nx, int ny) 

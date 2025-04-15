@@ -1249,102 +1249,107 @@ void Collective::init_derived_parameters()
 }
 
 /*! Print Simulation Parameters */
-void Collective::Print() {
-  cout << endl;
-  cout << "Simulation Parameters" << endl;
-  cout << "---------------------" << endl;
-  cout << "Number of species    = " << ns << endl;
-  for (int i = 0; i < ns; i++)
-    cout << "qom[" << i << "] = " << qom[i] << endl;
-  cout << "x-Length                 = " << Lx << endl;
-  cout << "y-Length                 = " << Ly << endl;
-  cout << "z-Length                 = " << Lz << endl;
-  cout << "Number of cells (x)      = " << nxc << endl;
-  cout << "Number of cells (y)      = " << nyc << endl;
-  cout << "Number of cells (z)      = " << nzc << endl;
-  cout << "Time step                = " << dt << endl;
-  cout << "Number of cycles         = " << ncycles << endl;
-  cout << "Results saved in  : " << SaveDirName << endl;
-  cout << "Case type         : " << Case << endl;
-  cout << "Simulation name   : " << SimName << endl;
-//   cout << "Poisson correction: " << PoissonCorrection << endl;
-  cout << "---------------------" << endl;
-  cout << "Check Simulation Constraints" << endl;
-  cout << "---------------------" << endl;
-  cout << "Accuracy Constraint:  " << endl;
-  for (int i = 0; i < ns; i++) {
-    cout << "u_th < dx/dt species " << i << ".....";
-    if (uth[i] < (dx / dt))
-      cout << "OK" << endl;
-    else
-      cout << "NOT SATISFIED. STOP THE SIMULATION." << endl;
+void Collective::Print() 
+{
+    cout << endl;
+    cout << "Simulation Parameters" << endl;
+    cout << "---------------------" << endl;
+    cout << "Number of species          = " << ns << endl;
+    for (int i = 0; i < ns; i++)
+    cout << "qom[" << i << "]           = " << qom[i] << endl;
+    cout << "X length                   = " << Lx << endl;
+    cout << "Y length                   = " << Ly << endl;
+    cout << "Z length                   = " << Lz << endl;
+    cout << "# of cells along X         = " << nxc << endl;
+    cout << "# of cells along Y         = " << nyc << endl;
+    cout << "# of cells along Z         = " << nzc << endl << endl;
+    
+    cout << "Smooth                     = " << Smooth << endl;
+    cout << "SmoothCycle                = " << SmoothCycle << endl;
+    cout << "# of smoothings per cycle  = " << num_smoothings << endl;
+    cout << "GMRES tolerance            = " << GMREStol << endl;
+    cout << "Time step size             = " << dt << endl;
+    cout << "# of time cycles           = " << ncycles << endl << endl;
+    
+    cout << "Results saved in           : " << SaveDirName << endl;
+    cout << "Case type                  : " << Case << endl;
+    cout << "Simulation name            : " << SimName << endl << endl;
+    
+    cout << "----------------------------" << endl;
+    cout << "Check Simulation Constraints" << endl;
+    cout << "----------------------------" << endl;
+    cout << "Accuracy Constraints:  " << endl;
+    for (int i = 0; i < ns; i++) 
+    {
+        cout << "u_th < dx/dt species " << i << ".....";
+        if (uth[i] < (dx / dt))
+            cout << "OK" << endl;
+        else
+            cout << "NOT SATISFIED. STOP THE SIMULATION." << endl;
 
-    cout << "v_th < dy/dt species " << i << "......";
-    if (vth[i] < (dy / dt))
-      cout << "OK" << endl;
-    else
-      cout << "NOT SATISFIED. STOP THE SIMULATION." << endl;
-  }
-  cout << endl;
-  cout << "Finite Grid Stability Constraint:  ";
-  cout << endl;
-  for (int is = 0; is < ns; is++) {
-    if (uth[is] * dt / dx > .1)
-      cout << "OK u_th*dt/dx (species " << is << ") = " << uth[is] * dt / dx << " > .1" << endl;
-    else
-      cout << "WARNING. u_th*dt/dx (species " << is << ") = " << uth[is] * dt / dx << " < .1" << endl;
+        cout << "v_th < dy/dt species " << i << "......";
+        if (vth[i] < (dy / dt))
+            cout << "OK" << endl;
+        else
+            cout << "NOT SATISFIED. STOP THE SIMULATION." << endl;
+    }
 
-    if (vth[is] * dt / dy > .1)
-      cout << "OK v_th*dt/dy (species " << is << ") = " << vth[is] * dt / dy << " > .1" << endl;
-    else
-      cout << "WARNING. v_th*dt/dy (species " << is << ") = " << vth[is] * dt / dy << " < .1"  << endl;
+    cout << endl << "Finite Grid Stability Constraints:  " << endl;
+    for (int is = 0; is < ns; is++) 
+    {
+        if (uth[is] * dt / dx > .1)
+            cout << "OK u_th*dt/dx (species " << is << ") = " << uth[is] * dt / dx << " > .1" << endl;
+        else
+            cout << "WARNING. u_th*dt/dx (species " << is << ") = " << uth[is] * dt / dx << " < .1" << endl;
 
-  }
-
-
+        if (vth[is] * dt / dy > .1)
+            cout << "OK v_th*dt/dy (species " << is << ") = " << vth[is] * dt / dy << " > .1" << endl;
+        else
+            cout << "WARNING. v_th*dt/dy (species " << is << ") = " << vth[is] * dt / dy << " < .1"  << endl << endl;
+    }
 }
+
 /*! Print Simulation Parameters */
-void Collective::save() {
-  string temp;
-  temp = SaveDirName + "/SimulationData.txt";
-  ofstream my_file(temp.c_str());
-  my_file << "---------------------------" << endl;
-  my_file << "-  Simulation Parameters  -" << endl;
-  my_file << "---------------------------" << endl;
+void Collective::save() 
+{
+    string temp;
+    temp = SaveDirName + "/SimulationData.txt";
+    ofstream my_file(temp.c_str());
+    my_file << "---------------------------" << endl;
+    my_file << "-  Simulation Parameters  -" << endl;
+    my_file << "---------------------------" << endl;
 
-  my_file << "Number of species    = " << ns << endl;
-  for (int i = 0; i < ns; i++)
-    my_file << "qom[%d] = " << qom[i] << endl;
-  my_file << "---------------------------" << endl;
-  my_file << "x-Length                 = " << Lx << endl;
-  my_file << "y-Length                 = " << Ly << endl;
-  my_file << "z-Length                 = " << Lz << endl;
-  my_file << "Number of cells (x)      = " << nxc << endl;
-  my_file << "Number of cells (y)      = " << nyc << endl;
-  my_file << "Number of cells (z)      = " << nzc << endl;
-  my_file << "---------------------------" << endl;
-  my_file << "Time step                = " << dt << endl;
-  my_file << "Number of cycles         = " << ncycles << endl;
-  my_file << "---------------------------" << endl;
-  for (int is = 0; is < ns; is++){
-    my_file << "rho init species   " << is << " = " << rhoINIT[is] << endl;
-    my_file << "rho inject species " << is << " = " << rhoINJECT[is]  << endl;
-  }
-  my_file << "current sheet thickness  = " << delta << endl;
-  my_file << "B0x                      = " << B0x << endl;
-  my_file << "BOy                      = " << B0y << endl;
-  my_file << "B0z                      = " << B0z << endl;
-  my_file << "---------------------------" << endl;
-  my_file << "Smooth                   = " << Smooth << endl;
-  my_file << "SmoothCycle              = " << SmoothCycle<< endl;
-  my_file << "GMRES error tolerance    = " << GMREStol << endl;
-//   my_file << "CG error tolerance       = " << CGtol << endl;
-  my_file << "Mover error tolerance    = " << NiterMover << endl;
-  my_file << "---------------------------" << endl;
-  my_file << "Results saved in: " << SaveDirName << endl;
-  my_file << "Restart saved in: " << RestartDirName << endl;
-  my_file << "---------------------" << endl;
-  my_file.close();
-
+    my_file << "Number of species    = " << ns << endl;
+    for (int i = 0; i < ns; i++)
+        my_file << "qom[%d] = " << qom[i] << endl;
+    my_file << "---------------------------" << endl;
+    my_file << "x-Length                 = " << Lx << endl;
+    my_file << "y-Length                 = " << Ly << endl;
+    my_file << "z-Length                 = " << Lz << endl;
+    my_file << "Number of cells (x)      = " << nxc << endl;
+    my_file << "Number of cells (y)      = " << nyc << endl;
+    my_file << "Number of cells (z)      = " << nzc << endl;
+    my_file << "---------------------------" << endl;
+    my_file << "Time step                = " << dt << endl;
+    my_file << "Number of cycles         = " << ncycles << endl;
+    my_file << "---------------------------" << endl;
+    for (int is = 0; is < ns; is++)
+    {
+        my_file << "rho init species   " << is << " = " << rhoINIT[is] << endl;
+        my_file << "rho inject species " << is << " = " << rhoINJECT[is]  << endl;
+    }
+    my_file << "current sheet thickness  = " << delta << endl;
+    my_file << "B0x                      = " << B0x << endl;
+    my_file << "BOy                      = " << B0y << endl;
+    my_file << "B0z                      = " << B0z << endl;
+    my_file << "---------------------------" << endl;
+    my_file << "Smooth                   = " << Smooth << endl;
+    my_file << "SmoothCycle              = " << SmoothCycle<< endl;
+    my_file << "GMRES error tolerance    = " << GMREStol << endl;
+    my_file << "---------------------------" << endl;
+    my_file << "Results saved in: " << SaveDirName << endl;
+    my_file << "Restart saved in: " << RestartDirName << endl;
+    my_file << "---------------------" << endl;
+    my_file.close();
 }
 
