@@ -151,7 +151,7 @@ int c_Solver::Init(int argc, char **argv)
     if      (col->getCase()=="GEMnoPert") 		EMf->initGEMnoPert();
     else if (col->getCase()=="ForceFree") 		EMf->initForceFree();
     else if (col->getCase()=="GEM")       		EMf->initGEM();
-    else if (col->getCase()=="GEMDoubleHarris") EMf->initGEMDoubleHarris();
+    else if (col->getCase()=="DoubleHarris")    EMf->initDoubleHarris();
     else if (col->getCase()=="Dipole")    		EMf->initDipole();
     else if (col->getCase()=="Dipole2D")  		EMf->initDipole2D();
     else if (col->getCase()=="NullPoints")      EMf->initNullPoints();
@@ -163,7 +163,7 @@ int c_Solver::Init(int argc, char **argv)
     else if (col->getCase()=="RandomCase")      EMf->initRandomField();
     else 
     {
-        if (myrank==0) 
+        if (myrank==0)
         {
             cout << " =========================================================== " << endl;
             cout << " WARNING: The case '" << col->getCase() << "' was not recognized. " << endl;
@@ -190,8 +190,8 @@ int c_Solver::Init(int argc, char **argv)
             #endif
             else if (col->getCase()=="NullPoints")    	particles[i].maxwellianNullPoints(EMf);
             else if (col->getCase()=="Uniform")    	    particles[i].uniform_background(EMf);
-            else if (col->getCase()=="TaylorGreen")     particles[i].maxwellianNullPoints(EMf);     //* Flow is initiated from the current prescribed on the grid.
-            else if (col->getCase()=="GEMDoubleHarris") particles[i].maxwellianDoubleHarris(EMf);
+            else if (col->getCase()=="TaylorGreen")     particles[i].maxwellianNullPoints(EMf);     //* Flow is initiated from the current prescribed on the grid
+            else if (col->getCase()=="DoubleHarris")    particles[i].maxwellianDoubleHarris(EMf);
             else if (col->getCase()=="Maxwellian") 		particles[i].maxwellian(EMf);
             else                                  		particles[i].maxwellian(EMf);
             

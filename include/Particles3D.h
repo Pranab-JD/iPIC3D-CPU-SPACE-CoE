@@ -49,23 +49,25 @@ class Particles3D:public Particles3Dcomm
     //! Destructor !//
     ~Particles3D(){}
     
-    //* Initial condition: uniform in space and motionless
+    //? ============================================================================ ? //
+    
+    //? Initial particle distributions
+
+    //* Uniform in space and motionless
     void uniform_background(Field * EMf);
     
-    /** Initialize particles with a constant velocity in dim direction. Depending on the value of dim:
-      <ul>
-      <li> dim = 0 --> constant velocity on X direction </li>
-      <li> dim = 1 --> constant velocity on Y direction </li>
-      </ul>
-      */
+    //* Initialize particles with a constant velocity along "dim" direction
     void constantVelocity(double vel, int dim, Field * EMf);
     
-    /** Initial condition: uniform in space and maxwellian in velocity */
+    //* Uniform in space and Maxwellian in velocity
     void maxwellian(Field * EMf);
+
     /** Initial condition: uniform in space and maxwellian in velocity with velocity from Null Point currents */
     void maxwellianNullPoints(Field * EMf);
-    /** Maxellian velocity from currents and uniform spatial distribution */
+
+    //* Maxellian velocity from currents and uniform spatial distribution for a double Harris sheet*/
     void maxwellianDoubleHarris(Field * EMf);
+
     /** pitch_angle_energy initialization (Assume B on z only) for test particles */
     void pitch_angle_energy(Field * EMf);
     /** Force Free initialization (JxB=0) for particles */
@@ -86,6 +88,9 @@ class Particles3D:public Particles3Dcomm
     double f0(double vpar, double vperp);
     /** Rotate velocities in plane XY of angle theta */
     void RotatePlaneXY(double theta);
+
+    //? ============================================================================ ? //
+
     /** mover with the esplicit non relativistic scheme */
     void mover_explicit(Field * EMf);
     /** mover with a Predictor-Corrector Scheme */

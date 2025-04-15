@@ -195,7 +195,6 @@ void Particles3D::maxwellian(Field * EMf)
     assert_eq(_pcls.size(),0);
 
     const double q_sgn = (qom / fabs(qom));
-    // multipled by charge density gives charge per particle
     const double q_factor =  q_sgn * grid->getVOL() / npcel;
 
     long long counter = 0;
@@ -218,7 +217,6 @@ void Particles3D::maxwellian(Field * EMf)
                         
                             create_new_particle(u, v, w, q, x, y, z);
                             counter++;
-                            
                         }
             }
 
@@ -288,9 +286,9 @@ void Particles3D::maxwellianDoubleHarris(Field * EMf)
 
     assert_eq(_pcls.size(),0);
 
-    const double q_sgn = (qom / fabs(qom));
     const double Ly_upper = Ly/2.0;
-    // multipled by charge density gives charge per particle
+
+    const double q_sgn = (qom / fabs(qom));
     const double q_factor =  q_sgn * grid->getVOL() / npcel;
 
     for (int i = 1; i < grid->getNXC() - 1; i++)
@@ -303,18 +301,21 @@ void Particles3D::maxwellianDoubleHarris(Field * EMf)
                     for (int jj = 0; jj < npcely; jj++)
                         for (int kk = 0; kk < npcelz; kk++)
                         {
-                            // could also sample positions randomly as in repopulate_particles();
                             const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
                             const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
                             const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
 
-                            double u,v,w;
-                            if(y> Ly_upper)  sample_maxwellian(u,v,w,uth, vth, wth,u0, v0, w0);//-1.0*w0
-                            else  sample_maxwellian(u,v,w,uth, vth, wth,u0, v0, w0);
+                            double u, v, w;
+                            if(y > Ly_upper)  
+                                sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);  //-1.0*w0
+                            else  
+                                sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
 
                             create_new_particle(u,v,w,q,x,y,z);
                         }
             }
+    
+    fixPosition();
 }
 
 /** pitch_angle_energy initialization (Assume B on z only) for test particles */
@@ -611,20 +612,6 @@ void Particles3D::ECSIM_position(Field *EMf)
                 for (int kk = 0; kk < nzc; kk++)
                     temp_R.fetch(ii, jj, kk) = EMf->getResDiv(ii, jj, kk, ns);
 
-        // cout << "temp_R" << endl;
-        // for (int ii = 0; ii < nxc; ii++)
-        // {
-        //     for (int jj = 0; jj < nyc; jj++)
-        //     {
-        //         for (int kk = 0; kk < nzc; kk++)
-        //             cout << temp_R.fetch(ii, jj, kk) << "    ";
-        //         cout << endl;
-        //     }
-        //     cout << endl;
-        // }
-        // cout << endl;
-
-
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++) 
         {
@@ -691,8 +678,6 @@ void Particles3D::ECSIM_position(Field *EMf)
 			RxM += weight01 * temp_R.get(ix - 1, iy, iz - 1);
 			RxM += weight10 * temp_R.get(ix - 1, iy - 1, iz);
 			RxM += weight11 * temp_R.get(ix - 1, iy - 1, iz - 1);
-
-            // cout << endl << RxP << "   " << RxM << endl;
 
             //* Difference along Y
 			xi0   = xavg - grid->getXC(ix - 1, iy, iz);
