@@ -40,11 +40,13 @@
 #include "Alloc.h"
 #include "asserts.h"
 #include <iomanip>
+#include <iostream>
+#include <fstream>
+#include "../LeXInt_Timer.hpp"
+
 #ifndef NO_HDF5
 #endif
 
-#include <iostream>
-#include <fstream>
 using std::cout;
 using std::endl;
 using namespace iPic3D;
@@ -2533,6 +2535,12 @@ void phys2solver(double *vectSolver, const arr3_double vectPhys1, const arr3_dou
 //? Calculate electric field using GMRes
 void EMfields3D::calculateE()
 {
+    #ifdef __PROFILE_FIELDS__
+    LeXInt::timer time_ms, time_gmres, time_com, time_total;
+
+    time_total.start();
+    #endif
+
     const Collective *col = &get_col();
     const VirtualTopology3D * vct = &get_vct();
     const Grid *grid = &get_grid();
@@ -2548,32 +2556,64 @@ void EMfields3D::calculateE()
     eqValue(0.0, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
     eqValue(0.0, bkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
 
+    #ifdef __PROFILE_FIELDS__
+    time_ms.start();
+    #endif
+
     //* Prepare the source 
     MaxwellSource(bkrylov);
 
+    #ifdef __PROFILE_FIELDS__
+    time_ms.stop();
+    #endif
+
     //* Move to Krylov space from physical space
     phys2solver(xkrylov, Ex, Ey, Ez, nxn, nyn, nzn);
+
+    #ifdef __PROFILE_FIELDS__
+    time_gmres.start();
+    #endif
     
     //? Solve using GMRes
     GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 20, 100, GMREStol, this);
 
+    #ifdef __PROFILE_FIELDS__
+    time_gmres.stop();
+    #endif
+
     //* Move from Krylov space to physical space
     solver2phys(Exth, Eyth, Ezth, xkrylov, nxn, nyn, nzn);
+
+    #ifdef __PROFILE_FIELDS__
+    time_com.start();
+    #endif
 
     //? Communicate E theta so the interpolation can have good values
     communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0], col->bcEx[1], col->bcEx[2], col->bcEx[3], col->bcEx[4], col->bcEx[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0], col->bcEy[1], col->bcEy[2], col->bcEy[3], col->bcEy[4], col->bcEy[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Ezth, col->bcEz[0], col->bcEz[1], col->bcEz[2], col->bcEz[3], col->bcEz[4], col->bcEz[5], vct, this);
 
+    #ifdef __PROFILE_FIELDS__
+    time_com.stop();
+    #endif
+
     //* E(x,y,z) = -(1.0 - th)/th * E(x,y,z) + 1.0/th * Eth(x,y,z): scale the electric field values
     addscale(1.0/th, -(1.0 - th)/th, Ex, Exth, nxn, nyn, nzn);
     addscale(1.0/th, -(1.0 - th)/th, Ey, Eyth, nxn, nyn, nzn);
     addscale(1.0/th, -(1.0 - th)/th, Ez, Ezth, nxn, nyn, nzn);
 
+    #ifdef __PROFILE_FIELDS__
+    time_com.start();
+    #endif
+
     //? Communicate E
     communicateNodeBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
     communicateNodeBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
+
+    #ifdef __PROFILE_FIELDS__
+    time_com.stop();
+    #endif
 
     //? OpenBC Inflow: this needs to be integrate to Halo Exchange BC
     //TODO: Is this implemented? Ask Andong/Stefano
@@ -2583,6 +2623,19 @@ void EMfields3D::calculateE()
     //* Deallocate temporary arrays
     delete[]xkrylov;
     delete[]bkrylov;
+
+    #ifdef __PROFILE_FIELDS__
+    time_total.stop();
+
+    if(MPIdata::get_rank() == 0)
+    {
+        cout << endl << "   FIELD SOLVER (calculateE())" << endl; 
+        cout << "       Maxwell Source              : " << time_ms.total()    << " s, fraction of time taken in calculateE(): " << time_ms.total()/time_total.total() << endl;
+        cout << "       GMRes                       : " << time_gmres.total() << " s, fraction of time taken in calculateE(): " << time_gmres.total()/time_total.total() << endl;
+        cout << "       Communicate                 : " << time_com.total()   << " s, fraction of time taken in calculateE(): " << time_com.total()/time_total.total() << endl;
+        cout << "       calculateE()                : " << time_total.total() << " s" << endl << endl;
+    }
+    #endif  
 }
 
 //? LHS of the Maxwell solver

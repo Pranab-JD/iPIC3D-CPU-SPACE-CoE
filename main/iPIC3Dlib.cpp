@@ -349,9 +349,9 @@ void c_Solver::CalculateMoments()
     //     }
     // }
 
+    #ifdef __PROFILING__
     LeXInt::timer time_cm, time_com, time_int, time_total;
 
-    #ifdef __PROFILING__
     time_total.start();
     #endif
 
@@ -421,9 +421,9 @@ void c_Solver::CalculateMoments()
 //! Compute electromagnetic field
 void c_Solver::ComputeEMFields(int cycle)
 {
-    LeXInt::timer time_e, time_b, time_div, time_total;
-
     #ifdef __PROFILING__
+    LeXInt::timer time_e, time_b, time_div, time_total;
+    
     time_total.start();
     #endif
 
@@ -492,13 +492,13 @@ void c_Solver::ComputeEMFields(int cycle)
 //! Compute positions and velocities of particles
 bool c_Solver::ParticlesMover()
 {
+    #ifdef __PROFILING__
     LeXInt::timer time_vel, time_relvel, time_pos, time_com, time_mag, time_total;
 
-    timeTasks_set_main_task(TimeTasks::PARTICLES);
-    
-    #ifdef __PROFILING__
     time_total.start();
     #endif
+
+    timeTasks_set_main_task(TimeTasks::PARTICLES);
 
     // Should change this to add background field
     EMf->set_fieldForPcls();

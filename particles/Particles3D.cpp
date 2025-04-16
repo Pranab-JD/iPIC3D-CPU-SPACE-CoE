@@ -782,7 +782,11 @@ void Particles3D::computeMoments(Field *EMf)
 {
     // convertParticlesToSoA();
 
-    LeXInt::timer time_1, time_2, time_3, time_4, time_5, time_6, time_7;
+    #ifdef __PROFILE_MOMENTS__
+    LeXInt::timer time_fc, time_add, time_mm, time_total;
+
+    time_total.start();
+    #endif
 
     #pragma omp master
     if (vct->getCartesian_rank() == 0) 
@@ -821,6 +825,10 @@ void Particles3D::computeMoments(Field *EMf)
 
             //* --------------------------------------- *//
 
+            #ifdef __PROFILE_MOMENTS__
+            time_fc.start();
+            #endif
+
             //* Compute weights for field components
             double weights[8] ALLOC_ALIGNED;
             int cx, cy, cz;
@@ -856,6 +864,10 @@ void Particles3D::computeMoments(Field *EMf)
 
             //TODO: External force to be implemented in "sampled_field"
 
+            #ifdef __PROFILE_MOMENTS__
+            time_fc.stop();
+            #endif
+
             //* --------------------------------------- *//
 
             //? Rotation matrix alpha
@@ -888,12 +900,16 @@ void Particles3D::computeMoments(Field *EMf)
             //* --------------------------------------- *//
 
             //* Temporary variable used to add density and current density
-            double temp[8];         
+            double temp[8];
             
             //* Index of cell of particles
             const int ix = cx + 1;
             const int iy = cy + 1;
             const int iz = cz + 1;
+
+            #ifdef __PROFILE_MOMENTS__
+            time_add.start();
+            #endif
 
             //* Add charge density                 
             for (int ii = 0; ii < 8; ii++)
@@ -914,6 +930,11 @@ void Particles3D::computeMoments(Field *EMf)
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = qaw * weights[ii];
             EMf->add_Jzh(temp, ix, iy, iz, ns);
+
+            #ifdef __PROFILE_MOMENTS__
+            time_add.stop();
+            time_mm.start();
+            #endif
             
             //? Compute exact Mass Matrix
             for (int i = 0; i < 2; i++) 
@@ -952,9 +973,26 @@ void Particles3D::computeMoments(Field *EMf)
                                 EMf->add_Mass(value, ni, nj, nk, n_node);
                             }
                         }
-                    }   
+                    }
+            
+            #ifdef __PROFILE_MOMENTS__
+            time_mm.stop();
+            #endif   
         }
     }
+
+    #ifdef __PROFILE_MOMENTS__
+    time_total.stop();
+
+    if(MPIdata::get_rank() == 0)
+    {
+        cout << endl << "   MOMENT GATHERER (computeMoments())" << endl; 
+        cout << "       Get field components        : " << time_fc.total()    << " s, fraction of time taken in computeMoments(): " << time_fc.total()/time_total.total() << endl;
+        cout << "       Add rho & J                 : " << time_add.total()   << " s, fraction of time taken in computeMoments(): " << time_add.total()/time_total.total() << endl;
+        cout << "       Mass Matrix                 : " << time_mm.total()    << " s, fraction of time taken in computeMoments(): " << time_mm.total()/time_total.total() << endl;
+        cout << "       computeMoments()            : " << time_total.total() << " s" << endl;
+    }
+    #endif   
 }
 
 //! End of ECSIM & RelSIM

@@ -36,15 +36,17 @@ set_property(CACHE SITE PROPERTY STRINGS "${KNOWN_SITES}")
 # Include it
 include("${CMAKE_SOURCE_DIR}/cmake/sites/${SITE}.cmake")
 
-# Use CMake default variable for this so add_library will
-# automatically do the right thing.
+############### SET OPTIONS ###############
+
 option(BUILD_SHARED_LIBS "Use shared libraries if ON, static if OFF" ON)
 option(USE_CATALYST "Use Catalyst adaptor" OFF)
 option(USE_BATSRUS "Use BATSRUS flag" OFF)
 option(USE_HDF5 "Use HDF5 library" OFF)
 option(BENCH_MARK "Print tasks time" OFF)
 option(USE_OPENMP "Use OpenMP in support loops" ON) # must delete all cmake cache if you change this option
-option(PROFILING "Measure the times in each stage" OFF)
+option(PROFILING "Measure runtimes of the substages of the 3 modules" OFF)
+option(PROFILE_MOMENTS "Measure runtimes of the substages of the Moment Gatherer" OFF)
+option(PROFILE_FIELDS "Measure runtimes of the substages of the Field Solver" OFF)
 
 include(GNUInstallDirs)
 
@@ -213,6 +215,14 @@ endif()
 
 if(PROFILING)
   	add_definitions( -D__PROFILING__ )
+endif()
+
+if(PROFILE_MOMENTS)
+  	add_definitions( -D__PROFILE_MOMENTS__ )
+endif()
+
+if(PROFILE_FIELDS)
+  	add_definitions( -D__PROFILE_FIELDS__ )
 endif()
 
 if(BENCH_MARK)
