@@ -196,9 +196,9 @@ void Collective::ReadInput(string inputfile)
         // take the output cycles
         FieldOutputCycle            = config.read <int>     ("FieldOutputCycle", 100);
         ParticlesOutputCycle        = config.read <int>     ("ParticlesOutputCycle", 0);
-        FieldOutputTag              = config.read <string>  ("FieldOutputTag", "");
+        FieldOutputTag              = config.read <string>  ("FieldOutputTag", " ");
         ParticlesOutputTag          = config.read <string>  ("ParticlesOutputTag", "");
-        MomentsOutputTag            = config.read <string>  ("MomentsOutputTag", "");
+        MomentsOutputTag            = config.read <string>  ("MomentsOutputTag", " ");
         TestParticlesOutputCycle    = config.read <int>     ("TestPartOutputCycle", 0);
         testPartFlushCycle          = config.read <int>     ("TestParticlesOutputCycle", 10);
         RestartOutputCycle          = config.read <int>     ("RestartOutputCycle", 5000);
@@ -552,16 +552,16 @@ void Collective::ReadInput(string inputfile)
 
 bool Collective::field_output_is_off()const
 {
-  return (FieldOutputCycle <= 0);
+    return getFieldOutputCycle() <= 0;
 }
 
 bool Collective::particle_output_is_off()const
 {
-  return getParticlesOutputCycle() <= 0;
+    return getParticlesOutputCycle() <= 0;
 }
 bool Collective::testparticle_output_is_off()const
 {
-  return getTestParticlesOutputCycle() <= 0;
+    return getTestParticlesOutputCycle() <= 0;
 }
 
 /*! Read the collective information from the RESTART file in HDF5 format
@@ -1151,7 +1151,6 @@ void Collective::read_particles_restart(
     status = H5Fclose(file_id);
 #endif
 }
-
 
 
 /*! constructor */

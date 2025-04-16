@@ -60,68 +60,67 @@ void OutputWrapperFPP::init_output_files(
     // Add the HDF5 output agent to the Output Manager's list
     output_mgr.push_back(&hdf5_agent);
 
-    if(col->getWriteMethod() == "shdf5"||(col->getWriteMethod()=="pvtk"&&!col->particle_output_is_off()) ){
-        if (cartesian_rank == 0 && restart_status < 2) {
-          hdf5_agent.open(SaveDirName + "/settings.hdf");
-          output_mgr.output("collective + total_topology + proc_topology", 0);
-          hdf5_agent.close();
+    if(col->getWriteMethod() == "shdf5"||(col->getWriteMethod()=="pvtk"&&!col->particle_output_is_off()) )
+    {
+        if (cartesian_rank == 0 && restart_status < 2) 
+        {
+            hdf5_agent.open(SaveDirName + "/settings.hdf");
+            output_mgr.output("collective + total_topology + proc_topology", 0);
+            hdf5_agent.close();
         }
 
-    	if (restart_status == 0) {
-    	      hdf5_agent.open(output_file);
-    	}else {
-    	      hdf5_agent.open_append(output_file);
-    	    }
+    	if (restart_status == 0)
+    	    hdf5_agent.open(output_file);
+    	else
+    	    hdf5_agent.open_append(output_file);
+    	
 		output_mgr.output("proc_topology ", 0);
 		hdf5_agent.close();
     }
 
-    if(col->getCallFinalize() || col->getRestartOutputCycle()>0){
-
-        if (cartesian_rank == 0 && restart_status < 2) {
-  		  hdf5_agent.open(RestartDirName + "/settings.hdf");
-  		  output_mgr.output("collective + total_topology + proc_topology", 0);
-  		  hdf5_agent.close();
+    if(col->getCallFinalize() || col->getRestartOutputCycle()>0)
+    {
+        if (cartesian_rank == 0 && restart_status < 2) 
+        {
+  		    hdf5_agent.open(RestartDirName + "/settings.hdf");
+  		    output_mgr.output("collective + total_topology + proc_topology", 0);
+  		    hdf5_agent.close();
         }
 
-    	if (restart_status == 0) {
+    	if (restart_status == 0) 
+        {
     		hdf5_agent.open(restart_file);
     		hdf5_agent.close();
     	}
-
     }
-
-
 #endif
 }
 
 void OutputWrapperFPP::append_output(const char* tag, int cycle)
 {
-#ifndef NO_HDF5
-    hdf5_agent.open_append(output_file);
-    output_mgr.output(tag, cycle);
-    hdf5_agent.close();
-#endif
+    #ifndef NO_HDF5
+        hdf5_agent.open_append(output_file);
+        output_mgr.output(tag, cycle);
+        hdf5_agent.close();
+    #endif
 }
 
 void OutputWrapperFPP::append_output(const char* tag, int cycle, int sample)
 {
-#ifndef NO_HDF5
-    hdf5_agent.open_append(output_file);
-    output_mgr.output(tag, cycle, sample);
-    hdf5_agent.close();
-#endif
+    #ifndef NO_HDF5
+        hdf5_agent.open_append(output_file);
+        output_mgr.output(tag, cycle, sample);
+        hdf5_agent.close();
+    #endif
 }
 
 void OutputWrapperFPP::append_restart(int cycle)
 {
-#ifndef NO_HDF5
-		hdf5_agent.open_append(restart_file);
-		output_mgr.output("proc_topology ", cycle);
-		output_mgr.output("Eall + Ball + rhos + Js + pressure", cycle);
-		output_mgr.output("position + velocity + q + ID", cycle, 0);
-		output_mgr.output("testpartpos + testpartvel + testpartcharge", cycle, 0);
-		output_mgr.output("last_cycle", cycle);
-		hdf5_agent.close();
-#endif
+    #ifndef NO_HDF5
+        hdf5_agent.open_append(restart_file);
+        output_mgr.output("position + velocity + q + ID", cycle, 0);
+        output_mgr.output("testpartpos + testpartvel + testpartcharge", cycle, 0);
+        output_mgr.output("last_cycle", cycle);
+        hdf5_agent.close();
+    #endif
 }

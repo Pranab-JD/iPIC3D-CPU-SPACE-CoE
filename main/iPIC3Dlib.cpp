@@ -760,8 +760,8 @@ void c_Solver::WriteOutput(int cycle)
 		#else
 
 			if (col->getWriteMethod() == "H5hut")
-            {//! No guarantee that this will work
-
+            {
+                //! No guarantee that this will work
 			    if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
 				    WriteFieldsH5hut(ns, grid, EMf, col, vct, cycle);
 
@@ -769,23 +769,34 @@ void c_Solver::WriteOutput(int cycle)
 				    WritePartclH5hut(ns, grid, particles, col, vct, cycle);
 			}
             else if (col->getWriteMethod() == "phdf5")
-            {//! Parallel HDF5
-
+            {
+                //! Parallel HDF5
 			    if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
 				    WriteOutputParallel(grid, EMf, particles, col, vct, cycle);
 
 			    if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
 			    {
 				    if(MPIdata::get_rank()==0)
-				        warning_printf("WriteParticlesParallel() is not yet implemented.");
+				    warning_printf("WriteParticlesParallel() is not yet implemented.");
 			    }
 			}
             else if (col->getWriteMethod() == "shdf5")
-            {//! Serial HDF5
+            {
+                //! Serial HDF5
+                if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
+                {
+                    if(MPIdata::get_rank() == 0)
+                    cout << "WRITING FIELD DATA" << endl;
+                    WriteFields(cycle);
+                }
 
-                WriteFields(cycle);
-                WriteParticles(cycle);
-                WriteTestParticles(cycle);
+                if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
+                {
+                    WriteParticles(cycle);
+                    WriteTestParticles(cycle);
+                    if(MPIdata::get_rank() == 0)
+                    cout << "WRITING PARTICLE DATA" << endl;
+                }
 			}
             else
             {
@@ -812,7 +823,6 @@ void c_Solver::WriteConserved(int cycle)
 {
     if (cycle == 0) 
     {
-
         //? Total energy = Electric field energy + Magnetic field energy
         initial_total_energy = EMf->getEenergy() + EMf->getBintenergy();
         
@@ -946,18 +956,18 @@ void c_Solver::WriteVirtualSatelliteTraces()
 void c_Solver::WriteFields(int cycle) 
 {
     #ifndef NO_HDF5
-        if(col->field_output_is_off()) return;
+        if(col->field_output_is_off() || cycle%(col->getFieldOutputCycle())!=0) return;
 
-        if(cycle % (col->getFieldOutputCycle()) == 0 || cycle == first_cycle)
-        {
-            //* E + B + Js
-            if(!(col->getFieldOutputTag()).empty())
-                fetch_outputWrapperFPP().append_output((col->getFieldOutputTag()).c_str(), cycle);      
-            
-            //* rhos + pressure
-            if(!(col->getMomentsOutputTag()).empty())
-                fetch_outputWrapperFPP().append_output((col->getMomentsOutputTag()).c_str(), cycle);
-        }
+        if (vct->getCartesian_rank() == 0)
+            cout << "Writing field data at cycle " << cycle << endl;
+
+        //* E + B + Js
+        if(!(col->getFieldOutputTag()).empty())
+            fetch_outputWrapperFPP().append_output((col->getFieldOutputTag()).c_str(), cycle);      
+        
+        //* rhos + pressure
+        if(!(col->getMomentsOutputTag()).empty())
+            fetch_outputWrapperFPP().append_output((col->getMomentsOutputTag()).c_str(), cycle);
     #endif
 }
 
@@ -965,6 +975,9 @@ void c_Solver::WriteParticles(int cycle)
 {
     #ifndef NO_HDF5
         if(col->particle_output_is_off() || cycle%(col->getParticlesOutputCycle())!=0) return;
+
+        if (vct->getCartesian_rank() == 0)
+            cout << "Writing particle data at cycle " << cycle << endl;
 
         // this is a hack
         for (int i = 0; i < ns; i++)
@@ -996,7 +1009,7 @@ void c_Solver::Finalize()
     {
         #ifndef NO_HDF5
             convertParticlesToSynched();
-            fetch_outputWrapperFPP().append_restart((col->getNcycles() + first_cycle) - 1);
+            fetch_outputWrapperFPP().append_restart((col->getNcycles() + first_cycle));
         #endif
     }
 
