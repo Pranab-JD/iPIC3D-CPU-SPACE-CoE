@@ -40,6 +40,10 @@ int main(int argc, char **argv)
             {  }
         #endif
 
+        //? LeXInt timer
+        LeXInt::timer time_EF, time_PM, time_MF, time_MG, time_WD, time_total;
+        time_total.start();
+
         iPic3D::c_Solver KCode;
 
         KCode.Init(argc, argv); //! load param from file, init the grid, fields
@@ -47,11 +51,8 @@ int main(int argc, char **argv)
 
         timeTasks.resetCycle(); //reset timer
 
-        //? LeXInt timer
-        LeXInt::timer time_EF, time_PM, time_MF, time_MG, time_loop, time_total;
-        time_total.start();
 
-        for (int i = KCode.FirstCycle()+1; i <= KCode.LastCycle(); i++) 
+        for (int i = KCode.FirstCycle() + 1; i <= KCode.LastCycle(); i++) 
         {
             if (KCode.get_myrank() == 0)
                 std::cout << std::endl << "=================== Cycle " << i << " ===================" << std::endl ;
@@ -73,8 +74,10 @@ int main(int argc, char **argv)
             KCode.ParticlesMover();          
             time_PM.stop();
 
+            time_WD.start();
             KCode.WriteOutput(i);
-            
+            time_WD.stop();
+
             //? Print out total time for all tasks
             #ifdef LOG_TASKS_TOTAL_TIME
                 timeTasks.print_cycle_times(i);
@@ -86,6 +89,7 @@ int main(int argc, char **argv)
                 std::cout << "Field solver       : " << time_EF.total()   << " s" << std::endl;
                 std::cout << "Particle mover     : " << time_PM.total()   << " s" << std::endl;
                 std::cout << "Moment gatherer    : " << time_MG.total()   << " s" << std::endl;
+                std::cout << "Write data         : " << time_WD.total()   << " s" << std::endl;
             }
         }
 
