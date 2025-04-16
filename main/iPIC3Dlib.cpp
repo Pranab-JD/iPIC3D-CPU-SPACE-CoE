@@ -675,8 +675,8 @@ void c_Solver::WriteOutput(int cycle)
     if(!Parameters::get_doWriteOutput())  return;
 
     if (col->getWriteMethod() == "nbcvtk")
-    {//! Non-blocking collective MPI-IO
-
+    {
+        //! Non-blocking collective MPI-IO
         if(!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle) )
         {
             if(!(col->getFieldOutputTag()).empty())
@@ -736,8 +736,8 @@ void c_Solver::WriteOutput(int cycle)
 
     }
     else if (col->getWriteMethod() == "pvtk")
-    {//! Blocking collective MPI-IO
-	    
+    {
+        //! Blocking collective MPI-IO
         if(!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle) )
         {
 		    if(!(col->getFieldOutputTag()).empty())
@@ -770,7 +770,7 @@ void c_Solver::WriteOutput(int cycle)
 			}
             else if (col->getWriteMethod() == "phdf5")
             {
-                //! Parallel HDF5
+                //! Parallel HDF5 (THIS DOES NOT WORK -- Maybe this could be debugged) - PJD
 			    if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
 				    WriteOutputParallel(grid, EMf, particles, col, vct, cycle);
 
@@ -785,8 +785,6 @@ void c_Solver::WriteOutput(int cycle)
                 //! Serial HDF5
                 if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
                 {
-                    if(MPIdata::get_rank() == 0)
-                    cout << "WRITING FIELD DATA" << endl;
                     WriteFields(cycle);
                 }
 
@@ -794,8 +792,6 @@ void c_Solver::WriteOutput(int cycle)
                 {
                     WriteParticles(cycle);
                     WriteTestParticles(cycle);
-                    if(MPIdata::get_rank() == 0)
-                    cout << "WRITING PARTICLE DATA" << endl;
                 }
 			}
             else

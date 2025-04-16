@@ -26,9 +26,9 @@
 #  include "H5hut-io.h"
 #endif
 
-#ifdef PHDF5
+// #ifdef PHDF5
 #  include "phdf5.h"
-#endif
+// #endif
 
 #include "ipicfwd.h"
 #include "arraysfwd.h"

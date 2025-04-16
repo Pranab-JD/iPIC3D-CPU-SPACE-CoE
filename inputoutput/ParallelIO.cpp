@@ -21,6 +21,7 @@
 #include <mpi.h>
 #include <fstream>
 
+#include "phdf5.h"
 #include "ParallelIO.h"
 #include "MPIdata.h"
 #include "TimeTasks.h"
@@ -33,85 +34,86 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <iomanip>
 
 /*! Function used to write the EM fields using the parallel HDF5 library */
-void WriteOutputParallel(Grid3DCU *grid, EMfields3D *EMf, Particles3Dcomm *part, CollectiveIO *col, VCtopology3D *vct, int cycle){
+void WriteOutputParallel(Grid3DCU *grid, EMfields3D *EMf, Particles3Dcomm *part, CollectiveIO *col, VCtopology3D *vct, int cycle)
+{
+    // #ifdef PHDF5
+    timeTasks_set_task(TimeTasks::WRITE_FIELDS);
 
-#ifdef PHDF5
-  timeTasks_set_task(TimeTasks::WRITE_FIELDS);
+    stringstream filenmbr;
+    string       filename;
+    bool         bp;
 
-  stringstream filenmbr;
-  string       filename;
+    /* ------------------- */
+    /* Setup the file name */
+    /* ------------------- */
 
-  bool         bp;
+    filenmbr << setfill('0') << setw(5) << cycle;
+    filename = col->getSaveDirName() + "/" + col->getSimName() + "_" + filenmbr.str() + ".h5";
 
-  /* ------------------- */
-  /* Setup the file name */
-  /* ------------------- */
+    /* ---------------------------------------------------------------------------- */
+    /* Define the number of cells in the globa and local mesh and set the mesh size */
+    /* ---------------------------------------------------------------------------- */
 
-  filenmbr << setfill('0') << setw(5) << cycle;
-  filename = col->getSaveDirName() + "/" + col->getSimName() + "_" + filenmbr.str() + ".h5";
+    int nxc = grid->getNXC();
+    int nyc = grid->getNYC();
+    int nzc = grid->getNZC();
+    int nxn = grid->getNXN();
+    int nyn = grid->getNYN();
+    int nzn = grid->getNZN();
 
-  /* ---------------------------------------------------------------------------- */
-  /* Define the number of cells in the globa and local mesh and set the mesh size */
-  /* ---------------------------------------------------------------------------- */
+    int    dglob[3] = { col ->getNxc()  , col ->getNyc()  , col ->getNzc()   };
+    int    dlocl[3] = { nxc-2,            nyc-2,            nzc-2 };
+    double L    [3] = { col ->getLx ()  , col ->getLy ()  , col ->getLz ()   };
 
-  int nxc = grid->getNXC();
-  int nyc = grid->getNYC();
-  int nzc = grid->getNZC();
+    /* --------------------------------------- */
+    /* Declare and open the parallel HDF5 file */
+    /* --------------------------------------- */
 
-  int    dglob[3] = { col ->getNxc()  , col ->getNyc()  , col ->getNzc()   };
-  int    dlocl[3] = { nxc-2,            nyc-2,            nzc-2 };
-  double L    [3] = { col ->getLx ()  , col ->getLy ()  , col ->getLz ()   };
+    PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
 
-  /* --------------------------------------- */
-  /* Declare and open the parallel HDF5 file */
-  /* --------------------------------------- */
+    bp = false;
+    if (col->getParticlesOutputCycle() > 0) bp = true;
 
-  PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
+    outputfile.CreatePHDF5file(L, dglob, dlocl, bp);
 
-  bp = false;
-  if (col->getParticlesOutputCycle() > 0) bp = true;
+    // write electromagnetic field
+    //
+    outputfile.WritePHDF5dataset("Fields", "Ex", EMf->getEx(), nxn-2, nyn-2, nzn-2);
+    outputfile.WritePHDF5dataset("Fields", "Ey", EMf->getEy(), nxn-2, nyn-2, nzn-2);
+    outputfile.WritePHDF5dataset("Fields", "Ez", EMf->getEz(), nxn-2, nyn-2, nzn-2);
+    outputfile.WritePHDF5dataset("Fields", "Bx", EMf->getBxc(), nxc-2, nyc-2, nzc-2);
+    outputfile.WritePHDF5dataset("Fields", "By", EMf->getByc(), nxc-2, nyc-2, nzc-2);
+    outputfile.WritePHDF5dataset("Fields", "Bz", EMf->getBzc(), nxc-2, nyc-2, nzc-2);
 
-  outputfile.CreatePHDF5file(L, dglob, dlocl, bp);
+    /* ---------------------------------------- */
+    /* Write the charge moments for each species */
+    /* ---------------------------------------- */
 
-  // write electromagnetic field
-  //
-  outputfile.WritePHDF5dataset("Fields", "Ex", EMf->getExc(), nxc-2, nyc-2, nzc-2);
-  outputfile.WritePHDF5dataset("Fields", "Ey", EMf->getEyc(), nxc-2, nyc-2, nzc-2);
-  outputfile.WritePHDF5dataset("Fields", "Ez", EMf->getEzc(), nxc-2, nyc-2, nzc-2);
-  outputfile.WritePHDF5dataset("Fields", "Bx", EMf->getBxc(), nxc-2, nyc-2, nzc-2);
-  outputfile.WritePHDF5dataset("Fields", "By", EMf->getByc(), nxc-2, nyc-2, nzc-2);
-  outputfile.WritePHDF5dataset("Fields", "Bz", EMf->getBzc(), nxc-2, nyc-2, nzc-2);
+    for (int is = 0; is < col->getNs(); is++)
+    {
+        stringstream ss;
+        ss << is;
+        string s_is = ss.str();
 
-  /* ---------------------------------------- */
-  /* Write the charge moments for each species */
-  /* ---------------------------------------- */
+        // charge density
+        // outputfile.WritePHDF5dataset("Fields", "rho_"+s_is, EMf->getRHOcs(is), nxc-2, nyc-2, nzc-2);
+        // current
+        //outputfile.WritePHDF5dataset("Fields", "Jx_"+s_is, EMf->getJxsc(is), nxc-2, nyc-2, nzc-2);
+        //outputfile.WritePHDF5dataset("Fields", "Jy_"+s_is, EMf->getJysc(is), nxc-2, nyc-2, nzc-2);
+        //outputfile.WritePHDF5dataset("Fields", "Jz_"+s_is, EMf->getJzsc(is), nxc-2, nyc-2, nzc-2);
+    }
 
-  for (int is = 0; is < col->getNs(); is++)
-  {
-    stringstream ss;
-    ss << is;
-    string s_is = ss.str();
+    outputfile.ClosePHDF5file();
 
-    // charge density
-    outputfile.WritePHDF5dataset("Fields", "rho_"+s_is, EMf->getRHOcs(is), nxc-2, nyc-2, nzc-2);
-    // current
-    //outputfile.WritePHDF5dataset("Fields", "Jx_"+s_is, EMf->getJxsc(is), nxc-2, nyc-2, nzc-2);
-    //outputfile.WritePHDF5dataset("Fields", "Jy_"+s_is, EMf->getJysc(is), nxc-2, nyc-2, nzc-2);
-    //outputfile.WritePHDF5dataset("Fields", "Jz_"+s_is, EMf->getJzsc(is), nxc-2, nyc-2, nzc-2);
-  }
-
-  outputfile.ClosePHDF5file();
-
-#else  
-  eprintf(
-    " The input file requests the use of the Parallel HDF5 functions,\n"
-    " but the code has been compiled using the sequential HDF5 library.\n"
-    " Recompile the code using the parallel HDF5 options\n"
-    " or change the input file options. ");
-#endif
-
+    // #else  
+    eprintf(" The input file requests the use of the Parallel HDF5 functions,\n"
+            " but the code has been compiled using the sequential HDF5 library.\n"
+            " Recompile the code using the parallel HDF5 options\n"
+            " or change the input file options. ");
+    // #endif
 }
 
 /*! Function to write the EM fields using the H5hut library. */
@@ -122,7 +124,6 @@ void WriteFieldsH5hut(int nspec, Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *
   timeTasks_set_task(TimeTasks::WRITE_FIELDS);
 
   H5output file;
-
 
   /* ---------------- */
   /* Write the fields */
