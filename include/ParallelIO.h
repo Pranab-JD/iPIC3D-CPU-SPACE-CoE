@@ -27,7 +27,7 @@
 #endif
 
 // #ifdef PHDF5
-#  include "phdf5.h"
+#include "phdf5.h"
 // #endif
 
 #include "ipicfwd.h"

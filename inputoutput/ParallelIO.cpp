@@ -109,10 +109,10 @@ void WriteOutputParallel(Grid3DCU *grid, EMfields3D *EMf, Particles3Dcomm *part,
     outputfile.ClosePHDF5file();
 
     // #else  
-    eprintf(" The input file requests the use of the Parallel HDF5 functions,\n"
-            " but the code has been compiled using the sequential HDF5 library.\n"
-            " Recompile the code using the parallel HDF5 options\n"
-            " or change the input file options. ");
+    // eprintf(" The input file requests the use of the Parallel HDF5 functions,\n"
+    //         " but the code has been compiled using the sequential HDF5 library.\n"
+    //         " Recompile the code using the parallel HDF5 options\n"
+    //         " or change the input file options. ");
     // #endif
 }
 
