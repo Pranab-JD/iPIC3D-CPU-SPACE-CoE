@@ -27,7 +27,7 @@
 #include "Alloc.h"
 #include "MPIdata.h"
 
-// #ifdef PHDF5
+#ifdef PHDF5
 
 PHDF5fileClass::PHDF5fileClass(string filestr, int nd, const int *coord, MPI_Comm mpicomm){
 
@@ -388,4 +388,4 @@ int PHDF5fileClass::getPHDF5ndim(){
   return ndim;
 }
 
-// #endif
+#endif
