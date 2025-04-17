@@ -12,22 +12,50 @@ Case                           = DoubleHarris                                  #
 FieldsInit                     = no                                            # Initial fields h5 file [ no | full path ]
 PartInit                       = maxwell                                       # Initial particles [ maxwell | File ]
 PartInj                        = 0.0                                           # Initial particles [ maxwell | File ]
-WriteMethod                    = pvtk                                          # Output method [ default | Parallel ]
+WriteMethod                    = shdf5                                         # Output method [ default | Parallel ]
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-FieldOutputCycle               = 200                                           # Output for fields data
-ParticlesOutputCycle           = 1                                             # Output for particles [if 1 it doesnt save particles data]
-ParticlesDownsampleOutputCycle = 200                                           # Output for particles down sample data (a slimmer version of the complete one)
-ParticlesDownsampleFactor      = 125                                           # Particles rescaling factor (fraction of particles to save)
-RestartOutputCycle             = 999999                                        # Restart cycle for hdf data type
+RestartOutputCycle             = 0                                             # Restart data for particles (0 = save only final particle data for restart)
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
 VirtualProbesOutputCycle       = 0                                             # Virtual probe output (0 = never)
 verbose                        = 1                                             # Print to video results
 
-MemPartGb                      = -1
+FieldOutputCycle               = 10                                             # Output for moments and fields (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
+FieldOutputTag                 = Eall + Ball + rhos + Jall + Jsall             # Select quantites to be written to files
+                               + B_energy + E_energy + k_energy
+ParticlesOutputTag 	           = ID + position + velocity + q                  # Select (particle) quantites to be written to files
+
+### Options for output tags
+## Fields
+    # Ball              --> Bx, By, and Bz
+    # Bx (By, Bz)       --> Bx (By or Bz)
+    # Eall              --> Ex, Ey, and Ez
+    # Ex (Ey, Ez)       --> Ex (Ey or Ez)
+    # phi               --> scalar vector
+
+## Moments
+    # Jall              --> Jx, Jy, and Jz (total current)
+    # Jx (Jy, Jz)       --> Jx (Jy or Jz; total current along X, Y, or Z)
+    # Jsall             --> Jxs, Jys, and Jzs (current densities for each species)
+    # Jxs (Jys, Jzs)    --> Jxs (Jys or Jzs; current densities along X, Y, or Z)
+    # rhos              --> charge densities for each species
+    # pressure          --> pressure tensor for each species
+
+## Particles
+    # position          --> particle positions (X, Y, Z)
+    # velocity          --> particle velocities (U, V, W)
+    # q                 --> particle charges
+    # ID                --> particle ID (note: TrackParticleID has to be set true in Collective)
+        
+## Energies
+    # k_energy          --> Kinetic energy for each species
+    # B_energy          --> Magnetic field energy
+    # E_energy          --> Electric field energy
+
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                         ELECTRIC and MAGNETIC FIELD                        %
@@ -79,7 +107,7 @@ delta                          = 0.5                                           #
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.125	                                       # Time step this is still in wp-1
-ncycles                        = 7500                                          # Total number of iteration
+ncycles                        = 105                                           # Total number of iteration
 th                             = 0.5                                           # Decentering parameter
 c                              = 1.0                                           # Light speed 
 
@@ -128,7 +156,6 @@ ZLEN                           = 1                                             #
 #    2,3,4,5,... = ions
 
 ns                  = 4                                                         # Number of particles
-
 
 rhoINIT             = 1.0           1.0             0.1             0.1         # Initial density (make sure you are neutral)
 rhoINJECT           = 0.0           0.0             0.0             0.0         # Injection density (make sure you are neutral)
