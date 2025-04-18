@@ -2973,7 +2973,7 @@ void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz
 
     if (smooth != 1.0)
     {    
-        for (int icount = 1; icount < num_smoothings + 1; icount++) 
+        for (int icount = 1; icount < num_smoothings + 1; icount++)
         {
             communicateNodeBoxStencilBC(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
 
@@ -3053,7 +3053,7 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
         //! Using new communication routines results in energy growth
         communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
 
-        for (int icount = 1; icount < num_smoothings + 1; icount++) 
+        for (int icount = 1; icount < num_smoothings + 1; icount++)  // TODO: Does this have to be even? Ask Fabio
         {
             //? New way (without too many communications)
             for (int i = 1; i < nx - 1; i++)
@@ -3630,7 +3630,6 @@ void EMfields3D::divergence_E(double ma)
     scale(residual_divergence, divE_average, -1.0/FourPI, ns, nxc, nyc, nzc);
     addscale(1.0, residual_divergence, rhoc_avg, ns, nxc, nyc, nzc);
 
-    //! Potential checkpoint for error -- species
     for (int is = 0; is < ns; is++)
         for (int i = 0; i < nxc; i++)
             for (int j = 0; j < nyc; j++)

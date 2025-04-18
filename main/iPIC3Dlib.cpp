@@ -401,7 +401,7 @@ void c_Solver::CalculateMoments()
     time_int.stop();
     #endif
 
-    EMf->timeAveragedRho(col->getPoissonMArho());
+    EMf->timeAveragedRho(col->getPoissonMArho());       // TODO: What do these functions do? Ask Fabio
     EMf->timeAveragedDivE(col->getPoissonMAdiv());
 
     #ifdef __PROFILING__
@@ -462,8 +462,8 @@ void c_Solver::ComputeEMFields(int cycle)
     #endif
 
     //? Compute divergences of E and B
-    EMf->timeAveragedDivE(col->getPoissonMAdiv());
-    EMf->divergence_E(col->getPoissonMAres());
+    EMf->timeAveragedDivE(col->getPoissonMAdiv());      // TODO: What do these functions do? Ask Fabio
+    EMf->divergence_E(col->getPoissonMAres());          //* Used to compute residual divergence for charge conservation
     EMf->divergence_B();
 
     #ifdef __PROFILING__
