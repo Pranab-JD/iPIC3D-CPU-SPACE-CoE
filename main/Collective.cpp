@@ -252,42 +252,43 @@ void Collective::ReadInput(string inputfile)
         }   
     }
 
-    XLEN = config.read < int >("XLEN",1);
-    YLEN = config.read < int >("YLEN",1);
-    ZLEN = config.read < int >("ZLEN",1);
-    PERIODICX = config.read < bool >("PERIODICX",true);
-    PERIODICY = config.read < bool >("PERIODICY",true);
-    PERIODICZ = config.read < bool >("PERIODICZ",true);
+    XLEN        = config.read < int >("XLEN", 1);
+    YLEN        = config.read < int >("YLEN", 1);
+    ZLEN        = config.read < int >("ZLEN", 1);
+    
+    PERIODICX   = config.read < bool >("PERIODICX", true);
+    PERIODICY   = config.read < bool >("PERIODICY", true);
+    PERIODICZ   = config.read < bool >("PERIODICZ", true);
 
-    PERIODICX_P = config.read < bool >("PERIODICX_P",PERIODICX);
-    PERIODICY_P = config.read < bool >("PERIODICY_P",PERIODICY);
-    PERIODICZ_P = config.read < bool >("PERIODICZ_P",PERIODICZ);
+    PERIODICX_P = config.read < bool >("PERIODICX_P", PERIODICX);
+    PERIODICY_P = config.read < bool >("PERIODICY_P", PERIODICY);
+    PERIODICZ_P = config.read < bool >("PERIODICZ_P", PERIODICZ);
 
-    x_center = config.read < double >("x_center",5.0);
-    y_center = config.read < double >("y_center",5.0);
-    z_center = config.read < double >("z_center",5.0);
-    L_square = config.read < double >("L_square",5.0);
+    x_center    = config.read < double >("x_center", 5.0);
+    y_center    = config.read < double >("y_center", 5.0);
+    z_center    = config.read < double >("z_center", 5.0);
+    L_square    = config.read < double >("L_square", 5.0);
 
     uth = std::make_unique<double[]>(ns);
     vth = std::make_unique<double[]>(ns);
     wth = std::make_unique<double[]>(ns);
-    u0 = std::make_unique<double[]>(ns);
-    v0 = std::make_unique<double[]>(ns);
-    w0 = std::make_unique<double[]>(ns);
+    u0  = std::make_unique<double[]>(ns);
+    v0  = std::make_unique<double[]>(ns);
+    w0  = std::make_unique<double[]>(ns);
 
     array_double uth0 = config.read < array_double > ("uth");
     array_double vth0 = config.read < array_double > ("vth");
     array_double wth0 = config.read < array_double > ("wth");
-    array_double u00 = config.read < array_double > ("u0");
-    array_double v00 = config.read < array_double > ("v0");
-    array_double w00 = config.read < array_double > ("w0");
+    array_double u00  = config.read < array_double > ("u0");
+    array_double v00  = config.read < array_double > ("v0");
+    array_double w00  = config.read < array_double > ("w0");
 
     uth[0] = uth0.a;
     vth[0] = vth0.a;
     wth[0] = wth0.a;
-    u0[0] = u00.a;
-    v0[0] = v00.a;
-    w0[0] = w00.a;
+    u0[0]  = u00.a;
+    v0[0]  = v00.a;
+    w0[0]  = w00.a;
 
     if (ns > 1) 
     {

@@ -74,7 +74,7 @@ static bool cap_velocity(){return false;}
 
 //! ============================================================================= !//
 
-//! Initial particle distributions !//
+//! Initial particle distributions (Non Relativistic) !//
 
 //? Particles are uniformly distributed with zero velocity
 void Particles3D::uniform_background(Field * EMf)
@@ -186,13 +186,13 @@ void Particles3D::MaxwellianFromFluidCell(Collective *col, int is, int i, int j,
 }
 #endif
 
-//? Initialise unifrom distribution of partiles with a Maxellian velocity distribution
+//? Initialise unifrom distribution of particles with a Maxellian velocity distribution
 void Particles3D::maxwellian(Field * EMf)
 {
     /* initialize random generator with different seed on different processor */
     srand(vct->getCartesian_rank() + 2);
 
-    assert_eq(_pcls.size(),0);
+    assert_eq(_pcls.size(), 0);
 
     const double q_sgn = (qom / fabs(qom));
     const double q_factor =  q_sgn * grid->getVOL() / npcel;
@@ -425,6 +425,78 @@ void Particles3D::AddPerturbationJ(double deltaBoB, double kx, double ky, double
     fetchV(i) += jy_mod / q[i] / npcel / invVOL * cos(kx * x[i] + ky * y[i] + jy_phase);
     fetchW(i) += jz_mod / q[i] / npcel / invVOL * cos(kx * x[i] + ky * y[i] + jz_phase);
   }
+}
+
+
+//! Initial particle distributions (Relativistic) !//
+
+//? Initialise unifrom distribution of particles with relativistic Maxellian random velocity
+void Particles3D::Maxwell_Juttner(Field * EMf) 
+{
+	/* initialize random generator with different seed on different processor */
+	srand(vct->getCartesian_rank() + 2 + ns);
+
+    assert_eq(_pcls.size(),0);    
+
+    //TODO: rhoINIT does not work
+	double rho_initial = rhoINIT/(4.0*M_PI);    //* Intial density of particles
+    double thermal_velocity = uth;              //* Thermal velocity (isotropic along X, Y, Z)
+	double g0x = u0;                            //* Drift velocity (X)
+	double g0y = v0;                            //* Drift velocity (Y)
+	double g0z = w0;                            //* Drift velocity (Z)
+	double g0;
+	int g0dir;
+	
+    //TODO: Ask Fabio (what if drift velocities are < 1?)
+    if (fabs(g0x) > 1.0) 
+    {
+		g0dir = int(fabs(g0x)/g0x) * 1;
+		g0 = fabs(g0x);
+	}
+	else if (fabs(g0y) > 1.0) 
+    {
+		g0dir = int(fabs(g0y)/g0y) * 2;
+		g0 = fabs(g0y);
+	}
+	else if (fabs(g0z) > 1.0) 
+    {
+		g0dir = int(fabs(g0z)/g0z) * 3;
+		g0 = fabs(g0z);
+	}
+	else 
+    {
+		g0 = 1.0;
+		g0dir = 0;
+	}
+
+    const double q_sgn = (qom / fabs(qom));
+    const double q_factor =  q_sgn * grid->getVOL() / npcel;
+
+	long long counter = 0;
+	for (int i = 1; i < grid->getNXC() - 1; i++)
+		for (int j = 1; j < grid->getNYC() - 1; j++)
+		    for (int k = 1; k < grid->getNZC() - 1; k++)
+            {
+                //TODO: rhoINIT needs to replace fabs(EMf->getRHOcs(i, j, k, ns))
+                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
+
+			    for (int ii = 0; ii < npcelx; ii++)
+			        for (int jj = 0; jj < npcely; jj++)
+				        for (int kk = 0; kk < npcelz; kk++) 
+                        {
+                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+
+                            double u, v, w;
+                            sample_Maxwell_Juttner(u, v, w, thermal_velocity, g0, g0dir);
+                            
+                            create_new_particle(u, v, w, q, x, y, z);
+				            counter++;
+                        }
+			}
+
+	fixPosition();
 }
 
 //! ============================================================================= !//
@@ -788,6 +860,7 @@ void Particles3D::ECSIM_position(Field *EMf)
             //? Charge Conservation (energy conservation inherently violates charge conservation --> charge has to be conserved separately)
             // if (Conserve_charge)     //TODO: Is this if statement needed? Ask Fabio
             // TODO: How to test for correctness in conserving charge? Ask Fabio
+            // TODO: Does TrackParticleID work? Ask Fabio
 
             const double ixd = floor((xavg - dx/2.0 - xstart) * inv_dx);
 			const double iyd = floor((yavg - dy/2.0 - ystart) * inv_dy);
@@ -959,6 +1032,9 @@ void Particles3D::computeMoments(Field *EMf)
             const double vorig = pcl->get_v();
             const double worig = pcl->get_w();
             const double q     = pcl->get_q();
+
+            // cout << "Particle id: " << pidx << endl;
+            // cout << uorig << ", " << vorig << ", " << worig << endl << endl;
 
             //* Additional variables for storing old and new positions and velocities
             double xavg = xorig;

@@ -148,30 +148,54 @@ int c_Solver::Init(int argc, char **argv)
 
     //! ======================== Initial Field Distribution (if NOT starting from RESTART) ======================== !//
 
-    if      (col->getCase()=="GEMnoPert") 		EMf->initGEMnoPert();
-    else if (col->getCase()=="ForceFree") 		EMf->initForceFree();
-    else if (col->getCase()=="GEM")       		EMf->initGEM();
-    else if (col->getCase()=="DoubleHarris")    EMf->initDoubleHarris();
-    else if (col->getCase()=="Dipole")    		EMf->initDipole();
-    else if (col->getCase()=="Dipole2D")  		EMf->initDipole2D();
-    else if (col->getCase()=="NullPoints")      EMf->initNullPoints();
-    else if (col->getCase()=="TaylorGreen")     EMf->initTaylorGreen();
-    else if (col->getCase()=="Uniform")         EMf->init();
-    #ifdef BATSRUS
-        else if (col->getCase()=="BATSRUS")   	EMf->initBATSRUS();
-    #endif
-    else if (col->getCase()=="RandomCase")      EMf->initRandomField();
-    else 
+    if (col->getRelativistic())
     {
-        if (myrank==0)
+        //! Relativistic Cases
+        // if      (col->getCase()=="DoubleHarrisRel_pairs")   EMf->initDoubleHarrisRel_pairs();
+        // else if (col->getCase()=="DoubleHarrisRel_ionel")   EMf->initDoubleHarrisRel_ionel();
+        // else if (col->getCase()=="Shock1D_DoublePeriodic")  EMf->initShock1D_DoublePeriodic();
+        // else 
         {
-            cout << " =========================================================== " << endl;
-            cout << " WARNING: The case '" << col->getCase() << "' was not recognized. " << endl;
-            cout << "          Runing simulation with the default initialization. " << endl;
-            cout << " =========================================================== " << endl;
+            if (myrank==0)
+            {
+                cout << " =================================================================== " << endl;
+                cout << " WARNING: The case '" << col->getCase() << "' was not recognized. " << endl;
+                cout << "     Runing relativistic simulation with the default initialisation. " << endl;
+                cout << " =================================================================== " << endl;
+            }
+
+            EMf->init();
         }
 
-        EMf->init();
+    }
+    else
+    {
+        //! Non Relativistic Cases
+        if      (col->getCase()=="GEMnoPert") 		EMf->initGEMnoPert();
+        else if (col->getCase()=="ForceFree") 		EMf->initForceFree();
+        else if (col->getCase()=="GEM")       		EMf->initGEM();
+        else if (col->getCase()=="DoubleHarris")    EMf->initDoubleHarris();
+        else if (col->getCase()=="Dipole")    		EMf->initDipole();
+        else if (col->getCase()=="Dipole2D")  		EMf->initDipole2D();
+        else if (col->getCase()=="NullPoints")      EMf->initNullPoints();
+        else if (col->getCase()=="TaylorGreen")     EMf->initTaylorGreen();
+        else if (col->getCase()=="Uniform")         EMf->init();
+        #ifdef BATSRUS
+            else if (col->getCase()=="BATSRUS")   	EMf->initBATSRUS();
+        #endif
+        else if (col->getCase()=="RandomCase")      EMf->initRandomField();
+        else 
+        {
+            if (myrank==0)
+            {
+                cout << " ================================================================ " << endl;
+                cout << " WARNING: The case '" << col->getCase() << "' was not recognized. " << endl;
+                cout << "       Runing simulation with the default initialisation. " << endl;
+                cout << " ================================================================ " << endl;
+            }
+
+            EMf->init();
+        }
     }
 
     //! ======================= Initial Particle Distribution (if NOT starting from RESTART) ======================= !//
@@ -184,19 +208,35 @@ int c_Solver::Init(int argc, char **argv)
     {
         for (int i = 0; i < ns; i++)
         {
-            if      (col->getCase()=="ForceFree") 		particles[i].force_free(EMf);
-            #ifdef BATSRUS
-                else if (col->getCase()=="BATSRUS")   	particles[i].MaxwellianFromFluid(EMf, col, i);
-            #endif
-            else if (col->getCase()=="NullPoints")    	particles[i].maxwellianNullPoints(EMf);
-            else if (col->getCase()=="Uniform")    	    particles[i].uniform_background(EMf);
-            else if (col->getCase()=="TaylorGreen")     particles[i].maxwellianNullPoints(EMf);     //* Flow is initiated from the current prescribed on the grid
-            else if (col->getCase()=="DoubleHarris")    particles[i].maxwellianDoubleHarris(EMf);
-            else if (col->getCase()=="Maxwellian") 		particles[i].maxwellian(EMf);
-            else                                  		particles[i].maxwellian(EMf);
+            if (col->getRelativistic()) 
+			{   
+                //! Relativistic Cases
+				// if      (col->getCase()=="DoubleHarrisRel_pairs") 	particles[i].DoubleHarrisRel_pairs(EMf);
+				// else if (col->getCase()=="DoubleHarrisRel_ionel") 	particles[i].DoubleHarrisRel_ionel(EMf);
+				// else if (col->getCase()=="Shock1D_DoublePeriodic") 	particles[i].Shock1D_DoublePeriodic(EMf);
+				// else if (col->getCase()=="Shock1D_DoublePiston") 	particles[i].Shock1D_DoublePiston(EMf);
+				// else                                                 particles[i].Maxwell_Juttner(EMf);     
+  			
+                particles[i].Maxwell_Juttner(EMf);
+                // particles[i].maxwellian(EMf);
+			}
+            else
+            {
+                //! Non Relativistic Cases
+                if      (col->getCase()=="ForceFree") 		particles[i].force_free(EMf);
+                #ifdef BATSRUS
+                    else if (col->getCase()=="BATSRUS")   	particles[i].MaxwellianFromFluid(EMf, col, i);
+                #endif
+                else if (col->getCase()=="NullPoints")    	particles[i].maxwellianNullPoints(EMf);
+                else if (col->getCase()=="Uniform")    	    particles[i].uniform_background(EMf);
+                else if (col->getCase()=="TaylorGreen")     particles[i].maxwellianNullPoints(EMf);     //* Flow is initiated from the current prescribed on the grid
+                else if (col->getCase()=="DoubleHarris")    particles[i].maxwellianDoubleHarris(EMf);
+                else if (col->getCase()=="Maxwellian") 		particles[i].maxwellian(EMf);
+                else                                  		particles[i].maxwellian(EMf);
+            }
             
             particles[i].reserve_remaining_particle_IDs();
-            // particles[i].fixPosition();
+            particles[i].fixPosition();
         }
     }
 
@@ -515,12 +555,18 @@ bool c_Solver::ParticlesMover()
     {
         switch(Parameters::get_MOVER_TYPE())
         {
-            //? ECSim
+            //? ECSIM & RelSIM
             case Parameters::SoA:
-                particles[i].ECSIM_velocity(EMf);
+                if (col->getRelativistic())
+                    particles[i].RelSIM_velocity(EMf);
+                else
+                    particles[i].ECSIM_velocity(EMf);
             break;
             case Parameters::AoS:
-                particles[i].ECSIM_velocity(EMf);
+                if (col->getRelativistic())
+                    particles[i].RelSIM_velocity(EMf);
+                else
+                    particles[i].ECSIM_velocity(EMf);
             break;
             default:
             unsupported_value_error(Parameters::get_MOVER_TYPE());

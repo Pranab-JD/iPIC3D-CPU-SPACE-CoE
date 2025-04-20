@@ -254,6 +254,9 @@ protected:
     //* Drift velocity (X, Y, Z)
     double u0, v0, w0;
 
+    //* Initial charge density
+    double rhoINIT;
+
     // used to generate unique particle IDs
     doubleIDgenerator pclIDgenerator;
 

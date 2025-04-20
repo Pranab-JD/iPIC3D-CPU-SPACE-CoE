@@ -51,7 +51,7 @@ class Particles3D:public Particles3Dcomm
     
     //? ============================================================================ ? //
     
-    //? Initial particle distributions
+    //? Initial particle distributions (Non Relativistic)
 
     //* Uniform in space and motionless
     void uniform_background(Field * EMf);
@@ -88,6 +88,9 @@ class Particles3D:public Particles3Dcomm
     double f0(double vpar, double vperp);
     /** Rotate velocities in plane XY of angle theta */
     void RotatePlaneXY(double theta);
+
+    //? Initial particle distributions (Relativistic)
+    void Maxwell_Juttner(Field * EMf);
 
     //? ============================================================================ ? //
 

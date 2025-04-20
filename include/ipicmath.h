@@ -148,6 +148,80 @@ inline void sample_maxwellian(double& u, double& v, double& w, double ut, double
     u = u0 + ut*u; v = v0 + vt*v; w = w0 + wt*w;
 }
 
+inline void sample_Maxwell_Juttner(double& u, double& v, double& w, double theta, double gammaDrift, int dirDrift) 
+{
+	double eta = 1.45; // Rejection factor
+	double g = sqrt(0.5*M_PI*theta*theta*theta);
+	double h = 2.*theta*theta*theta;
+	double fg = g/(g+h);
+	double fh = h/(g+h);
+
+	double betaDrift = 0.0;
+	double uDrift    = 0.0;
+	if (gammaDrift > 1.0) 
+    {
+		uDrift = double(abs(dirDrift)/dirDrift) * sqrt(gammaDrift*gammaDrift - 1.0);
+		betaDrift = uDrift / gammaDrift;
+	}
+	
+	double rs[8];
+	for (int i=0; i<8; i++) rs[i] = rand()/(double)RAND_MAX;
+	bool reject = true;
+	
+    // Generate a random kinetic energy random_ke = sqrt{u^2+1}" - 1 in the frame of drift
+	double random_ke, pq;
+	while (reject) 
+    {
+		random_ke = -theta;
+		
+        if (rs[3] < fg) random_ke = random_ke * (log(rs[0]) + log(rs[1])*pow(cos(2.*M_PI*rs[2]),2.0));
+		else            random_ke = random_ke * log(rs[0]*rs[1]*rs[2]);
+		
+        pq = (random_ke+1.0)*sqrt(random_ke*(random_ke+2.0)) / (sqrt(2.0*random_ke) + random_ke*random_ke);
+		
+        if (pq >= rs[4] * eta)       reject = false; // random_ke is the result we want
+		else for (int i=0; i<5; i++) rs[i] = rand()/(double)RAND_MAX; // random_ke is rejected -- regenerate
+	}
+	
+	// find gamma and |u| in frame of drift                                                         
+	double u0 = 1. + random_ke;
+	double uMag = sqrt(random_ke*(random_ke+2.));
+	
+    // find direction
+	double phi = 2.0*M_PI * rs[5];
+	double u1 = (2.0 * rs[6] - 1.0) * uMag;
+	if (rs[7]*u0 < -betaDrift*u1) u1 = -u1;
+	double uPerp = sqrt(uMag*uMag - u1*u1);
+	double u2 = uPerp * cos(phi);
+	double u3 = uPerp * sin(phi);
+
+	// Boost back to simulation frame
+	if (abs(dirDrift)==1) 
+    {
+		u = gammaDrift * u1 + uDrift * u0;
+		v = u2;
+		w = u3;
+	}
+	else if (abs(dirDrift)==2) 
+    {
+		u = u2;
+        v = gammaDrift * u1 + uDrift * u0;
+		w = u3;
+	}
+	else if (abs(dirDrift)==3) 
+    {
+		u = u2;
+		v = u3;
+        w = gammaDrift * u1 + uDrift * u0;
+	}
+	else 
+    {
+        u = u1;
+        v = u2;
+        w = u3;
+    }
+}
+
 //? ------------------------------------------------------------------ ?//
 
 // add or subtract multiples of L until x lies
