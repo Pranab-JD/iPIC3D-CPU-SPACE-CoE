@@ -48,7 +48,7 @@ verbose                        = 1                                             #
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.50	                                       # Time step this is still in wp-1
-ncycles                        = 10000                                         # Total number of iteration
+ncycles                        = 100                                         # Total number of iteration
 th                             = 0.5                                           # Decentering parameter
 c                              = 1.0                                           # Light speed 
 
@@ -76,8 +76,8 @@ L_square                       = 1.0	                                       # Si
 # %                                  MPI TOPOLOGY                              %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-XLEN                           = 8                                             # Number of subdomains in the X direction
-YLEN                           = 32                                             # Number of subdomains in the Y direction
+XLEN                           = 2                                             # Number of subdomains in the X direction
+YLEN                           = 8                                             # Number of subdomains in the Y direction
 ZLEN                           = 1                                             # Number of subdomains in the Z direction
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
