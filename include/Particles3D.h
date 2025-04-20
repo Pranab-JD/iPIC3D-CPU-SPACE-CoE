@@ -93,11 +93,13 @@ class Particles3D:public Particles3Dcomm
 
     /** mover with the esplicit non relativistic scheme */
     void mover_explicit(Field * EMf);
+   
     /** mover with a Predictor-Corrector Scheme */
     void mover_PC(Field * EMf);
     
-    //* ECSIM - velocity and position update
+    //* ECSIM (RelSIM) - velocity and position update
     void ECSIM_velocity(Field * EMf);
+    void RelSIM_velocity(Field * EMf);
     void ECSIM_position(Field * EMf);
 
     //* ECSIM - moments

@@ -500,19 +500,16 @@ void Particles3D::ECSIM_velocity(Field *EMf)
 
             //* --------------------------------------- *//
 
-            //* Copy particles' positions and velocities
-            const double xorig = pcl->get_x();
-            const double yorig = pcl->get_y();
-            const double zorig = pcl->get_z();
-            const double uorig = pcl->get_u();
-            const double vorig = pcl->get_v();
-            const double worig = pcl->get_w();
+            //* Copy particles' positions and velocities at the 'n^th' time step
+            const double x_n = pcl->get_x();
+            const double y_n = pcl->get_y();
+            const double z_n = pcl->get_z();
+            const double u_n = pcl->get_u();
+            const double v_n = pcl->get_v();
+            const double w_n = pcl->get_w();
             
             //* Additional variables for storing old and new positions and velocities
-            double xavg = xorig;
-            double yavg = yorig;
-            double zavg = zorig;
-            
+            double x_old = x_n; double y_old = y_n; double z_old = z_n;
             double uavg, vavg, wavg;
 
             //* --------------------------------------- *//
@@ -520,7 +517,7 @@ void Particles3D::ECSIM_velocity(Field *EMf)
             //* Compute weights for field components
             double weights[8] ALLOC_ALIGNED;
             int cx, cy, cz;
-            grid->get_safe_cell_and_weights(xavg, yavg, zavg, cx, cy, cz, weights);
+            grid->get_safe_cell_and_weights(x_old, y_old, z_old, cx, cy, cz, weights);
 
             const double* field_components[8] ALLOC_ALIGNED;
             get_field_components_for_cell(field_components, fieldForPcls, cx, cy, cz);
@@ -528,12 +525,12 @@ void Particles3D::ECSIM_velocity(Field *EMf)
             double sampled_field[8] ALLOC_ALIGNED;
             for(int i=0;i<8;i++) sampled_field[i]=0;
             
-            double& Bxl=sampled_field[0];
-            double& Byl=sampled_field[1];
-            double& Bzl=sampled_field[2];
-            double& Exl=sampled_field[0+DFIELD_3or4];
-            double& Eyl=sampled_field[1+DFIELD_3or4];
-            double& Ezl=sampled_field[2+DFIELD_3or4];
+            double& Bxl = sampled_field[0];
+            double& Byl = sampled_field[1];
+            double& Bzl = sampled_field[2];
+            double& Exl = sampled_field[0+DFIELD_3or4];
+            double& Eyl = sampled_field[1+DFIELD_3or4];
+            double& Ezl = sampled_field[2+DFIELD_3or4];
             
             const int num_field_components = 2*DFIELD_3or4;
 
@@ -552,17 +549,17 @@ void Particles3D::ECSIM_velocity(Field *EMf)
 
             //* --------------------------------------- *//
 
+            //? Update (temporary) velocities
+            const pfloat u_temp = u_n + qdto2mc*Exl;
+            const pfloat v_temp = v_n + qdto2mc*Eyl;
+            const pfloat w_temp = w_n + qdto2mc*Ezl;
+
             const double Omx = qdto2mc*Bxl;
             const double Omy = qdto2mc*Byl;
             const double Omz = qdto2mc*Bzl;
 
             const pfloat omsq = (Omx * Omx + Omy * Omy + Omz * Omz);
             const pfloat denom = 1.0 / (1.0 + omsq);
-
-            //? Update (temporary) velocities
-            const pfloat u_temp = uorig + qdto2mc*Exl;
-            const pfloat v_temp = vorig + qdto2mc*Eyl;
-            const pfloat w_temp = worig + qdto2mc*Ezl;
 
             const pfloat udotOm = u_temp * Omx + v_temp * Omy + w_temp * Omz;
 
@@ -573,14 +570,156 @@ void Particles3D::ECSIM_velocity(Field *EMf)
             //TODO: what is this?
             //     mirror(vct, xp, yp, zp, up, vp, wp,Bxl, Byl, Bzl);
 
-            //? Update final velocities
-            pcl->set_u(2.0 * uavg - uorig);
-            pcl->set_v(2.0 * vavg - vorig);
-            pcl->set_w(2.0 * wavg - worig);
+            //? Update new velocities at the (n+1)^th time step
+            pcl->set_u(2.0 * uavg - u_n);
+            pcl->set_v(2.0 * vavg - v_n);
+            pcl->set_w(2.0 * wavg - w_n);
         }
 
     }
     //! End of #pragma omp parallel
+}
+
+//! ECSIM - energy conserving semi-implicit method !//
+void Particles3D::RelSIM_velocity(Field *EMf) 
+{
+    #pragma omp parallel
+    {
+        convertParticlesToAoS();
+
+        //TODO: kkv, aaF, external forces, Gravity - Ask Fabio
+
+        #pragma omp master
+        if (vct->getCartesian_rank() == 0) 
+            cout << "*** RelSIM MOVER (velocities) for species " << ns << " ***" << endl;
+
+        const_arr4_double fieldForPcls = EMf->get_fieldForPcls();
+
+        const double qdto2mc = 0.5 * dt * qom/c;
+
+        #pragma omp for schedule(static)
+        for (int pidx = 0; pidx < getNOP(); pidx++) 
+        {
+            //* Copy the particle
+		    SpeciesParticle* pcl = &_pcls[pidx];
+		    ALIGNED(pcl);
+
+            //* Copy particles' positions and velocities at the 'n^th' time step
+            const double x_n = pcl->get_x();
+            const double y_n = pcl->get_y();
+            const double z_n = pcl->get_z();
+            const double u_n = pcl->get_u();
+            const double v_n = pcl->get_v();
+            const double w_n = pcl->get_w();
+            
+            //* Additional variables for storing old and new positions and velocities
+            double x_old = x_n; double y_old = y_n; double z_old = z_n;
+            double uavg, vavg, wavg;
+
+            //? Lorentz factor for each particle (relativistic cases)
+            double lorentz_factor = sqrt(1.0 + (u_n*u_n + v_n*v_n + w_n*w_n)/(c*c));
+
+            //* Variables for storing temporary velocity variables for the "Lapenta_Markidis" particle pusher
+            const double u_old = u_n;
+            const double v_old = v_n;
+            const double w_old = w_n;
+            const double lorentz_factor_old = lorentz_factor;
+            double u_bar, v_bar, w_bar, lorentz_factor_bar;
+
+            //* --------------------------------------- *//
+
+            //* Compute weights for field components
+            double weights[8] ALLOC_ALIGNED;
+            int cx, cy, cz;
+            grid->get_safe_cell_and_weights(x_old, y_old, z_old, cx, cy, cz, weights);
+
+            const double* field_components[8] ALLOC_ALIGNED;
+            get_field_components_for_cell(field_components, fieldForPcls, cx, cy, cz);
+
+            double sampled_field[8] ALLOC_ALIGNED;
+            for(int i = 0; i < 8; i++) sampled_field[i] = 0;
+            
+            double& Bxl = sampled_field[0];
+            double& Byl = sampled_field[1];
+            double& Bzl = sampled_field[2];
+            double& Exl = sampled_field[0+DFIELD_3or4];
+            double& Eyl = sampled_field[1+DFIELD_3or4];
+            double& Ezl = sampled_field[2+DFIELD_3or4];
+
+            //TODO: External forces are to be implemented
+            double Fxl = 0.0;
+            double Fyl = 0.0;
+            double Fzl = 0.0;
+            
+            const int num_field_components = 2*DFIELD_3or4;
+
+            for(int c = 0; c < 8; c++)
+            {
+                const double* field_components_c=field_components[c];
+                ASSUME_ALIGNED(field_components_c);
+                const double weights_c = weights[c];
+                
+                #pragma simd
+                for(int i=0; i<num_field_components; i++)
+                {
+                    sampled_field[i] += weights_c*field_components_c[i];
+                }
+            }
+
+            //* --------------------------------------- *//
+            
+            if (Relativistic_pusher == "Boris")
+            {
+                //? Update (temporary) velocities
+                const pfloat u_temp = u_n + qdto2mc * Exl + 0.5 * dt * Fxl;
+                const pfloat v_temp = v_n + qdto2mc * Eyl + 0.5 * dt * Fyl;
+                const pfloat w_temp = w_n + qdto2mc * Ezl + 0.5 * dt * Fzl;
+
+                double lorentz_factor_new = sqrt(1.0 + (u_temp*u_temp + v_temp*v_temp + w_temp*w_temp)/(c*c));
+
+                Bxl = Bxl*qdto2mc/lorentz_factor_new;
+                Byl = Byl*qdto2mc/lorentz_factor_new;
+                Bzl = Bzl*qdto2mc/lorentz_factor_new;
+                
+                const double B_squared = Bxl * Bxl + Byl * Byl + Bzl * Bzl;
+
+                //* Solve velocity equation (relativistic Boris)
+                const pfloat u_new = -(Byl*Byl*u_temp) - (Bzl*Bzl*u_temp) + (Bxl*Byl*v_temp) + (Bxl*Bzl*w_temp) - Byl*w_temp + Bzl*v_temp;
+                const pfloat v_new = -(Bxl*Bxl*v_temp) - (Bzl*Bzl*v_temp) + (Bxl*Byl*u_temp) + (Byl*Bzl*w_temp) - Bzl*u_temp + Bxl*w_temp;
+                const pfloat w_new = -(Bxl*Bxl*w_temp) - (Byl*Byl*w_temp) + (Bxl*Bzl*u_temp) + (Byl*Bzl*v_temp) - Bxl*v_temp + Byl*u_temp;
+
+                //* New velocities at the (n+1)^th time step
+                uavg = u_temp + u_new * 2.0/(1.0+B_squared) + qdto2mc * Exl + 0.5 * dt * Fxl;
+                vavg = v_temp + v_new * 2.0/(1.0+B_squared) + qdto2mc * Eyl + 0.5 * dt * Fyl;
+                wavg = w_temp + w_new * 2.0/(1.0+B_squared) + qdto2mc * Ezl + 0.5 * dt * Fzl;
+
+            }
+            else if (Relativistic_pusher == "Lapenta_Markidis")
+            {
+
+
+                //* New velocities at the (n+1)^th time step
+                uavg = 2.0 * u_bar - u_old;
+                vavg = 2.0 * v_bar - v_old;
+                wavg = 2.0 * w_bar - w_old;
+            }
+            else
+            {
+                cout << "Incorrect relativistic pusher! Please choose either 'Boris' or 'Lapenta_Markidis'" << endl;
+                exit(1);
+            }
+
+            //* --------------------------------------- *//
+        
+            //TODO: what is this?
+            // mirror(vct, xp, yp, zp, up, vp, wp,Bxl, Byl, Bzl);
+
+            //? Update new velocities at the (n+1)^th time step
+            pcl->set_u(uavg);
+            pcl->set_v(vavg);
+            pcl->set_w(wavg);
+        }
+    }
 }
 
 void Particles3D::ECSIM_position(Field *EMf) 
@@ -590,19 +729,27 @@ void Particles3D::ECSIM_position(Field *EMf)
         convertParticlesToAoS();
 
         #pragma omp master
-        if (vct->getCartesian_rank() == 0) 
-            cout << "*** ECSIM MOVER (positions) for species " << ns << " ***" << endl;
+        if (Relativistic)
+        {
+            if (vct->getCartesian_rank() == 0) 
+                cout << "*** RelSIM MOVER (positions) for species " << ns << " ***" << endl;
+        }
+        else
+        {
+            if (vct->getCartesian_rank() == 0) 
+                cout << "*** ECSIM MOVER (positions) for species " << ns << " ***" << endl;
+        }
 
         double correct_x = 1.0, correct_y = 1.0, correct_z = 1.0;
         const double inv_dx = 1.0/dx, inv_dy = 1.0/dy, inv_dz = 1.0/dz;
-        double dxp = 0.0, dyp = 0.0, dzp = 0.0; double limiter = 1.0;
+        double dxp = 0.0, dyp = 0.0, dzp = 0.0; double lorentz_factor = 1.0;
 
         //* Parameters for charge conservation
         // if (Conserve_charge)
 
         double eta0, eta1, zeta0, zeta1, xi0, xi1;
         double weight00, weight01, weight10, weight11;
-        double invSURF; double lorentz_factor = 1.0;
+        double invSURF; double limiter = 1.0; 
         
         array3_double temp_R(nxc, nyc, nzc);
         eqValue(0.0, temp_R, nxc, nyc, nzc);
@@ -621,29 +768,24 @@ void Particles3D::ECSIM_position(Field *EMf)
 
             //* --------------------------------------- *//
 
-            //* Copy particles' positions and velocities
-            const double xorig = pcl->get_x();
-            const double yorig = pcl->get_y();
-            const double zorig = pcl->get_z();
-            const double uorig = pcl->get_u();
-            const double vorig = pcl->get_v();
-            const double worig = pcl->get_w();
+            //* Copy particles' positions and velocities at the 'n^th' time step
+            const double x_n = pcl->get_x();
+            const double y_n = pcl->get_y();
+            const double z_n = pcl->get_z();
+            const double u_n = pcl->get_u();
+            const double v_n = pcl->get_v();
+            const double w_n = pcl->get_w();
             
             //* Additional variables for storing old and new positions and velocities
-            double xavg = xorig;
-            double yavg = yorig;
-            double zavg = zorig;
-
-            //* --------------------------------------- *//
+            double xavg = x_n; double yavg = y_n; double zavg = z_n;
 
             //? Lorentz factor at time step "n"
-            if (Relativistic) lorentz_factor = sqrt(1.0 + (uorig*uorig + vorig*vorig + worig*worig)/(c*c));
-            //? gn = lorentz_factor
+            if (Relativistic) lorentz_factor = sqrt(1.0 + (u_n*u_n + v_n*v_n + w_n*w_n)/(c*c));
 
             //* --------------------------------------- *//
 
-            //! This may be further optimised
-            //? Charge Conservation (Energy conservation inherently violates charge conservation --> charge has to be conserved separately)
+            //! This may be further optimised - PJD
+            //? Charge Conservation (energy conservation inherently violates charge conservation --> charge has to be conserved separately)
             // if (Conserve_charge)     //TODO: Is this if statement needed? Ask Fabio
             // TODO: How to test for correctness in conserving charge? Ask Fabio
 
@@ -730,20 +872,20 @@ void Particles3D::ECSIM_position(Field *EMf)
 			RzM += weight11 * temp_R.get(ix - 1, iy - 1, iz - 1);
 
             dxp = 0.25 * (RxP - RxM) * dx;
-			dxp = -dxp/abs(dxp+1e-10) * min(abs(dxp), abs(uorig/lorentz_factor*dt)/limiter);
+			dxp = -dxp/abs(dxp+1e-10) * min(abs(dxp), abs(u_n/lorentz_factor*dt)/limiter);
 		
 			dyp = 0.25 * (RyP - RyM) * dy;
-			dyp = -dyp/abs(dyp+1e-10) * min(abs(dyp), abs(vorig/lorentz_factor*dt)/limiter);
+			dyp = -dyp/abs(dyp+1e-10) * min(abs(dyp), abs(v_n/lorentz_factor*dt)/limiter);
 		
 			dzp = 0.25 * (RzP - RzM) * dz;
-			dzp = -dzp/abs(dzp+1e-10) * min(abs(dzp), abs(worig/lorentz_factor*dt)/limiter);
+			dzp = -dzp/abs(dzp+1e-10) * min(abs(dzp), abs(w_n/lorentz_factor*dt)/limiter);
 
             //* --------------------------------------- *//
 
             //? Update the positions with the new velocity
-            pcl->set_x(xavg + uorig/lorentz_factor * dt * correct_x + dxp);
-            pcl->set_y(yavg + vorig/lorentz_factor * dt * correct_y + dyp);
-            pcl->set_z(zavg + worig/lorentz_factor * dt * correct_z + dzp);
+            pcl->set_x(xavg + u_n/lorentz_factor * dt * correct_x + dxp);
+            pcl->set_y(yavg + v_n/lorentz_factor * dt * correct_y + dyp);
+            pcl->set_z(zavg + w_n/lorentz_factor * dt * correct_z + dzp);
             
         }                             
         //! END OF ALL THE PARTICLES
@@ -780,7 +922,7 @@ void Particles3D::fixPosition()
 //? Compute ECSIM moments (rho, J_hat, and mass matrix)
 void Particles3D::computeMoments(Field *EMf) 
 {
-    // convertParticlesToSoA();
+    //! This may be further optimised - PJD
 
     #ifdef __PROFILE_MOMENTS__
     LeXInt::timer time_fc, time_add, time_mm, time_total;
