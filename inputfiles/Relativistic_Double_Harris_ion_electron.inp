@@ -1,0 +1,198 @@
+# Input file for double Harris sheet for relativistic ion-electron plasma
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                    INPUT                                   %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+SimulationName                 = Relativistic_DH_ion_electron                  # Simulation name for the output
+SaveDirName                    = data_rel_DH_ion_electron                      # Output directory
+RestartDirName                 = data_rel_DH_ion_electron                      # Restart directory (for WriteMethod=default)
+
+Case                           = Relativistic_Double_Harris_ion_electron       # Case [ GEM | Dipole | Default | ... ]
+PartInit                       = maxwell                                       # Initial particles [ maxwell | File ]
+PartInj                        = mono                                          # Initial particles [ maxwell | File ]
+WriteMethod                    = pvtk                                          # Output method [ shdf5 | pvtk | nbcvtk ]
+
+Relativistic                   = true                                          # Relativistic Case (true or false)
+Relativistic_pusher            = Boris                                         # Relativistic Particle Pusher (Boris or Lapenta_Markidis)
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                    OUTPUT                                  %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+RestartOutputCycle             = 0                                             # Restart data for particles (0 = save only final particle data for restart)
+DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
+VirtualProbesOutputCycle       = 0                                             # Virtual probe output (0 = never)
+verbose                        = 1                                             # Print to video results
+
+FieldOutputCycle               = 10                                            # Output for moments and fields (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
+FieldOutputTag                 = Eall + Ball + rhos + Jall + Jsall             # Select quantities to be written to files
+                               + B_energy + E_energy + k_energy
+ParticlesOutputTag 	           = ID + position + velocity + q                  # Select (particle) quantities to be written to files
+
+### Options for output tags
+## Fields
+    # Ball              --> Bx, By, and Bz
+    # Bx (By, Bz)       --> Bx (By or Bz)
+    # Eall              --> Ex, Ey, and Ez
+    # Ex (Ey, Ez)       --> Ex (Ey or Ez)
+    # phi               --> scalar vector
+
+## Moments
+    # Jall              --> Jx, Jy, and Jz (total current)
+    # Jx (Jy, Jz)       --> Jx (Jy or Jz; total current along X, Y, or Z)
+    # Jsall             --> Jxs, Jys, and Jzs (current densities for each species)
+    # Jxs (Jys, Jzs)    --> Jxs (Jys or Jzs; current densities along X, Y, or Z)
+    # rhos              --> charge densities for each species
+    # pressure          --> pressure tensor for each species
+
+## Particles
+    # position          --> particle positions (X, Y, Z)
+    # velocity          --> particle velocities (U, V, W)
+    # q                 --> particle charges
+    # ID                --> particle ID (note: TrackParticleID has to be set true in Collective)
+        
+## Energies
+    # k_energy          --> Kinetic energy for each species
+    # B_energy          --> Magnetic field energy
+    # E_energy          --> Electric field energy
+
+
+## Output params for relativisitc cases
+DistOutputCycle                = 1
+DistNbins                      = 90
+DistMaxVel                     = 1e3
+DistMinVel                     = 1e-6
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                             PHYSICS and GEOMETRY                           %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Scheme                         = default
+ZeroCurrent	                   = 0                                             # 1 -> assure that the inital current is zero
+Gravity                        = false
+SameKineticEnergy              = no                                            # Forces to all the species to have the same kinetic energy
+
+nparam                         = 5                                             # Custom parameters for relativistic cases
+
+#                                   sigma       eta         delta       perturb_amp     guideField_ratio
+parameters                     =    10.0        5.0         1.0         0.0             0.0   
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                     TIME                                   %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dt                             = 0.35	                                       # Time-step size
+ncycles                        = 1500                                          # Number of time steps
+th                             = 0.5                                           # Decentering parameter (0.5 --> 2nd order; 1.0 --> 1st order)
+c                              = 1.0                                           # Speed of light 
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                   SMOOTHING                                %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ 
+Smooth                         = 1.0                                           # Smoothing value (if Smooth = 1.0, the following 3 parameters will be ignored)
+num_smoothings                 = 0	                                           # Cycles of smoothing and this must be even [NO = 0; YES = 8]
+SmoothCycle                    = 1	                                           # How often data is smoothed
+SmoothType                     = directional                                   # Type of smoothing (default | directional)
+#EnergyConservingSmoothing      = true                                          # Energy conserving smoothing
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                    BOX SIZE                                %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Lx                             = 51.2                                          # Simulation box length along X
+Ly                             = 102.4                                         # Simulation box length along Y
+Lz                             = 1.0                                           # Simulation box length along Z
+
+nxc                            = 128                                           # Number of cells along X
+nyc                            = 256                                           # Number of cells along Y
+nzc                            = 1                                             # Number of cells along Z
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                  MPI TOPOLOGY                              %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+XLEN                           = 8                                             # Number of MPI subdomains along X
+YLEN                           = 8                                             # Number of MPI subdomains along Y
+ZLEN                           = 1                                             # Number of MPI subdomains along Z
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                   PARTICLES                                %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#    ns = number of species
+#    0 = electrons
+#    1 = protons
+#    2,3,4,5,... = ions
+
+ns                  = 4                                                         # Number of species of particles
+
+rhoINIT             = 1.0           1.0             1.0             1.0         # Initial density
+rhoINJECT           = 0.0           0.0             0.0             0.0         # Injection density
+TrackParticleID     = 0             0	            0 	            0           # TrackParticleID (1 = true OR 0 = false) 
+
+npcelx              = 4             4	            4	            4           # Particles per cell along X
+npcely              = 8             8               8	            8           # Particles per cell along Y
+npcelz              = 1	            1	            1	            1           # Particles per cell along Z
+NpMaxNpRatio        = 6.0                                                       # Maximum number of particles allocated
+
+qom                 = -1836.0       1.0             -1836.0         1.0         # Charge/mass ratio
+uth                 = 18.36         0.01            0.01            0.01        # Thermal velocity along X
+vth                 = 0.0           0.0             0.0             0.0         # Thermal velocity along Y (NOT used for relativisitc cases, set to 0)
+wth                 = 0.0           0.0             0.0             0.0         # Thermal velocity along Z (NOT used for relativisitc cases, set to 0)
+u0                  = 0.0           0.0             0.0             0.0         # Drift velocity along X
+v0                  = 0.0           0.0             0.0             0.0         # Drift velocity along Y
+w0                  = 0.0           0.0             0.0	            0.0         # Drift velocity along Z
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                               BOUNDARY CONDITION                           %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+PERIODICX                      = 1                                              # Along X (1 = true OR 0 = false) 
+PERIODICY                      = 1                                              # Along Y (1 = true OR 0 = false) 
+PERIODICZ                      = 1                                              # Along Z (1 = true OR 0 = false) 
+
+# If the PERIODIC flag is active in the previous section periodic boundary conditions will be imposed
+
+# PHI Electrostatic Potential     
+# 0,1 = Dirichilet boundary condition ;     
+# 2   = Neumann boundary condition
+
+bcPHIfaceXright = 1
+bcPHIfaceXleft  = 1
+bcPHIfaceYright = 1
+bcPHIfaceYleft  = 1
+bcPHIfaceZright = 1
+bcPHIfaceZleft  = 1
+
+# EM field boundary condition
+# 0 = perfect conductor
+# 1 = magnetic mirror
+
+bcEMfaceXright = 1
+bcEMfaceXleft =  1
+bcEMfaceYright = 1
+bcEMfaceYleft =  1
+bcEMfaceZright = 1
+bcEMfaceZleft =  1
+
+# Particles Boundary condition
+# 0 = exit
+# 1 = perfect mirror
+# 2 = riemission
+
+bcPfaceXright = 2
+bcPfaceXleft =  2
+bcPfaceYright = 2
+bcPfaceYleft =  2
+bcPfaceZright = 1
+bcPfaceZleft =  1
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                NUMERICS OPTIONS                            %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Vinj                           = 0.0                                           # Velocity of the injection from the wall
+GMREStol                       = 1E-15                                         # GMRES tolerance
