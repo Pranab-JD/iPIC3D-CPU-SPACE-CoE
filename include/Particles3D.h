@@ -51,7 +51,7 @@ class Particles3D:public Particles3Dcomm
     
     //? ============================================================================ ? //
     
-    //? Initial particle distributions (Non Relativistic)
+    //? ---------- Initial particle distributions (Non Relativistic) ---------- ?//
 
     //* Uniform in space and motionless
     void uniform_background(Field * EMf);
@@ -65,7 +65,7 @@ class Particles3D:public Particles3Dcomm
     /** Initial condition: uniform in space and maxwellian in velocity with velocity from Null Point currents */
     void maxwellianNullPoints(Field * EMf);
 
-    //* Maxellian velocity from currents and uniform spatial distribution for a double Harris sheet*/
+    //* Maxwellian velocity from currents and uniform spatial distribution for a double Harris sheet
     void maxwellianDoubleHarris(Field * EMf);
 
     /** pitch_angle_energy initialization (Assume B on z only) for test particles */
@@ -89,8 +89,17 @@ class Particles3D:public Particles3Dcomm
     /** Rotate velocities in plane XY of angle theta */
     void RotatePlaneXY(double theta);
 
-    //? Initial particle distributions (Relativistic)
+
+    //? ---------- Initial particle distributions (Relativistic) ---------- ?//
+
+    //* Uniform in space and Maxwellian in relativistic velocity
     void Maxwell_Juttner(Field * EMf);
+
+    //* Relativistic quasi-1D ion-electron shock (non relativisitic option available)
+    void Shock1D(Field * EMf);
+    
+    //* Quasi-1D double periodic ion-electron shock driven by a piston (non relativisitic option available)
+    void Shock1D_DoublePiston(Field * EMf);
 
     //? ============================================================================ ? //
 

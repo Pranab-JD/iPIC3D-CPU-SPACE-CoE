@@ -284,9 +284,9 @@ void Particles3D::maxwellianDoubleHarris(Field * EMf)
     /* initialize random generator with different seed on different processor */
     srand(vct->getCartesian_rank() + 2);
 
-    assert_eq(_pcls.size(),0);
+    assert_eq(_pcls.size(), 0);
 
-    const double Ly_upper = Ly/2.0;
+    const double Ly_half = Ly/2.0;
 
     const double q_sgn = (qom / fabs(qom));
     const double q_factor =  q_sgn * grid->getVOL() / npcel;
@@ -306,8 +306,8 @@ void Particles3D::maxwellianDoubleHarris(Field * EMf)
                             const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
 
                             double u, v, w;
-                            if(y > Ly_upper)  
-                                sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);  //-1.0*w0
+                            if(y > Ly_half)  
+                                sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);  //* -w0
                             else  
                                 sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
 
@@ -477,7 +477,7 @@ void Particles3D::Maxwell_Juttner(Field * EMf)
 		for (int j = 1; j < grid->getNYC() - 1; j++)
 		    for (int k = 1; k < grid->getNZC() - 1; k++)
             {
-                //TODO: rhoINIT needs to replace fabs(EMf->getRHOcs(i, j, k, ns))
+                //TODO: rho_initial needs to replace fabs(EMf->getRHOcs(i, j, k, ns))
                 const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
 
 			    for (int ii = 0; ii < npcelx; ii++)
@@ -498,6 +498,129 @@ void Particles3D::Maxwell_Juttner(Field * EMf)
 
 	fixPosition();
 }
+
+//! Initial particle distributions (Non Relativistic and Relativistic) !//
+
+//? Relativistic quasi-1D ion-electron shock
+void Particles3D::Shock1D(Field * EMf) 
+{
+	/* initialize random generator with different seed on different processor */
+	srand(vct->getCartesian_rank() + 2 + ns);
+
+    assert_eq(_pcls.size(), 0);
+  
+    //TODO: rhoINIT does not work
+    double rho_initial = rhoINIT/(4.0*M_PI);
+    double thermal_velocity = col->getUth(ns);
+    double drift_velocity = col->getU0(ns);
+    double g0 = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);
+    const double Lx_half = Lx/2.0;
+
+    const double q_sgn = (qom / fabs(qom));
+    const double q_factor =  q_sgn * grid->getVOL() / npcel;
+
+    for (int i = 1; i < grid->getNXC() - 1; i++)
+        for (int j = 1; j < grid->getNYC() - 1; j++)
+            for (int k = 1; k < grid->getNZC() - 1; k++) 
+            {
+                //TODO: rho_initial needs to replace fabs(EMf->getRHOcs(i, j, k, ns))
+                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
+                
+                for (int ii = 0; ii < npcelx; ii++)
+                    for (int jj = 0; jj < npcely; jj++)
+                        for (int kk = 0; kk < npcelz; kk++) 
+                        {
+                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+  
+                            double u, v, w;
+
+                            if (col->getRelativistic()) 
+                            {
+                                //? Relativistic (velocity of relativistic nondrifting Maxwellian)
+                                if(x < Lx_half) 
+                                    // GenerateMaxwellJuttner(&upx, &upy, &upz, thb, g0, 1);
+                                    sample_Maxwell_Juttner(u, v, w, thermal_velocity, g0, 1);
+                                else                   
+                                    // GenerateMaxwellJuttner(&upx, &upy, &upz, thb, g0, -1);
+                                    sample_Maxwell_Juttner(u, v, w, thermal_velocity, g0, -1);
+                            }
+                            else
+                            {
+                                //? Non relativistic
+                                if(x < Lx_half)
+                                    sample_maxwellian(u, v, w, uth, vth, wth, -u0, v0, w0);
+                                else  
+                                    sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
+                            }         
+                            
+                            create_new_particle(u, v, w, q, x, y, z);
+                        }
+            }
+
+    fixPosition();
+}
+
+//? Quasi-1D double periodic ion-electron shock driven by a piston
+void Particles3D::Shock1D_DoublePiston(Field * EMf) 
+{
+    /* initialize random generator with different seed on different processor */
+	srand(vct->getCartesian_rank() + 2 + ns);
+
+    assert_eq(_pcls.size(), 0);
+  
+    //TODO: rhoINIT does not work
+    double rho_initial = rhoINIT/(4.0*M_PI);
+    double thermal_velocity = col->getUth(ns);
+    const double Lx_half = Lx/2.0;
+    const double dx_one_half = 1.5*dx; 
+
+    const double q_sgn = (qom / fabs(qom));
+    const double q_factor =  q_sgn * grid->getVOL() / npcel;
+
+    for (int i = 1; i < grid->getNXC() - 1; i++)
+        for (int j = 1; j < grid->getNYC() - 1; j++)
+            for (int k = 1; k < grid->getNZC() - 1; k++) 
+            {
+                //TODO: rho_initial needs to replace fabs(EMf->getRHOcs(i, j, k, ns))
+                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
+      
+                for (int ii = 0; ii < npcelx; ii++) 
+                {
+                    //* Skip first cell near Lx/2 so that the sudden appearance of a 
+                    //* static piston doesn't cause particles to be shot away
+                    double xp = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                    if (fabs(xp - Lx_half) < 1.5*dx) continue;
+  
+                    for (int jj = 0; jj < npcely; jj++)
+                        for (int kk = 0; kk < npcelz; kk++) 
+                        {
+                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+
+                            double u, v, w;
+                            
+                            if (col->getRelativistic()) 
+                            {
+                                //? Relativistic (velocity of relativistic nondrifting Maxwellian)
+                                sample_Maxwell_Juttner(u, v, w, thermal_velocity, 1.0, 0);
+                            }
+                            else 
+                            {
+                                //? Non relativistic
+                                sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
+                            }         
+                            
+                            create_new_particle(u, v, w, q, x, y, z);
+                        }
+                }
+            }
+
+    fixPosition();
+}
+
 
 //! ============================================================================= !//
 
