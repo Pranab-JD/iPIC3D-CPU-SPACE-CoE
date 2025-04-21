@@ -131,12 +131,12 @@ void Collective::ReadInput(string inputfile)
                 ;
         }
         
-        // GEM Challenge 
+        //  Magnetic field (internal) 
         B0x = config.read<double>("B0x", 0.0);
         B0y = config.read<double>("B0y", 0.0);
         B0z = config.read<double>("B0z", 0.0);
 
-        // Earth parameters
+        // Magnetic field (external) 
         B1x = 0.0;
         B1y = 0.0;
         B1z = 0.0;
@@ -151,15 +151,18 @@ void Collective::ReadInput(string inputfile)
         SimName                     = config.read<string>   ("SimulationName");
                 
         // RemoveDivE                  = config.read<string>   ("RemoveDivE","no");
+        // EnergyConservingSmoothing   = config.read<bool>     ("EnergyConservingSmoothing", true);
         AddExternalCurlB            = config.read<bool>     ("AddExternalCurlB", false);
         AddExternalCurlE            = config.read<bool>     ("AddExternalCurlE", false);
-        // EnergyConservingSmoothing   = config.read<bool>     ("EnergyConservingSmoothing", true);
         Relativistic                = config.read<bool>     ("Relativistic", false);
         Relativistic_pusher         = config.read<string>   ("RelativisticPusher", "Boris");
         Conserve_charge             = config.read<bool>     ("Conserve_charge", true);
         PoissonMAdiv                = config.read<double>   ("PoissonMAdiv", 1.0);
         PoissonMAres                = config.read<double>   ("PoissonMAres", 0.01);
         PoissonMArho                = config.read<double>   ("PoissonMArho", 0.01);
+        GMREStol                    = config.read <double>  ("GMREStol", 1e-8);
+        NiterMover                  = config.read <int>     ("NiterMover", 3);
+        Vinj                        = config.read <double>  ("Vinj", 0.0);
 
         rhoINIT = std::make_unique<double[]>(ns);
         array_double rhoINIT0 = config.read < array_double > ("rhoINIT");
@@ -189,10 +192,6 @@ void Collective::ReadInput(string inputfile)
         if (ns > 5)
         rhoINJECT[5]=rhoINJECT0.f;
 
-        GMREStol    = config.read <double>  ("GMREStol", 1e-8);
-        NiterMover  = config.read <int>     ("NiterMover", 3);
-        Vinj        = config.read <double>  ("Vinj", 0.0);
-
         // take the output cycles
         FieldOutputCycle            = config.read <int>     ("FieldOutputCycle", 100);
         ParticlesOutputCycle        = config.read <int>     ("ParticlesOutputCycle", 0);
@@ -210,23 +209,23 @@ void Collective::ReadInput(string inputfile)
     //* read everything from input file, if restart is true, overwrite the setting - bug fixing
     restart_status = 0;
     last_cycle = -1;
-    c = config.read < double >("c",1.0);
+    c = config.read < double > ("c", 1.0);
 
     #ifdef BATSRUS
         // set grid size and resolution based on the initial file from fluid code
-        Lx =  getFluidLx();
-        Ly =  getFluidLy();
-        Lz =  getFluidLz();
-        nxc = getFluidNxc();
-        nyc = getFluidNyc();
-        nzc = getFluidNzc();
+        Lx      = getFluidLx();
+        Ly      = getFluidLy();
+        Lz      = getFluidLz();
+        nxc     = getFluidNxc();
+        nyc     = getFluidNyc();
+        nzc     = getFluidNzc();
     #else
-        Lx = config.read < double >("Lx",10.0);
-        Ly = config.read < double >("Ly",10.0);
-        Lz = config.read < double >("Lz",10.0);
-        nxc = config.read < int >("nxc",64);
-        nyc = config.read < int >("nyc",64);
-        nzc = config.read < int >("nzc",64);
+        Lx      = config.read <double> ("Lx",  10.0);
+        Ly      = config.read <double> ("Ly",  10.0);
+        Lz      = config.read <double> ("Lz",  10.0);
+        nxc     = config.read <int>    ("nxc", 64);
+        nyc     = config.read <int>    ("nyc", 64);
+        nzc     = config.read <int>    ("nzc", 64);
     #endif
 
     if (nzc == 1) 
@@ -461,12 +460,12 @@ void Collective::ReadInput(string inputfile)
     //verbose = config.read < bool > ("verbose",false);
 
     // PHI Electrostatic Potential
-    bcPHIfaceXright = config.read < int >("bcPHIfaceXright",1);
-    bcPHIfaceXleft  = config.read < int >("bcPHIfaceXleft",1);
-    bcPHIfaceYright = config.read < int >("bcPHIfaceYright",1);
-    bcPHIfaceYleft  = config.read < int >("bcPHIfaceYleft",1);
-    bcPHIfaceZright = config.read < int >("bcPHIfaceZright",1);
-    bcPHIfaceZleft  = config.read < int >("bcPHIfaceZleft",1);
+    bcPHIfaceXright = config.read < int >("bcPHIfaceXright", 1);
+    bcPHIfaceXleft  = config.read < int >("bcPHIfaceXleft",  1);
+    bcPHIfaceYright = config.read < int >("bcPHIfaceYright", 1);
+    bcPHIfaceYleft  = config.read < int >("bcPHIfaceYleft",  1);
+    bcPHIfaceZright = config.read < int >("bcPHIfaceZright", 1);
+    bcPHIfaceZleft  = config.read < int >("bcPHIfaceZleft",  1);
 
     // EM field boundary condition
     bcEMfaceXright = config.read < int >("bcEMfaceXright");
@@ -507,12 +506,12 @@ void Collective::ReadInput(string inputfile)
     bcEz[5] = bcEMfaceZleft  == 0 ? 2 : 1;   bcBz[5] = bcEMfaceZleft  == 0 ? 1 : 2;
 
     // Particles Boundary condition
-    bcPfaceXright = config.read < int >("bcPfaceXright",1);
-    bcPfaceXleft  = config.read < int >("bcPfaceXleft",1);
-    bcPfaceYright = config.read < int >("bcPfaceYright",1);
-    bcPfaceYleft  = config.read < int >("bcPfaceYleft",1);
-    bcPfaceZright = config.read < int >("bcPfaceZright",1);
-    bcPfaceZleft  = config.read < int >("bcPfaceZleft",1);
+    bcPfaceXright = config.read < int >("bcPfaceXright", 1);
+    bcPfaceXleft  = config.read < int >("bcPfaceXleft",  1);
+    bcPfaceYright = config.read < int >("bcPfaceYright", 1);
+    bcPfaceYleft  = config.read < int >("bcPfaceYleft",  1);
+    bcPfaceZright = config.read < int >("bcPfaceZright", 1);
+    bcPfaceZleft  = config.read < int >("bcPfaceZleft",  1);
 
     #ifndef NO_HDF5 
     if (RESTART1) 
