@@ -116,9 +116,9 @@ nzc                            = 1                                             #
 # %                                  MPI TOPOLOGY                              %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-XLEN                           = 2                                             # Number of subdomains in the X direction
-YLEN                           = 8                                             # Number of subdomains in the Y direction
-ZLEN                           = 1                                             # Number of subdomains in the Z direction
+XLEN                           = 2                                             # Number of MPI subdomains along X
+YLEN                           = 8                                             # Number of MPI subdomains along Y
+ZLEN                           = 1                                             # Number of MPI subdomains along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                   PARTICLES                                %
@@ -206,5 +206,4 @@ bcPfaceZleft                   = 1
 # %                                NUMERICS OPTIONS                            %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Vinj                           = 0.0                                           # Velocity of the injection from the wall
 GMREStol                       = 1E-15                                         # GMRES tolerance

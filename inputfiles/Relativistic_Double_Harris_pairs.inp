@@ -194,5 +194,4 @@ bcPfaceZleft =  1
 # %                                NUMERICS OPTIONS                            %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Vinj                           = 0.0                                           # Velocity of the injection from the wall
 GMREStol                       = 1E-15                                         # GMRES tolerance
