@@ -5,6 +5,7 @@
   - cmake (minimum version 2.8)
   - MPI (OpenMPI or MPICH)
   - HDF5 (optional)
+  - VTK (optional)
   - Paraview/Catalyst (optional)
 
 ## Installation
@@ -18,21 +19,28 @@ git clone https://github.com/Pranab-JD/iPIC3D-CPU-SPACE-CoE.git
 cd iPIC3D-CPU-SPACE-CoE && mkdir build && cd build
 ```
 
-3. Compile the code
+3. Make sure you are on the correct branch (this will be moved to 'main' soon)
+``` shell
+git checkout ecsim_relsim
+```
+
+4. Compile the code (part 1)
 ``` shell
 cmake ..
+```
+
+5. Compile the code (part 2)
+``` shell
 make -j     # -j = build with max # of threads - fast, recommended
 ```
 
-4. Run
+iPIC3D should now be installed! The executable is called 'iPIC3D'.
+
+To run the code, please try
 ``` shell
-# no_of_proc = XLEN x YLEN x ZLEN (as specified in the input file)
-mpirun -np no_of_proc ./iPIC3D  inputfilename.inp
+# no_of_proc = XLEN x YLEN x ZLEN (specify in the input file)
+mpirun -np no_of_proc ./iPIC3D  inputfilename.inp           # try 'srun', if mpirun does not work
 ```
-
-**Important:** make sure `number of MPI process = XLEN x YLEN x ZLEN` as specified in the input file.
-
-On a supercomputer or a cluster (especially a multinode system), you should use `srun` to launch iPIC3D. 
 
 # Acknowledgements and Citations
 This version of iPIC3D (with the implicit moment method) has been developed by Prof Stefano Markidis and his team. The energy conserving semi-implicit method (ECSIM) and relativistic semi-implicit method (RelSIM) have been implemented by Dr Pranab J Deka and Prof Fabio Bacchini.
