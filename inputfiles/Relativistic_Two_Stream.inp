@@ -1,17 +1,20 @@
-# Input file for double Harris sheet
+# Input file for teo stream instability
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    INPUT                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-SimulationName                 = Double_Harris                                 # Simulation name for the output
-SaveDirName                    = data_double_H                                 # Output directory
-RestartDirName                 = data_double_H                                 # Restart directory (for WriteMethod=default)
+SimulationName                 = Relativistic_two_stream                       # Simulation name for the output
+SaveDirName                    = data_rel_2_stream                             # Output directory
+RestartDirName                 = data_rel_2_stream                             # Restart directory (for WriteMethod=default)
 
-Case                           = DoubleHarris                                  # Case [ GEM | Dipole | Default | ... ]
+Case                           = default                                       # Case [ GEM | Dipole | Default | ... ]
 PartInit                       = maxwell                                       # Initial particles [ maxwell | File ]
-PartInj                        = 0.0                                           # Initial particles [ maxwell | File ]
-WriteMethod                    = shdf5                                         # Output method [ default | Parallel ]
+PartInj                        = mono                                          # Initial particles [ maxwell | File ]
+WriteMethod                    = pvtk                                          # Output method [ shdf5 | pvtk | nbcvtk ]
+
+Relativistic                   = true                                          # Relativistic Case (true or false)
+Relativistic_pusher            = Boris                                         # Relativistic Particle Pusher (Boris or Lapenta_Markidis)
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
@@ -22,7 +25,7 @@ DiagnosticsOutputCycle         = 1                                             #
 VirtualProbesOutputCycle       = 0                                             # Virtual probe output (0 = never)
 verbose                        = 1                                             # Print to video results
 
-FieldOutputCycle               = 10                                             # Output for moments and fields (if <= 0, data is NOT saved)
+FieldOutputCycle               = 10                                            # Output for moments and fields (if <= 0, data is NOT saved)
 ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
 FieldOutputTag                 = Eall + Ball + rhos + Jall + Jsall             # Select quantites to be written to files
                                + B_energy + E_energy + k_energy
@@ -57,28 +60,20 @@ ParticlesOutputTag 	           = ID + position + velocity + q                  #
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# %                         ELECTRIC and MAGNETIC FIELD                        %
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-B0x                            = 0.0097                                         # Initial magnetic field strength along X
-B0y                            = 0.0                                            # Initial magnetic field strength along Y
-B0z                            = 0.00097                                        # Initial magnetic field strength along Z
-
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                             PHYSICS and GEOMETRY                           %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Scheme                         = default
 # ZeroCurrent	                   = 0                                             # 1 -> assure that the inital current is zero
 Gravity                        = false
-delta                          = 0.5                                           # Thickness of current sheet
+# SameKineticEnergy              = no                                            # OPTIONAL (default no) It forces to all the species to have the same kinetic energy
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                     TIME                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.125	                                       # Time-step size
-ncycles                        = 105                                           # Number of time steps
+ncycles                        = 800                                           # Number of time steps
 th                             = 0.5                                           # Decentering parameter
 c                              = 1.0                                           # Speed of light 
 
@@ -96,20 +91,20 @@ SmoothType                     = directional                                   #
 # %                                    BOX SIZE                                %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Lx                             = 30.0                                          # Simulation box length along X
-Ly                             = 40.0                                          # Simulation box length along Y
-Lz                             = 0.1                                           # Simulation box length along Z
+Lx                             = 32.0                                          # Simulation box length along X
+Ly                             = 1.0                                           # Simulation box length along Y
+Lz                             = 1.0                                           # Simulation box length along Z
 
-nxc                            = 120                                           # Number of cells along X
-nyc                            = 160                                           # Number of cells along Y
+nxc                            = 64                                            # Number of cells along X
+nyc                            = 1                                             # Number of cells along Y
 nzc                            = 1                                             # Number of cells along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                  MPI TOPOLOGY                              %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-XLEN                           = 12                                            # Number of MPI subdomains along X
-YLEN                           = 16                                            # Number of MPI subdomains along Y
+XLEN                           = 1                                             # Number of MPI subdomains along X
+YLEN                           = 1                                             # Number of MPI subdomains along Y
 ZLEN                           = 1                                             # Number of MPI subdomains along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -121,24 +116,24 @@ ZLEN                           = 1                                             #
 #    1 = protons
 #    2,3,4,5,... = ions
 
-ns                  = 4                                                         # Number of species of particles
+ns                  = 4                                                         # Number of particles
 
-rhoINIT             = 1.0           1.0             0.1             0.1         # Initial density
+rhoINIT             = 0.5           0.5             0.5             0.5         # Initial density
 rhoINJECT           = 0.0           0.0             0.0             0.0         # Injection density
 TrackParticleID     = 0             0	            0 	            0           # TrackParticleID (1 = true OR 0 = false) 
 
-npcelx              = 5             5	            5	            5           # Particles per cell along X
-npcely              = 5             5               5	            5           # Particles per cell along Y
-npcelz              = 5	            5	            5	            5           # Particles per cell along Z
-NpMaxNpRatio        = 20.0                                                      # Maximum number of particles allocated
+npcelx              = 78            78	            78	            78          # Particles per cell along X
+npcely              = 1             1               1	            1           # Particles per cell along Y
+npcelz              = 1	            1	            1	            1           # Particles per cell along Z
+NpMaxNpRatio        = 6.0                                                       # Maximum number of particles allocated
 
-qom                 = -256.0        1.0             -256.0          1.0         # Charge/mass ratio
-uth                 = 0.045         0.0063          0.045           0.0063      # Thermal velocity along X
-vth                 = 0.045         0.0063          0.045           0.0063      # Thermal velocity along Y
-wth                 = 0.045         0.0063          0.045           0.0063      # Thermal velocity along Z
-u0                  = 0.0           0.0             0.0             0.0         # Drift velocity along X
+qom                 = -1.0          -1.0            1.0             1.0         # Charge/mass ratio
+uth                 = 0.001         0.001           0.001           0.001       # Thermal velocity along X
+vth                 = 0.0           0.0             0.0             0.0         # Thermal velocity along Y (NOT used for relativisitc cases, set to 0)
+wth                 = 0.0           0.0             0.0             0.0         # Thermal velocity along Z (NOT used for relativisitc cases, set to 0)
+u0                  = 2.0           -2.0            2.0             -2.0        # Drift velocity along X
 v0                  = 0.0           0.0             0.0             0.0         # Drift velocity along Y
-w0                  = 0.00325       -0.01624        0.0	            0.0         # Drift velocity along Z
+w0                  = 0.0           0.0             0.0	            0.0         # Drift velocity along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                               BOUNDARY CONDITION                           %
@@ -189,4 +184,4 @@ bcPfaceZleft =  1
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Vinj                           = 0.0                                           # Velocity of the injection from the wall
-GMREStol                       = 1E-15                                         # GMRES tolerance
+GMREStol                       = 1E-15                                         # GMRES solver stopping criterium tolerance
