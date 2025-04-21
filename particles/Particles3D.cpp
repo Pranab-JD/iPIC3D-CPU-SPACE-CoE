@@ -436,14 +436,14 @@ void Particles3D::Maxwell_Juttner(Field * EMf)
 	/* initialize random generator with different seed on different processor */
 	srand(vct->getCartesian_rank() + 2 + ns);
 
-    assert_eq(_pcls.size(),0);    
+    assert_eq(_pcls.size(), 0);    
 
     //TODO: rhoINIT does not work
-	double rho_initial = rhoINIT/(4.0*M_PI);    //* Intial density of particles
-    double thermal_velocity = uth;              //* Thermal velocity (isotropic along X, Y, Z)
-	double g0x = u0;                            //* Drift velocity (X)
-	double g0y = v0;                            //* Drift velocity (Y)
-	double g0z = w0;                            //* Drift velocity (Z)
+	// double rho_initial = col->getRHOinit(ns)/(4.0*M_PI);    //* Intial density of particles
+    double thermal_velocity = uth;                          //* Thermal velocity (isotropic along X, Y, Z)
+	double g0x = u0;                                        //* Drift velocity (X)
+	double g0y = v0;                                        //* Drift velocity (Y)
+	double g0z = w0;                                        //* Drift velocity (Z)
 	double g0;
 	int g0dir;
 	
@@ -469,17 +469,11 @@ void Particles3D::Maxwell_Juttner(Field * EMf)
 		g0dir = 0;
 	}
 
-    const double q_sgn = (qom / fabs(qom));
-    const double q_factor =  q_sgn * grid->getVOL() / npcel;
+    const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns)/(4.0*M_PI);
 
-	long long counter = 0;
 	for (int i = 1; i < grid->getNXC() - 1; i++)
 		for (int j = 1; j < grid->getNYC() - 1; j++)
 		    for (int k = 1; k < grid->getNZC() - 1; k++)
-            {
-                //TODO: rho_initial needs to replace fabs(EMf->getRHOcs(i, j, k, ns))
-                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
-
 			    for (int ii = 0; ii < npcelx; ii++)
 			        for (int jj = 0; jj < npcely; jj++)
 				        for (int kk = 0; kk < npcelz; kk++) 
@@ -492,16 +486,104 @@ void Particles3D::Maxwell_Juttner(Field * EMf)
                             sample_Maxwell_Juttner(u, v, w, thermal_velocity, g0, g0dir);
                             
                             create_new_particle(u, v, w, q, x, y, z);
-				            counter++;
                         }
-			}
+
+	fixPosition();
+}
+
+//? Relativistic double Harris with pairs: Maxwellian background, drifting particles in the sheets
+void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf) 
+{
+	/* initialize random generator with different seed on different processor */
+	srand(vct->getCartesian_rank() + 2 + ns);
+
+    assert_eq(_pcls.size(), 0);    
+
+    // //* Custom input parameters for relativistic reconnection
+    // const double sigma              = input_param[0];
+    // const double eta                = input_param[1];
+    // const double dCS                = input_param[2];
+    // const double perturb_amp        = input_param[3];
+    // const double guideField_ratio   = input_param[4];
+    
+    // double thermal_velocity = col->getUth(0);
+    // double rho0 = col->getRHOinit(ns)/(4.0*M_PI);
+    // double B0x = sqrt(sigma*4.0*M_PI*rho0*2.0);
+    // double rhoCS = eta*rho0;
+    // double w0CS = B0x/(2.0*4.0*M_PI*rhoCS*dCS/c);
+    // double g0CS = 1.0/sqrt(1.0-w0CS*w0CS);
+    // double thCS = B0x*B0x/(2.0*4.0*M_PI*2.0*rhoCS)*g0CS;
+    
+    double y_half           = Ly/2.0;
+    double y_quarter        = Ly/4.0;
+    double y_three_quarters = 3.0*y_quarter;
+
+    double upx, upy, upz;
+    double fs;
+
+    const double q_factor = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns);
+    
+	for (int i = 1; i < grid->getNXC() - 1; i++)
+        for (int j = 1; j < grid->getNYC() - 1; j++)
+            for (int k = 1; k < grid->getNZC() - 1; k++)
+                for (int ii = 0; ii < npcelx; ii++)
+                    for (int jj = 0; jj < npcely; jj++)
+                        for (int kk = 0; kk < npcelz; kk++) 
+                        {
+                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+                        
+    //                         //* Distinguish between background and drifting species
+    //                         if (ns < 2) 
+    //                         {
+    //                             double q = q_factor * rho0;
+                                
+    //                             // Velocity from (relativistic) nondrifting Maxwellian
+    //                             // GenerateMaxwellJuttner(&upx, &upy, &upz, thb, 1.0, 0);
+
+    //                             double u, v, w;
+
+    //                             //? Relativistic (velocity of relativistic nondrifting Maxwellian)
+    //                             sample_Maxwell_Juttner(u, v, w, thermal_velocity, 1.0, 0);
+
+    //                             create_new_particle(u, v, w, q, x, y, z);
+    //                         }
+                            // else 
+                            // {
+                            //     if (y < y_half)   fs = SECHSQR((y - y_quarter ) /dCS);
+                            //     else              fs = SECHSQR((y - y_three_quarters )/dCS);
+                        
+                            //     // Skip this particle if weight is too small
+                            //     if (fabs(fs) < 1.e-8) continue;
+
+                            //     q = q_factor * rhoCS * fs;
+
+                            //     // Velocity from (relativistic) drifting Maxwellian
+                            //     if (qom < 0.0)  GenerateMaxwellJuttner(&upx, &upy, &upz, thCS, g0CS, -3);
+                            //     else            GenerateMaxwellJuttner(&upx, &upy, &upz, thCS, g0CS, 3);
+                                
+                            //     // Flip sign of drift velocity component for particles in the second layer
+                            //     if (y > y_half)  
+                            //     {
+                            //         upx = -upx;
+                            //         upy = -upy;
+                            //         upz = -upz;
+                            //     }
+                            // }
+                                
+                            // // Store 4-velocity
+                            // u[counter] = upx;
+                            // v[counter] = upy;
+                            // w[counter] = upz;
+                        }
 
 	fixPosition();
 }
 
 //! Initial particle distributions (Non Relativistic and Relativistic) !//
 
-//? Relativistic quasi-1D ion-electron shock
+//? Quasi-1D ion-electron shock (Relativistic and Non relativistic)
 void Particles3D::Shock1D(Field * EMf) 
 {
 	/* initialize random generator with different seed on different processor */
@@ -510,22 +592,17 @@ void Particles3D::Shock1D(Field * EMf)
     assert_eq(_pcls.size(), 0);
   
     //TODO: rhoINIT does not work
-    double rho_initial = rhoINIT/(4.0*M_PI);
+    // double rho_initial = col->getRHOinit(ns)/(4.0*M_PI);
     double thermal_velocity = col->getUth(ns);
     double drift_velocity = col->getU0(ns);
     double g0 = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);
     const double Lx_half = Lx/2.0;
 
-    const double q_sgn = (qom / fabs(qom));
-    const double q_factor =  q_sgn * grid->getVOL() / npcel;
+    const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns)/(4.0*M_PI);
 
     for (int i = 1; i < grid->getNXC() - 1; i++)
         for (int j = 1; j < grid->getNYC() - 1; j++)
             for (int k = 1; k < grid->getNZC() - 1; k++) 
-            {
-                //TODO: rho_initial needs to replace fabs(EMf->getRHOcs(i, j, k, ns))
-                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
-                
                 for (int ii = 0; ii < npcelx; ii++)
                     for (int jj = 0; jj < npcely; jj++)
                         for (int kk = 0; kk < npcelz; kk++) 
@@ -557,12 +634,11 @@ void Particles3D::Shock1D(Field * EMf)
                             
                             create_new_particle(u, v, w, q, x, y, z);
                         }
-            }
 
     fixPosition();
 }
 
-//? Quasi-1D double periodic ion-electron shock driven by a piston
+//? Quasi-1D double periodic ion-electron shock driven by a piston (Relativistic and Non relativistic)
 void Particles3D::Shock1D_DoublePiston(Field * EMf) 
 {
     /* initialize random generator with different seed on different processor */
@@ -571,21 +647,16 @@ void Particles3D::Shock1D_DoublePiston(Field * EMf)
     assert_eq(_pcls.size(), 0);
   
     //TODO: rhoINIT does not work
-    double rho_initial = rhoINIT/(4.0*M_PI);
+    // double rho_initial = col->getRHOinit(ns)/(4.0*M_PI);
     double thermal_velocity = col->getUth(ns);
     const double Lx_half = Lx/2.0;
     const double dx_one_half = 1.5*dx; 
 
-    const double q_sgn = (qom / fabs(qom));
-    const double q_factor =  q_sgn * grid->getVOL() / npcel;
+    const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns)/(4.0*M_PI);
 
     for (int i = 1; i < grid->getNXC() - 1; i++)
         for (int j = 1; j < grid->getNYC() - 1; j++)
             for (int k = 1; k < grid->getNZC() - 1; k++) 
-            {
-                //TODO: rho_initial needs to replace fabs(EMf->getRHOcs(i, j, k, ns))
-                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
-      
                 for (int ii = 0; ii < npcelx; ii++) 
                 {
                     //* Skip first cell near Lx/2 so that the sudden appearance of a 
@@ -616,10 +687,10 @@ void Particles3D::Shock1D_DoublePiston(Field * EMf)
                             create_new_particle(u, v, w, q, x, y, z);
                         }
                 }
-            }
 
     fixPosition();
 }
+
 
 
 //! ============================================================================= !//
@@ -775,7 +846,7 @@ void Particles3D::ECSIM_velocity(Field *EMf)
     //! End of #pragma omp parallel
 }
 
-//! ECSIM - energy conserving semi-implicit method !//
+//! RelSIM - Relativistic semi-implicit method !//
 void Particles3D::RelSIM_velocity(Field *EMf) 
 {
     #pragma omp parallel
