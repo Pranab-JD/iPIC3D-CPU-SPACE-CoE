@@ -422,102 +422,135 @@ void EMfields3D::setAllzero()
 {
     // Fext = 1;
     // Fzro = 1;
-    eqValue(0.0, Ex, nxn, nyn, nzn);
-    eqValue(0.0, Ey, nxn, nyn, nzn);
-    eqValue(0.0, Ez, nxn, nyn, nzn);
-    eqValue(0.0, Exth, nxn, nyn, nzn);
-    eqValue(0.0, Eyth, nxn, nyn, nzn);
-    eqValue(0.0, Ezth, nxn, nyn, nzn);
-    eqValue(0.0, Ex_ext, nxn, nyn, nzn);
-    eqValue(0.0, Ey_ext, nxn, nyn, nzn);
-    eqValue(0.0, Ez_ext, nxn, nyn, nzn);
 
-    eqValue(0.0, Bxn, nxn, nyn, nzn);
-    eqValue(0.0, Byn, nxn, nyn, nzn);
-    eqValue(0.0, Bzn, nxn, nyn, nzn);
-    eqValue(0.0, Bx_ext, nxn, nyn, nzn);
-    eqValue(0.0, By_ext, nxn, nyn, nzn);
-    eqValue(0.0, Bz_ext, nxn, nyn, nzn);
-    eqValue(0.0, Bx_tot, nxn, nyn, nzn);
-    eqValue(0.0, By_tot, nxn, nyn, nzn);
-    eqValue(0.0, Bz_tot, nxn, nyn, nzn);
-    eqValue(0.0, Bxc, nxc, nyc, nzc);
-    eqValue(0.0, Byc, nxc, nyc, nzc);
-    eqValue(0.0, Bzc, nxc, nyc, nzc);
-    eqValue(0.0, Bxc_ext, nxc, nyc, nzc);
-    eqValue(0.0, Byc_ext, nxc, nyc, nzc);
-    eqValue(0.0, Bzc_ext, nxc, nyc, nzc);
-    
-    eqValue(0.0, Jxh, nxn, nyn, nzn);
-    eqValue(0.0, Jyh, nxn, nyn, nzn);
-    eqValue(0.0, Jzh, nxn, nyn, nzn);
-    eqValue(0.0, Jxs, ns, nxn, nyn, nzn);
-    eqValue(0.0, Jys, ns, nxn, nyn, nzn);
-    eqValue(0.0, Jzs, ns, nxn, nyn, nzn);
-    eqValue(0.0, Jxhs, ns, nxn, nyn, nzn);
-    eqValue(0.0, Jyhs, ns, nxn, nyn, nzn);
-    eqValue(0.0, Jzhs, ns, nxn, nyn, nzn);
-    eqValue(0.0, Jx_ext, nxn, nyn, nzn);
-    eqValue(0.0, Jy_ext, nxn, nyn, nzn);
-    eqValue(0.0, Jz_ext, nxn, nyn, nzn);
-    
-    eqValue(0.0, EFxs, ns, nxn, nyn, nzn);
-    eqValue(0.0, EFys, ns, nxn, nyn, nzn);
-    eqValue(0.0, EFzs, ns, nxn, nyn, nzn);
+    //* 3D arrays defined on nodes
+    for (int ii = 0; ii < nxn; ii++)
+        for (int jj = 0; jj < nyn; jj++)
+            for (int kk = 0; kk < nzn; kk++)
+            {
+                Ex.fetch(ii, jj, kk)        = 0.0;
+                Ey.fetch(ii, jj, kk)        = 0.0;
+                Ez.fetch(ii, jj, kk)        = 0.0;
+                Exth.fetch(ii, jj, kk)      = 0.0;
+                Eyth.fetch(ii, jj, kk)      = 0.0;
+                Ezth.fetch(ii, jj, kk)      = 0.0;
+                Bxn.fetch(ii, jj, kk)       = 0.0;
+                Byn.fetch(ii, jj, kk)       = 0.0;
+                Bzn.fetch(ii, jj, kk)       = 0.0;
+                Bx_tot.fetch(ii, jj, kk)    = 0.0;
+                By_tot.fetch(ii, jj, kk)    = 0.0;
+                Bz_tot.fetch(ii, jj, kk)    = 0.0;
+                Jxh.fetch(ii, jj, kk)       = 0.0;
+                Jyh.fetch(ii, jj, kk)       = 0.0;
+                Jzh.fetch(ii, jj, kk)       = 0.0;
+                
+                rhon.fetch(ii, jj, kk)      = 0.0;
+                divB.fetch(ii, jj, kk)      = 0.0;
 
-    eqValue(0.0, Mxx, NE_MASS, nxn, nyn, nzn);
-    eqValue(0.0, Mxy, NE_MASS, nxn, nyn, nzn);
-    eqValue(0.0, Mxz, NE_MASS, nxn, nyn, nzn);
-    eqValue(0.0, Myx, NE_MASS, nxn, nyn, nzn);
-    eqValue(0.0, Myy, NE_MASS, nxn, nyn, nzn);
-    eqValue(0.0, Myz, NE_MASS, nxn, nyn, nzn);
-    eqValue(0.0, Mzx, NE_MASS, nxn, nyn, nzn);
-    eqValue(0.0, Mzy, NE_MASS, nxn, nyn, nzn);
-    eqValue(0.0, Mzz, NE_MASS, nxn, nyn, nzn);
+                Ex_ext.fetch(ii, jj, kk)    = 0.0;
+                Ey_ext.fetch(ii, jj, kk)    = 0.0;
+                Ez_ext.fetch(ii, jj, kk)    = 0.0;
+                Bx_ext.fetch(ii, jj, kk)    = 0.0;
+                By_ext.fetch(ii, jj, kk)    = 0.0;
+                Bz_ext.fetch(ii, jj, kk)    = 0.0;
+                Jx_ext.fetch(ii, jj, kk)    = 0.0;
+                Jy_ext.fetch(ii, jj, kk)    = 0.0;
+                Jz_ext.fetch(ii, jj, kk)    = 0.0;
 
-    eqValue(0.0, rhoc, nxc, nyc, nzc);
-    eqValue(0.0, rhon, nxn, nyn, nzn);
-    eqValue(0.0, rhons, ns, nxn, nyn, nzn);
-    eqValue(0.0, rhocs, ns, nxc, nyc, nzc);
-    eqValue(0.0, Nns, ns, nxn, nyn, nzn);
-    
-    eqValue(0.0, divB, nxn, nyn, nzn);
-    eqValue(0.0, divE, nxc, nyc, nzc);
-    eqValue(0.0, divE_average, nxc, nyc, nzc);
-    eqValue(0.0, rhoc_avg, nxc, nyc, nzc);
-    eqValue(0.0, rhocs_avg, ns, nxc, nyc, nzc);
-    eqValue(0.0, residual_divergence, ns, nxc, nyc, nzc);
+                tempX.fetch(ii, jj, kk)     = 0.0;
+                tempY.fetch(ii, jj, kk)     = 0.0;
+                tempZ.fetch(ii, jj, kk)     = 0.0;
+                temp2X.fetch(ii, jj, kk)    = 0.0;
+                temp2Y.fetch(ii, jj, kk)    = 0.0;
+                temp2Z.fetch(ii, jj, kk)    = 0.0;
+                temp3X.fetch(ii, jj, kk)    = 0.0;
+                temp3Y.fetch(ii, jj, kk)    = 0.0;
+                temp3Z.fetch(ii, jj, kk)    = 0.0;
+                tempXN.fetch(ii, jj, kk)    = 0.0;
+                tempYN.fetch(ii, jj, kk)    = 0.0;
+                tempZN.fetch(ii, jj, kk)    = 0.0;
+                imageX.fetch(ii, jj, kk)    = 0.0;
+                imageY.fetch(ii, jj, kk)    = 0.0;
+                imageZ.fetch(ii, jj, kk)    = 0.0;
+                vectX.fetch(ii, jj, kk)     = 0.0;
+                vectY.fetch(ii, jj, kk)     = 0.0;
+                vectZ.fetch(ii, jj, kk)     = 0.0;
+                Dx.fetch(ii, jj, kk)        = 0.0;
+                Dy.fetch(ii, jj, kk)        = 0.0;
+                Dz.fetch(ii, jj, kk)        = 0.0;
+            }
 
-    eqValue(0.0, tempC, nxc, nyc, nzc);
-    eqValue(0.0, tempXC, nxc, nyc, nzc);
-    eqValue(0.0, tempYC, nxc, nyc, nzc);
-    eqValue(0.0, tempZC, nxc, nyc, nzc);
-    eqValue(0.0, tempXC2, nxc, nyc, nzc);
-    eqValue(0.0, tempYC2, nxc, nyc, nzc);
-    eqValue(0.0, tempZC2, nxc, nyc, nzc);
+    //* 3D arrays defined at cell centres
+    for (int ii = 0; ii < nxc; ii++)
+        for (int jj = 0; jj < nyc; jj++)
+            for (int kk = 0; kk < nzc; kk++)
+            {
+                Bxc.fetch(ii, jj, kk)           = 0.0;
+                Byc.fetch(ii, jj, kk)           = 0.0;
+                Bzc.fetch(ii, jj, kk)           = 0.0;
+                Bxc_ext.fetch(ii, jj, kk)       = 0.0;
+                Byc_ext.fetch(ii, jj, kk)       = 0.0;
+                Bzc_ext.fetch(ii, jj, kk)       = 0.0;
+                divE.fetch(ii, jj, kk)          = 0.0;
+                divE_average.fetch(ii, jj, kk)  = 0.0;
+                rhoc.fetch(ii, jj, kk)          = 0.0;
+                rhoc_avg.fetch(ii, jj, kk)      = 0.0;
+                tempXC.fetch(ii, jj, kk)        = 0.0;
+                tempYC.fetch(ii, jj, kk)        = 0.0;
+                tempZC.fetch(ii, jj, kk)        = 0.0;
+                tempXC2.fetch(ii, jj, kk)       = 0.0;
+                tempYC2.fetch(ii, jj, kk)       = 0.0;
+                tempZC2.fetch(ii, jj, kk)       = 0.0;
+                tempC.fetch(ii, jj, kk)         = 0.0;
+            }
 
-    eqValue(0.0, tempX, nxn, nyn, nzn);
-    eqValue(0.0, tempY, nxn, nyn, nzn);
-    eqValue(0.0, tempZ, nxn, nyn, nzn);
-    eqValue(0.0, temp2X, nxn, nyn, nzn);
-    eqValue(0.0, temp2Y, nxn, nyn, nzn);
-    eqValue(0.0, temp2Z, nxn, nyn, nzn);
-    eqValue(0.0, temp3X, nxn, nyn, nzn);
-    eqValue(0.0, temp3Y, nxn, nyn, nzn);
-    eqValue(0.0, temp3Z, nxn, nyn, nzn);
-    eqValue(0.0, tempXN, nxn, nyn, nzn);
-    eqValue(0.0, tempYN, nxn, nyn, nzn);
-    eqValue(0.0, tempZN, nxn, nyn, nzn);   
 
-    eqValue(0.0, imageX, nxn, nyn, nzn);
-    eqValue(0.0, imageY, nxn, nyn, nzn);
-    eqValue(0.0, imageZ, nxn, nyn, nzn);
-    eqValue(0.0, vectX, nxn, nyn, nzn);
-    eqValue(0.0, vectY, nxn, nyn, nzn);
-    eqValue(0.0, vectZ, nxn, nyn, nzn);
-    eqValue(0.0, Dx, nxn, nyn, nzn);
-    eqValue(0.0, Dy, nxn, nyn, nzn);
-    eqValue(0.0, Dz, nxn, nyn, nzn);
+    //* 4D arrays defined on nodes
+    for (int is = 0; is < ns; is ++)
+        for (int ii = 0; ii < nxn; ii++)
+            for (int jj = 0; jj < nyn; jj++)
+                for (int kk = 0; kk < nzn; kk++)
+                {
+                    Jxs.fetch(is, ii, jj, kk)   = 0.0;
+                    Jys.fetch(is, ii, jj, kk)   = 0.0;
+                    Jzs.fetch(is, ii, jj, kk)   = 0.0;
+                    Jxhs.fetch(is, ii, jj, kk)  = 0.0;
+                    Jyhs.fetch(is, ii, jj, kk)  = 0.0;
+                    Jzhs.fetch(is, ii, jj, kk)  = 0.0;
+                    EFxs.fetch(is, ii, jj, kk)  = 0.0;
+                    EFys.fetch(is, ii, jj, kk)  = 0.0;
+                    EFzs.fetch(is, ii, jj, kk)  = 0.0;
+                    rhons.fetch(is, ii, jj, kk) = 0.0;
+                    Nns.fetch(is, ii, jj, kk)   = 0.0;
+                }
+
+    for (int is = 0; is < NE_MASS; is ++)
+        for (int ii = 0; ii < nxn; ii++)
+            for (int jj = 0; jj < nyn; jj++)
+                    for (int kk = 0; kk < nzn; kk++)
+                    {
+                        Mxx.fetch(is, ii, jj, kk) = 0.0;
+                        Mxy.fetch(is, ii, jj, kk) = 0.0;
+                        Mxz.fetch(is, ii, jj, kk) = 0.0;
+                        Myx.fetch(is, ii, jj, kk) = 0.0;
+                        Myy.fetch(is, ii, jj, kk) = 0.0;
+                        Myz.fetch(is, ii, jj, kk) = 0.0;
+                        Mzx.fetch(is, ii, jj, kk) = 0.0;
+                        Mzy.fetch(is, ii, jj, kk) = 0.0;
+                        Mzz.fetch(is, ii, jj, kk) = 0.0;
+
+                    }
+
+    //* 4D arrays defined at cell centres
+    for (int is = 0; is < ns; is ++)
+        for (int ii = 0; ii < nxc; ii++)
+            for (int jj = 0; jj < nyc; jj++)
+                for (int kk = 0; kk < nzc; kk++)
+                {
+                    rhocs.fetch(is, ii, jj, kk) = 0.0;
+                    rhocs_avg.fetch(is, ii, jj, kk) = 0.0;
+                    residual_divergence.fetch(is, ii, jj, kk) = 0.0;
+                }
 }
 
 
@@ -3817,6 +3850,8 @@ void EMfields3D::interpolateCenterSpecies(int is)
 
 //! ===================================== Initial Field Distributions ===================================== !//
 
+//! Initial field distributions (Non Relativistic) !//
+
 void EMfields3D::init()
 {
     const Collective *col = &get_col();
@@ -3861,7 +3896,7 @@ void EMfields3D::init()
             eprintf("restart requires compiling with HDF5");
         #else
             
-            col->read_field_restart(vct,grid,Bxn,Byn,Bzn,Ex,Ey,Ez,&rhons,ns);
+            col->read_field_restart(vct, grid, Bxn, Byn, Bzn, Ex, Ey, Ez, &rhons, ns);
 
             // communicate species densities to ghost nodes
             for (int is = 0; is < ns; is++) 
@@ -5039,6 +5074,85 @@ void EMfields3D::initDipole2D()
 		init();  // use the fields from restart file
 	}
 }
+
+
+//! Initial field distributions (Relativistic) !//
+
+//? Quasi-1D ion-electron shock (Relativistic and Non relativistic)
+void EMfields3D::initShock1D() 
+{
+    const Collective *col = &get_col();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
+
+    double v0  = col->getU0(1);
+    double thb = col->getUth(1);
+
+    if (restart1 == 0)
+    {
+        //! Initial setup (NOT RESTART)
+        if (vct->getCartesian_rank() == 0) 
+        {
+            cout << "-------------------------------------------------------" << endl;
+            cout << "Initialise quasi-1D double periodic ion-electron shock " << endl;
+            cout << "-------------------------------------------------------" << endl;
+            cout << "Background ion sigma                = " << (B0x*B0x+B0y*B0y+B0z*B0z)/sqrt(FourPI*rhoINIT[1]) << endl;
+            if (col->getRelativistic())
+            cout << "Background theta_i                  = " << thb << endl;
+            cout << "Background bulk velocity            = " << v0 << endl;
+            cout << "-------------------------------------------------------" << endl;
+        }
+  
+        //* Initialise B at cell centres
+        for (int i = 1; i < nxc-1; i++) 
+            for (int j = 1; j < nyc-1; j++)
+                for (int k = 1; k < nzc-1; k++) 
+                {
+                    Bxc[i][j][k] = B0x;
+                    Byc[i][j][k] = B0y;
+                    Bzc[i][j][k] = B0z;
+                }
+
+        //* Communicate ghost data at cell centres
+        communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+      
+        //* Initialise B at cell centres
+        grid->interpC2N(Bxn,Bxc);
+        grid->interpC2N(Byn,Byc);
+        grid->interpC2N(Bzn,Bzc);
+
+        //* Communicate ghost data on nodes
+        communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+  
+        //* Initialise E on nodes
+        for (int i = 1; i < nxn-1; i++) 
+            for (int j = 1; j < nyn-1; j++)
+                for (int k = 1; k < nzn-1; k++) 
+                {
+                    double xN = grid->getXN(i, j, k);
+                    double fac = (xN>Lx/2.0 && xN < Lx-grid->getDX()) ? -1.0 : 1.0;
+                    Ex[i][j][k] = 0.0;
+                    Ey[i][j][k] = fac*v0*B0z;
+                    Ez[i][j][k] = -fac*v0*B0y;
+                }
+
+        //* Communicate ghost data on nodes
+        communicateNodeBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcBx[4],col->bcEx[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcBy[4],col->bcEy[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcBz[4],col->bcEz[5], vct, this);
+    }
+    else
+    {
+        //! READ FROM RESTART
+        init();
+    }
+}
+
+//* =========================================================================================================== *//
 
 /*! Calculate the susceptibility on the boundary leftX */
 void EMfields3D::sustensorLeftX(double **susxx, double **susyx, double **suszx) 
