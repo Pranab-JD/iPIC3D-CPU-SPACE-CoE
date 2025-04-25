@@ -97,25 +97,25 @@ void Collective::ReadInput(string inputfile)
             }
         #endif
 
-        dt      = config.read<double>    ("dt");
-        ncycles = config.read<int>       ("ncycles");
-        th      = config.read<double>    ("th", 1.0);
+        dt              = config.read<double>    ("dt");
+        ncycles         = config.read<int>       ("ncycles");
+        th              = config.read<double>    ("th", 0.5);
 
-        Smooth          = config.read<bool>      ("Smooth", 1.0);            //1.0 means no smoothing
+        Smooth          = config.read<bool>      ("Smooth", 0.0);            // (1 = true, i.e, smooth OR 0 = false)
         SmoothCycle     = config.read<int>       ("SmoothCycle", 1); 
         config.readInto(num_smoothings, "num_smoothings", 0);
 
-        SaveDirName     = config.read<string>    ("SaveDirName","data");
-        RestartDirName  = config.read<string>    ("RestartDirName","data");
+        SaveDirName     = config.read<string>    ("SaveDirName", "data");
+        RestartDirName  = config.read<string>    ("RestartDirName", "data");
         ns              = config.read<int>       ("ns");
         nstestpart      = config.read<int>       ("nsTestPart", 0);
-        NpMaxNpRatio    = config.read<double>    ("NpMaxNpRatio",1.5);
+        NpMaxNpRatio    = config.read<double>    ("NpMaxNpRatio", 1.5);
         assert_ge(NpMaxNpRatio, 1.);
 
         // mode parameters for second order in time
-        PushWithBatTime = config.read<double>    ("PushWithBatTime",0);
-        PushWithEatTime = config.read<double>    ("PushWithEatTime",1);
-        ImplSusceptTime = config.read<double>    ("ImplSusceptTime",0);
+        PushWithBatTime = config.read<double>    ("PushWithBatTime", 0);
+        PushWithEatTime = config.read<double>    ("PushWithEatTime", 1);
+        ImplSusceptTime = config.read<double>    ("ImplSusceptTime", 0);
         ImplSusceptMode = read_enum_parameter("ImplSusceptMode", "initial",config);
         
         switch(ImplSusceptMode)
@@ -130,28 +130,26 @@ void Collective::ReadInput(string inputfile)
                 ;
         }
         
-        //  Magnetic field (internal) 
+        //*  Magnetic field (internal) 
         B0x = config.read<double>("B0x", 0.0);
         B0y = config.read<double>("B0y", 0.0);
         B0z = config.read<double>("B0z", 0.0);
 
-        // Magnetic field (external) 
-        B1x = 0.0;
-        B1y = 0.0;
-        B1z = 0.0;
+        //* Magnetic field (external) 
         B1x = config.read<double>("B1x", 0.0);
         B1y = config.read<double>("B1y", 0.0);
         B1z = config.read<double>("B1z", 0.0);
 
+        //* Thickness of current sheet (only for nonrelativistic magnetic reconnection)
         delta = config.read < double >("delta",0.5);
 
         Case                        = config.read<string>   ("Case");
         wmethod                     = config.read<string>   ("WriteMethod");
         SimName                     = config.read<string>   ("SimulationName");
                 
-
         AddExternalCurlB            = config.read<bool>     ("AddExternalCurlB", false);
         AddExternalCurlE            = config.read<bool>     ("AddExternalCurlE", false);
+        
         Relativistic                = config.read<bool>     ("Relativistic", false);
         Relativistic_pusher         = config.read<string>   ("RelativisticPusher", "Boris");
 
@@ -249,22 +247,25 @@ void Collective::ReadInput(string inputfile)
         }   
     }
 
-    XLEN        = config.read < int >("XLEN", 1);
-    YLEN        = config.read < int >("YLEN", 1);
-    ZLEN        = config.read < int >("ZLEN", 1);
+    //* MPI totology
+    XLEN        = config.read <int> ("XLEN", 1);
+    YLEN        = config.read <int> ("YLEN", 1);
+    ZLEN        = config.read <int> ("ZLEN", 1);
     
-    PERIODICX   = config.read < bool >("PERIODICX", true);
-    PERIODICY   = config.read < bool >("PERIODICY", true);
-    PERIODICZ   = config.read < bool >("PERIODICZ", true);
+    //* Fields' boundary condition
+    PERIODICX   = config.read <bool> ("PERIODICX", true);
+    PERIODICY   = config.read <bool> ("PERIODICY", true);
+    PERIODICZ   = config.read <bool> ("PERIODICZ", true);
 
-    PERIODICX_P = config.read < bool >("PERIODICX_P", PERIODICX);
-    PERIODICY_P = config.read < bool >("PERIODICY_P", PERIODICY);
-    PERIODICZ_P = config.read < bool >("PERIODICZ_P", PERIODICZ);
+    //* Particles' boundary condition
+    PERIODICX_P = config.read <bool> ("PERIODICX_P", PERIODICX);
+    PERIODICY_P = config.read <bool> ("PERIODICY_P", PERIODICY);
+    PERIODICZ_P = config.read <bool> ("PERIODICZ_P", PERIODICZ);
 
-    x_center    = config.read < double >("x_center", 5.0);
-    y_center    = config.read < double >("y_center", 5.0);
-    z_center    = config.read < double >("z_center", 5.0);
-    L_square    = config.read < double >("L_square", 5.0);
+    x_center    = config.read <double> ("x_center", 5.0);
+    y_center    = config.read <double> ("y_center", 5.0);
+    z_center    = config.read <double> ("z_center", 5.0);
+    L_square    = config.read <double> ("L_square", 5.0);
 
     uth = std::make_unique<double[]>(ns);
     vth = std::make_unique<double[]>(ns);
