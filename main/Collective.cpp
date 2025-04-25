@@ -101,9 +101,8 @@ void Collective::ReadInput(string inputfile)
         ncycles = config.read<int>       ("ncycles");
         th      = config.read<double>    ("th", 1.0);
 
-        Smooth          = config.read<double>    ("Smooth", 1.0);            //1.0 means no smoothing
+        Smooth          = config.read<bool>      ("Smooth", 1.0);            //1.0 means no smoothing
         SmoothCycle     = config.read<int>       ("SmoothCycle", 1); 
-        SmoothType      = config.read<string>    ("SmoothType", "default");
         config.readInto(num_smoothings, "num_smoothings", 0);
 
         SaveDirName     = config.read<string>    ("SaveDirName","data");
@@ -150,13 +149,12 @@ void Collective::ReadInput(string inputfile)
         wmethod                     = config.read<string>   ("WriteMethod");
         SimName                     = config.read<string>   ("SimulationName");
                 
-        // RemoveDivE                  = config.read<string>   ("RemoveDivE","no");
-        // EnergyConservingSmoothing   = config.read<bool>     ("EnergyConservingSmoothing", true);
+
         AddExternalCurlB            = config.read<bool>     ("AddExternalCurlB", false);
         AddExternalCurlE            = config.read<bool>     ("AddExternalCurlE", false);
         Relativistic                = config.read<bool>     ("Relativistic", false);
         Relativistic_pusher         = config.read<string>   ("RelativisticPusher", "Boris");
-        Conserve_charge             = config.read<bool>     ("Conserve_charge", true);
+
         PoissonMAdiv                = config.read<double>   ("PoissonMAdiv", 1.0);
         PoissonMAres                = config.read<double>   ("PoissonMAres", 0.01);
         PoissonMArho                = config.read<double>   ("PoissonMArho", 0.01);
@@ -468,12 +466,12 @@ void Collective::ReadInput(string inputfile)
     bcPHIfaceZleft  = config.read < int >("bcPHIfaceZleft",  1);
 
     // EM field boundary condition
-    bcEMfaceXright = config.read < int >("bcEMfaceXright");
-    bcEMfaceXleft  = config.read < int >("bcEMfaceXleft");
-    bcEMfaceYright = config.read < int >("bcEMfaceYright");
-    bcEMfaceYleft  = config.read < int >("bcEMfaceYleft");
-    bcEMfaceZright = config.read < int >("bcEMfaceZright");
-    bcEMfaceZleft  = config.read < int >("bcEMfaceZleft");
+    bcEMfaceXright = config.read < int >("bcEMfaceXright", 1);
+    bcEMfaceXleft  = config.read < int >("bcEMfaceXleft",  1);
+    bcEMfaceYright = config.read < int >("bcEMfaceYright", 1);
+    bcEMfaceYleft  = config.read < int >("bcEMfaceYleft",  1);
+    bcEMfaceZright = config.read < int >("bcEMfaceZright", 1);
+    bcEMfaceZleft  = config.read < int >("bcEMfaceZleft",  1);
 
     /*  ---------------------------------------------------------- */
     /*  Electric and Magnetic field boundary conditions for BCface */

@@ -114,7 +114,6 @@ class Collective
     double getImplSusceptTime()const{ return ImplSusceptTime; }
     double getSmooth()const{ return (Smooth); }
     int getImplSusceptMode()const{ return ImplSusceptMode; }
-    // int getSmoothNiter()const{ return SmoothNiter; }
     
     int getNcycles()const{ return (ncycles); }
     int getNs()const{ return (ns); }
@@ -177,11 +176,9 @@ class Collective
     string getFieldOutputTag()          const{ return FieldOutputTag;}
     string getMomentsOutputTag()        const{ return MomentsOutputTag;}
     string getPclOutputTag()            const{ return ParticlesOutputTag;}
-    // string getPoissonCorrection()       const{ return (PoissonCorrection); }
+
     double getVinj()                    const{ return (Vinj); }
-    // double getCGtol()                   const{ return (CGtol); }
     double getGMREStol()                const{ return (GMREStol); }
-    // int getPoissonCorrectionCycle()     const{ return (PoissonCorrectionCycle); }
     int getLast_cycle()                 const{ return (last_cycle); }
     int getNiterMover()                 const{ return (NiterMover); }
     int getFieldOutputCycle()           const{ return (FieldOutputCycle); }
@@ -195,15 +192,10 @@ class Collective
     bool testparticle_output_is_off()   const;
     bool field_output_is_off()          const;
 
-    //? ECSim functions
     bool getAddExternalCurlB()          const { return AddExternalCurlB; }
     bool getAddExternalCurlE()          const { return AddExternalCurlE; }
-    // bool getEnergyConservingSmoothing() const { return EnergyConservingSmoothing; }
-    // bool getExactMM()                   const { return ExactMM; }
-
     int getZeroCurrent()                      { return zeroCurrent; }
 
-    string getSmoothType()              const { return SmoothType; }
     int getSmoothCycle()                const { return SmoothCycle; }
     int getNumSmoothings()              const { return num_smoothings; }
     int getCurrentCycle()               const { return CurrentCycle; }
@@ -213,7 +205,6 @@ class Collective
     double getPoissonMAres()                  { return PoissonMAres;}
     double getPoissonMArho()                  { return PoissonMArho;}
 
-    bool getConserveCharge()            const { return Conserve_charge;}
     bool getRelativistic()              const { return Relativistic; }
     string getRelativisticPusher()      const { return Relativistic_pusher; }   
     
@@ -252,7 +243,6 @@ class Collective
     double Smooth;
     int num_smoothings;
     int SmoothCycle;
-    string SmoothType;
 
     int CurrentCycle;
     int zeroCurrent;
@@ -346,9 +336,7 @@ class Collective
     string wmethod;
     /*! Simulation name */
     string SimName;
-    /*! Poisson correction flag */
-    // string PoissonCorrection;
-    // int PoissonCorrectionCycle;
+
     /*! TrackParticleID */
     //bool *TrackParticleID;
     /*! SaveDirName */
@@ -459,23 +447,9 @@ class Collective
     //* Relativistic particle pusher
     string Relativistic_pusher;
 
-    //* Conserve charge in ECSIM position update
-    bool Conserve_charge;
-
     //* Moving average value for rho density (Poisson correction)
     double PoissonMArho, PoissonMAdiv, PoissonMAres;
 
-    /** EnergyConservingSmoothing */
-    // bool EnergyConservingSmoothing;
-    
-    /** Remove the div(E) term from the Maxwell equations */
-    // string RemoveDivE;
-    
-    /** Determines whether to use cur(curl) or -del2 + grad(div) */
-    // bool CurlCurl;
-    
-    /** Exact MAss Matrix Formulation */
-    // bool ExactMM;
 };
 typedef Collective CollectiveIO;
 
