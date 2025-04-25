@@ -49,10 +49,13 @@ public:
 
     void setAllzero();
 
-    //! ===================================== Initial Field Distributions ===================================== !//
+    //! ======================================================================================================= !//
 
-    /*! initialize the electromagnetic fields with constant values */
+    //? ---------- Initial field distributions (Non Relativistic) ---------- ?//
+
+    //* Initialise electromagnetic fields with constant values
     void init();
+
     /*! init beam */
     void initBEAM(double x_center, double y_center, double z_center, double radius);
     /*! initialize GEM challenge */
@@ -90,6 +93,11 @@ public:
     void initNullPoints();
     /*! Initialise Taylor-Green flow */
     void initTaylorGreen();
+
+    //? ---------- Initial particle distributions (Relativistic) ---------- ?//
+
+    //? Quasi-1D ion-electron shock (Relativistic and Non relativistic)
+    void initShock1D();
 
     //! ======================================================================================================= !//
 
@@ -146,8 +154,7 @@ public:
 
     //* Energy-conserving smoothing
     void energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, arr3_double data_Z, int nx, int ny, int nz);
-    void energy_conserve_smooth(arr3_double data, int nx, int ny, int nz, int dir, double smooth);
-    void energy_conserve_smooth_direction(arr3_double data, int nx, int ny, int nz, int dir, double smooth);
+    void energy_conserve_smooth_direction(arr3_double data, int nx, int ny, int nz, int dir);
 
     /*! communicate ghost for densities and interp rho from node to center */
     void interpDensitiesN2C();
@@ -428,8 +435,7 @@ private:
     double th;
     
     /*! Smoothing value */
-    double Smooth;
-    int SmoothNiter;          // Frequency of smoothing (after every "SmoothNiter" time cycles)
+    bool Smooth;
     int smooth_cycle;         // Frequency of smoothing (after every "smooth_cycle" time cycles)
     int num_smoothings;       // Number of times of smoothing at a given time cycle
     

@@ -103,35 +103,37 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     //? (nxn, nyn, nzn) --> nodes 
     //? (nxc, nyc, nzc) --> cell centres
     fieldForPcls  (nxn, nyn, nzn, 2*DFIELD_3or4),
-    Ex   (nxn, nyn, nzn),
-    Ey   (nxn, nyn, nzn),
-    Ez   (nxn, nyn, nzn),
-    Exth (nxn, nyn, nzn),
-    Eyth (nxn, nyn, nzn),
-    Ezth (nxn, nyn, nzn),
-    Bxn  (nxn, nyn, nzn),
-    Byn  (nxn, nyn, nzn),
-    Bzn  (nxn, nyn, nzn),
-    Bxc  (nxc, nyc, nzc),
-    Byc  (nxc, nyc, nzc),
-    Bzc  (nxc, nyc, nzc),
-    Jx   (nxn, nyn, nzn),
-    Jy   (nxn, nyn, nzn),
-    Jz   (nxn, nyn, nzn),
-    Jxh  (nxn, nyn, nzn),
-    Jyh  (nxn, nyn, nzn),
-    Jzh  (nxn, nyn, nzn),
+    Ex      (nxn, nyn, nzn),
+    Ey      (nxn, nyn, nzn),
+    Ez      (nxn, nyn, nzn),
+    Exth    (nxn, nyn, nzn),
+    Eyth    (nxn, nyn, nzn),
+    Ezth    (nxn, nyn, nzn),
+
+    Bxn     (nxn, nyn, nzn),
+    Byn     (nxn, nyn, nzn),
+    Bzn     (nxn, nyn, nzn),
+    Bxc     (nxc, nyc, nzc),
+    Byc     (nxc, nyc, nzc),
+    Bzc     (nxc, nyc, nzc),
+    Bx_tot  (nxn, nyn, nzn),
+    By_tot  (nxn, nyn, nzn),
+    Bz_tot  (nxn, nyn, nzn),
     
-    //! B_ext and J_ext should not be allocated unless used.
+    Jx      (nxn, nyn, nzn),
+    Jy      (nxn, nyn, nzn),
+    Jz      (nxn, nyn, nzn),
+    Jxh     (nxn, nyn, nzn),
+    Jyh     (nxn, nyn, nzn),
+    Jzh     (nxn, nyn, nzn),
+    
+    //! E_ext, B_ext, and J_ext are not used (must be allocated even if memory intensive :( )
     Bxc_ext  (nxc, nyc, nzc),
     Byc_ext  (nxc, nyc, nzc),
     Bzc_ext  (nxc, nyc, nzc),
     Bx_ext   (nxn, nyn, nzn),
     By_ext   (nxn, nyn, nzn),
     Bz_ext   (nxn, nyn, nzn),
-    Bx_tot   (nxn, nyn, nzn),
-    By_tot   (nxn, nyn, nzn),
-    Bz_tot   (nxn, nyn, nzn),
     Jx_ext   (nxn, nyn, nzn),
     Jy_ext   (nxn, nyn, nzn),
     Jz_ext   (nxn, nyn, nzn),
@@ -263,7 +265,6 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     B0z = col->getB0z();
     delta = col->getDelta();
     Smooth = col->getSmooth();
-    // SmoothNiter = col->getSmoothNiter();
     smooth_cycle = col->getSmoothCycle();
     num_smoothings = col->getNumSmoothings();
     
@@ -447,15 +448,16 @@ void EMfields3D::setAllzero()
                 rhon.fetch(ii, jj, kk)      = 0.0;
                 divB.fetch(ii, jj, kk)      = 0.0;
 
-                Ex_ext.fetch(ii, jj, kk)    = 0.0;
-                Ey_ext.fetch(ii, jj, kk)    = 0.0;
-                Ez_ext.fetch(ii, jj, kk)    = 0.0;
-                Bx_ext.fetch(ii, jj, kk)    = 0.0;
-                By_ext.fetch(ii, jj, kk)    = 0.0;
-                Bz_ext.fetch(ii, jj, kk)    = 0.0;
-                Jx_ext.fetch(ii, jj, kk)    = 0.0;
-                Jy_ext.fetch(ii, jj, kk)    = 0.0;
-                Jz_ext.fetch(ii, jj, kk)    = 0.0;
+                //! E_ext, B_ext, and J_ext are not used
+                // Ex_ext.fetch(ii, jj, kk)    = 0.0;
+                // Ey_ext.fetch(ii, jj, kk)    = 0.0;
+                // Ez_ext.fetch(ii, jj, kk)    = 0.0;
+                // Bx_ext.fetch(ii, jj, kk)    = 0.0;
+                // By_ext.fetch(ii, jj, kk)    = 0.0;
+                // Bz_ext.fetch(ii, jj, kk)    = 0.0;
+                // Jx_ext.fetch(ii, jj, kk)    = 0.0;
+                // Jy_ext.fetch(ii, jj, kk)    = 0.0;
+                // Jz_ext.fetch(ii, jj, kk)    = 0.0;
 
                 tempX.fetch(ii, jj, kk)     = 0.0;
                 tempY.fetch(ii, jj, kk)     = 0.0;
@@ -488,9 +490,9 @@ void EMfields3D::setAllzero()
                 Bxc.fetch(ii, jj, kk)           = 0.0;
                 Byc.fetch(ii, jj, kk)           = 0.0;
                 Bzc.fetch(ii, jj, kk)           = 0.0;
-                Bxc_ext.fetch(ii, jj, kk)       = 0.0;
-                Byc_ext.fetch(ii, jj, kk)       = 0.0;
-                Bzc_ext.fetch(ii, jj, kk)       = 0.0;
+                // Bxc_ext.fetch(ii, jj, kk)       = 0.0;
+                // Byc_ext.fetch(ii, jj, kk)       = 0.0;
+                // Bzc_ext.fetch(ii, jj, kk)       = 0.0;
                 divE.fetch(ii, jj, kk)          = 0.0;
                 divE_average.fetch(ii, jj, kk)  = 0.0;
                 rhoc.fetch(ii, jj, kk)          = 0.0;
@@ -2686,6 +2688,7 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     //* Compute curl of magnetic field (defined at cell centres) on nodes
     grid->curlC2N(temp2X, temp2Y, temp2Z, Bxc, Byc, Bzc);
 
+    //? External magnetic field
     // if (col->getAddExternalCurlB()) 
     // {
     //     //* Dipole SOURCE version using J_ext
@@ -2717,9 +2720,10 @@ void EMfields3D::MaxwellSource(double *bkrylov)
         for (int j = 0; j < nyn; j++) 
             for (int k = 0; k < nzn; k++)
             {
-                double Jx_tot = Jxh.get(i, j, k) + zeroCurrent*Jx_ext.get(i, j, k);
-                double Jy_tot = Jyh.get(i, j, k) + zeroCurrent*Jy_ext.get(i, j, k);
-                double Jz_tot = Jzh.get(i, j, k) + zeroCurrent*Jz_ext.get(i, j, k);
+                //? If zeroCurrent is implemented, the follwoing 3 lines need to be changed to J_tot = Jh.(i,j,k) + zeroCurrent*J_ext.get(i, j, k)
+                double Jx_tot = Jxh.get(i, j, k);
+                double Jy_tot = Jyh.get(i, j, k);
+                double Jz_tot = Jzh.get(i, j, k);
                 
                 temp3X.fetch(i, j, k) = Jxh.get(i, j, k)*invVOL;
                 temp3Y.fetch(i, j, k) = Jyh.get(i, j, k)*invVOL;
@@ -2728,7 +2732,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
                 tempX.fetch(i, j, k) = th*dt*(c*temp2X.get(i, j, k) - FourPI*Jx_tot*invVOL);
                 tempY.fetch(i, j, k) = th*dt*(c*temp2Y.get(i, j, k) - FourPI*Jy_tot*invVOL);
                 tempZ.fetch(i, j, k) = th*dt*(c*temp2Z.get(i, j, k) - FourPI*Jz_tot*invVOL);
-
             }
 
     communicateNodeBC(nxn, nyn, nzn, temp3X, 2, 2, 2, 2, 2, 2, vct, this);
@@ -2740,7 +2743,7 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     addscale(1.0, tempY, Ey, nxn, nyn, nzn);
     addscale(1.0, tempZ, Ez, nxn, nyn, nzn);
 
-    // //? Add contribution of E_ext to the change in B
+    // //? Add contribution of external electric field to the change in B
     // if (col->getAddExternalCurlE()) 
     // {
     //     grid->lapN2N(temp2X, Ex_ext, this);
@@ -2987,89 +2990,10 @@ void EMfields3D::calculateB()
 
 //! ===================================== Smoothing ===================================== !//
 
-void EMfields3D::energy_conserve_smooth(arr3_double data, int nx, int ny, int nz, int dir, double smooth)
+void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int ny, int nz, int dir)
 {
-    //? No smoothing
-    if(Smooth == 1.0) return;
-
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
-    const Grid *grid = &get_grid();
-
-    //? Initialise temporary arrays with zeros
-    eqValue(0.0, smooth_temp, nxn, nyn, nzn);
-    
-    int bc[6];
-    if (dir == 0)      for (int i=0; i<6; i++) bc[i] = col->bcEx[i];
-    else if (dir == 1) for (int i=0; i<6; i++) bc[i] = col->bcEy[i];
-    else if (dir == 2) for (int i=0; i<6; i++) bc[i] = col->bcEz[i];
-
-    if (smooth != 1.0)
-    {    
-        for (int icount = 1; icount < num_smoothings + 1; icount++)
-        {
-            communicateNodeBoxStencilBC(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
-
-            if (col->getDim() == 1) 
-            {   
-                //* 1D: smoothing along X
-                double alpha = (1.0 - smooth) / 2;
-
-                for (int i = 1; i < nx - 1; i++)
-                    for (int j = 1; j < ny - 1; j++)
-                        for (int k = 1; k < nz - 1; k++)
-                            smooth_temp.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k));
-
-                for (int i = 1; i < nx - 1; i++)
-                    for (int j = 1; j < nyn - 1; j++)
-                        for (int k = 1; k < nzn - 1; k++)
-                            data.fetch(i, j, k) = smooth_temp.get(i, 0, 0);
-            } 
-            else if (col->getDim() == 2) 
-            { 
-                //* 2D: smoothing along X and Y
-                double alpha = (1.0 - smooth) / 4;
-                
-                for (int i = 1; i < ny - 1; i++)
-                    for (int j = 1; j < ny - 1; j++)
-                        for (int k = 1; k < nzn - 1; k++)
-                            smooth_temp.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
-                                                                                       + data.get(i, j - 1, k) + data.get(i, j + 1, k));
-                
-                for (int i = 1; i < nz - 1; i++)
-                    for (int j = 1; j < nyn - 1; j++)
-                        for (int k = 1; k < nzn - 1; k++)
-                            data.fetch(i, j, k) = smooth_temp.get(i, j, 0);
-            } 
-            else 
-            { 
-                //* 3D: smoothing along X, Y, and Z
-                double alpha = (1.0 - smooth) / 6;
-
-                for (int i = 1; i < nx - 1; i++)
-                    for (int j = 1; j < ny - 1; j++)
-                        for (int k = 1; k < nz - 1; k++) 
-                            smooth_temp.fetch(i, j, k) = smooth * data.get(i, j, k) + alpha * (data.get(i - 1, j, k) + data.get(i + 1, j, k) 
-                                                                                       + data.get(i, j - 1, k) + data.get(i, j + 1, k)
-                                                                                       + data.get(i, j, k - 1) + data.get(i, j, k + 1));
-                
-                for (int i = 1; i < nx - 1; i++)
-                    for (int j = 1; j < ny - 1; j++)
-                        for (int k = 1; k < nz - 1; k++)
-                            data.fetch(i, j, k) = smooth_temp.get(i, j, k);
-            }
-        }
-    }
-}
-
-void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int ny, int nz, int dir, double smooth)
-{
-    //? No smoothing
-    if(Smooth == 1.0) return;
-
-    const Collective *col = &get_col();
-    const VirtualTopology3D *vct = &get_vct();
-    const Grid *grid = &get_grid();
 
     //? Initialise temporary arrays with zeros
     eqValue(0.0, smooth_temp, nxn, nyn, nzn);
@@ -3079,64 +3003,44 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
     else if (dir == 1) for (int i=0; i<6; i++) bc[i] = col->bcEy[i];    //* BC along Y
     else if (dir == 2) for (int i=0; i<6; i++) bc[i] = col->bcEz[i];    //* BC along Z
 
-    // TODO: the smoothing value is not used anywhere! Why? - Ask Fabio
-    // TODO: is directional smoothing preferred because if has fewer communications? - Ask Fabio
-    if (smooth != 1.0) 
+    //! Using new communication routines results in energy growth
+    communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
+
+    for (int icount = 1; icount < num_smoothings + 1; icount++)
     {
+        for (int i = 1; i < nx - 1; i++)
+            for (int j = 1; j < ny - 1; j++) 
+                for (int k = 1; k < nz - 1; k++)
+                    smooth_temp.fetch(i, j, k) = 0.015625 * (8.0 * data.get(i, j, k)
+                                                    + 4.0 *(data.get(i-1, j, k) + data.get(i+1, j, k)      //* Faces
+                                                    +       data.get(i, j-1, k) + data.get(i, j+1, k)      //* Faces
+                                                    +       data.get(i, j, k-1) + data.get(i, j, k+1))     //* Faces
+                                                    + 2.0 *(data.get(i-1, j-1, k) + data.get(i+1, j-1, k) + data.get(i-1, j+1, k) + data.get(i+1, j+1, k)      //* Edges
+                                                    +       data.get(i-1, j, k-1) + data.get(i+1, j, k-1) + data.get(i, j-1, k-1) + data.get(i, j+1, k-1)      //* Edges
+                                                    +       data.get(i-1, j, k+1) + data.get(i+1, j, k+1) + data.get(i, j-1, k+1) + data.get(i, j+1, k+1))     //* Edges
+                                                    + 1.0 *(data.get(i-1, j-1, k-1) + data.get(i+1, j-1, k-1) + data.get(i-1, j+1, k-1) + data.get(i+1, j+1, k-1)       //* Corners
+                                                    +       data.get(i-1, j-1, k+1) + data.get(i+1, j-1, k+1) + data.get(i-1, j+1, k+1) + data.get(i+1, j+1, k+1)));    //* Corners
+
+        for (int i = 1; i < nx - 1; i++)
+            for (int j = 1; j < ny - 1; j++)
+                for (int k = 1; k < nz - 1; k++)
+                    data.fetch(i, j, k) = smooth_temp.get(i, j, k);
+        
         //! Using new communication routines results in energy growth
         communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
-
-        for (int icount = 1; icount < num_smoothings + 1; icount++)  // TODO: Does this have to be even? Ask Fabio
-        {
-            //? New way (without too many communications)
-            for (int i = 1; i < nx - 1; i++)
-                for (int j = 1; j < ny - 1; j++) 
-                    for (int k = 1; k < nz - 1; k++)
-                        smooth_temp.fetch(i, j, k) = 0.015625 * (8.0 * data.get(i, j, k)
-                                                         + 4.0 *(data.get(i-1, j, k) + data.get(i+1, j, k)      //* Faces
-                                                         +       data.get(i, j-1, k) + data.get(i, j+1, k)      //* Faces
-                                                         +       data.get(i, j, k-1) + data.get(i, j, k+1))     //* Faces
-                                                         + 2.0 *(data.get(i-1, j-1, k) + data.get(i+1, j-1, k) + data.get(i-1, j+1, k) + data.get(i+1, j+1, k)      //* Edges
-                                                         +       data.get(i-1, j, k-1) + data.get(i+1, j, k-1) + data.get(i, j-1, k-1) + data.get(i, j+1, k-1)      //* Edges
-                                                         +       data.get(i-1, j, k+1) + data.get(i+1, j, k+1) + data.get(i, j-1, k+1) + data.get(i, j+1, k+1))     //* Edges
-                                                         + 1.0 *(data.get(i-1, j-1, k-1) + data.get(i+1, j-1, k-1) + data.get(i-1, j+1, k-1) + data.get(i+1, j+1, k-1)       //* Corners
-                                                         +       data.get(i-1, j-1, k+1) + data.get(i+1, j-1, k+1) + data.get(i-1, j+1, k+1) + data.get(i+1, j+1, k+1)));    //* Corners
-
-            for (int i = 1; i < nx - 1; i++)
-                for (int j = 1; j < ny - 1; j++)
-                    for (int k = 1; k < nz - 1; k++)
-                        data.fetch(i, j, k) = smooth_temp.get(i, j, k);
-            
-            //! Using new communication routines results in energy growth
-            communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
-        }
     }
 }
 
 void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, arr3_double data_Z, int nx, int ny, int nz)
 {
     const Collective *col = &get_col();
-    const VirtualTopology3D *vct = &get_vct();
-    const Grid *grid = &get_grid();
 
-    int current_cycle = col->getCurrentCycle();
-
-    if (smooth_cycle > 0 and current_cycle % smooth_cycle == 0) 
+    if (smooth_cycle > 0 and col->getCurrentCycle() % smooth_cycle == 0 and Smooth == true)
     {
-        if (col->getSmoothType() == "directional") 
-        {
-            //* Directional: First, smooth along X, then Y, and finally along Z (2 neighbours)
-            energy_conserve_smooth_direction(data_X, nx, ny, nz, 0, Smooth);
-            energy_conserve_smooth_direction(data_Y, nx, ny, nz, 1, Smooth);
-            energy_conserve_smooth_direction(data_Z, nx, ny, nz, 2, Smooth);
-        }
-        else
-        {
-            //* Default: average with all the neighbours (6 neighbours in 3D, 4 in 2D and 2 in 1D)
-            energy_conserve_smooth(data_X, nx, ny, nz, 0, Smooth);
-            energy_conserve_smooth(data_Y, nx, ny, nz, 1, Smooth);
-            energy_conserve_smooth(data_Z, nx, ny, nz, 2, Smooth);
-        }
+        //* Directional: First, smooth along X, then Y, and finally along Z (2 neighbours)
+        energy_conserve_smooth_direction(data_X, nx, ny, nz, 0);
+        energy_conserve_smooth_direction(data_Y, nx, ny, nz, 1);
+        energy_conserve_smooth_direction(data_Z, nx, ny, nz, 2);
     }
 }
 
@@ -5757,7 +5661,7 @@ double EMfields3D::getBintenergy(void)
     return (totalBenergy);
 }
 
-//*! Get internal magnetic field energy
+//*! Get external magnetic field energy
 double EMfields3D::getBextenergy(void) 
 {
     double localBenergy = 0.0;
