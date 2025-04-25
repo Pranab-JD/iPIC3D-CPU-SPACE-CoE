@@ -24,10 +24,9 @@ SimulationName                 = fhi_smth0_th1                                 #
 SaveDirName                    = data_firehose                                 # Output directory
 RestartDirName                 = data_firehose                                 # Restart directory (for WriteMethod=default)
 
-Case                           = default                                       # Case [ GEM | Dipole | Default | ... ]
+Case                           = default                                       # Case
 PartInit                       = maxwell                                       # Initial particles [ maxwell | File ]
-PartInj                        = maxwell                                       # Initial particles [ maxwell | File ]
-WriteMethod                    = pvtk                                          # Output method [ default | Parallel ]
+WriteMethod                    = pvtk                                          # Output method [ shdf5 | pvtk | nbcvtk ]
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
@@ -46,7 +45,8 @@ FieldOutputTag                 = Eall + Ball + rhos + Jall + Jsall             #
                                + B_energy + E_energy + k_energy
 ParticlesOutputTag 	           = ID + position + velocity + q                  # Select (particle) quantities to be written to files
 
-### Options for output tags
+###? Options for output tags
+###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
 ## Fields
     # Ball              --> Bx, By, and Bz
     # Bx (By, Bz)       --> Bx (By or Bz)
@@ -73,15 +73,6 @@ ParticlesOutputTag 	           = ID + position + velocity + q                  #
     # B_energy          --> Magnetic field energy
     # E_energy          --> Electric field energy
 
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# %                             PHYSICS and GEOMETRY                           %
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-Scheme                         = default
-# ChargeConserving               = true
-# ZeroCurrent	                   = 0                                             # 1 -> assure that the inital current is zero
-Gravity                        = false
-# SameKineticEnergy              = no                                            # OPTIONAL (default no) It forces to all the species to have the same kinetic energy
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                         ELECTRIC and MAGNETIC FIELD                        %
@@ -99,6 +90,15 @@ dt                             = 0.50	                                       # T
 ncycles                        = 100                                           # Number of time steps
 th                             = 0.5                                           # Decentering parameter
 c                              = 1.0                                           # Speed of light 
+GMREStol                       = 1E-15                                         # GMRES tolerance (must be <= 1e-15 for exact energy conservation)
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                   SMOOTHING                                %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ 
+Smooth                         = 0                                             # if Smooth = false (1 = true OR 0 = false), the following 2 parameters will be ignored 
+num_smoothings                 = 2	                                           # Number of smoothings
+SmoothCycle                    = 1	                                           # After how many time cycles is the data smoothed
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    BOX SIZE                                %
@@ -116,8 +116,8 @@ nzc                            = 1                                             #
 # %                                  MPI TOPOLOGY                              %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-XLEN                           = 2                                             # Number of MPI subdomains along X
-YLEN                           = 8                                             # Number of MPI subdomains along Y
+XLEN                           = 4                                             # Number of MPI subdomains along X
+YLEN                           = 16                                            # Number of MPI subdomains along Y
 ZLEN                           = 1                                             # Number of MPI subdomains along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -141,22 +141,14 @@ npcelz                         = 1             1               1               #
 NpMaxNpRatio                   = 12.0                                          # Maximum number of particles allocated
 
 qom                            = -183.6       1.0              1.0             # Charge/mass ratio
+
 uth                            = 0.02071      0.00186          0.00292         # Thermal velocity along X
 vth                            = 0.02071      0.00163          0.00230         # Thermal velocity along Y
 wth                            = 0.02071      0.00163          0.00230         # Thermal velocity along Z
+
 u0                             = 0.0         -0.00053          0.00339         # Drift velocity along X
 v0                             = 0.0          0.0              0.0             # Drift velocity along Y
 w0                             = 0.0          0.0              0.0             # Drift velocity along Z
-
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# %                                   SMOOTHING                                %
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- 
-Smooth                         = 1.0                                           # Smoothing value (if Smooth = 1.0, the following 3 parameters will be ignored)
-num_smoothings                 = 0	                                           # Cycles of smoothing and this must be even [NO = 0; YES = 8]
-SmoothCycle                    = 1	                                           # How often data is smoothed
-SmoothType                     = directional                                   # Type of smoothing (default | directional)
-#EnergyConservingSmoothing      = true                                          # Energy conserving smoothing
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                               BOUNDARY CONDITION                           %
@@ -165,45 +157,3 @@ SmoothType                     = directional                                   #
 PERIODICX                      = 1                                              # Along X (1 = true OR 0 = false) 
 PERIODICY                      = 1                                              # Along Y (1 = true OR 0 = false) 
 PERIODICZ                      = 1                                              # Along Z (1 = true OR 0 = false) 
-
-# If the PERIODIC flag is active in the previous section periodic boundary conditions will be imposed
-
-# PHI Electrostatic Potential     
-# 0, 1 = Dirichilet boundary condition     
-# 2    = Neumann boundary condition
-
-bcPHIfaceXright                = 1
-bcPHIfaceXleft                 = 1
-bcPHIfaceYright                = 1
-bcPHIfaceYleft                 = 1
-bcPHIfaceZright                = 1
-bcPHIfaceZleft                 = 1
-    
-# EM field boundary condition
-# 0 = perfect conductor
-# 1 = magnetic mirror
-
-bcEMfaceXright                 = 0
-bcEMfaceXleft                  = 0
-bcEMfaceYright                 = 0
-bcEMfaceYleft                  = 0
-bcEMfaceZright                 = 0
-bcEMfaceZleft                  = 0                
-    
-# Particles Boundary condition
-# 0 = exit
-# 1 = perfect mirror
-# 2 = riemission
-
-bcPfaceXright                  = 0
-bcPfaceXleft                   = 0
-bcPfaceYright                  = 0
-bcPfaceYleft                   = 0
-bcPfaceZright                  = 1
-bcPfaceZleft                   = 1  
-
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# %                                NUMERICS OPTIONS                            %
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-GMREStol                       = 1E-15                                         # GMRES tolerance
