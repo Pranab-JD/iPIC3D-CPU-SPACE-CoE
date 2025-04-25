@@ -386,9 +386,6 @@ protected:
     //* Relativistic particle pusher
     string Relativistic_pusher;
 
-    //* Charge Conserving Switch in Position Update */
-    bool Conserve_charge;
-
 };
 
 // find the particles with particular IDs and print them

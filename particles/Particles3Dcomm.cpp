@@ -218,9 +218,9 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
     dx = grid->getDX();
     dy = grid->getDY();
     dz = grid->getDZ();
-    inv_dx = 1/dx;
-    inv_dy = 1/dy;
-    inv_dz = 1/dz;
+    inv_dx = 1.0/dx;
+    inv_dy = 1.0/dy;
+    inv_dz = 1.0/dz;
 
     nxn = grid->getNXN();
     nyn = grid->getNYN();
@@ -235,9 +235,7 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
 
     // info from VirtualTopology3D
     cVERBOSE = vct->getcVERBOSE();
-    // ComputeMM = col->getExactMM();
 
-    Conserve_charge = col->getConserveCharge();
     Relativistic = col->getRelativistic();
     Relativistic_pusher = col->getRelativisticPusher();
 
@@ -307,9 +305,6 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
 
     if(false && is_output_thread())
         printf("species %d velocity cap: umax=%g,vmax=%g,wmax=%g\n", ns, umax,vmax,wmax);
-
-    // ComputeMM = col->getExactMM();
-
 }
 
 // pad capacities so that aligned vectorization does not result in an array overrun.
