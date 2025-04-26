@@ -151,10 +151,10 @@ int c_Solver::Init(int argc, char **argv)
     if (col->getRelativistic())
     {
         //! Relativistic Cases
-        // if      (col->getCase()=="DoubleHarrisRel_pairs")   EMf->initDoubleHarrisRel_pairs();
-        // else if (col->getCase()=="DoubleHarrisRel_ionel")   EMf->initDoubleHarrisRel_ionel();
-        // else if (col->getCase()=="Shock1D_DoublePeriodic")  EMf->initShock1D_DoublePeriodic();
-        // else 
+        // if      (col->getCase()=="DoubleHarrisRel_pairs")    EMf->initDoubleHarrisRel_pairs();
+        // else if (col->getCase()=="DoubleHarrisRel_ionel")    EMf->initDoubleHarrisRel_ionel();
+        if (col->getCase()=="Shock1D")                          EMf->initShock1D();
+        else 
         {
             if (myrank==0)
             {
@@ -166,7 +166,6 @@ int c_Solver::Init(int argc, char **argv)
 
             EMf->init();
         }
-
     }
     else
     {
@@ -213,12 +212,9 @@ int c_Solver::Init(int argc, char **argv)
                 //! Relativistic Cases
 				// if      (col->getCase()=="DoubleHarrisRel_pairs") 	particles[i].DoubleHarrisRel_pairs(EMf);
 				// else if (col->getCase()=="DoubleHarrisRel_ionel") 	particles[i].DoubleHarrisRel_ionel(EMf);
-				// else if (col->getCase()=="Shock1D_DoublePeriodic") 	particles[i].Shock1D_DoublePeriodic(EMf);
-				// else if (col->getCase()=="Shock1D_DoublePiston") 	particles[i].Shock1D_DoublePiston(EMf);
-				// else                                                 particles[i].Maxwell_Juttner(EMf);     
-  			
-                particles[i].Maxwell_Juttner(EMf);
-                // particles[i].maxwellian(EMf);
+				if (col->getCase()=="Shock1D") 	                        particles[i].Shock1D(EMf);
+				else if (col->getCase()=="Shock1D_DoublePiston") 	    particles[i].Shock1D_DoublePiston(EMf);
+				else                                                    particles[i].Maxwell_Juttner(EMf);
 			}
             else
             {
@@ -653,6 +649,8 @@ bool c_Solver::ParticlesMover()
 
     //* =============== Test Particles =============== *//
 
+    //TODO: uncomment and test
+
     // for (int i = 0; i < nstestpart; i++)
     // {
     //     switch(Parameters::get_MOVER_TYPE())
@@ -911,25 +909,22 @@ void c_Solver::WriteConserved(int cycle)
                 my_file << endl << "I.   Cycle" 
                         << endl << "II.  Electric energy" 
                         << endl << "III. Magnetic energy (int)" 
-                        << endl << "IV.  Magnetic energy (ext)" 
-                        << endl << "V.   Kinetic Energy"
-                        << endl << "VI.  Total Energy" 
-                        << endl << "VII. Energy(cycle) - Energy(initial)" << endl << endl;
+                        << endl << "IV.  Kinetic Energy"
+                        << endl << "V.   Total Energy" 
+                        << endl << "VI.  Energy(cycle) - Energy(initial)" << endl << endl;
 
                 my_file << "=====================================================================================================================================" << endl << endl;
 
                 my_file << setw(7) 
                         << "I"   << setw(25) << "II" << setw(25) 
                         << "III" << setw(25) << "IV" << setw(25) 
-                        << "V"   << setw(25) << "VI" << setw(25) 
-                        << "VII" << endl << endl;
+                        << "V"   << setw(25) << "VI" << endl << endl;
             }
             
             
             my_file << setw(7)  << cycle << scientific << setprecision(15)
                     << setw(25) << Eenergy 
                     << setw(25) << IntBenergy 
-                    << setw(25) << ExtBenergy 
                     << setw(25) << kinetic_energy  
                     << setw(25) << Eenergy + IntBenergy + kinetic_energy
                     << setw(25) << abs(initial_total_energy - (Eenergy + IntBenergy + kinetic_energy))
@@ -1003,11 +998,11 @@ void c_Solver::WriteFields(int cycle)
         if (vct->getCartesian_rank() == 0)
             cout << "Writing field data at cycle " << cycle << endl;
 
-        //* E + B + Js
+        //* Fields
         if(!(col->getFieldOutputTag()).empty())
             fetch_outputWrapperFPP().append_output((col->getFieldOutputTag()).c_str(), cycle);      
         
-        //* rhos + pressure
+        //* Moments
         if(!(col->getMomentsOutputTag()).empty())
             fetch_outputWrapperFPP().append_output((col->getMomentsOutputTag()).c_str(), cycle);
     #endif

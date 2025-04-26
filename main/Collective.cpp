@@ -101,7 +101,7 @@ void Collective::ReadInput(string inputfile)
         ncycles         = config.read<int>       ("ncycles");
         th              = config.read<double>    ("th", 0.5);
 
-        Smooth          = config.read<bool>      ("Smooth", 0.0);            // (1 = true, i.e, smooth OR 0 = false)
+        Smooth          = config.read<bool>      ("Smooth", 0);            // (1 = true, i.e, smooth OR 0 = false)
         SmoothCycle     = config.read<int>       ("SmoothCycle", 1); 
         config.readInto(num_smoothings, "num_smoothings", 0);
 
