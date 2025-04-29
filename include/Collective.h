@@ -207,6 +207,9 @@ class Collective
 
     bool getRelativistic()              const { return Relativistic; }
     string getRelativisticPusher()      const { return Relativistic_pusher; }   
+
+    int getNparam()                     const { return (nparam); }
+    double getInputParam(int in)              { return (input_param[in]); }
     
     /*! Boundary condition selection for BCFace for the electric field components */
     int bcEx[6], bcEy[6], bcEz[6];
@@ -449,6 +452,9 @@ class Collective
 
     //* Moving average value for rho density (Poisson correction)
     double PoissonMArho, PoissonMAdiv, PoissonMAres;
+
+    //* Custom input parameters
+    double *input_param; int nparam;
 
 };
 typedef Collective CollectiveIO;

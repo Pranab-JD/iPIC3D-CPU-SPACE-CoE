@@ -499,14 +499,14 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
 
     assert_eq(_pcls.size(), 0);    
 
-    // //* Custom input parameters for relativistic reconnection
-    // const double sigma              = input_param[0];
-    // const double eta                = input_param[1];
-    // const double dCS                = input_param[2];
-    // const double perturb_amp        = input_param[3];
-    // const double guideField_ratio   = input_param[4];
+    //* Custom input parameters for relativistic reconnection
+    const double sigma              = input_param[0];
+    const double eta                = input_param[1];
+    const double dCS                = input_param[2];
+    const double perturb_amp        = input_param[3];
+    const double guideField_ratio   = input_param[4];
     
-    // double thermal_velocity = col->getUth(0);
+    double thermal_spread           = col->getUth(0);
     // double rho0 = col->getRHOinit(ns)/(4.0*M_PI);
     // double B0x = sqrt(sigma*4.0*M_PI*rho0*2.0);
     // double rhoCS = eta*rho0;

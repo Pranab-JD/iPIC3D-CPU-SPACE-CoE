@@ -386,6 +386,12 @@ protected:
     //* Relativistic particle pusher
     string Relativistic_pusher;
 
+    //* Custom input parameters
+    double *input_param;
+
+    //* Number of custom input parameters
+    int nparam;
+
 };
 
 // find the particles with particular IDs and print them

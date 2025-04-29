@@ -438,6 +438,9 @@ private:
     bool Smooth;
     int smooth_cycle;         // Frequency of smoothing (after every "smooth_cycle" time cycles)
     int num_smoothings;       // Number of times of smoothing at a given time cycle
+
+    //* Custom input parameters
+    double *input_param; int nparam;
     
     int zeroCurrent;
     /*! delt = c*th*dt */

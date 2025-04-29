@@ -288,6 +288,16 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     mass_matrix[1] = 1.0;
     mass_matrix[2] = 0.0;
 
+    //* Custom input parameters
+    nparam = col->getNparam();
+    if (nparam > 0) 
+    {
+        input_param = new double[nparam];
+        
+        for (int ip=0; ip<nparam; ip++) 
+            input_param[ip] = col->getInputParam(ip);
+    }
+
     //* Set all memory allocated to zero
     setAllzero();
     // Eenergy = 0;
