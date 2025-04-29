@@ -692,7 +692,6 @@ void Particles3D::Shock1D_DoublePiston(Field * EMf)
 }
 
 
-
 //! ============================================================================= !//
 
 // Create a vectorized version of this mover as follows.
@@ -853,15 +852,14 @@ void Particles3D::RelSIM_velocity(Field *EMf)
     {
         convertParticlesToAoS();
 
-        //TODO: kkv, aaF, external forces, Gravity - Ask Fabio
-
         #pragma omp master
         if (vct->getCartesian_rank() == 0) 
             cout << "*** RelSIM MOVER (velocities) for species " << ns << " ***" << endl;
 
         const_arr4_double fieldForPcls = EMf->get_fieldForPcls();
 
-        const double qdto2mc = 0.5 * dt * qom/c;
+        //* q*dt/(2*m*c)
+        const double q_dt_2mc = 0.5*dt*qom/c;
 
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++) 
@@ -937,31 +935,48 @@ void Particles3D::RelSIM_velocity(Field *EMf)
             if (Relativistic_pusher == "Boris")
             {
                 //? Update (temporary) velocities
-                const pfloat u_temp = u_n + qdto2mc * Exl + 0.5 * dt * Fxl;
-                const pfloat v_temp = v_n + qdto2mc * Eyl + 0.5 * dt * Fyl;
-                const pfloat w_temp = w_n + qdto2mc * Ezl + 0.5 * dt * Fzl;
+                const double u_temp = u_n + q_dt_2mc*c*Exl + 0.5*dt*Fxl;
+                const double v_temp = v_n + q_dt_2mc*c*Eyl + 0.5*dt*Fyl;
+                const double w_temp = w_n + q_dt_2mc*c*Ezl + 0.5*dt*Fzl;
 
                 double lorentz_factor_new = sqrt(1.0 + (u_temp*u_temp + v_temp*v_temp + w_temp*w_temp)/(c*c));
 
-                Bxl = Bxl*qdto2mc/lorentz_factor_new;
-                Byl = Byl*qdto2mc/lorentz_factor_new;
-                Bzl = Bzl*qdto2mc/lorentz_factor_new;
-                
-                const double B_squared = Bxl * Bxl + Byl * Byl + Bzl * Bzl;
+                //! TODO: Division by c?? check in paper
+                Bxl = Bxl*q_dt_2mc/lorentz_factor_new;
+                Byl = Byl*q_dt_2mc/lorentz_factor_new;
+                Bzl = Bzl*q_dt_2mc/lorentz_factor_new;
+                const double B_squared = Bxl*Bxl + Byl*Byl + Bzl*Bzl;
 
                 //* Solve velocity equation (relativistic Boris)
-                const pfloat u_new = -(Byl*Byl*u_temp) - (Bzl*Bzl*u_temp) + (Bxl*Byl*v_temp) + (Bxl*Bzl*w_temp) - Byl*w_temp + Bzl*v_temp;
-                const pfloat v_new = -(Bxl*Bxl*v_temp) - (Bzl*Bzl*v_temp) + (Bxl*Byl*u_temp) + (Byl*Bzl*w_temp) - Bzl*u_temp + Bxl*w_temp;
-                const pfloat w_new = -(Bxl*Bxl*w_temp) - (Byl*Byl*w_temp) + (Bxl*Bzl*u_temp) + (Byl*Bzl*v_temp) - Bxl*v_temp + Byl*u_temp;
+                const double u_new = -(Byl*Byl*u_temp) - (Bzl*Bzl*u_temp) + (Bxl*Byl*v_temp) + (Bxl*Bzl*w_temp) - Byl*w_temp + Bzl*v_temp;
+                const double v_new = -(Bxl*Bxl*v_temp) - (Bzl*Bzl*v_temp) + (Bxl*Byl*u_temp) + (Byl*Bzl*w_temp) - Bzl*u_temp + Bxl*w_temp;
+                const double w_new = -(Bxl*Bxl*w_temp) - (Byl*Byl*w_temp) + (Bxl*Bzl*u_temp) + (Byl*Bzl*v_temp) - Bxl*v_temp + Byl*u_temp;
 
                 //* New velocities at the (n+1)^th time step
-                uavg = u_temp + u_new * 2.0/(1.0+B_squared) + qdto2mc * Exl + 0.5 * dt * Fxl;
-                vavg = v_temp + v_new * 2.0/(1.0+B_squared) + qdto2mc * Eyl + 0.5 * dt * Fyl;
-                wavg = w_temp + w_new * 2.0/(1.0+B_squared) + qdto2mc * Ezl + 0.5 * dt * Fzl;
+                uavg = u_temp + u_new * 2.0/(1.0+B_squared) + q_dt_2mc * Exl + 0.5 * dt * Fxl;
+                vavg = v_temp + v_new * 2.0/(1.0+B_squared) + q_dt_2mc * Eyl + 0.5 * dt * Fyl;
+                wavg = w_temp + w_new * 2.0/(1.0+B_squared) + q_dt_2mc * Ezl + 0.5 * dt * Fzl;
 
             }
             else if (Relativistic_pusher == "Lapenta_Markidis")
             {
+                //? The equations for the Lapenta-Markidis pusher can be found in Bacchini (2023), ApJD, 268, 60
+
+                //* beta = q*dt*B^n/(2*m*c)
+                double beta_x = q_dt_2mc*Bxl;
+                double beta_y = q_dt_2mc*Byl;
+                double beta_z = q_dt_2mc*Bzl;
+                const double B_squared = beta_x*beta_x + beta_y*beta_y + beta_z*beta_z;
+
+                //* epsilon = q*dt*E^(n+theta)/(2*m)
+                double eps_x = q_dt_2mc*Exl + 0.5*dt*Fxl;
+                double eps_y = q_dt_2mc*Eyl + 0.5*dt*Fyl;
+                double eps_z = q_dt_2mc*Ezl + 0.5*dt*Fzl;
+                
+                //* u' = u + epsilon
+                const double u_prime = u_n + eps_x;
+                const double v_prime = v_n + eps_y;
+                const double w_prime = w_n + eps_z;
 
 
                 //* New velocities at the (n+1)^th time step
@@ -976,9 +991,6 @@ void Particles3D::RelSIM_velocity(Field *EMf)
             }
 
             //* --------------------------------------- *//
-        
-            //TODO: what is this?
-            // mirror(vct, xp, yp, zp, up, vp, wp,Bxl, Byl, Bzl);
 
             //? Update new velocities at the (n+1)^th time step
             pcl->set_u(uavg);
@@ -1189,7 +1201,7 @@ void Particles3D::fixPosition()
 //? Compute ECSIM moments (rho, J_hat, and mass matrix)
 void Particles3D::computeMoments(Field *EMf) 
 {
-    //! This may be further optimised - PJD
+    //! This function is the computational bottleneck and should be further optimised - PJD
 
     #ifdef __PROFILE_MOMENTS__
     LeXInt::timer time_fc, time_add, time_mm, time_total;
@@ -1203,13 +1215,15 @@ void Particles3D::computeMoments(Field *EMf)
 
     #pragma omp parallel
     {
-        // convertParticlesToAoS();
+        convertParticlesToAoS();
 
         //TODO: External forces are to be implemented
         double Fxl = 0.0, Fyl = 0.0, Fzl = 0.0;
 
         const_arr4_double fieldForPcls = EMf->get_fieldForPcls();
-        const double qdto2mc = 0.5 * dt * qom/c;
+        
+        //* q*dt/(2*m*c)
+        const double q_dt_2mc = 0.5*dt*qom/c;
 
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++)
@@ -1218,22 +1232,17 @@ void Particles3D::computeMoments(Field *EMf)
 		    SpeciesParticle* pcl = &_pcls[pidx];
 		    ALIGNED(pcl);
 
-            //* Copy particles' positions and velocities
-            const double xorig = pcl->get_x();
-            const double yorig = pcl->get_y();
-            const double zorig = pcl->get_z();
-            const double uorig = pcl->get_u();
-            const double vorig = pcl->get_v();
-            const double worig = pcl->get_w();
-            const double q     = pcl->get_q();
-
-            // cout << "Particle id: " << pidx << endl;
-            // cout << uorig << ", " << vorig << ", " << worig << endl << endl;
+            //* Copy particles' positions and velocities at the 'n^th' time step
+            const double x_n = pcl->get_x();
+            const double y_n = pcl->get_y();
+            const double z_n = pcl->get_z();
+            const double u_n = pcl->get_u();
+            const double v_n = pcl->get_v();
+            const double w_n = pcl->get_w();
+            const double q   = pcl->get_q();
 
             //* Additional variables for storing old and new positions and velocities
-            double xavg = xorig;
-            double yavg = yorig;
-            double zavg = zorig;
+            double x_old = x_n; double y_old = y_n; double z_old = z_n;
 
             //* --------------------------------------- *//
 
@@ -1244,23 +1253,24 @@ void Particles3D::computeMoments(Field *EMf)
             //* Compute weights for field components
             double weights[8] ALLOC_ALIGNED;
             int cx, cy, cz;
-            grid->get_safe_cell_and_weights(xavg, yavg, zavg, cx, cy, cz, weights);
+            grid->get_safe_cell_and_weights(x_old, y_old, z_old, cx, cy, cz, weights);
 
             const double* field_components[8] ALLOC_ALIGNED;
             get_field_components_for_cell(field_components, fieldForPcls, cx, cy, cz);
 
-            double sampled_field[3] ALLOC_ALIGNED;
-            for(int i=0;i<3;i++) sampled_field[i]=0;
+            double sampled_field[8] ALLOC_ALIGNED;
+            for(int i = 0; i < 8;i++) sampled_field[i] = 0;
             
             double& Bxl = sampled_field[0];
             double& Byl = sampled_field[1];
             double& Bzl = sampled_field[2];
-            // double& Exl = sampled_field[0+DFIELD_3or4];
-            // double& Eyl = sampled_field[1+DFIELD_3or4];
-            // double& Ezl = sampled_field[2+DFIELD_3or4];
+            double& Exl = sampled_field[0+DFIELD_3or4];
+            double& Eyl = sampled_field[1+DFIELD_3or4];
+            double& Ezl = sampled_field[2+DFIELD_3or4];
             
-            const int num_field_components = 3;
+            const int num_field_components = 2*DFIELD_3or4;
 
+            //TODO: External force are to be implemented in "sampled_field"
             for(int c = 0; c < 8; c++)
             {
                 const double* field_components_c=field_components[c];
@@ -1268,13 +1278,11 @@ void Particles3D::computeMoments(Field *EMf)
                 const double weights_c = weights[c];
                 
                 #pragma simd
-                for(int i=0; i<num_field_components; i++)
+                for(int i = 0; i < num_field_components; i++)
                 {
                     sampled_field[i] += weights_c*field_components_c[i];
                 }
             }
-
-            //TODO: External force to be implemented in "sampled_field"
 
             #ifdef __PROFILE_MOMENTS__
             time_fc.stop();
@@ -1282,15 +1290,57 @@ void Particles3D::computeMoments(Field *EMf)
 
             //* --------------------------------------- *//
 
-            //? Rotation matrix alpha
-            double Gamma = 1.0;
+            //? Compute the rotation matrix, "alpha"
+            double lorentz_factor = 1.0;
+            if (Relativistic)
+            {
+                if (Relativistic_pusher == "Boris")
+                {
+                    //* u_temp = u + q*dt*E^(n + theta)/(2*m) + F*dt/2 (F --> external force)
+                    const double u_temp = u_n + q_dt_2mc*c*Exl + 0.5*dt*Fxl;
+                    const double v_temp = v_n + q_dt_2mc*c*Eyl + 0.5*dt*Fyl;
+                    const double w_temp = w_n + q_dt_2mc*c*Ezl + 0.5*dt*Fzl;
 
-            const double Omx = qdto2mc*Bxl/Gamma;
-            const double Omy = qdto2mc*Byl/Gamma;
-            const double Omz = qdto2mc*Bzl/Gamma;
+                    //* lorentz_factor = [1 + ((u^2 + v^2 + w^2)/c^2)]^0.5
+                    lorentz_factor = sqrt(1.0 + (u_temp*u_temp + v_temp*v_temp + w_temp*w_temp)/(c*c));
+                }
+                else if (Relativistic_pusher == "Lapenta_Markidis")
+                {
+                    //* lorentz_factor = [1 + ((u^2 + v^2 + w^2)/c^2)]^0.5
+                    lorentz_factor = sqrt(1.0 + (u_n*u_n + v_n*v_n + w_n*w_n)/(c*c));
+
+                    //? The equations for the Lapenta-Markidis pusher can be found in Bacchini (2023), ApJD, 268, 60
+
+                    //* beta = q*dt*B^n/(2*m*c)
+                    double beta_x = q_dt_2mc*Bxl;
+                    double beta_y = q_dt_2mc*Byl;
+                    double beta_z = q_dt_2mc*Bzl;
+                    const double B_squared = beta_x*beta_x + beta_y*beta_y + beta_z*beta_z;
+
+                    //* epsilon = q*dt*E^(n+theta)/(2*m)
+                    double eps_x = q_dt_2mc*Exl + 0.5*dt*Fxl;
+                    double eps_y = q_dt_2mc*Eyl + 0.5*dt*Fyl;
+                    double eps_z = q_dt_2mc*Ezl + 0.5*dt*Fzl;
+                    
+                    //* u' = u + epsilon
+                    const double u_prime = u_n + eps_x;
+                    const double v_prime = v_n + eps_y;
+                    const double w_prime = w_n + eps_z;
+
+                }
+                else
+                {
+                    cout << "Incorrect relativistic pusher! Please choose either 'Boris' or 'Lapenta_Markidis'" << endl;
+                    exit(1);
+                }
+            }
+
+            const double Omx = q_dt_2mc*Bxl/lorentz_factor;
+            const double Omy = q_dt_2mc*Byl/lorentz_factor;
+            const double Omz = q_dt_2mc*Bzl/lorentz_factor;
 
             const pfloat omsq = (Omx * Omx + Omy * Omy + Omz * Omz);
-            const pfloat denom = 1.0 / (1.0 + omsq)/Gamma;
+            const pfloat denom = 1.0 / (1.0 + omsq)/lorentz_factor;
             
             double alpha[3][3];
             alpha[0][0] = ( 1.0 + (Omx*Omx))*denom;
@@ -1305,9 +1355,9 @@ void Particles3D::computeMoments(Field *EMf)
             alpha[2][1] = (-Omx + (Omy*Omz))*denom;
             alpha[2][2] = ( 1.0 + (Omz*Omz))*denom;
 
-            double qau = q * (alpha[0][0]*(uorig + dt/2.*Fxl) + alpha[0][1]*(vorig + dt/2.*Fyl) + alpha[0][2]*(worig + dt/2.*Fzl));
-            double qav = q * (alpha[1][0]*(uorig + dt/2.*Fxl) + alpha[1][1]*(vorig + dt/2.*Fyl) + alpha[1][2]*(worig + dt/2.*Fzl));
-            double qaw = q * (alpha[2][0]*(uorig + dt/2.*Fxl) + alpha[2][1]*(vorig + dt/2.*Fyl) + alpha[2][2]*(worig + dt/2.*Fzl));
+            double qau = q * (alpha[0][0]*(u_n + dt/2.*Fxl) + alpha[0][1]*(v_n + dt/2.*Fyl) + alpha[0][2]*(w_n + dt/2.*Fzl));
+            double qav = q * (alpha[1][0]*(u_n + dt/2.*Fxl) + alpha[1][1]*(v_n + dt/2.*Fyl) + alpha[1][2]*(w_n + dt/2.*Fzl));
+            double qaw = q * (alpha[2][0]*(u_n + dt/2.*Fxl) + alpha[2][1]*(v_n + dt/2.*Fyl) + alpha[2][2]*(w_n + dt/2.*Fzl));
 
             //* --------------------------------------- *//
 
@@ -1375,7 +1425,7 @@ void Particles3D::computeMoments(Field *EMf)
                                 // Map (i, j, k) & (i2, j2, k2) to 1D
                                 int index1 = i * 4 + j * 2 + k;
                                 int index2 = i2 * 4 + j2 * 2 + k2; 
-                                double qww = q * qdto2mc * weights[index1] * weights[index2];
+                                double qww = q * q_dt_2mc * weights[index1] * weights[index2];
                                 double value[3][3];
                                 
                                 for (int ind1 = 0; ind1 < 3; ind1++)

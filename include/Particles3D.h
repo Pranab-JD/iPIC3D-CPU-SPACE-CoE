@@ -101,6 +101,12 @@ class Particles3D:public Particles3Dcomm
     //* Quasi-1D double periodic ion-electron shock driven by a piston (non relativisitic option available)
     void Shock1D_DoublePiston(Field * EMf);
 
+    //* Double Harris sheet with electron-positron pairs for relativistic reconnection
+    void Relativistic_Double_Harris_pairs(Field * EMf);
+
+    //* Double Harris sheet with ion-electron for relativistic reconnection
+    void Relativistic_Double_Harris_ion_electron(Field * EMf);
+
     //? ============================================================================ ? //
 
     /** mover with the esplicit non relativistic scheme */
