@@ -19,13 +19,12 @@ WriteMethod                    = pvtk                                          #
 RestartOutputCycle             = 0                                             # Restart data for particles (0 = save only final particle data for restart)
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
 VirtualProbesOutputCycle       = 0                                             # Virtual probe output (0 = never)
-verbose                        = 1                                             # Print to video results
 
 FieldOutputCycle               = 10                                            # Output for moments and fields (if <= 0, data is NOT saved)
 ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
 FieldOutputTag                 = Eall + Ball + rhos + Jall + Jsall             # Select quantites to be written to files
                                + B_energy + E_energy + k_energy
-ParticlesOutputTag 	           = ID + position + velocity + q                  # Select (particle) quantites to be written to files
+ParticlesOutputTag 	           = position + velocity + q                       # Select (particle) quantites to be written to files
 
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
@@ -48,7 +47,6 @@ ParticlesOutputTag 	           = ID + position + velocity + q                  #
     # position          --> particle positions (X, Y, Z)
     # velocity          --> particle velocities (U, V, W)
     # q                 --> particle charges
-    # ID                --> particle ID (note: TrackParticleID has to be set true in Collective)
         
 ## Energies
     # k_energy          --> Kinetic energy for each species
@@ -115,7 +113,6 @@ ns                  = 4                                                         
 
 rhoINIT             = 1.0           1.0             0.1             0.1         # Initial density
 rhoINJECT           = 0.0           0.0             0.0             0.0         # Injection density
-TrackParticleID     = 0             0	            0 	            0           # TrackParticleID (1 = true OR 0 = false) 
 
 npcelx              = 5             5	            5	            5           # Particles per cell along X
 npcely              = 5             5               5	            5           # Particles per cell along Y
