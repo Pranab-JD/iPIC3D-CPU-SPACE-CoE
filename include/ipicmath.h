@@ -150,7 +150,16 @@ inline void sample_maxwellian(double& u, double& v, double& w, double ut, double
 
 inline void sample_Maxwell_Juttner(double& u, double& v, double& w, double theta, double gammaDrift, int dirDrift) 
 {
-	double eta = 1.45; // Rejection factor
+    /* ---------------------------------------------------------------------
+    u           : Output -- Relativistic drift/bulk velocity along X 
+    v           : Output -- Relativistic drift/bulk velocity along Y
+    w           : Output -- Relativistic drift/bulk velocity along Z
+    theta       : Input  -- Thermal spread
+    gammaDrift  : Input  -- Lorentz factor of the relativistic drifting particles
+    dirDrift    : Input  -- Direction of drift: 0 -> no drift, 1 -> X, 2 -> Y, 3 -> Z
+    --------------------------------------------------------------------- */
+	
+    double eta = 1.45; // Rejection factor
 	double g = sqrt(0.5*M_PI*theta*theta*theta);
 	double h = 2.*theta*theta*theta;
 	double fg = g/(g+h);
