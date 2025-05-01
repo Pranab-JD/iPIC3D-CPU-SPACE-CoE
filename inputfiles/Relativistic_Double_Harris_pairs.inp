@@ -29,7 +29,7 @@ FieldOutputCycle               = 10                                            #
 ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
 FieldOutputTag                 = Eall + Ball + rhos + Jall + Jsall             # Select quantities to be written to files
                                + B_energy + E_energy + k_energy
-ParticlesOutputTag 	           = ID + position + velocity + q                  # Select (particle) quantities to be written to files
+ParticlesOutputTag 	           = position + velocity + q                       # Select (particle) quantities to be written to files
 
 ### Options for output tags
 ## Fields
@@ -51,7 +51,6 @@ ParticlesOutputTag 	           = ID + position + velocity + q                  #
     # position          --> particle positions (X, Y, Z)
     # velocity          --> particle velocities (U, V, W)
     # q                 --> particle charges
-    # ID                --> particle ID (note: TrackParticleID has to be set true in Collective)
         
 ## Energies
     # k_energy          --> Kinetic energy for each species
@@ -79,6 +78,8 @@ nparam                         = 5                                             #
 #                                   sigma       eta         delta       perturb_amp     guideField_ratio
 parameters                     =    10.0        5.0         1.0         0.0             0.0   
 
+
+
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                     TIME                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -87,16 +88,15 @@ dt                             = 0.35	                                       # T
 ncycles                        = 1000                                          # Number of time steps
 th                             = 0.5                                           # Decentering parameter (0.5 --> 2nd order; 1.0 --> 1st order)
 c                              = 1.0                                           # Speed of light 
+GMREStol                       = 1E-15                                         # GMRES tolerance
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                   SMOOTHING                                %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  
-Smooth                         = 1.0                                           # Smoothing value (if Smooth = 1.0, the following 3 parameters will be ignored)
-num_smoothings                 = 0	                                           # Cycles of smoothing and this must be even [NO = 0; YES = 8]
-SmoothCycle                    = 1	                                           # How often data is smoothed
-SmoothType                     = directional                                   # Type of smoothing (default | directional)
-#EnergyConservingSmoothing      = true                                          # Energy conserving smoothing
+Smooth                         = 0                                             # if Smooth = false (1 = true OR 0 = false), the following 2 parameters will be ignored 
+num_smoothings                 = 2	                                           # Number of smoothings
+SmoothCycle                    = 1	                                           # After how many time cycles is the data smoothed  
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    BOX SIZE                                %
@@ -131,20 +131,21 @@ ns                  = 4                                                         
 
 rhoINIT             = 0.5           0.5             0.5             0.5         # Initial density
 rhoINJECT           = 0.0           0.0             0.0             0.0         # Injection density
-TrackParticleID     = 0             0	            0 	            0           # TrackParticleID (1 = true OR 0 = false) 
 
 npcelx              = 4             4	            4	            4           # Particles per cell along X
 npcely              = 8             8               8	            8           # Particles per cell along Y
 npcelz              = 1	            1	            1	            1           # Particles per cell along Z
 NpMaxNpRatio        = 6.0                                                       # Maximum number of particles allocated
 
-qom                 = -1.0          1.0             -1.0             1.0        # Charge/mass ratio
-uth                 = 0.01          0.01            0.01            0.01        # Thermal velocity along X
-vth                 = 0.0           0.0             0.0             0.0         # Thermal velocity along Y (NOT used for relativisitc cases, set to 0)
-wth                 = 0.0           0.0             0.0             0.0         # Thermal velocity along Z (NOT used for relativisitc cases, set to 0)
-u0                  = 0.0           0.0             0.0             0.0         # Drift velocity along X
-v0                  = 0.0           0.0             0.0             0.0         # Drift velocity along Y
-w0                  = 0.0           0.0             0.0	            0.0         # Drift velocity along Z
+qom                 = -1.0          1.0             -1.0            1.0         # Charge/mass ratio
+
+uth                 = 0.01          0.01            0.01            0.01        # Thermal spread (exclusive to relativistic cases)
+vth                 = 0.0           0.0             0.0             0.0         # NOT used for relativistic cases, but needs to be defined, set to 0
+wth                 = 0.0           0.0             0.0             0.0         # NOT used for relativistic cases, but needs to be defined, set to 0
+
+u0                  = 0.0           0.0             0.0             0.0         # Relativistic drift/bulk velocity along X
+v0                  = 0.0           0.0             0.0             0.0         # Relativistic drift/bulk velocity along Y
+w0                  = 0.0           0.0             0.0	            0.0         # Relativistic drift/bulk velocity along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                               BOUNDARY CONDITION                           %
@@ -153,45 +154,3 @@ w0                  = 0.0           0.0             0.0	            0.0         
 PERIODICX                      = 1                                              # Along X (1 = true OR 0 = false) 
 PERIODICY                      = 1                                              # Along Y (1 = true OR 0 = false) 
 PERIODICZ                      = 1                                              # Along Z (1 = true OR 0 = false) 
-
-# If the PERIODIC flag is active in the previous section periodic boundary conditions will be imposed
-
-# PHI Electrostatic Potential     
-# 0,1 = Dirichilet boundary condition ;     
-# 2   = Neumann boundary condition
-
-bcPHIfaceXright = 1
-bcPHIfaceXleft  = 1
-bcPHIfaceYright = 1
-bcPHIfaceYleft  = 1
-bcPHIfaceZright = 1
-bcPHIfaceZleft  = 1
-
-# EM field boundary condition
-# 0 = perfect conductor
-# 1 = magnetic mirror
-
-bcEMfaceXright = 1
-bcEMfaceXleft =  1
-bcEMfaceYright = 1
-bcEMfaceYleft =  1
-bcEMfaceZright = 1
-bcEMfaceZleft =  1
-
-# Particles Boundary condition
-# 0 = exit
-# 1 = perfect mirror
-# 2 = riemission
-
-bcPfaceXright = 2
-bcPfaceXleft =  2
-bcPfaceYright = 2
-bcPfaceYleft =  2
-bcPfaceZright = 1
-bcPfaceZleft =  1
-
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# %                                NUMERICS OPTIONS                            %
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-GMREStol                       = 1E-15                                         # GMRES tolerance
