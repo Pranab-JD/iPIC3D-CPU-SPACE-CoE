@@ -99,6 +99,12 @@ public:
     //? Quasi-1D ion-electron shock (Relativistic and Non relativistic)
     void initShock1D();
 
+    //? Relativistic double Harris for pair plasma: Maxwellian background, drifting particles in the sheets
+    void init_Relativistic_Double_Harris_pairs();
+
+    //? Relativistic double Harris for ion-electron plasma: Maxwellian background, drifting particles in the sheets
+    void init_Relativistic_Double_Harris_ion_electron();
+
     //! ======================================================================================================= !//
 
     /*! Calculate Electric field using the implicit Maxwell solver */
@@ -371,6 +377,17 @@ public:
 
     void setZeroCurrent();
     void setZeroRho();
+
+    double LOG_COSH(double x) 
+    {
+        double res;
+        if (fabs(x) > 18.5) 
+            res = fabs(x) - log(2.0);
+        else 
+            res = log(cosh(x));
+      
+        return res;
+    }
 
     /*! fetch array for summing moments of thread i */
     Moments10& fetch_moments10Array(int i)
