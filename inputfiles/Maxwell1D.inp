@@ -19,7 +19,6 @@ WriteMethod                    = pvtk                                          #
 RestartOutputCycle             = 0                                             # Restart data for particles (0 = save only final particle data for restart)
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
 VirtualProbesOutputCycle       = 0                                             # Virtual probe output (0 = never)
-verbose                        = 1                                             # Print to video results
 
 FieldOutputCycle               = 0                                             # Output for moments and fields (if <= 0, data is NOT saved)
 ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)

@@ -112,7 +112,6 @@ namespace iPic3D {
     OutputWrapperFPP *outputWrapperFPP;
 #endif
 
-    //bool verbose;
     string SaveDirName;
     string RestartDirName;
     string cqsat;
