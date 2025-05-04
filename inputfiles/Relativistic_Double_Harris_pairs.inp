@@ -23,7 +23,6 @@ Relativistic_pusher            = Boris                                         #
 RestartOutputCycle             = 0                                             # Restart data for particles (0 = save only final particle data for restart)
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
 VirtualProbesOutputCycle       = 0                                             # Virtual probe output (0 = never)
-verbose                        = 1                                             # Print to video results
 
 FieldOutputCycle               = 10                                            # Output for moments and fields (if <= 0, data is NOT saved)
 ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
@@ -68,24 +67,22 @@ DistMinVel                     = 1e-6
 # %                             PHYSICS and GEOMETRY                           %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Scheme                         = default
-ZeroCurrent	                   = 0                                             # 1 -> assure that the inital current is zero
-Gravity                        = false
-SameKineticEnergy              = no                                            # Forces to all the species to have the same kinetic energy
+# Custom paramters (max. 10)
+nparam                         = 5
+custom_parameters              = 10.0        5.0        1.0        0.0        0.0
 
-nparam                         = 5                                             # Custom parameters for relativistic cases
-
-#                                   sigma       eta         delta       perturb_amp     guideField_ratio
-parameters                     =    10.0        5.0         1.0         0.0             0.0   
-
-
+# custom_parameter 1 --> Magnetisation parameter
+# custom_parameter 2 --> Ratio of current sheet density to upstream density
+# custom_parameter 3 --> Half-thickness of current sheet (free parameter)
+# custom_parameter 4 --> Amplitude of initial perturbation
+# custom_parameter 5 --> Ratio of guide field to in-plane magnetic field
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                     TIME                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.35	                                       # Time-step size
-ncycles                        = 1000                                          # Number of time steps
+ncycles                        = 1                                           # Number of time steps
 th                             = 0.5                                           # Decentering parameter (0.5 --> 2nd order; 1.0 --> 1st order)
 c                              = 1.0                                           # Speed of light 
 GMREStol                       = 1E-15                                         # GMRES tolerance
