@@ -474,8 +474,6 @@ void Collective::ReadInput(string inputfile)
         qom[11] 	 = qom0.l;
     }
 
-    //verbose = config.read < bool > ("verbose",false);
-
     // PHI Electrostatic Potential
     bcPHIfaceXright = config.read < int >("bcPHIfaceXright", 1);
     bcPHIfaceXleft  = config.read < int >("bcPHIfaceXleft",  1);
@@ -837,8 +835,6 @@ int Collective::ReadRestart(string inputfile) {
     v0[i] = 0.0;
   for (int i = 0; i < ns; i++)
     w0[i] = 0.0;
-  // verbose on
-  //verbose = 1;
 
 
   // if RestartDirName == SaveDirName overwrite dt,Th,Smooth (append to old hdf files)
@@ -1337,7 +1333,7 @@ void Collective::save()
 
     my_file << "Number of species    = " << ns << endl;
     for (int i = 0; i < ns; i++)
-        my_file << "qom[%d] = " << qom[i] << endl;
+        my_file << "qom[" << i << "] = " << qom[i] << endl;
     my_file << "---------------------------" << endl;
     my_file << "x-Length                 = " << Lx << endl;
     my_file << "y-Length                 = " << Ly << endl;

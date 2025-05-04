@@ -151,9 +151,9 @@ int c_Solver::Init(int argc, char **argv)
     if (col->getRelativistic())
     {
         //! Relativistic Cases
-        // if      (col->getCase()=="DoubleHarrisRel_pairs")    EMf->initDoubleHarrisRel_pairs();
-        // else if (col->getCase()=="DoubleHarrisRel_ionel")    EMf->initDoubleHarrisRel_ionel();
-        if (col->getCase()=="Shock1D")                          EMf->initShock1D();
+        if      (col->getCase()=="Relativistic_Double_Harris_pairs")            EMf->init_Relativistic_Double_Harris_pairs();
+        else if (col->getCase()=="Relativistic_Double_Harris_ion_electron")     EMf->init_Relativistic_Double_Harris_ion_electron();
+        else if (col->getCase()=="Shock1D")                                     EMf->initShock1D();
         else 
         {
             if (myrank==0)
@@ -210,11 +210,11 @@ int c_Solver::Init(int argc, char **argv)
             if (col->getRelativistic()) 
 			{   
                 //! Relativistic Cases
-				// if      (col->getCase()=="DoubleHarrisRel_pairs") 	particles[i].DoubleHarrisRel_pairs(EMf);
-				// else if (col->getCase()=="DoubleHarrisRel_ionel") 	particles[i].DoubleHarrisRel_ionel(EMf);
-				if (col->getCase()=="Shock1D") 	                        particles[i].Shock1D(EMf);
-				else if (col->getCase()=="Shock1D_DoublePiston") 	    particles[i].Shock1D_DoublePiston(EMf);
-				else                                                    particles[i].Maxwell_Juttner(EMf);
+				if      (col->getCase()=="Relativistic_Double_Harris_pairs") 	        particles[i].Relativistic_Double_Harris_pairs(EMf);
+				else if (col->getCase()=="Relativistic_Double_Harris_ion_electron") 	particles[i].Relativistic_Double_Harris_ion_electron(EMf);
+				else if (col->getCase()=="Shock1D") 	                                particles[i].Shock1D(EMf);
+				else if (col->getCase()=="Shock1D_DoublePiston") 	                    particles[i].Shock1D_DoublePiston(EMf);
+				else                                                                    particles[i].Maxwell_Juttner(EMf);
 			}
             else
             {
