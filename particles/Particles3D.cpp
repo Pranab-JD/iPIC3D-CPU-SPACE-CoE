@@ -76,7 +76,7 @@ double sech_square(double x)
         res = y*y;
     }
     return res;
-}  
+}
 
 /**
  * 
@@ -523,11 +523,11 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
     double thermal_spread_BG            = col->getUth(0);                           //* Thermal spread
     double rho_BG                       = col->getRHOinit(ns)/(4.0*M_PI);           //* Density (rho_BG = n * mc^2)
     double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
-    
+
     //* Current sheet (CS) particles
     double rho_CS                       = eta*rho_BG;                                            //* Density (rho_CS = eta * n * mc^2)
     double drift_velocity               = B_BG/(2.0*4.0*M_PI*rho_CS*delta_CS/c);                 //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
-    double lorentz_factor_CS            = 1.0/sqrt(1.0 - lorentz_factor_CS*lorentz_factor_CS);   //* Lorentz factor of the relativistic drifting particles
+    double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS            = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     
     //* Additional params needed for setting up a current sheet
@@ -616,7 +616,7 @@ void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf)
     //* Current sheet (CS) particles
     double rho_CS                       = eta*rho_BG;                                           //* Density (rho_CS = eta * n * mc^2)
     double drift_velocity               = B_BG/(2.0*4.0*M_PI*rho_CS*delta_CS/c);                //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
-    double lorentz_factor_CS            = 1.0/sqrt(1.0 - lorentz_factor_CS*lorentz_factor_CS);  //* Lorentz factor of the relativistic drifting particles
+    double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);        //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS_ions       = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);       //* Thermal spread of ions (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     double thermal_spread_CS_electrons  = thermal_spread_CS_ions * fabs(col->getQOM(0));        //* Thermal spread of electrons (Ratio of thermal spread = mass ratio)
     

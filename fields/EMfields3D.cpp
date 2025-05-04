@@ -2620,7 +2620,7 @@ void EMfields3D::calculateE()
     #endif
     
     //? Solve using GMRes
-    GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 20, 100, GMREStol, this);
+    GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 100, 100, GMREStol, this);
 
     #ifdef __PROFILE_FIELDS__
     time_gmres.stop();
@@ -5088,7 +5088,7 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
     //* Current sheet (CS) particles
     double rho_CS              = eta*rho_BG;                                            //* Density (rho_CS = eta * n * mc^2)
     double drift_velocity      = B_BG/(2.0*4.0*M_PI*rho_CS*delta_CS/c);                 //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
-    double lorentz_factor_CS   = 1.0/sqrt(1.0 - lorentz_factor_CS*lorentz_factor_CS);   //* Lorentz factor of the relativistic drifting particles
+    double lorentz_factor_CS   = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS   = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     
     if (restart1 == 0) 
@@ -5103,7 +5103,7 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
             cout << "Perturbation amplitude                             = " << perturbation             << endl; 
             cout << "Ratio of guide magnetic field to background field  = " << guide_field_ratio        << endl << endl; 
             
-            cout << "ABCKGROUND/UPSTREAM:"                                                              << endl;
+            cout << "BACKGROUND/UPSTREAM:"                                                              << endl;
             cout << "   Magnetisation parameter                 = " << sigma                            << endl; 
             cout << "   Plasma beta                             = " << 2.0*rho_BG*thermal_spread_BG/(B_BG*B_BG/2.0/FourPI)  << endl;
             cout << "   Thermal spread                          = " << thermal_spread_BG                << endl << endl; 
@@ -5164,8 +5164,22 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
         
                     //* Guide field
                     Bzc[i][j][k] = B_BG*guide_field_ratio;
+
+                    // cout << "initialised B... starting E" << endl;
         
                     //* Initialise E on nodes???
+                    // Ex[i][j][k] = 0.0;
+                    // Ey[i][j][k] = 0.0;
+                    // Ez[i][j][k] = 0.0;
+
+                    // cout << "initialised E" << endl;
+                }
+
+        for (int i = 0; i < nxn; i++)
+            for (int j = 0; j < nyn; j++)
+                for (int k = 0; k < nzn; k++)
+                {
+                    //* Initialise E on nodes
                     Ex[i][j][k] = 0.0;
                     Ey[i][j][k] = 0.0;
                     Ez[i][j][k] = 0.0;
@@ -5191,7 +5205,7 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
 }
 
 //? Relativistic double Harris for ion-electron plasma: Maxwellian background, drifting particles in the sheets
-void EMfields3D::init_Relativistic_Double_Harris_ion_electron() 
+void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
 {
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
@@ -5213,7 +5227,7 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
     //* Current sheet (CS) particles
     double rho_CS                       = eta*rho_BG;                                            //* Density (rho_CS = eta * n * mc^2)
     double drift_velocity               = B_BG/(2.0*4.0*M_PI*rho_CS*delta_CS/c);                 //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
-    double lorentz_factor_CS            = 1.0/sqrt(1.0 - lorentz_factor_CS*lorentz_factor_CS);   //* Lorentz factor of the relativistic drifting particles
+    double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS_ions       = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread of ions (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     double thermal_spread_CS_electrons  = thermal_spread_CS_ions * fabs(col->getQOM(0));         //* Thermal spread of electrons (Ratio of thermal spread = mass ratio)
     
