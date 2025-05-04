@@ -151,9 +151,9 @@ inline void sample_maxwellian(double& u, double& v, double& w, double ut, double
 inline void sample_Maxwell_Juttner(double& u, double& v, double& w, double theta, double gammaDrift, int dirDrift) 
 {
     /* ---------------------------------------------------------------------
-    u           : Output -- Relativistic drift/bulk velocity along X 
-    v           : Output -- Relativistic drift/bulk velocity along Y
-    w           : Output -- Relativistic drift/bulk velocity along Z
+    u           : Output -- Individual velocity of a particle along X 
+    v           : Output -- Individual velocity of a particle along Y
+    w           : Output -- Individual velocity of a particle along Z
     theta       : Input  -- Thermal spread
     gammaDrift  : Input  -- Lorentz factor of the relativistic drifting particles
     dirDrift    : Input  -- Direction of drift: 0 -> no drift, 1 -> X, 2 -> Y, 3 -> Z
@@ -204,7 +204,7 @@ inline void sample_Maxwell_Juttner(double& u, double& v, double& w, double theta
 	double u2 = uPerp * cos(phi);
 	double u3 = uPerp * sin(phi);
 
-	// Boost back to simulation frame
+	//* Boost back to simulation frame
 	if (abs(dirDrift)==1) 
     {
 		u = gammaDrift * u1 + uDrift * u0;
