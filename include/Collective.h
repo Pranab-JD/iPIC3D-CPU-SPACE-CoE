@@ -164,8 +164,7 @@ class Collective
     double getB1x()const{ return (B1x); }
     double getB1y()const{ return (B1y); }
     double getB1z()const{ return (B1z); }
-    //bool getVerbose()const{ return (verbose); }
-    //bool getTrackParticleID(int nspecies)const{ return (TrackParticleID[nspecies]); }
+
     int getRestart_status()             const{ return (restart_status); }
     string getSaveDirName()             const{ return (SaveDirName); }
     string getRestartDirName()          const{ return (RestartDirName); }
@@ -209,7 +208,7 @@ class Collective
     string getRelativisticPusher()      const { return Relativistic_pusher; }   
 
     int getNparam()                     const { return (nparam); }
-    double getInputParam(int in)              { return (input_param[in]); }
+    double getInputParam(int ip)        const { return (input_param[ip]); }
     
     /*! Boundary condition selection for BCFace for the electric field components */
     int bcEx[6], bcEy[6], bcEz[6];
