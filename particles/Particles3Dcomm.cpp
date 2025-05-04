@@ -233,6 +233,16 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
     assert_eq(nzc,nzn-1);
     invVOL = grid->getInvVOL();
 
+    //* Custom input parameters
+    nparam = col->getNparam();
+    if (nparam > 0) 
+    {
+        input_param = new double[nparam];
+        
+        for (int ip=0; ip<nparam; ip++) 
+            input_param[ip] = col->getInputParam(ip);
+    }
+
     // info from VirtualTopology3D
     cVERBOSE = vct->getcVERBOSE();
 

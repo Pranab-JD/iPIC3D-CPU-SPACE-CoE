@@ -387,10 +387,7 @@ protected:
     string Relativistic_pusher;
 
     //* Custom input parameters
-    double *input_param;
-
-    //* Number of custom input parameters
-    int nparam;
+    double *input_param; int nparam;
 
 };
 
