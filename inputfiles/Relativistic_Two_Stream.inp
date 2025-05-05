@@ -23,7 +23,7 @@ RestartOutputCycle             = 0                                             #
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
 VirtualProbesOutputCycle       = 0                                             # Virtual probe output (0 = never)
 
-FieldOutputCycle               = 10                                            # Output for moments and fields (if <= 0, data is NOT saved)
+FieldOutputCycle               = 0                                             # Output for moments and fields (if <= 0, data is NOT saved)
 ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
 FieldOutputTag                 = Eall + Ball + rhos + Jall + Jsall             # Select quantites to be written to files
                                + B_energy + E_energy + k_energy
@@ -62,7 +62,7 @@ ParticlesOutputTag 	           = position + velocity + q                       #
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.125	                                       # Time-step size
-ncycles                        = 800                                           # Number of time steps
+ncycles                        = 200                                           # Number of time steps
 th                             = 0.5                                           # Decentering parameter
 c                              = 1.0                                           # Speed of light 
 GMREStol                       = 1E-15                                         # GMRES tolerance (must be <= 1e-15 for exact energy conservation)
@@ -91,7 +91,7 @@ nzc                            = 1                                             #
 # %                                  MPI TOPOLOGY                              %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-XLEN                           = 4                                             # Number of MPI subdomains along X
+XLEN                           = 1                                             # Number of MPI subdomains along X
 YLEN                           = 1                                             # Number of MPI subdomains along Y
 ZLEN                           = 1                                             # Number of MPI subdomains along Z
 
@@ -120,7 +120,7 @@ uth                 = 0.001         0.001           0.001           0.001       
 vth                 = 0.0           0.0             0.0             0.0         # NOT used for relativistic cases, but needs to be defined, set to 0
 wth                 = 0.0           0.0             0.0             0.0         # NOT used for relativistic cases, but needs to be defined, set to 0
 
-u0                  = 2.0           -2.0            2.0             -2.0        # Relativistic drift/bulk velocity along X
+u0                  = 2.0          -2.0            2.0             -2.0         # Relativistic drift/bulk velocity along X
 v0                  = 0.0           0.0             0.0             0.0         # Relativistic drift/bulk velocity along Y
 w0                  = 0.0           0.0             0.0	            0.0         # Relativistic drift/bulk velocity along Z
 
