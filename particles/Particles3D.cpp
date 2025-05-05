@@ -482,7 +482,7 @@ void Particles3D::Maxwell_Juttner(Field * EMf)
 		lorentz_factor = 1.0;
 	}
 
-    const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns);
+    const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns)/(4*M_PI);
 
 	for (int i = 1; i < grid->getNXC() - 1; i++)
 		for (int j = 1; j < grid->getNYC() - 1; j++)
@@ -521,7 +521,7 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
     
     //* Background (BG) or upstream particles
     double thermal_spread_BG            = col->getUth(0);                           //* Thermal spread
-    double rho_BG                       = col->getRHOinit(ns)/(4.0*M_PI);           //* Density (rho_BG = n * mc^2)
+    double rho_BG                       = col->getRHOinit(ns)/(4*M_PI);             //* Density (rho_BG = n * mc^2)
     double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
 
     //* Current sheet (CS) particles
@@ -529,13 +529,21 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
     double drift_velocity               = B_BG/(2.0*4.0*M_PI*rho_CS*delta_CS/c);                 //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
     double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS            = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
+
+    cout << "thermal_spread_BG: " << thermal_spread_BG << endl;
+	cout << "rho_BG: " << rho_BG << endl;
+	cout << "B_BG: " << B_BG << endl;
+	cout << "rhoCS: " << rho_CS << endl;
+	cout << "drift_velocity: " << drift_velocity << endl;
+	cout << "lorentz_factor_CS: " << lorentz_factor_CS << endl;
+	cout << "thermal_spread_CS: " << thermal_spread_CS << endl << endl;
     
     //* Additional params needed for setting up a current sheet
     double y_half           = Ly/2.0;
     double y_quarter        = Ly/4.0;
     double y_three_quarters = 3.0*y_quarter;
 
-    const double q_factor = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns);
+    const double q_factor = (qom / fabs(qom)) * grid->getVOL()/npcel;
     
 	for (int i = 1; i < grid->getNXC() - 1; i++)
         for (int j = 1; j < grid->getNYC() - 1; j++)
@@ -653,6 +661,8 @@ void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf)
                                     sample_Maxwell_Juttner(u, v, w, thermal_spread_BG_electrons, 1.0, 0);
 								else        
                                     sample_Maxwell_Juttner(u, v, w, thermal_spread_BG_ions, 1.0, 0);
+
+                                
                             }
                             else 
                             {
@@ -1125,8 +1135,6 @@ void Particles3D::ECSIM_position(Field *EMf)
         double dxp = 0.0, dyp = 0.0, dzp = 0.0; double lorentz_factor = 1.0;
 
         //* Parameters for charge conservation
-        // if (Conserve_charge)
-
         double eta0, eta1, zeta0, zeta1, xi0, xi1;
         double weight00, weight01, weight10, weight11;
         double invSURF; double limiter = 1.0; 
@@ -1166,9 +1174,6 @@ void Particles3D::ECSIM_position(Field *EMf)
 
             //! This may be further optimised - PJD
             //? Charge Conservation (energy conservation inherently violates charge conservation --> charge has to be conserved separately)
-            // if (Conserve_charge)     //TODO: Is this if statement needed? Ask Fabio
-            // TODO: How to test for correctness in conserving charge? Ask Fabio
-            // TODO: Does TrackParticleID work? Ask Fabio
 
             const double ixd = floor((xavg - dx/2.0 - xstart) * inv_dx);
 			const double iyd = floor((yavg - dy/2.0 - ystart) * inv_dy);
@@ -1342,6 +1347,13 @@ void Particles3D::computeMoments(Field *EMf)
             const double v_n = pcl->get_v();
             const double w_n = pcl->get_w();
             const double q   = pcl->get_q();
+
+            // if (ns > 2)
+            // {
+            //     cout << "Particle id: " << pidx << endl;
+            //     cout << "Positions: " << x_n << ", " << y_n << ", " << z_n << endl;
+            //     cout << "Velocities: " << u_n << ", " << v_n << ", " << w_n << endl;
+            // }
 
             //* Additional variables for storing old and new positions and velocities
             double x_old = x_n; double y_old = y_n; double z_old = z_n;
