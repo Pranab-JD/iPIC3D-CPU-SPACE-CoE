@@ -1370,6 +1370,7 @@ double Particles3Dcomm::getKe()
 {
     double localKe = 0.0;
     double totalKe = 0.0;
+    double lorentz_factor = 0.0;
     
     for (int i = 0; i < _pcls.size(); i++)
     {
@@ -1378,8 +1379,16 @@ double Particles3Dcomm::getKe()
         const double v = pcl.get_v();
         const double w = pcl.get_w();
         const double q = pcl.get_q();
-        
-        localKe += .5*(q/qom)*(u*u + v*v + w*w);
+
+        if (Relativistic) 
+		{
+            lorentz_factor = sqrt(1.0 + (u*u + v*v + w*w)/(c*c));
+            localKe += (q/qom) * (lorentz_factor - 1.0) * c*c;
+        }
+        else
+        {
+            localKe += 0.5 * (q/qom) * (u*u + v*v + w*w);
+        }
     }
     
     MPI_Allreduce(&localKe, &totalKe, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);
@@ -1438,27 +1447,33 @@ double Particles3Dcomm::getMaxVelocity() {
 //
 // this ignores the weight of the charges. -eaj
 //
-long long *Particles3Dcomm::getVelocityDistribution(int nBins, double maxVel) {
-  long long *f = new long long[nBins];
-  for (int i = 0; i < nBins; i++)
-    f[i] = 0;
-  double Vel = 0.0;
-  double dv = maxVel / nBins;
-  int bin = 0;
-  for (int i = 0; i < _pcls.size(); i++) {
-    SpeciesParticle& pcl = _pcls[i];
-    const double u = pcl.get_u();
-    const double v = pcl.get_v();
-    const double w = pcl.get_w();
-    Vel = sqrt(u*u + v*v + w*w);
-    bin = int (floor(Vel / dv));
-    if (bin >= nBins)
-      f[nBins - 1] += 1;
-    else
-      f[bin] += 1;
-  }
-  MPI_Allreduce(MPI_IN_PLACE, f, nBins, MPI_LONG_LONG, MPI_SUM, mpi_comm);
-  return f;
+long long *Particles3Dcomm::getVelocityDistribution(int nBins, double maxVel) 
+{
+    //TODO: Implemnetd relativistic case - PJD
+    long long *f = new long long[nBins];
+    for (int i = 0; i < nBins; i++)
+        f[i] = 0;
+    
+    double Vel = 0.0;
+    double dv = maxVel / nBins;
+    int bin = 0;
+
+    for (int i = 0; i < _pcls.size(); i++)
+    {
+        SpeciesParticle& pcl = _pcls[i];
+        const double u = pcl.get_u();
+        const double v = pcl.get_v();
+        const double w = pcl.get_w();
+        Vel = sqrt(u*u + v*v + w*w);
+        bin = int (floor(Vel / dv));
+        if (bin >= nBins)
+            f[nBins - 1] += 1;
+        else
+            f[bin] += 1;
+    }
+    
+    MPI_Allreduce(MPI_IN_PLACE, f, nBins, MPI_LONG_LONG, MPI_SUM, mpi_comm);
+    return f;
 }
 
 
