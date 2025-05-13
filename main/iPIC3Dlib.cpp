@@ -567,11 +567,6 @@ bool c_Solver::ParticlesMover()
             default:
             unsupported_value_error(Parameters::get_MOVER_TYPE());
         }
-
-        //* Should integrate BC into separate_and_send_particles
-        // TODO: Are the following two statements needed in both position and velocity?
-        // particles[i].openbc_particles_outflow();
-        // particles[i].separate_and_send_particles();
     }
 
     #ifdef __PROFILING__
@@ -868,7 +863,9 @@ void c_Solver::WriteConserved(int cycle)
         
         //? Total energy = Electric field energy + Magnetic field energy + Kinetic Energy
         for (int is = 0; is < ns; is++) 
-            initial_total_energy +=  particles[is].getKe();
+        {
+            initial_total_energy = initial_total_energy + particles[is].getKe();
+        }
     }
 
     if(col->getDiagnosticsOutputCycle() > 0 && cycle % col->getDiagnosticsOutputCycle() == 0)
@@ -880,10 +877,10 @@ void c_Solver::WriteConserved(int cycle)
         double IntBenergy = EMf->getBintenergy();
         // double EenRem     = EMf->getEenergyRemoved(true);
 
-        TOTenergy = 0.0;
+        // TOTenergy = 0.0;
         TOTmomentum = 0.0;
         double kinetic_energy = 0.0;
-        
+
         for (int is = 0; is < ns; is++) 
         {
             // Ke[is] = particles[is].getKe();
@@ -894,7 +891,6 @@ void c_Solver::WriteConserved(int cycle)
             kinetic_energy += particles[is].getKe();
 
             // BulkEnergy[is] = EMf->getBulkEnergy(is);
-            
             
             momentum[is] = particles[is].getP();
             TOTmomentum += momentum[is];
@@ -907,8 +903,8 @@ void c_Solver::WriteConserved(int cycle)
             if(cycle == 0)
             {
                 my_file << endl << "I.   Cycle" 
-                        << endl << "II.  Electric energy" 
-                        << endl << "III. Magnetic energy (int)" 
+                        << endl << "II.  Electric field energy" 
+                        << endl << "III. Magnetic field energy" 
                         << endl << "IV.  Kinetic Energy"
                         << endl << "V.   Total Energy" 
                         << endl << "VI.  Energy(cycle) - Energy(initial)" << endl << endl;

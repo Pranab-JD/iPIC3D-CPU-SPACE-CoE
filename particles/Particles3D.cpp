@@ -453,8 +453,6 @@ void Particles3D::Maxwell_Juttner(Field * EMf)
 
     assert_eq(_pcls.size(), 0);    
 
-    //TODO: rhoINIT does not work
-	// double rho_initial = col->getRHOinit(ns)/(4.0*M_PI);     //* Intial density of particles
     double thermal_spread = uth;                                //* Thermal spread (isotropic along X, Y, Z)
 	double lorentz_factor_x = u0;                               //* Drift velocity (X)
 	double lorentz_factor_y = v0;                               //* Drift velocity (Y)
@@ -482,7 +480,7 @@ void Particles3D::Maxwell_Juttner(Field * EMf)
 		lorentz_factor = 1.0;
 	}
 
-    const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns)/(4*M_PI);
+    const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns)/(4.0*M_PI);
 
 	for (int i = 1; i < grid->getNXC() - 1; i++)
 		for (int j = 1; j < grid->getNYC() - 1; j++)
@@ -520,8 +518,8 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
     const double guide_field_ratio      = input_param[4];       //* Ratio of guide field to in-plane magnetic field
     
     //* Background (BG) or upstream particles
-    double thermal_spread_BG            = col->getUth(0);                           //* Thermal spread
-    double rho_BG                       = col->getRHOinit(ns)/(4*M_PI);             //* Density (rho_BG = n * mc^2)
+    double thermal_spread_BG            = uth;                           //* Thermal spread
+    double rho_BG                       = col->getRHOinit(ns)/(4.0*M_PI);           //* Density (rho_BG = n * mc^2)
     double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
 
     //* Current sheet (CS) particles
@@ -529,22 +527,14 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
     double drift_velocity               = B_BG/(2.0*4.0*M_PI*rho_CS*delta_CS/c);                 //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
     double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS            = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
-
-    cout << "thermal_spread_BG: " << thermal_spread_BG << endl;
-	cout << "rho_BG: " << rho_BG << endl;
-	cout << "B_BG: " << B_BG << endl;
-	cout << "rhoCS: " << rho_CS << endl;
-	cout << "drift_velocity: " << drift_velocity << endl;
-	cout << "lorentz_factor_CS: " << lorentz_factor_CS << endl;
-	cout << "thermal_spread_CS: " << thermal_spread_CS << endl << endl;
-    
+  
     //* Additional params needed for setting up a current sheet
     double y_half           = Ly/2.0;
     double y_quarter        = Ly/4.0;
     double y_three_quarters = 3.0*y_quarter;
 
     const double q_factor = (qom / fabs(qom)) * grid->getVOL()/npcel;
-    
+
 	for (int i = 1; i < grid->getNXC() - 1; i++)
         for (int j = 1; j < grid->getNYC() - 1; j++)
             for (int k = 1; k < grid->getNZC() - 1; k++)
@@ -552,12 +542,12 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
                     for (int jj = 0; jj < npcely; jj++)
                         for (int kk = 0; kk < npcelz; kk++) 
                         {
-                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+                            double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                            double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                            double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
 
                             //* Velocities and charges of particles
-                            double u, v, w, q;
+                            double u, v, w, q, fs;
                         
                             //* Distinguish between background and drifting species
                             if (ns < 2) 
@@ -571,8 +561,6 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
                             else 
                             {
                                 //? Current sheet species (necessary to initialise a current sheet)
-                                double fs;
-
                                 if (y < y_half)
                                     fs = sech_square((y - y_quarter)/delta_CS);
                                 else              
@@ -590,8 +578,12 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
                                     sample_Maxwell_Juttner(u, v, w, thermal_spread_CS, lorentz_factor_CS, 3);   //* Positive charges (e.g., positrons)
                                 
                                 //* Flip sign of drift velocity for particles in the second layer
-                                if (y > y_half)  
-                                    u = -u; v = -v; w = -w;
+                                if (y > y_half)
+                                {
+                                    u = -u; 
+                                    v = -v; 
+                                    w = -w;
+                                }
                             }
 
                             create_new_particle(u, v, w, q, x, y, z);
@@ -619,11 +611,11 @@ void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf)
     double thermal_spread_BG_electrons  = col->getUth(0);                           //* Thermal spread of electrons
     double thermal_spread_BG_ions       = col->getUth(1);                           //* Thermal spread of ions
     double rho_BG                       = col->getRHOinit(ns)/(4.0*M_PI);           //* Density (rho_BG = n * mc^2)
-    double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
+    double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG);              //* sigma = B^2/(4*pi*rho_electrons)
     
     //* Current sheet (CS) particles
     double rho_CS                       = eta*rho_BG;                                           //* Density (rho_CS = eta * n * mc^2)
-    double drift_velocity               = B_BG/(2.0*4.0*M_PI*rho_CS*delta_CS/c);                //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
+    double drift_velocity               = B_BG/(8.0*M_PI*rho_CS*delta_CS/c);                    //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
     double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);        //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS_ions       = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);       //* Thermal spread of ions (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     double thermal_spread_CS_electrons  = thermal_spread_CS_ions * fabs(col->getQOM(0));        //* Thermal spread of electrons (Ratio of thermal spread = mass ratio)
@@ -633,8 +625,7 @@ void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf)
     double y_quarter        = Ly/4.0;
     double y_three_quarters = 3.0*y_quarter;
 
-    //! Is factor of 4 PI needed here and rho_BG?
-    const double q_factor = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns);
+    const double q_factor = (qom/fabs(qom)) * grid->getVOL()/npcel;
     
 	for (int i = 1; i < grid->getNXC() - 1; i++)
         for (int j = 1; j < grid->getNYC() - 1; j++)
@@ -686,14 +677,20 @@ void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf)
                                     sample_Maxwell_Juttner(u, v, w, thermal_spread_CS_ions, lorentz_factor_CS, 3);          //* Positive charges (e.g., ions)
                                 
                                 //* Flip sign of drift velocity for particles in the second layer
-                                if (y > y_half)  
-                                    u = -u; v = -v; w = -w;
+                                if (y > y_half)
+                                {
+                                    u = -u; 
+                                    v = -v; 
+                                    w = -w;
+                                }
                             }
 
                             create_new_particle(u, v, w, q, x, y, z);
                         }
 
 	fixPosition();
+
+    // cout << "============================================" << endl;
 }
 
 //! Initial particle distributions (Non Relativistic and Relativistic) !//
@@ -1332,6 +1329,8 @@ void Particles3D::computeMoments(Field *EMf)
         //* q*dt/(2*m*c)
         const double q_dt_2mc = 0.5*dt*qom/c;
 
+        // cout << endl << "Species: " << ns << endl;
+
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++)
         {
@@ -1347,13 +1346,6 @@ void Particles3D::computeMoments(Field *EMf)
             const double v_n = pcl->get_v();
             const double w_n = pcl->get_w();
             const double q   = pcl->get_q();
-
-            // if (ns > 2)
-            // {
-            //     cout << "Particle id: " << pidx << endl;
-            //     cout << "Positions: " << x_n << ", " << y_n << ", " << z_n << endl;
-            //     cout << "Velocities: " << u_n << ", " << v_n << ", " << w_n << endl;
-            // }
 
             //* Additional variables for storing old and new positions and velocities
             double x_old = x_n; double y_old = y_n; double z_old = z_n;
@@ -1423,7 +1415,7 @@ void Particles3D::computeMoments(Field *EMf)
                     //* lorentz_factor = [1 + ((u^2 + v^2 + w^2)/c^2)]^0.5
                     lorentz_factor = sqrt(1.0 + (u_n*u_n + v_n*v_n + w_n*w_n)/(c*c));
 
-                    //? The equations for the Lapenta-Markidis pusher can be found in Bacchini (2023), ApJD, 268, 60
+                    //? The equations for the Lapenta-Markidis pusher can be found in Bacchini (2023), ApJ, 268, 60
 
                     //* beta = q*dt*B^n/(2*m*c)
                     double beta_x = q_dt_2mc*Bxl;
@@ -1440,7 +1432,6 @@ void Particles3D::computeMoments(Field *EMf)
                     const double u_prime = u_n + eps_x;
                     const double v_prime = v_n + eps_y;
                     const double w_prime = w_n + eps_z;
-
                 }
                 else
                 {
@@ -1455,7 +1446,10 @@ void Particles3D::computeMoments(Field *EMf)
 
             const pfloat omsq = (Omx * Omx + Omy * Omy + Omz * Omz);
             const pfloat denom = 1.0 / (1.0 + omsq)/lorentz_factor;
-            
+
+            // if (ns == 2)
+            //     cout << "Particle id: " << pidx << ", Lorentz factor: " << lorentz_factor << endl;
+
             double alpha[3][3];
             alpha[0][0] = ( 1.0 + (Omx*Omx))*denom;
             alpha[0][1] = ( Omz + (Omx*Omy))*denom;
@@ -1472,6 +1466,13 @@ void Particles3D::computeMoments(Field *EMf)
             double qau = q * (alpha[0][0]*(u_n + dt/2.*Fxl) + alpha[0][1]*(v_n + dt/2.*Fyl) + alpha[0][2]*(w_n + dt/2.*Fzl));
             double qav = q * (alpha[1][0]*(u_n + dt/2.*Fxl) + alpha[1][1]*(v_n + dt/2.*Fyl) + alpha[1][2]*(w_n + dt/2.*Fzl));
             double qaw = q * (alpha[2][0]*(u_n + dt/2.*Fxl) + alpha[2][1]*(v_n + dt/2.*Fyl) + alpha[2][2]*(w_n + dt/2.*Fzl));
+
+            // if (ns == 2)
+            // {
+            //     cout << "Charge: " << q << endl; 
+            //     cout << "Velocity: " << u_n << ", " << v_n << ", " << w_n << endl;
+            //     cout << "qau, qav, qaw: " << qau << ", " << qav << ", " << qaw << endl;
+            // }
 
             //* --------------------------------------- *//
 
@@ -1496,16 +1497,40 @@ void Particles3D::computeMoments(Field *EMf)
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = qau * weights[ii];
             EMf->add_Jxh(temp, ix, iy, iz, ns);
+            
+            // if (ns == 2)
+            // {
+            //     cout << "Jxh" << endl;
+            //     for (int ii = 0; ii < 8; ii++)
+            //         cout << temp[ii] << "   ";
+            //     cout << endl;
+            // }
 
             //* Add implicit current density - Y
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = qav * weights[ii];
             EMf->add_Jyh(temp, ix, iy, iz, ns);
 
+            // if (ns == 2)
+            // {
+            //     cout << "Jyh" << endl;
+            //     for (int ii = 0; ii < 8; ii++)
+            //         cout << temp[ii] << "   ";
+            //     cout << endl;
+            // }
+
             //* Add implicit current density - Z
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = qaw * weights[ii];
             EMf->add_Jzh(temp, ix, iy, iz, ns);
+
+            // if (ns == 2)
+            // {
+            //     cout << "Jzh" << endl;
+            //     for (int ii = 0; ii < 8; ii++)
+            //         cout << temp[ii] << "   ";
+            //     cout << endl << endl;
+            // }
 
             #ifdef __PROFILE_MOMENTS__
             time_add.stop();
@@ -1553,7 +1578,7 @@ void Particles3D::computeMoments(Field *EMf)
             
             #ifdef __PROFILE_MOMENTS__
             time_mm.stop();
-            #endif   
+            #endif
         }
     }
 
