@@ -2620,7 +2620,7 @@ void EMfields3D::calculateE()
     #endif
     
     //? Solve using GMRes
-    GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 100, 100, GMREStol, this);
+    GMRES(&Field::MaxwellImage, xkrylov, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2), bkrylov, 20, 50, GMREStol, this);
 
     #ifdef __PROFILE_FIELDS__
     time_gmres.stop();
@@ -2695,8 +2695,12 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
     communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
+    // cout << "Norm of B: " << norm2P(Bxc, nxc, nyc, nzc) << ", " << norm2P(Byc, nxc, nyc, nzc)  << ", " << norm2P(Bzc, nxc, nyc, nzc) << endl;
+
     //* Compute curl of magnetic field (defined at cell centres) on nodes
     grid->curlC2N(temp2X, temp2Y, temp2Z, Bxc, Byc, Bzc);
+
+    // cout << "Norm of temp2: " << norm2P(temp2X, nxc, nyc, nzc) << ", " << norm2P(temp2Y, nxc, nyc, nzc)  << ", " << norm2P(temp2Z, nxc, nyc, nzc) << endl;
 
     //? External magnetic field
     // if (col->getAddExternalCurlB()) 
@@ -2711,7 +2715,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     //    
     //     grid->curlC2N(Jx_ext, Jy_ext, Jz_ext, Bxc_ext, Byc_ext, Bzc_ext);
     //    
-    //     // The sing below was 1, I tested -1 that seems to make more sense when one has to remove the actual current present when the field is external
     //     addscale(1.0, temp2X, Jx_ext, nxn, nyn, nzn);
     //     addscale(1.0, temp2Y, Jy_ext, nxn, nyn, nzn);
     //     addscale(1.0, temp2Z, Jz_ext, nxn, nyn, nzn);
@@ -2719,12 +2722,16 @@ void EMfields3D::MaxwellSource(double *bkrylov)
 
     //? --------------------------------------------------------- ?//
 
+    // cout << "Norm of J (before): " << norm2P(Jxh, nxc, nyc, nzc) << ", " << norm2P(Jyh, nxc, nyc, nzc)  << ", " << norm2P(Jzh, nxc, nyc, nzc) << endl;
+
     communicateNodeBC(nxn, nyn, nzn, Jxh, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, Jyh, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, Jzh, 2, 2, 2, 2, 2, 2, vct, this);
 
     //* Energy-conserving smoothing
     energy_conserve_smooth(Jxh, Jyh, Jzh, nxn, nyn, nzn);
+
+    // cout << "Norm of J (after): " << norm2P(Jxh, nxc, nyc, nzc) << ", " << norm2P(Jyh, nxc, nyc, nzc)  << ", " << norm2P(Jzh, nxc, nyc, nzc) << endl;
 
     for (int i = 0; i < nxn; i++)
         for (int j = 0; j < nyn; j++) 
@@ -2748,10 +2755,14 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     communicateNodeBC(nxn, nyn, nzn, temp3Y, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, temp3Z, 2, 2, 2, 2, 2, 2, vct, this);
 
+    // cout << "Norm of temp3: " << norm2P(temp3X, nxc, nyc, nzc) << ", " << norm2P(temp3Y, nxc, nyc, nzc)  << ", " << norm2P(temp3Z, nxc, nyc, nzc) << endl;
+
     //* temp(x,y,z) = temp(x,y,z) + 1.0*E(x,y,z)
     addscale(1.0, tempX, Ex, nxn, nyn, nzn);
     addscale(1.0, tempY, Ey, nxn, nyn, nzn);
     addscale(1.0, tempZ, Ez, nxn, nyn, nzn);
+
+    // cout << "Norm of E: " << norm2P(Ex, nxc, nyc, nzc) << ", " << norm2P(Ey, nxc, nyc, nzc)  << ", " << norm2P(Ez, nxc, nyc, nzc) << endl;
 
     // //? Add contribution of external electric field to the change in B
     // if (col->getAddExternalCurlE()) 
@@ -2765,13 +2776,10 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     //     addscale(c*th*dt*c*th*dt, tempZ, temp2Z, nxn, nyn, nzn);
     // }
 
-    // TODO: To be implemented later 
-    // fixBC_Source (vct, col, tempX, tempY, tempZ);
-    // if (col->getCase() == "Dipole") 
-    //     fixBC_PlanetSource (vct, col, grid, tempX , tempY , tempZ);
-    
     //* Physical space --> Krylov space
     phys2solver(bkrylov, tempX, tempY, tempZ, nxn, nyn, nzn);
+
+    // cout << "Norm of temp: " << norm2P(tempX, nxc, nyc, nzc) << ", " << norm2P(tempY, nxc, nyc, nzc)  << ", " << norm2P(tempZ, nxc, nyc, nzc) << endl;
 }
 
 //? RHS of the Maxwell solver
@@ -2859,12 +2867,8 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     addscale(1, imageY, tempY, nxn, nyn, nzn);
     addscale(1, imageZ, tempZ, nxn, nyn, nzn);
 
-    // TODO: this if statement needs to be removed, right? - Ask Fabio
-    // if (col->getEnergyConservingSmoothing())
     energy_conserve_smooth(tempX, tempY, tempZ, nxn, nyn, nzn);
 
-    // if (col->getExactMM()) 
-    // {
     for (int i=1; i<nxn-1; i++) 
         for (int j=1; j<nyn-1; j++) 
             for (int k=1; k<nzn-1; k++) 
@@ -2878,8 +2882,6 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
                 temp2Z.fetch(i, j, k) = dt*th*FourPI*MEz;
             }
     
-    //TODO: Are boundary conditions for mass matrix same as that of electric field? - Ask Fabio
-    //TODO: Are boundary conditions for electric and magnetic field always the same?
     communicateNodeBC(nxn, nyn, nzn, temp2X, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, temp2Y, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, temp2Z, 2, 2, 2, 2, 2, 2, vct, this);
@@ -2898,21 +2900,6 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     addscale(1.0, imageX, temp2X, nxn, nyn, nzn);
     addscale(1.0, imageY, temp2Y, nxn, nyn, nzn);
     addscale(1.0, imageZ, temp2Z, nxn, nyn, nzn);
-    // }
-    // else 
-    // {
-    //     //? Add mass matrix applied to E but using the poor man approximation
-    // TODO: Is this needed? Ask Fabio
-    //     MUdot_mass_matrix(temp3X, temp3Y, temp3Z, temp2X, temp2Y, temp2Z, tempX, tempY, tempZ);
-    //     addscale(1.0, imageX, temp3X, nxn, nyn, nzn);
-    //     addscale(1.0, imageY, temp3Y, nxn, nyn, nzn);
-    //     addscale(1.0, imageZ, temp3Z, nxn, nyn, nzn);
-    // }
-
-    //TODO: To be implemented later - PJD; Ask Fabio
-    // fixBC_Image(vct, imageX, imageY, imageZ, tempX, tempY, tempZ);
-    // if (col->getCase() == "Dipole")
-    //   fixBC_PlanetImage (vct, col, grid, imageX, imageY, imageZ, tempX, tempY, tempZ);
     
     //? Move from physical space to Krylov space
     phys2solver(im, imageX, imageY, imageZ, nxn, nyn, nzn);
@@ -5082,7 +5069,7 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
 
     //* Background (BG) or upstream particles
     double thermal_spread_BG    = col->getUth(0);                           //* Thermal spread
-    double rho_BG               = rhoINIT[0]/FourPI;                        //* Density (rho_BG = n * mc^2)
+    double rho_BG               = rhoINIT[0]/(4.0*M_PI);                    //* Density (rho_BG = n * mc^2)
     double B_BG                 = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
 
     //* Current sheet (CS) particles
@@ -5106,7 +5093,7 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
             cout << "BACKGROUND/UPSTREAM:"                                                              << endl;
             cout << "   Magnetisation parameter                 = " << sigma                            << endl; 
             cout << "   Plasma beta                             = " << 2.0*rho_BG*thermal_spread_BG/(B_BG*B_BG/2.0/FourPI)  << endl;
-            cout << "   Thermal spread                          = " << thermal_spread_BG                << endl << endl; 
+            cout << "   Thermal spread                          = " << thermal_spread_BG                << endl << endl;
             
             cout << "CURRENT SHEET:"                                                                    << endl;
             cout << "   Thermal spread of drifiting particles   = " << thermal_spread_CS                << endl; 
@@ -5157,22 +5144,12 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
                     
                     //* Add perturbation
                     Bxc[i][j][k] = Bxc[i][j][k] * (1.0 + perturbation*cosxh*cosyh*cosyh) + fBx*2.0*perturbation*cosxh*2.0*M_PI/ym*cosyh*sinyh 
-                                                    * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-B_BG*delta_CS*LOG_COSH(yh/delta_CS));
+                                                * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-B_BG*delta_CS*LOG_COSH(yh/delta_CS));
         
-                    Byc[i][j][k] = fBy*2.0*perturbation*M_PI/xm*sinxh*cosyh*cosyh
-                                    * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-delta_CS*B_BG*LOG_COSH(yh/delta_CS));
+                    Byc[i][j][k] = fBy*2.0*perturbation*M_PI/xm*sinxh*cosyh*cosyh * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-delta_CS*B_BG*LOG_COSH(yh/delta_CS));
         
                     //* Guide field
                     Bzc[i][j][k] = B_BG*guide_field_ratio;
-
-                    // cout << "initialised B... starting E" << endl;
-        
-                    //* Initialise E on nodes???
-                    // Ex[i][j][k] = 0.0;
-                    // Ey[i][j][k] = 0.0;
-                    // Ez[i][j][k] = 0.0;
-
-                    // cout << "initialised E" << endl;
                 }
 
         for (int i = 0; i < nxn; i++)
@@ -5194,7 +5171,7 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
         grid->interpC2N(Bxn, Bxc);
         grid->interpC2N(Byn, Byc);
         grid->interpC2N(Bzn, Bzc);
-        
+       
         //* Communicate ghost data on nodes
         communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
         communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
@@ -5222,11 +5199,11 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
     double thermal_spread_BG_electrons  = col->getUth(0);                           //* Thermal spread of electrons
     double thermal_spread_BG_ions       = col->getUth(1);                           //* Thermal spread of ions
     double rho_BG                       = rhoINIT[0]/FourPI;                        //* Density (rho_BG = n * mc^2)
-    double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
+    double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG);              //* sigma = B^2/(4*pi*rho_electrons)
     
     //* Current sheet (CS) particles
     double rho_CS                       = eta*rho_BG;                                            //* Density (rho_CS = eta * n * mc^2)
-    double drift_velocity               = B_BG/(2.0*4.0*M_PI*rho_CS*delta_CS/c);                 //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
+    double drift_velocity               = B_BG/(8.0*M_PI*rho_CS*delta_CS/c);                     //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
     double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS_ions       = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread of ions (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     double thermal_spread_CS_electrons  = thermal_spread_CS_ions * fabs(col->getQOM(0));         //* Thermal spread of electrons (Ratio of thermal spread = mass ratio)
@@ -5251,9 +5228,9 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
             cout << "   Lorentz factor of electrons            ~= " << 3*thermal_spread_BG_electrons    << endl << endl;
 
             cout << "CURRENT SHEET:"                                                                    << endl;
-            cout << "   Thermal spread of drifiting ions         = " << thermal_spread_CS_ions          << endl; 
-            cout << "   Thermal spread of drifiting electrons    = " << thermal_spread_CS_electrons     << endl; 
-            cout << "   Lorentz factor of drifiting particles    = " << lorentz_factor_CS               << endl; 
+            cout << "   Thermal spread of drifting ions         = " << thermal_spread_CS_ions           << endl; 
+            cout << "   Thermal spread of drifting electrons    = " << thermal_spread_CS_electrons      << endl; 
+            cout << "   Lorentz factor of drifting particles    = " << lorentz_factor_CS                << endl; 
 
             cout << "-----------------------------------------------------------"   << endl;
         }
@@ -5296,17 +5273,16 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
                     sinyh = sin(2.0*M_PI*yh/ym);
                     sinxh = sin(2.0*M_PI*xh/xm);
         
-                    Bxn[i][j][k] = fBx*B0x*tanh(yh/delta_CS);
-                    
+                    Bxn[i][j][k] = fBx * B_BG * tanh(yh/delta_CS);
+
                     //* Add perturbation
-                    Bxn[i][j][k] = Bxn[i][j][k] * (1.0+perturbation*cosxh*cosyh*cosyh) + fBx*2.0*perturbation*cosxh*2.0*M_PI/ym*cosyh*sinyh 
-                                    * (B0x*delta_CS*LOG_COSH(y14/delta_CS)-B0x*delta_CS*LOG_COSH(yh/delta_CS));
+                    // Bxn[i][j][k] = Bxn[i][j][k] * (1.0+perturbation*cosxh*cosyh*cosyh) + fBx*2.0*perturbation*cosxh*2.0*M_PI/ym*cosyh*sinyh 
+                    //                             * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-B_BG*delta_CS*LOG_COSH(yh/delta_CS));
         
-                    Byn[i][j][k] = fBy*2.0*perturbation*M_PI/xm*sinxh*cosyh*cosyh
-                                * (B0x*delta_CS*LOG_COSH(y14/delta_CS)-delta_CS*B0x*LOG_COSH(yh/delta_CS));
+                    // Byn[i][j][k] = fBy*2.0*perturbation*M_PI/xm*sinxh*cosyh*cosyh * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-delta_CS*B_BG*LOG_COSH(yh/delta_CS));
         
-                    //* Guide field
-                    Bzn[i][j][k] = B0x*guide_field_ratio;
+                    // //* Guide field
+                    // Bzn[i][j][k] = B_BG*guide_field_ratio;
         
                     //* Initialise E on nodes
                     Ex[i][j][k] = 0.0;
@@ -5317,14 +5293,13 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
         //* Initialise B at cell centres
         grid->interpN2C(Bxc, Bxn);
         grid->interpN2C(Byc, Byn);
-        grid->interpN2C(Bzc ,Bzn);
+        grid->interpN2C(Bzc, Bzn);
 
         //* Communicate ghost data at cell centres
         communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
         communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
         communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
     }
-
     else
         init();  //! READ FROM RESTART
 }
