@@ -24,6 +24,8 @@
 #include "math.h"
 #include "stdlib.h" // for rand
 
+using namespace std;
+
 // valid if roundup power is representable.
 inline int
 pow2roundup (int x)
@@ -148,20 +150,20 @@ inline void sample_maxwellian(double& u, double& v, double& w, double ut, double
     u = u0 + ut*u; v = v0 + vt*v; w = w0 + wt*w;
 }
 
-inline void sample_Maxwell_Juttner(double& u, double& v, double& w, double theta, double gammaDrift, int dirDrift) 
+inline void sample_Maxwell_Juttner(double& u, double& v, double& w, double thermal_spread, double gammaDrift, int dirDrift) 
 {
     /* ---------------------------------------------------------------------
-    u           : Output -- Individual velocity of a particle along X 
-    v           : Output -- Individual velocity of a particle along Y
-    w           : Output -- Individual velocity of a particle along Z
-    theta       : Input  -- Thermal spread
-    gammaDrift  : Input  -- Lorentz factor of the relativistic drifting particles
-    dirDrift    : Input  -- Direction of drift: 0 -> no drift, 1 -> X, 2 -> Y, 3 -> Z
+    u                   : Output -- Individual velocity of a particle along X 
+    v                   : Output -- Individual velocity of a particle along Y
+    w                   : Output -- Individual velocity of a particle along Z
+    thermal_spread      : Input  -- Thermal spread
+    gammaDrift          : Input  -- Lorentz factor of the relativistic drifting particles
+    dirDrift            : Input  -- Direction of drift: 0 -> no drift, 1 -> X, 2 -> Y, 3 -> Z
     --------------------------------------------------------------------- */
 	
     double eta = 1.45; // Rejection factor
-	double g = sqrt(0.5*M_PI*theta*theta*theta);
-	double h = 2.*theta*theta*theta;
+	double g = sqrt(0.5*M_PI*thermal_spread*thermal_spread*thermal_spread);
+	double h = 2.*thermal_spread*thermal_spread*thermal_spread;
 	double fg = g/(g+h);
 	double fh = h/(g+h);
 
@@ -181,7 +183,7 @@ inline void sample_Maxwell_Juttner(double& u, double& v, double& w, double theta
 	double random_ke, pq;
 	while (reject) 
     {
-		random_ke = -theta;
+		random_ke = -thermal_spread;
 		
         if (rs[3] < fg) random_ke = random_ke * (log(rs[0]) + log(rs[1])*pow(cos(2.*M_PI*rs[2]),2.0));
 		else            random_ke = random_ke * log(rs[0]*rs[1]*rs[2]);
