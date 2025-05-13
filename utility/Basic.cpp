@@ -113,7 +113,7 @@ double norm2(double ***vect, int nx, int ny, int nz)
     return (result);
   }
 
-//* Compute parallel norm of a vector on different processors with the gost cell
+//* Compute parallel norm of a vector on different processors with the ghost cell
 double normP(const double *vect, int n,MPI_Comm* comm) 
 {
     double result = 0.0;
@@ -127,6 +127,19 @@ double normP(const double *vect, int n,MPI_Comm* comm)
     return (sqrt(result));
 }
 
+double norm2P(double ***vect, int nx, int ny, int nz) 
+{
+    double result = 0;
+    double local_result = 0;
+    for (int i = 0; i < nx; i++)
+        for (int j = 0; j < ny; j++)
+            for (int k = 0; k < nz; k++)
+                local_result += vect[i][j][k] * vect[i][j][k];
+
+    MPI_Allreduce(&local_result, &result, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    return (result);
+}
+
 //? =========================================================== ?//
 
 /** method to calculate the difference of two vectors*/
@@ -138,8 +151,6 @@ void sub(double *res, const double *vect1, const double *vect2, int n) {
 void sum(double *vect1, const double *vect2, int n) {
   for (int i = 0; i < n; i++)
     vect1[i] += vect2[i];
-
-
 }
 /** method to calculate the sum of two vectors vector1 = vector1 + vector2*/
 void sum(arr3_double vect1, const arr3_double vect2, int nx, int ny, int nz) {

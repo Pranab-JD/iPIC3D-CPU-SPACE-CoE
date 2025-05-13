@@ -61,6 +61,7 @@ double norm2(const arr3_double vect, int nx, int ny, int nz);
 double normP(const double *vect, int n, MPI_Comm* comm);
 double norm2(double ***vect, int nx, int ny);
 double norm2(double ***vect, int nx, int ny, int nz);
+double norm2P(double ***vect, int nx, int ny, int nz);
 
 /** method to calculate the difference of two vectors*/
 void sub(double *res, const double *vect1, const double *vect2, int n);
