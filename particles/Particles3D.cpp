@@ -204,7 +204,7 @@ void Particles3D::MaxwellianFromFluidCell(Collective *col, int is, int i, int j,
 //? Initialise unifrom distribution of particles with a Maxellian velocity distribution
 void Particles3D::maxwellian(Field * EMf)
 {
-    /* initialize random generator with different seed on different processor */
+    //* Initialise random generator with different seed on different processor
     srand(vct->getCartesian_rank() + 2);
 
     assert_eq(_pcls.size(), 0);
@@ -249,7 +249,7 @@ void Particles3D::maxwellian(Field * EMf)
 /** Maxellian velocity from currents and uniform spatial distribution */
 void Particles3D::maxwellianNullPoints(Field * EMf)
 {
-	/* initialize random generator with different seed on different processor */
+	//* Initialise random generator with different seed on different processor
 	srand(vct->getCartesian_rank()+2);
 
 	const double q_sgn = (qom / fabs(qom));
@@ -296,7 +296,7 @@ void Particles3D::maxwellianNullPoints(Field * EMf)
 /** Maxellian random velocity and uniform spatial distribution - invert w0 for the upper current sheet */
 void Particles3D::maxwellianDoubleHarris(Field * EMf)
 {
-    /* initialize random generator with different seed on different processor */
+    //* Initialise random generator with different seed on different processor
     srand(vct->getCartesian_rank() + 2);
 
     assert_eq(_pcls.size(), 0);
@@ -336,7 +336,7 @@ void Particles3D::maxwellianDoubleHarris(Field * EMf)
 /** pitch_angle_energy initialization (Assume B on z only) for test particles */
 void Particles3D::pitch_angle_energy(Field * EMf) 
 {
-    /* initialize random generator with different seed on different processor */
+    //* Initialise random generator with different seed on different processor
     srand(vct->getCartesian_rank() + 3 + ns);
     assert_eq(_pcls.size(),0);
 
@@ -384,46 +384,46 @@ void Particles3D::pitch_angle_energy(Field * EMf)
 /** Force Free initialization (JxB=0) for particles */
 void Particles3D::force_free(Field * EMf)
 {
-  eprintf("this function was not properly implemented and needs to be revised.");
-#if 0
-  /* initialize random generator */
-  srand(vct->getCartesian_rank() + 1 + ns);
-  for (int i = 1; i < grid->getNXC() - 1; i++)
-  for (int j = 1; j < grid->getNYC() - 1; j++)
-  for (int k = 1; k < grid->getNZC() - 1; k++)
-  {
-    for (int ii = 0; ii < npcelx; ii++)
-    for (int jj = 0; jj < npcely; jj++)
-    for (int kk = 0; kk < npcelz; kk++)
-    {
-      double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-      double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-      double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-      // q = charge
-      double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / invVOL);
-      double shaperx = tanh((y - Ly / 2) / delta) / cosh((y - Ly / 2) / delta) / delta;
-      double shaperz = 1.0 / (cosh((y - Ly / 2) / delta) * cosh((y - Ly / 2) / delta)) / delta;
-      eprintf("shapery needs to be initialized.");
-      eprintf("flvx etc. need to be initialized.");
-      double shapery;
-      // new drift velocity to satisfy JxB=0
-      const double flvx = u0 * flvx * shaperx;
-      const double flvz = w0 * flvz * shaperz;
-      const double flvy = v0 * flvy * shapery;
-      double u = c;
-      double v = c;
-      double w = c;
-      while ((fabs(u) >= c) || (fabs(v) >= c) || (fabs(w) >= c))
-      {
-        sample_maxwellian(
-          u, v, w,
-          uth, vth, wth,
-          flvx, flvy, flvz);
-      }
-      create_new_particle(u,v,w,q,x,y,z);
-    }
-  }
-#endif
+    eprintf("this function was not properly implemented and needs to be revised.");
+
+    #if 0
+    /* initialize random generator */
+    srand(vct->getCartesian_rank() + 1 + ns);
+    
+    for (int i = 1; i < grid->getNXC() - 1; i++)
+        for (int j = 1; j < grid->getNYC() - 1; j++)
+            for (int k = 1; k < grid->getNZC() - 1; k++)
+                for (int ii = 0; ii < npcelx; ii++)
+                    for (int jj = 0; jj < npcely; jj++)
+                        for (int kk = 0; kk < npcelz; kk++)
+                        {
+                        double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                        double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                        double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+                        // q = charge
+                        double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / invVOL);
+                        double shaperx = tanh((y - Ly / 2) / delta) / cosh((y - Ly / 2) / delta) / delta;
+                        double shaperz = 1.0 / (cosh((y - Ly / 2) / delta) * cosh((y - Ly / 2) / delta)) / delta;
+                        eprintf("shapery needs to be initialized.");
+                        eprintf("flvx etc. need to be initialized.");
+                        double shapery;
+                        // new drift velocity to satisfy JxB=0
+                        const double flvx = u0 * flvx * shaperx;
+                        const double flvz = w0 * flvz * shaperz;
+                        const double flvy = v0 * flvy * shapery;
+                        double u = c;
+                        double v = c;
+                        double w = c;
+                        while ((fabs(u) >= c) || (fabs(v) >= c) || (fabs(w) >= c))
+                        {
+                            sample_maxwellian(
+                            u, v, w,
+                            uth, vth, wth,
+                            flvx, flvy, flvz);
+                        }
+                        create_new_particle(u,v,w,q,x,y,z);
+                        }
+    #endif
 }
 
 /**Add a periodic perturbation in J exp i(kx - \omega t); deltaBoB is the ratio (Delta B / B0) **/
@@ -448,15 +448,15 @@ void Particles3D::AddPerturbationJ(double deltaBoB, double kx, double ky, double
 //? Initialise unifrom distribution of particles with relativistic Maxellian random velocity
 void Particles3D::Maxwell_Juttner(Field * EMf) 
 {
-	/* initialize random generator with different seed on different processor */
+	//* Initialise random generator with different seed on different processor
 	srand(vct->getCartesian_rank() + 2 + ns);
 
     assert_eq(_pcls.size(), 0);    
 
     double thermal_spread = uth;                                //* Thermal spread (isotropic along X, Y, Z)
-	double lorentz_factor_x = u0;                               //* Drift velocity (X)
-	double lorentz_factor_y = v0;                               //* Drift velocity (Y)
-	double lorentz_factor_z = w0;                               //* Drift velocity (Z)
+	double lorentz_factor_x = u0;                               //* Lorentz factor (X)
+	double lorentz_factor_y = v0;                               //* Lorentz factor (Y)
+	double lorentz_factor_z = w0;                               //* Lorentz factor (Z)
 	double lorentz_factor; int drift_direction;
 	
     if (fabs(lorentz_factor_x) > 1.0) 
@@ -505,7 +505,7 @@ void Particles3D::Maxwell_Juttner(Field * EMf)
 //? Relativistic double Harris for pair plasma: Maxwellian background, drifting particles in the sheets
 void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf) 
 {
-	/* initialize random generator with different seed on different processor */
+	//* Initialise random generator with different seed on different processor
 	srand(vct->getCartesian_rank() + 2 + ns);
 
     assert_eq(_pcls.size(), 0);    
@@ -518,13 +518,13 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
     const double guide_field_ratio      = input_param[4];       //* Ratio of guide field to in-plane magnetic field
     
     //* Background (BG) or upstream particles
-    double thermal_spread_BG            = uth;                           //* Thermal spread
+    double thermal_spread_BG            = col->getUth(0);                           //* Thermal spread
     double rho_BG                       = col->getRHOinit(ns)/(4.0*M_PI);           //* Density (rho_BG = n * mc^2)
     double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
 
     //* Current sheet (CS) particles
     double rho_CS                       = eta*rho_BG;                                            //* Density (rho_CS = eta * n * mc^2)
-    double drift_velocity               = B_BG/(2.0*4.0*M_PI*rho_CS*delta_CS/c);                 //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
+    double drift_velocity               = B_BG/(8.0*M_PI*rho_CS*delta_CS/c);                     //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
     double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS            = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
   
@@ -595,10 +595,10 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
 //? Relativistic double Harris for ion-electron plasma: Maxwellian background, drifting particles in the sheets
 void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf) 
 {
-	/* initialize random generator with different seed on different processor */
+	//* Initialise random generator with different seed on different processor
 	srand(vct->getCartesian_rank() + 2 + ns);
 
-    assert_eq(_pcls.size(), 0);    
+    assert_eq(_pcls.size(), 0);
 
     //* Custom input parameters for relativistic reconnection
     const double sigma                  = input_param[0];       //* Magnetisation parameter
@@ -689,8 +689,6 @@ void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf)
                         }
 
 	fixPosition();
-
-    // cout << "============================================" << endl;
 }
 
 //! Initial particle distributions (Non Relativistic and Relativistic) !//
@@ -698,17 +696,16 @@ void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf)
 //? Quasi-1D ion-electron shock (Relativistic and Non relativistic)
 void Particles3D::Shock1D(Field * EMf) 
 {
-	/* initialize random generator with different seed on different processor */
+	//* Initialise random generator with different seed on different processor
 	srand(vct->getCartesian_rank() + 2 + ns);
 
     assert_eq(_pcls.size(), 0);
   
-    //? Parameters for relativisitc cases - need to be defined outside of "if (col->getRelativistic())"
-    //TODO: rhoINIT does not work
-    // double rho_initial = col->getRHOinit(ns)/(4.0*M_PI);
+    //? Parameters for relativistic cases - need to be defined outside of "if (col->getRelativistic())"
     double thermal_spread = col->getUth(ns);                                    //* Thermal spread
     double drift_velocity = col->getU0(ns);                                     //* Relativistic drift/bulk velocity
     double lorentz_factor = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);      //* Lorentz factor
+    //TODO: Ask Fabio -- LF, drift
 
     const double Lx_half = Lx/2.0;
     const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns)/(4.0*M_PI);
@@ -753,13 +750,11 @@ void Particles3D::Shock1D(Field * EMf)
 //? Quasi-1D double periodic ion-electron shock driven by a piston (Relativistic and Non relativistic)
 void Particles3D::Shock1D_DoublePiston(Field * EMf) 
 {
-    /* initialize random generator with different seed on different processor */
+    //* Initialise random generator with different seed on different processor
 	srand(vct->getCartesian_rank() + 2 + ns);
 
     assert_eq(_pcls.size(), 0);
   
-    //TODO: rhoINIT does not work
-    // double rho_initial = col->getRHOinit(ns)/(4.0*M_PI);
     double thermal_velocity = col->getUth(ns);
     const double Lx_half = Lx/2.0;
     const double dx_one_half = 1.5*dx; 
@@ -913,7 +908,7 @@ void Particles3D::ECSIM_velocity(Field *EMf)
 
             for(int c = 0; c < 8; c++)
             {
-                const double* field_components_c=field_components[c];
+                const double* field_components_c = field_components[c];
                 ASSUME_ALIGNED(field_components_c);
                 const double weights_c = weights[c];
                 
@@ -949,7 +944,6 @@ void Particles3D::ECSIM_velocity(Field *EMf)
             pcl->set_v(2.0 * vavg - v_n);
             pcl->set_w(2.0 * wavg - w_n);
         }
-
     }
     //! End of #pragma omp parallel
 }
@@ -1020,9 +1014,7 @@ void Particles3D::RelSIM_velocity(Field *EMf)
             double& Ezl = sampled_field[2+DFIELD_3or4];
 
             //TODO: External forces are to be implemented
-            double Fxl = 0.0;
-            double Fyl = 0.0;
-            double Fzl = 0.0;
+            double Fxl = 0.0, Fyl = 0.0, Fzl = 0.0;
             
             const int num_field_components = 2*DFIELD_3or4;
 
@@ -1069,7 +1061,7 @@ void Particles3D::RelSIM_velocity(Field *EMf)
             }
             else if (Relativistic_pusher == "Lapenta_Markidis")
             {
-                //? The equations for the Lapenta-Markidis pusher can be found in Bacchini (2023), ApJD, 268, 60
+                //? The equations for the Lapenta-Markidis pusher can be found in Bacchini (2023), ApJS, 268, 60
 
                 //* beta = q*dt*B^n/(2*m*c)
                 double beta_x = q_dt_2mc*Bxl;
@@ -1269,7 +1261,6 @@ void Particles3D::ECSIM_position(Field *EMf)
             pcl->set_x(xavg + u_n/lorentz_factor * dt * correct_x + dxp);
             pcl->set_y(yavg + v_n/lorentz_factor * dt * correct_y + dyp);
             pcl->set_z(zavg + w_n/lorentz_factor * dt * correct_z + dzp);
-            
         }                             
         //! END OF ALL THE PARTICLES
 
@@ -1329,8 +1320,6 @@ void Particles3D::computeMoments(Field *EMf)
         //* q*dt/(2*m*c)
         const double q_dt_2mc = 0.5*dt*qom/c;
 
-        // cout << endl << "Species: " << ns << endl;
-
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++)
         {
@@ -1379,7 +1368,7 @@ void Particles3D::computeMoments(Field *EMf)
             //TODO: External force are to be implemented in "sampled_field"
             for(int c = 0; c < 8; c++)
             {
-                const double* field_components_c=field_components[c];
+                const double* field_components_c = field_components[c];
                 ASSUME_ALIGNED(field_components_c);
                 const double weights_c = weights[c];
                 
@@ -1447,9 +1436,6 @@ void Particles3D::computeMoments(Field *EMf)
             const pfloat omsq = (Omx * Omx + Omy * Omy + Omz * Omz);
             const pfloat denom = 1.0 / (1.0 + omsq)/lorentz_factor;
 
-            // if (ns == 2)
-            //     cout << "Particle id: " << pidx << ", Lorentz factor: " << lorentz_factor << endl;
-
             double alpha[3][3];
             alpha[0][0] = ( 1.0 + (Omx*Omx))*denom;
             alpha[0][1] = ( Omz + (Omx*Omy))*denom;
@@ -1466,13 +1452,6 @@ void Particles3D::computeMoments(Field *EMf)
             double qau = q * (alpha[0][0]*(u_n + dt/2.*Fxl) + alpha[0][1]*(v_n + dt/2.*Fyl) + alpha[0][2]*(w_n + dt/2.*Fzl));
             double qav = q * (alpha[1][0]*(u_n + dt/2.*Fxl) + alpha[1][1]*(v_n + dt/2.*Fyl) + alpha[1][2]*(w_n + dt/2.*Fzl));
             double qaw = q * (alpha[2][0]*(u_n + dt/2.*Fxl) + alpha[2][1]*(v_n + dt/2.*Fyl) + alpha[2][2]*(w_n + dt/2.*Fzl));
-
-            // if (ns == 2)
-            // {
-            //     cout << "Charge: " << q << endl; 
-            //     cout << "Velocity: " << u_n << ", " << v_n << ", " << w_n << endl;
-            //     cout << "qau, qav, qaw: " << qau << ", " << qav << ", " << qaw << endl;
-            // }
 
             //* --------------------------------------- *//
 
@@ -1498,39 +1477,15 @@ void Particles3D::computeMoments(Field *EMf)
                 temp[ii] = qau * weights[ii];
             EMf->add_Jxh(temp, ix, iy, iz, ns);
             
-            // if (ns == 2)
-            // {
-            //     cout << "Jxh" << endl;
-            //     for (int ii = 0; ii < 8; ii++)
-            //         cout << temp[ii] << "   ";
-            //     cout << endl;
-            // }
-
             //* Add implicit current density - Y
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = qav * weights[ii];
             EMf->add_Jyh(temp, ix, iy, iz, ns);
 
-            // if (ns == 2)
-            // {
-            //     cout << "Jyh" << endl;
-            //     for (int ii = 0; ii < 8; ii++)
-            //         cout << temp[ii] << "   ";
-            //     cout << endl;
-            // }
-
             //* Add implicit current density - Z
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = qaw * weights[ii];
             EMf->add_Jzh(temp, ix, iy, iz, ns);
-
-            // if (ns == 2)
-            // {
-            //     cout << "Jzh" << endl;
-            //     for (int ii = 0; ii < 8; ii++)
-            //         cout << temp[ii] << "   ";
-            //     cout << endl << endl;
-            // }
 
             #ifdef __PROFILE_MOMENTS__
             time_add.stop();
