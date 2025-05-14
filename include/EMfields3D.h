@@ -376,7 +376,7 @@ public:
     double getBulkEnergy(int is);
 
     void setZeroCurrent();
-    void setZeroRho();
+    // void setZeroRho();
 
     double LOG_COSH(double x) 
     {
@@ -561,7 +561,7 @@ private:
     array4_double EFxs, EFys, EFzs;
 
     //? Number of particles for each species (defined at nodes)
-    array4_double Nns;
+    // array4_double Nns;
 
     // TODO: To be deleted in ECSim branch
     array4_double pXXsn;
@@ -575,7 +575,7 @@ private:
     array3_double rhon, rhoc;            
     
     //? Implicit density (defined at cell centres)
-    array3_double rhoh;
+    // array3_double rhoh;
 
     //? Electric potential (defined at cell centres)
     array3_double PHI, Phic;  

@@ -165,7 +165,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     EFxs      (ns, nxn, nyn, nzn),
     EFys      (ns, nxn, nyn, nzn),
     EFzs      (ns, nxn, nyn, nzn),
-    Nns       (ns, nxn, nyn, nzn),
+    // Nns       (ns, nxn, nyn, nzn),
     residual_divergence (ns, nxc, nyc, nzc),    //* Data defined on cell centres
 
     pXXsn (ns, nxn, nyn, nzn),
@@ -179,7 +179,6 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     PHI      (nxc, nyc, nzc),
     rhoc_avg (nxc, nyc, nzc),
     rhoc     (nxc, nyc, nzc),
-    rhoh     (nxc, nyc, nzc),
     rhon     (nxn, nyn, nzn),
     Phic     (nxc, nyc, nzc),
 
@@ -533,7 +532,7 @@ void EMfields3D::setAllzero()
                     EFys.fetch(is, ii, jj, kk)  = 0.0;
                     EFzs.fetch(is, ii, jj, kk)  = 0.0;
                     rhons.fetch(is, ii, jj, kk) = 0.0;
-                    Nns.fetch(is, ii, jj, kk)   = 0.0;
+                    // Nns.fetch(is, ii, jj, kk)   = 0.0;
                 }
 
     for (int is = 0; is < NE_MASS; is ++)
@@ -2695,12 +2694,8 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
     communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
-    // cout << "Norm of B: " << norm2P(Bxc, nxc, nyc, nzc) << ", " << norm2P(Byc, nxc, nyc, nzc)  << ", " << norm2P(Bzc, nxc, nyc, nzc) << endl;
-
     //* Compute curl of magnetic field (defined at cell centres) on nodes
     grid->curlC2N(temp2X, temp2Y, temp2Z, Bxc, Byc, Bzc);
-
-    // cout << "Norm of temp2: " << norm2P(temp2X, nxc, nyc, nzc) << ", " << norm2P(temp2Y, nxc, nyc, nzc)  << ", " << norm2P(temp2Z, nxc, nyc, nzc) << endl;
 
     //? External magnetic field
     // if (col->getAddExternalCurlB()) 
@@ -2722,16 +2717,12 @@ void EMfields3D::MaxwellSource(double *bkrylov)
 
     //? --------------------------------------------------------- ?//
 
-    // cout << "Norm of J (before): " << norm2P(Jxh, nxc, nyc, nzc) << ", " << norm2P(Jyh, nxc, nyc, nzc)  << ", " << norm2P(Jzh, nxc, nyc, nzc) << endl;
-
     communicateNodeBC(nxn, nyn, nzn, Jxh, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, Jyh, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, Jzh, 2, 2, 2, 2, 2, 2, vct, this);
 
     //* Energy-conserving smoothing
     energy_conserve_smooth(Jxh, Jyh, Jzh, nxn, nyn, nzn);
-
-    // cout << "Norm of J (after): " << norm2P(Jxh, nxc, nyc, nzc) << ", " << norm2P(Jyh, nxc, nyc, nzc)  << ", " << norm2P(Jzh, nxc, nyc, nzc) << endl;
 
     for (int i = 0; i < nxn; i++)
         for (int j = 0; j < nyn; j++) 
@@ -2755,14 +2746,10 @@ void EMfields3D::MaxwellSource(double *bkrylov)
     communicateNodeBC(nxn, nyn, nzn, temp3Y, 2, 2, 2, 2, 2, 2, vct, this);
     communicateNodeBC(nxn, nyn, nzn, temp3Z, 2, 2, 2, 2, 2, 2, vct, this);
 
-    // cout << "Norm of temp3: " << norm2P(temp3X, nxc, nyc, nzc) << ", " << norm2P(temp3Y, nxc, nyc, nzc)  << ", " << norm2P(temp3Z, nxc, nyc, nzc) << endl;
-
     //* temp(x,y,z) = temp(x,y,z) + 1.0*E(x,y,z)
     addscale(1.0, tempX, Ex, nxn, nyn, nzn);
     addscale(1.0, tempY, Ey, nxn, nyn, nzn);
     addscale(1.0, tempZ, Ez, nxn, nyn, nzn);
-
-    // cout << "Norm of E: " << norm2P(Ex, nxc, nyc, nzc) << ", " << norm2P(Ey, nxc, nyc, nzc)  << ", " << norm2P(Ez, nxc, nyc, nzc) << endl;
 
     // //? Add contribution of external electric field to the change in B
     // if (col->getAddExternalCurlE()) 
@@ -2778,8 +2765,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
 
     //* Physical space --> Krylov space
     phys2solver(bkrylov, tempX, tempY, tempZ, nxn, nyn, nzn);
-
-    // cout << "Norm of temp: " << norm2P(tempX, nxc, nyc, nzc) << ", " << norm2P(tempY, nxc, nyc, nzc)  << ", " << norm2P(tempZ, nxc, nyc, nzc) << endl;
 }
 
 //? RHS of the Maxwell solver
@@ -2979,7 +2964,6 @@ void EMfields3D::calculateB()
     communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
     communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
-    // TODO: Implement this later
     //? Boundary conditions for magnetic field
     // fixBC_B(vct, col);
 }
@@ -2993,7 +2977,7 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
     const VirtualTopology3D *vct = &get_vct();
 
     //? Initialise temporary arrays with zeros
-    eqValue(0.0, smooth_temp, nxn, nyn, nzn);
+    eqValue(0.0, smooth_temp, nx, ny, nz);
 
     int bc[6];
     if (dir == 0)      for (int i=0; i<6; i++) bc[i] = col->bcEx[i];    //* BC along X
@@ -3022,6 +3006,9 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
             for (int j = 1; j < ny - 1; j++)
                 for (int k = 1; k < nz - 1; k++)
                     data.fetch(i, j, k) = smooth_temp.get(i, j, k);
+
+        //TODO: check this
+        // eq(data, smooth_temp, nx, ny, nz);
         
         //! Using new communication routines results in energy growth
         communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
@@ -3550,7 +3537,6 @@ void EMfields3D::AddPerturbation(double deltaBoB, double kx, double ky, double E
     grid->interpN2C(Bxc, Bxn);
     grid->interpN2C(Byc, Byn);
     grid->interpN2C(Bzc, Bzn);
-
 }
 
 
@@ -3626,44 +3612,57 @@ void EMfields3D::setZeroMassMatrix()
 //? Set the derived moments to zero
 void EMfields3D::setZeroDerivedMoments()
 {
-    eqValue(0.0, Jx, nxn, nyn, nzn);
-    eqValue(0.0, Jy, nxn, nyn, nzn);
-    eqValue(0.0, Jz, nxn, nyn, nzn);
-    eqValue(0.0, Jxh, nxn, nyn, nzn);
-    eqValue(0.0, Jyh, nxn, nyn, nzn);
-    eqValue(0.0, Jzh, nxn, nyn, nzn);
+    for (int i = 0; i < nxn; i++)
+        for (int j = 0; j < nyn; j++)
+            for (int k = 0; k < nzn; k++)
+            {
+                Jx.fetch(i, j, k) = 0.0;        //* J along X
+                Jy.fetch(i, j, k) = 0.0;        //* J along Y
+                Jz.fetch(i, j, k) = 0.0;        //* J along Z
+                Jxh.fetch(i, j, k) = 0.0;       //* J hat along X
+                Jyh.fetch(i, j, k) = 0.0;       //* J hat along Y
+                Jzh.fetch(i, j, k) = 0.0;       //* J hat along Z
+                rhon.fetch(i, j, k) = 0.0;       //* J hat along Z
+            }
+
     eqValue(0.0, rhoc, nxc, nyc, nzc);
-    eqValue(0.0, rhoh, nxc, nyc, nzc);
+    eqValue(0.0, rhocs, ns, nxc, nyc, nzc);
 }
 
 //? Set the primary moments to zero
 void EMfields3D::setZeroPrimaryMoments() 
 {
-    eqValue(0.0, rhons, ns, nxn, nyn, nzn);     //* Rho, for each species, at nodes
-    eqValue(0.0, Jxs, ns, nxn, nyn, nzn);       //* J, for each species, at nodes
-    eqValue(0.0, Jys, ns, nxn, nyn, nzn);       //* J, for each species, at nodes
-    eqValue(0.0, Jzs, ns, nxn, nyn, nzn);       //* J, for each species, at nodes
-    eqValue(0.0, Jxhs, ns, nxn, nyn, nzn);      //* J hat, for each species, at nodes
-    eqValue(0.0, Jyhs, ns, nxn, nyn, nzn);      //* J hat, for each species, at nodes
-    eqValue(0.0, Jzhs, ns, nxn, nyn, nzn);      //* J hat, for each species, at nodes
+    for (int is = 0; is < ns; is++) 
+        for (int i = 0; i < nxn; i++)
+            for (int j = 0; j < nyn; j++)
+                for (int k = 0; k < nzn; k++) 
+                {
+                    Jxs.fetch(is, i, j, k) = 0.0;       //* J along X, for each species, at nodes
+                    Jys.fetch(is, i, j, k) = 0.0;       //* J along Y, for each species, at nodes
+                    Jzs.fetch(is, i, j, k) = 0.0;       //* J along Z, for each species, at nodes
+                    Jxhs.fetch(is, i, j, k) = 0.0;      //* J hat along X, for each species, at nodes
+                    Jyhs.fetch(is, i, j, k) = 0.0;      //* J hat along Y, for each species, at nodes
+                    Jzhs.fetch(is, i, j, k) = 0.0;      //* J hat along Z, for each species, at nodes
+                    rhons.fetch(is, i, j, k) = 0.0;     //* Rho, for each species, at nodes
+                }
 }
 
 //? Set all moments to zero
 void EMfields3D::setZeroDensities() 
 {
-    setZeroRho(); 
+    // setZeroRho(); 
     setZeroDerivedMoments();
     setZeroPrimaryMoments();
     setZeroMassMatrix();
 }
 
 //? Set densities (at nodes and cell centres) of all species to 0
-void EMfields3D::setZeroRho() 
-{
-    eqValue(0.0, rhon, nxn, nyn, nzn);
-    eqValue(0.0, rhocs, ns, nxc, nyc, nzc);     //* Rho, for each species, at cell centres  
-    eqValue(0.0, Nns, ns, nxn, nyn, nzn);       //*
-}
+// void EMfields3D::setZeroRho() 
+// {
+//     eqValue(0.0, rhon, nxn, nyn, nzn);
+//     eqValue(0.0, rhocs, ns, nxc, nyc, nzc);     //* Rho, for each species, at cell centres  
+//     // eqValue(0.0, Nns, ns, nxn, nyn, nzn);       //*
+// }
 
 //* Sum charge density of different species on NODES *//
 void EMfields3D::sumOverSpecies()
@@ -3844,38 +3843,39 @@ void EMfields3D::init()
 #ifdef BATSRUS
 void EMfields3D::initBATSRUS()
 {
-  const Collective *col = &get_col();
-  const Grid *grid = &get_grid();
-  cout << "------------------------------------------" << endl;
-  cout << "         Initialize from BATSRUS          " << endl;
-  cout << "------------------------------------------" << endl;
+    const Collective *col = &get_col();
+    const Grid *grid = &get_grid();
+    cout << "------------------------------------------" << endl;
+    cout << "         Initialize from BATSRUS          " << endl;
+    cout << "------------------------------------------" << endl;
 
-  // loop over species and cell centers: fill in charge density
-  for (int is=0; is < ns; is++)
+    // loop over species and cell centers: fill in charge density
+    for (int is=0; is < ns; is++)
+        for (int i=0; i < nxc; i++)
+            for (int j=0; j < nyc; j++)
+                for (int k=0; k < nzc; k++)
+                {
+                // WARNING getFluidRhoCenter contains "case" statment
+                rhocs[is][i][j][k] = col->getFluidRhoCenter(i,j,k,is);
+                }
+
+    // loop over cell centers and fill in magnetic and electric fields
     for (int i=0; i < nxc; i++)
-      for (int j=0; j < nyc; j++)
-        for (int k=0; k < nzc; k++)
-        {
-          // WARNING getFluidRhoCenter contains "case" statment
-          rhocs[is][i][j][k] = col->getFluidRhoCenter(i,j,k,is);
-        }
+        for (int j=0; j < nyc; j++)
+            for (int k=0; k < nzc; k++)
+            {
+                // WARNING getFluidRhoCenter contains "case" statment
+                col->setFluidFieldsCenter(&Ex[i][j][k],&Ey[i][j][k],&Ez[i][j][k],
+                    &Bxc[i][j][k],&Byc[i][j][k],&Bzc[i][j][k],i,j,k);
+            }
 
-  // loop over cell centers and fill in magnetic and electric fields
-  for (int i=0; i < nxc; i++)
-    for (int j=0; j < nyc; j++)
-      for (int k=0; k < nzc; k++)
-      {
-        // WARNING getFluidRhoCenter contains "case" statment
-        col->setFluidFieldsCenter(&Ex[i][j][k],&Ey[i][j][k],&Ez[i][j][k],
-            &Bxc[i][j][k],&Byc[i][j][k],&Bzc[i][j][k],i,j,k);
-      }
-
-  // interpolate from cell centers to nodes (corners of cells)
-  for (int is=0 ; is<ns; is++)
-    grid->interpC2N(rhons[is],rhocs[is]);
-  grid->interpC2N(Bxn,Bxc);
-  grid->interpC2N(Byn,Byc);
-  grid->interpC2N(Bzn,Bzc);
+    // interpolate from cell centers to nodes (corners of cells)
+    for (int is=0 ; is<ns; is++)
+        grid->interpC2N(rhons[is],rhocs[is]);
+        
+    grid->interpC2N(Bxn,Bxc);
+    grid->interpC2N(Byn,Byc);
+    grid->interpC2N(Bzn,Bzc);
 }
 #endif
 
