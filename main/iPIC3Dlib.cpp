@@ -850,7 +850,7 @@ void c_Solver::WriteOutput(int cycle)
                 if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
                 {
                     WriteFields(cycle);
-                    // SupplementaryMoments();
+                    SupplementaryMoments();
                 }
 
                 if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
