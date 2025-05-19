@@ -152,8 +152,8 @@ int c_Solver::Init(int argc, char **argv)
     {
         //! Relativistic Cases
         if      (col->getCase()=="Relativistic_Double_Harris_pairs")            EMf->init_Relativistic_Double_Harris_pairs();
-        else if (col->getCase()=="Relativistic_Double_Harris_ion_electron")     EMf->init_Relativistic_Double_Harris_ion_electron();
-        else if (col->getCase()=="Shock1D")                                     EMf->initShock1D();
+        // else if (col->getCase()=="Relativistic_Double_Harris_ion_electron")     EMf->init_Relativistic_Double_Harris_ion_electron();
+        // else if (col->getCase()=="Shock1D")                                     EMf->initShock1D();
         else 
         {
             if (myrank==0)
@@ -437,7 +437,7 @@ void c_Solver::CalculateMoments()
     time_int.stop();
     #endif
 
-    EMf->timeAveragedRho(col->getPoissonMArho());       // TODO: What do these functions do? Ask Fabio
+    EMf->timeAveragedRho(col->getPoissonMArho());
     EMf->timeAveragedDivE(col->getPoissonMAdiv());
 
     #ifdef __PROFILING__
@@ -702,6 +702,31 @@ bool c_Solver::ParticlesMover()
 
 //* ===================================== WRITE DATA TO FILES ===================================== *//
 
+void c_Solver::SupplementaryMoments() 
+{
+    //? Compute current, energy flux, heat flux, and pressure tensor
+    EMf->setZeroDensities();
+
+    //TODO: Consolidate computecurrent and computecharge
+
+    for (int is = 0; is < ns; is++)
+        particles[is].computeCurrent(EMf);
+
+    //? Compute density
+    EMf->setZeroRho();
+    
+    for (int is = 0; is < ns; is++)
+        particles[is].computeCharge(EMf);
+  
+    //? Communicate density
+    for (int is = 0; is < ns; is++)
+        EMf->communicateGhostP2G_Rho(is);
+
+    //? Communicate current, energy flux, heat flux, and pressure tensor
+    for (int is = 0; is < ns; is++)
+        EMf->communicateGhostP2G_J_EF_Q_PT(is);
+}
+
 void c_Solver::WriteOutput(int cycle) 
 {
     #ifdef USE_CATALYST
@@ -825,6 +850,7 @@ void c_Solver::WriteOutput(int cycle)
                 if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
                 {
                     WriteFields(cycle);
+                    // SupplementaryMoments();
                 }
 
                 if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
@@ -845,13 +871,13 @@ void c_Solver::WriteOutput(int cycle)
 
 void c_Solver::WriteRestart(int cycle)
 {
-    #ifndef NO_HDF5
-        if (restart_cycle>0 && cycle%restart_cycle==0)
-        {
-            convertParticlesToSynched();
-            fetch_outputWrapperFPP().append_restart(cycle);
-        }
-    #endif
+    // #ifndef NO_HDF5
+    //     if (restart_cycle > 0 && cycle%restart_cycle==0)
+    //     {
+    //         convertParticlesToSynched();
+    //         fetch_outputWrapperFPP().append_restart(cycle);
+    //     }
+    // #endif
 }
 
 void c_Solver::WriteConserved(int cycle) 
@@ -873,7 +899,7 @@ void c_Solver::WriteConserved(int cycle)
         Eenergy = EMf->getEenergy();
         // Benergy = EMf->getBenergy();
 
-        double ExtBenergy = EMf->getBextenergy();
+        // double ExtBenergy = EMf->getBextenergy();
         double IntBenergy = EMf->getBintenergy();
         // double EenRem     = EMf->getEenergyRemoved(true);
 
@@ -890,9 +916,10 @@ void c_Solver::WriteConserved(int cycle)
 
             kinetic_energy += particles[is].getKe();
 
-            // BulkEnergy[is] = EMf->getBulkEnergy(is);
+            BulkEnergy[is] = EMf->getBulkEnergy(is);
             
             momentum[is] = particles[is].getP();
+
             TOTmomentum += momentum[is];
         }
         
@@ -1001,6 +1028,7 @@ void c_Solver::WriteFields(int cycle)
         //* Moments
         if(!(col->getMomentsOutputTag()).empty())
             fetch_outputWrapperFPP().append_output((col->getMomentsOutputTag()).c_str(), cycle);
+
     #endif
 }
 
@@ -1038,13 +1066,13 @@ void c_Solver::WriteTestParticles(int cycle)
 // This needs to be separated into methods that save particles and methods that save field data
 void c_Solver::Finalize() 
 {
-    if (col->getCallFinalize() && Parameters::get_doWriteOutput())
-    {
-        #ifndef NO_HDF5
-            convertParticlesToSynched();
-            fetch_outputWrapperFPP().append_restart((col->getNcycles() + first_cycle));
-        #endif
-    }
+    // if (col->getCallFinalize() && Parameters::get_doWriteOutput())
+    // {
+    //     #ifndef NO_HDF5
+    //         convertParticlesToSynched();
+    //         fetch_outputWrapperFPP().append_restart((col->getNcycles() + first_cycle));
+    //     #endif
+    // }
 
     // stop profiling
     my_clock->stopTiming();
