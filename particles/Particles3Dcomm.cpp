@@ -169,6 +169,7 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
     npcely = col->getNpcely(get_species_num());
     npcelz = col->getNpcelz(get_species_num());
     qom    = col->getQOM(get_species_num());
+    SaveHeatFluxTensor = col->getSaveHeatFluxTensor();
 
     if(!isTestParticle)
     {
@@ -1480,34 +1481,34 @@ long long *Particles3Dcomm::getVelocityDistribution(int nBins, double maxVel)
 /** print particles info */
 void Particles3Dcomm::Print() const
 {
-  cout << endl;
-  cout << "Number of Particles: " << _pcls.size() << endl;
-  cout << "Subgrid (" << vct->getCoordinates(0) << "," << vct->getCoordinates(1) << "," << vct->getCoordinates(2) << ")" << endl;
-  cout << "Xin = " << xstart << "; Xfin = " << xend << endl;
-  cout << "Yin = " << ystart << "; Yfin = " << yend << endl;
-  cout << "Zin = " << zstart << "; Zfin = " << zend << endl;
-  cout << "Number of species = " << get_species_num() << endl;
-  for (int i = 0; i < _pcls.size(); i++)
-  {
-    const SpeciesParticle& pcl = _pcls[i];
-    cout << "Particle #" << i << ":"
-      << " x=" << pcl.get_x()
-      << " y=" << pcl.get_y()
-      << " z=" << pcl.get_z()
-      << " u=" << pcl.get_u()
-      << " v=" << pcl.get_v()
-      << " w=" << pcl.get_w()
-      << endl;
-  }
-  cout << endl;
+    cout << endl;
+    cout << "Number of Particles: " << _pcls.size() << endl;
+    cout << "Subgrid (" << vct->getCoordinates(0) << "," << vct->getCoordinates(1) << "," << vct->getCoordinates(2) << ")" << endl;
+    cout << "Xin = " << xstart << "; Xfin = " << xend << endl;
+    cout << "Yin = " << ystart << "; Yfin = " << yend << endl;
+    cout << "Zin = " << zstart << "; Zfin = " << zend << endl;
+    cout << "Number of species = " << get_species_num() << endl;
+    for (int i = 0; i < _pcls.size(); i++)
+    {
+        const SpeciesParticle& pcl = _pcls[i];
+        cout << "Particle #" << i << ":"
+        << " x=" << pcl.get_x()
+        << " y=" << pcl.get_y()
+        << " z=" << pcl.get_z()
+        << " u=" << pcl.get_u()
+        << " v=" << pcl.get_v()
+        << " w=" << pcl.get_w()
+        << endl;
+    }
+    cout << endl;
 }
 /** print just the number of particles */
 void Particles3Dcomm::PrintNp()  const
 {
-  cout << endl;
-  cout << "Number of Particles of species " << get_species_num() << ": " << getNOP() << endl;
-  cout << "Subgrid (" << vct->getCoordinates(0) << "," << vct->getCoordinates(1) << "," << vct->getCoordinates(2) << ")" << endl;
-  cout << endl;
+    cout << endl;
+    cout << "Number of Particles of species " << get_species_num() << ": " << getNOP() << endl;
+    cout << "Subgrid (" << vct->getCoordinates(0) << "," << vct->getCoordinates(1) << "," << vct->getCoordinates(2) << ")" << endl;
+    cout << endl;
 }
 
 /***** particle sorting routines *****/

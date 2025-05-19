@@ -141,7 +141,7 @@ void Collective::ReadInput(string inputfile)
         B1z = config.read<double>("B1z", 0.0);
 
         //* Thickness of current sheet (only for nonrelativistic magnetic reconnection)
-        delta = config.read < double >("delta",0.5);
+        delta = config.read < double >("delta", 0.5);
 
         Case                        = config.read<string>   ("Case");
         wmethod                     = config.read<string>   ("WriteMethod");
@@ -156,9 +156,10 @@ void Collective::ReadInput(string inputfile)
         PoissonMAdiv                = config.read<double>   ("PoissonMAdiv", 1.0);
         PoissonMAres                = config.read<double>   ("PoissonMAres", 0.01);
         PoissonMArho                = config.read<double>   ("PoissonMArho", 0.01);
-        GMREStol                    = config.read <double>  ("GMREStol", 1e-8);
-        NiterMover                  = config.read <int>     ("NiterMover", 3);
-        Vinj                        = config.read <double>  ("Vinj", 0.0);
+        GMREStol                    = config.read<double>   ("GMREStol", 1e-8);
+        NiterMover                  = config.read<int>      ("NiterMover", 3);
+        Vinj                        = config.read<double>   ("Vinj", 0.0);
+        SaveHeatFluxTensor          = config.read<bool>     ("SaveHeatFluxTensor", false);
 
         rhoINIT = std::make_unique<double[]>(ns);
         array_double rhoINIT0 = config.read < array_double > ("rhoINIT");
@@ -530,7 +531,7 @@ void Collective::ReadInput(string inputfile)
 
     #ifndef NO_HDF5 
     if (RESTART1) 
-    {               // you are restarting
+    {   // you are restarting
         RestartDirName = config.read < string > ("RestartDirName","data");
         //ReadRestart(RestartDirName);
         restart_status = 1;
