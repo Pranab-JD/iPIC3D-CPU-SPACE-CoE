@@ -119,6 +119,21 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     Bx_tot  (nxn, nyn, nzn),
     By_tot  (nxn, nyn, nzn),
     Bz_tot  (nxn, nyn, nzn),
+
+    //! E_ext, B_ext, and J_ext are not used (must be allocated even if memory intensive :( )
+    //! When external forces are implemented, assign proper memory; currently set to (1, 1, 1) to save on memory
+    Bxc_ext  (1, 1, 1),
+    Byc_ext  (1, 1, 1),
+    Bzc_ext  (1, 1, 1),
+    Bx_ext   (1, 1, 1),
+    By_ext   (1, 1, 1),
+    Bz_ext   (1, 1, 1),
+    Jx_ext   (1, 1, 1),
+    Jy_ext   (1, 1, 1),
+    Jz_ext   (1, 1, 1),
+    Ex_ext   (1, 1, 1),
+    Ey_ext   (1, 1, 1),
+    Ez_ext   (1, 1, 1),
     
     Jx      (nxn, nyn, nzn),
     Jy      (nxn, nyn, nzn),
@@ -126,20 +141,6 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     Jxh     (nxn, nyn, nzn),
     Jyh     (nxn, nyn, nzn),
     Jzh     (nxn, nyn, nzn),
-    
-    //! E_ext, B_ext, and J_ext are not used (must be allocated even if memory intensive :( )
-    Bxc_ext  (nxc, nyc, nzc),
-    Byc_ext  (nxc, nyc, nzc),
-    Bzc_ext  (nxc, nyc, nzc),
-    Bx_ext   (nxn, nyn, nzn),
-    By_ext   (nxn, nyn, nzn),
-    Bz_ext   (nxn, nyn, nzn),
-    Jx_ext   (nxn, nyn, nzn),
-    Jy_ext   (nxn, nyn, nzn),
-    Jz_ext   (nxn, nyn, nzn),
-    Ex_ext   (nxn, nyn, nzn),
-    Ey_ext   (nxn, nyn, nzn),
-    Ez_ext   (nxn, nyn, nzn),
 
     //! Mass matrix quantities
     Mxx (NE_MASS, nxn, nyn, nzn),
@@ -162,10 +163,10 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     Jxhs      (ns, nxn, nyn, nzn),
     Jyhs      (ns, nxn, nyn, nzn),
     Jzhs      (ns, nxn, nyn, nzn),
-    EFxs      (ns, nxn, nyn, nzn),
-    EFys      (ns, nxn, nyn, nzn),
-    EFzs      (ns, nxn, nyn, nzn),
-    // Nns       (ns, nxn, nyn, nzn),
+    E_flux_xs      (ns, nxn, nyn, nzn),
+    E_flux_ys      (ns, nxn, nyn, nzn),
+    E_flux_zs      (ns, nxn, nyn, nzn),
+    Nns       (ns, nxn, nyn, nzn),
     residual_divergence (ns, nxc, nyc, nzc),    //* Data defined on cell centres
 
     pXXsn (ns, nxn, nyn, nzn),
@@ -258,7 +259,6 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     bcEMfaceZright  = col->getBcEMfaceZright();
     bcEMfaceZleft   = col->getBcEMfaceZleft();
 
-    //? GEM challenge parameters
     B0x = col->getB0x();
     B0y = col->getB0y();
     B0z = col->getB0z();
@@ -266,6 +266,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     Smooth = col->getSmooth();
     smooth_cycle = col->getSmoothCycle();
     num_smoothings = col->getNumSmoothings();
+    SaveHeatFluxTensor = col->getSaveHeatFluxTensor();
     
     rhoINIT = new double[ns];               //* Background density (GEM)
     DriftSpecies = new bool[ns];
@@ -319,7 +320,21 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
         moments10Array[i] = new Moments10(nxn, nyn, nzn);
         ecsim_moments13Array[i] = new ECSIM_Moments13(nxn, nyn, nzn);
     }
-    
+
+    if (col->getSaveHeatFluxTensor()) 
+    {
+        Qxxxs = newArr4(double, ns, nxn, nyn, nzn);
+        Qxxys = newArr4(double, ns, nxn, nyn, nzn);
+        Qxyys = newArr4(double, ns, nxn, nyn, nzn);
+        Qxzzs = newArr4(double, ns, nxn, nyn, nzn);
+        Qyyys = newArr4(double, ns, nxn, nyn, nzn);
+        Qyzzs = newArr4(double, ns, nxn, nyn, nzn);
+        Qzzzs = newArr4(double, ns, nxn, nyn, nzn);
+        Qxyzs = newArr4(double, ns, nxn, nyn, nzn);
+        Qxxzs = newArr4(double, ns, nxn, nyn, nzn);
+        Qyyzs = newArr4(double, ns, nxn, nyn, nzn);
+    }
+
     //! Define MPI Derived Data types for Center Halo Exchange
     //? For face exchange on X dir
     MPI_Type_vector((nyc-2),(nzc-2),nzc, MPI_DOUBLE, &yzFacetypeC);
@@ -528,11 +543,10 @@ void EMfields3D::setAllzero()
                     Jxhs.fetch(is, ii, jj, kk)  = 0.0;
                     Jyhs.fetch(is, ii, jj, kk)  = 0.0;
                     Jzhs.fetch(is, ii, jj, kk)  = 0.0;
-                    EFxs.fetch(is, ii, jj, kk)  = 0.0;
-                    EFys.fetch(is, ii, jj, kk)  = 0.0;
-                    EFzs.fetch(is, ii, jj, kk)  = 0.0;
+                    E_flux_xs.fetch(is, ii, jj, kk)  = 0.0;
+                    E_flux_ys.fetch(is, ii, jj, kk)  = 0.0;
+                    E_flux_zs.fetch(is, ii, jj, kk)  = 0.0;
                     rhons.fetch(is, ii, jj, kk) = 0.0;
-                    // Nns.fetch(is, ii, jj, kk)   = 0.0;
                 }
 
     for (int is = 0; is < NE_MASS; is ++)
@@ -549,7 +563,6 @@ void EMfields3D::setAllzero()
                         Mzx.fetch(is, ii, jj, kk) = 0.0;
                         Mzy.fetch(is, ii, jj, kk) = 0.0;
                         Mzz.fetch(is, ii, jj, kk) = 0.0;
-
                     }
 
     //* 4D arrays defined at cell centres
@@ -2377,7 +2390,7 @@ void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz,
 //     }
 // }
 
-/*! communicate ghost for grid -> Particles interpolation */
+//! Communicate ghost data for IMM moments
 void EMfields3D::communicateGhostP2G(int ns)
 {
     //* interpolate adding common nodes among processors
@@ -2425,9 +2438,11 @@ void EMfields3D::communicateGhostP2G(int ns)
     communicateNode_P(nxn, nyn, nzn, moment9, vct, this);
 }
 
+//! Communicate ghost data for ECSIM/RelSIM (computation) moments
+
 void EMfields3D::communicateGhostP2G_ecsim(int is)
 {
-    const VirtualTopology3D * vct = &get_vct();
+    const VirtualTopology3D *vct = &get_vct();
     int rank = vct->getCartesian_rank();
 
     //* Convert ECSIM/RelSIM moments from type array4_double to *** for communication
@@ -2525,8 +2540,85 @@ void EMfields3D::communicateGhostP2G_mass_matrix()
         communicateNode_P_old(nxn, nyn, nzn, m, Mzx, vct, this);
         communicateNode_P_old(nxn, nyn, nzn, m, Mzy, vct, this);
         communicateNode_P_old(nxn, nyn, nzn, m, Mzz, vct, this);
-
     }
+}
+
+//! Communicate ghost data for ECSIM/RelSIM (output only) moments
+void EMfields3D::communicateGhostP2G_Rho(int is)
+{
+    const VirtualTopology3D *vct = &get_vct();
+    int rank = vct->getCartesian_rank();
+
+    communicateInterp_old(nxn, nyn, nzn, is, rhons, 0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, Nns, 0, 0, 0, 0, 0, 0, vct, this);
+
+    communicateNode_P_old(nxn, nyn, nzn, is, rhons, vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, Nns, vct, this);
+}
+
+void EMfields3D::communicateGhostP2G_J_EF_Q_PT(int is) 
+{
+
+    const VirtualTopology3D *vct = &get_vct();
+    int rank = vct->getCartesian_rank();
+
+    communicateInterp_old(nxn, nyn, nzn, is, Jxs,  0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, Jys,  0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, Jzs,  0, 0, 0, 0, 0, 0, vct, this);
+
+    communicateInterp_old(nxn, nyn, nzn, is, E_flux_xs,  0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, E_flux_ys,  0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, E_flux_zs,  0, 0, 0, 0, 0, 0, vct, this);
+
+    if (SaveHeatFluxTensor) 
+    {
+        communicateInterp_old(nxn, nyn, nzn, is, Qxxxs, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, is, Qxxys, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, is, Qxyys, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, is, Qxzzs, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, is, Qyyys, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, is, Qyzzs, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, is, Qzzzs, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, is, Qxyzs, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, is, Qxxzs, 0, 0, 0, 0, 0, 0, vct, this);
+        communicateInterp_old(nxn, nyn, nzn, is, Qyyzs, 0, 0, 0, 0, 0, 0, vct, this);
+    }
+
+    communicateInterp_old(nxn, nyn, nzn, is, pXXsn, 0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, pXYsn, 0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, pXZsn, 0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, pYYsn, 0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, pYZsn, 0, 0, 0, 0, 0, 0, vct, this);
+    communicateInterp_old(nxn, nyn, nzn, is, pZZsn, 0, 0, 0, 0, 0, 0, vct, this);
+
+    communicateNode_P_old(nxn, nyn, nzn, is, Jxs, vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, Jys, vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, Jzs, vct, this);
+
+    communicateNode_P_old(nxn, nyn, nzn, is, E_flux_xs, vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, E_flux_ys, vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, E_flux_zs, vct, this);
+
+    if (SaveHeatFluxTensor)
+    {
+        communicateNode_P_old(nxn, nyn, nzn, is, Qxxxs, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, is, Qxxys, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, is, Qxyys, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, is, Qxzzs, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, is, Qyyys, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, is, Qyzzs, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, is, Qzzzs, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, is, Qxyzs, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, is, Qxxzs, vct, this);
+        communicateNode_P_old(nxn, nyn, nzn, is, Qyyzs, vct, this);
+    }
+
+    communicateNode_P_old(nxn, nyn, nzn, is, pXXsn, vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, pXYsn, vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, pXZsn, vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, pYYsn, vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, pYZsn, vct, this);
+    communicateNode_P_old(nxn, nyn, nzn, is, pZZsn, vct, this);
 }
 
 //! ===================================== Compute Fields ===================================== !//
@@ -2914,9 +3006,14 @@ void EMfields3D::set_fieldForPcls()
         for(int j = 0; j < nyn; j++)
             for(int k = 0; k < nzn; k++)
             {
-                fieldForPcls[i][j][k][0] = (pfloat) (Bxn[i][j][k] + Bx_ext[i][j][k]);
-                fieldForPcls[i][j][k][1] = (pfloat) (Byn[i][j][k] + By_ext[i][j][k]);
-                fieldForPcls[i][j][k][2] = (pfloat) (Bzn[i][j][k] + Bz_ext[i][j][k]);
+                fieldForPcls[i][j][k][0] = (pfloat) Bxn[i][j][k];
+                fieldForPcls[i][j][k][1] = (pfloat) Byn[i][j][k];
+                fieldForPcls[i][j][k][2] = (pfloat) Bzn[i][j][k];
+
+                //TODO: When external fields are implemented, B_ext has to be implemented
+                // fieldForPcls[i][j][k][0] = (pfloat) (Bxn[i][j][k] + Bx_ext[i][j][k]);
+                // fieldForPcls[i][j][k][1] = (pfloat) (Byn[i][j][k] + By_ext[i][j][k]);
+                // fieldForPcls[i][j][k][2] = (pfloat) (Bzn[i][j][k] + Bz_ext[i][j][k]);
                 
                 fieldForPcls[i][j][k][0+DFIELD_3or4] = (pfloat) Exth[i][j][k];
                 fieldForPcls[i][j][k][1+DFIELD_3or4] = (pfloat) Eyth[i][j][k];
@@ -3650,19 +3747,19 @@ void EMfields3D::setZeroPrimaryMoments()
 //? Set all moments to zero
 void EMfields3D::setZeroDensities() 
 {
-    // setZeroRho(); 
+    setZeroRho(); 
     setZeroDerivedMoments();
     setZeroPrimaryMoments();
     setZeroMassMatrix();
 }
 
 //? Set densities (at nodes and cell centres) of all species to 0
-// void EMfields3D::setZeroRho() 
-// {
-//     eqValue(0.0, rhon, nxn, nyn, nzn);
-//     eqValue(0.0, rhocs, ns, nxc, nyc, nzc);     //* Rho, for each species, at cell centres  
-//     // eqValue(0.0, Nns, ns, nxn, nyn, nzn);       //*
-// }
+void EMfields3D::setZeroRho()
+{
+    eqValue(0.0, rhons, ns, nxn, nyn, nzn);     //* Rho, for each species, at nodes
+    eqValue(0.0, rhocs, ns, nxc, nyc, nzc);     //* Rho, for each species, at cell centres  
+    // eqValue(0.0, Nns, ns, nxn, nyn, nzn);       //*
+}
 
 //* Sum charge density of different species on NODES *//
 void EMfields3D::sumOverSpecies()
@@ -5852,11 +5949,9 @@ void EMfields3D::OpenBoundaryInflowE(arr3_double vectorX, arr3_double vectorY, a
                 vectorY[1][j][k] = injE[1];
                 vectorZ[1][j][k] = injE[2];
 
-
                 vectorX[2][j][k] = injE[0];
                 vectorY[2][j][k] = injE[1];
                 vectorZ[2][j][k] = injE[2];
-
 
                 vectorX[3][j][k] = injE[0];
                 vectorY[3][j][k] = injE[1];
