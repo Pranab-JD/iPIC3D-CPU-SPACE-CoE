@@ -190,6 +190,7 @@ class Collective
     bool particle_output_is_off()       const;
     bool testparticle_output_is_off()   const;
     bool field_output_is_off()          const;
+    bool getSaveHeatFluxTensor()        const { return (SaveHeatFluxTensor); }
 
     bool getAddExternalCurlB()          const { return AddExternalCurlB; }
     bool getAddExternalCurlE()          const { return AddExternalCurlE; }
@@ -448,6 +449,9 @@ class Collective
 
     //* Relativistic particle pusher
     string Relativistic_pusher;
+
+    //* Write heat flux tensor to files
+    bool SaveHeatFluxTensor;
 
     //* Moving average value for rho density (Poisson correction)
     double PoissonMArho, PoissonMAdiv, PoissonMAres;

@@ -123,6 +123,10 @@ class Particles3D:public Particles3Dcomm
     //* ECSIM - moments
     void computeMoments(Field * EMf);
 
+    //* ECSIM - supplementary moments
+    void computeCharge(Field * EMf);
+    void computeCurrent(Field * EMf);
+
     //* ECSIM - fix dimension of the problem
     void fixPosition();
 

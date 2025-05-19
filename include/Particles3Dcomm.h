@@ -222,6 +222,7 @@ public:
     void Print() const;
     /** Print the number of particles of this subdomain */
     void PrintNp() const;
+      
 
 public:
 
@@ -251,7 +252,7 @@ protected:
     //* Thermal velocity (X, Y, Z)
     double uth, vth, wth;
 
-    //* Drift velocity (X, Y, Z)
+    //* Bulk/Drift velocity (X, Y, Z)
     double u0, v0, w0;
 
     //* Initial charge density
@@ -260,8 +261,7 @@ protected:
     // used to generate unique particle IDs
     doubleIDgenerator pclIDgenerator;
 
-    //* Compute exact mass matrix
-    // bool ComputeMM;
+    bool SaveHeatFluxTensor;
 
     ParticleType::Type particleType;
 

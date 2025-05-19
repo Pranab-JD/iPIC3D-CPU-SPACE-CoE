@@ -67,9 +67,9 @@ namespace iPic3D {
     bool ParticlesMover();
     void CalculateB();
     void ComputeEMFields(int cycle);
-    //
-    // output methods
-    //
+    void SupplementaryMoments();
+
+    
     void WriteRestart(int cycle);
     void WriteConserved(int cycle);
     void WriteVelocityDistribution(int cycle);
