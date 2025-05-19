@@ -346,7 +346,7 @@ public:
     arr3_double getByTot() { addscale(1.0,Byn,By_ext,By_tot,nxn,nyn,nzn); return By_tot; }
     arr3_double getBzTot() { addscale(1.0,Bzn,Bz_ext,Bz_tot,nxn,nyn,nzn); return Bz_tot; }
 
-    //* Pressure Tensor (not needed for ECSim)
+    //* Pressure Tensor
     arr4_double getpXXsn() { return pXXsn; }
     arr4_double getpXYsn() { return pXYsn; }
     arr4_double getpXZsn() { return pXZsn; }
