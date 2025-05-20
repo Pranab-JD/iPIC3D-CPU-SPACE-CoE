@@ -1,55 +1,52 @@
-# INPUT FILE for a 1D Maxwellian
+###! INPUT FILE for a 1D Maxwellian
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                TEST CASE                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-SimulationName                 = Maxwell1D                                     # Simulation name for the output
-SaveDirName                    = data_maxwell1D                                # Output directory
-RestartDirName                 = data_maxwell1D                                # Restart directory
-
 Case                           = default                                       # Case
-PartInit                       = maxwell                                       # Initial particles [ maxwell | File ]
-WriteMethod                    = pvtk                                          # Output method [ shdf5 | pvtk | nbcvtk ]
+SimulationName                 = Maxwell1D                                     # Simulation name for output
+SaveDirName                    = data_maxwell1D                                # Output directory
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-RestartOutputCycle             = 0                                             # Restart data for particles (0 = save only final particle data for restart)
-DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
-VirtualProbesOutputCycle       = 0                                             # Virtual probe output (0 = never)
+WriteMethod                    = shdf5                                         # Output method [ shdf5 | pvtk | nbcvtk ]
 
+DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
 FieldOutputCycle               = 0                                             # Output for moments and fields (if <= 0, data is NOT saved)
 ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
-FieldOutputTag                 = Eall + Ball + rhos + Jall + Jsall             # Select quantites to be written to files
-                               + B_energy + E_energy + k_energy
+
+FieldOutputTag                 = E + B + J + rho_s + J_s + E_flux              # Select quantites to be written to files
+                               + B_energy + E_energy + K_energy + pressure
 ParticlesOutputTag 	           = position + velocity + q                       # Select (particle) quantites to be written to files
 
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
-## Fields
-    # Ball              --> Bx, By, and Bz
+##* Fields
+    # B                 --> Bx, By, and Bz
+    # E                 --> Ex, Ey, and Ez
     # Bx (By, Bz)       --> Bx (By or Bz)
-    # Eall              --> Ex, Ey, and Ez
     # Ex (Ey, Ez)       --> Ex (Ey or Ez)
-    # phi               --> scalar vector
+    # B_ext             --> Bx_ext, By_ext, and Bz_ext
 
-## Moments
-    # Jall              --> Jx, Jy, and Jz (total current)s
-    # Jx (Jy, Jz)       --> Jx (Jy or Jz; total current along X, Y, or Z)
-    # Jsall             --> Jxs, Jys, and Jzs (current densities for each species)
-    # Jxs (Jys, Jzs)    --> Jxs (Jys or Jzs; current densities along X, Y, or Z)
-    # rhos              --> charge densities for each species
+##* Moments
+    # J                 --> Jxh, Jyh, and Jzh (total current)
+    # Jx (Jy, Jz)       --> Jxh (Jyh or Jzh; total current along X, Y, or Z)
+    # J_s               --> current densities for each species
+    # rho_s             --> charge densities for each species
     # pressure          --> pressure tensor for each species
+    # E_flux            --> energy flux for each species
+    # H_flux            --> heat flux tensor for each species
 
-## Particles
+##* Particles
     # position          --> particle positions (X, Y, Z)
     # velocity          --> particle velocities (U, V, W)
     # q                 --> particle charges
         
-## Energies
-    # k_energy          --> Kinetic energy for each species
+##* Energies
+    # K_energy          --> Kinetic energy for each species
     # B_energy          --> Magnetic field energy
     # E_energy          --> Electric field energy
 
@@ -76,7 +73,7 @@ GMREStol                       = 1E-8                                          #
 # %                                   SMOOTHING                                %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  
-Smooth                         = 0                                             # if Smooth = false (1 = true OR 0 = false), the following 2 parameters will be ignored 
+Smooth                         = 0                                             # If Smooth = false (1 = true OR 0 = false), the following 2 parameters will be ignored 
 num_smoothings                 = 2	                                           # Number of smoothings
 SmoothCycle                    = 1	                                           # After how many time cycles is the data smoothed
 
@@ -96,7 +93,7 @@ nzc                            = 1                                             #
 # %                                  MPI TOPOLOGY                              %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-XLEN                           = 1024                                             # Number of MPI subdomains along X
+XLEN                           = 1024                                          # Number of MPI subdomains along X
 YLEN                           = 1                                             # Number of MPI subdomains along Y
 ZLEN                           = 1                                             # Number of MPI subdomains along Z
 
@@ -104,10 +101,8 @@ ZLEN                           = 1                                             #
 # %                                   PARTICLES                                %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-#    ns = number of species of particles
-#    0 = electrons
-#    1 = protons
-#    2,3,4,5,... = ions
+#*    ns = number of species
+#*    0 = electrons; 1 = protons; 2,3,4,5,... = ions
 
 ns                  = 2                                                         # Number of species of particles
 
