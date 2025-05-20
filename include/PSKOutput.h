@@ -478,24 +478,31 @@ public:
 		//! ************************* Fields ************************* !//
 
 		//* B field (defined at nodes) is written without ghost cells
-		if (tag.find("Ball", 0) != string::npos) 
+		if (tag.find("B", 0) != string::npos) 
 		{
-			this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBxTot());
-			this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getByTot());
-			this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBzTot());
+			this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx());
+			this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy());
+			this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBz());
 		}
 		else if (tag.find("Bx", 0) != string::npos)
-			this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBxTot());
+			this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx());
 		
 		else if (tag.find("By", 0) != string::npos)
-			this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getByTot());
+			this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy());
 
 		else if (tag.find("Bz", 0) != string::npos)
-			this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBzTot());
+			this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBz());
+
+        if (tag.find("B_ext", 0) != string::npos) 
+        {
+            this->output_adaptor.write("/fields/Bx_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx_ext());
+            this->output_adaptor.write("/fields/By_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy_ext());
+            this->output_adaptor.write("/fields/Bz_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBz_ext());
+        }
 
 
     	//* E field (defined at nodes) is written without ghost cells
-		if (tag.find("Eall", 0) != string::npos) 
+		if (tag.find("E", 0) != string::npos) 
 		{
 			this->output_adaptor.write("/fields/Ex/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEx());
 			this->output_adaptor.write("/fields/Ey/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEy());
@@ -519,80 +526,58 @@ public:
 		//! ************************* Moments ************************* !//
 
 		//* J (total current, defined at nodes) is written without ghost cells
-		if (tag.find("Jall", 0) != string::npos) 
+		if (tag.find("J", 0) != string::npos)
 		{
-			_field->sumOverSpeciesJ();
-			this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJx());
-			this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJy());
-			this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJz());
+			// _field->sumOverSpeciesJ();
+			this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJxh());
+			this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJyh());
+			this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJzh());
 		}
 		else if (tag.find("Jx", 0) != string::npos) 
 		{
-			_field->sumOverSpeciesJ();
-			this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJx());
+			// _field->sumOverSpeciesJ();
+			this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJxh());
 		}
 		else if (tag.find("Jy", 0) != string::npos) 
 		{
-			_field->sumOverSpeciesJ();
-			this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJy());
+			// _field->sumOverSpeciesJ();
+			this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJyh());
 		}
 		else if (tag.find("Jz", 0) != string::npos) 
 		{
-			_field->sumOverSpeciesJ();
-			this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJz());
+			// _field->sumOverSpeciesJ();
+			this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJzh());
 		}
-
 
 		//* Js (current for each species, defined at nodes) is written without ghost cells
-		if (tag.find("Jsall", 0) != string::npos) 
+		if (tag.find("J_s", 0) != string::npos) 
 		{
-			for (int i = 0; i < ns; ++i) 
+			for (int i = 0; i < ns; ++i)
 			{
 				stringstream ii;
 				ii << i;
 				this->output_adaptor.write("/moments/species_" + ii.str() + "/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getJxs());
 				this->output_adaptor.write("/moments/species_" + ii.str() + "/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getJys());
-				this->output_adaptor.write("/moments/species_" + ii.str() + "/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getJzs());
-			}
-		}
-		else if (tag.find("Jxs", 0) != string::npos) 
-		{
-			for (int i = 0; i < ns; ++i) 
-			{
-				stringstream ii;
-				ii << i;
-				this->output_adaptor.write("/moments/species_" + ii.str() + "/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getJxs());
-			}
-		}
-		else if (tag.find("Jys", 0) != string::npos) 
-		{
-			for (int i = 0; i < ns; ++i) 
-			{
-				stringstream ii;
-				ii << i;
-				this->output_adaptor.write("/moments/species_" + ii.str() + "/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getJys());
-			}
-		}
-		else if (tag.find("Jzs", 0) != string::npos) 
-		{
-			for (int i = 0; i < ns; ++i) 
-			{
-				stringstream ii;
-				ii << i;
 				this->output_adaptor.write("/moments/species_" + ii.str() + "/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getJzs());
 			}
 		}
 
 		//* rhos (charge density for each species, defined at nodes) is written without ghost cells
-		if (tag.find("rhos", 0) != string::npos) 
+		if (tag.find("rho_s", 0) != string::npos) 
 		{
-			for (int i = 0; i < ns; ++i) 
+			for (int i = 0; i < ns; ++i)
 			{
 				stringstream ii;
 				ii << i;
 				this->output_adaptor.write("/moments/species_" + ii.str() + "/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getRHOns());
 			}
 		}
+
+        //* rhos (overall charge density) is written without ghost cells
+        if (tag.find("rho", 0) != string::npos) 
+        {
+            this->output_adaptor.write("/moments/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getRHOn());
+        }
 
 		//* Pressure tensor (for each species, defined at nodes) is written without ghost cells
 		if (tag.find("pressure", 0) != string::npos) 
@@ -610,10 +595,41 @@ public:
 			}
 		}
 
+        //* Energy flux density (for each species, defined at nodes) is written without ghost cells
+		if (tag.find("E_flux", 0) != string::npos)
+		{
+			for (int i = 0; i < ns; ++i) 
+			{
+				stringstream ii;
+				ii << i;
+				this->output_adaptor.write("/moments/species_" + ii.str() + "/EFx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getEFxs());
+				this->output_adaptor.write("/moments/species_" + ii.str() + "/EFy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getEFys());
+				this->output_adaptor.write("/moments/species_" + ii.str() + "/EFz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getEFzs());
+            }
+        }
+
+        //* Heat flux tensor (for each species, defined at nodes) is written without ghost cells
+		if (tag.find("H_flux", 0) != string::npos) 
+		{
+			for (int i = 0; i < ns; ++i) 
+			{
+                // this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxxx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getQxxxs());
+                // this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxxy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getQxxys());
+                // this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxyy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getQxyys());
+                // this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxzz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getQxzzs());
+                // this->output_adaptor.write("/moments/species_" + ii.str() + "/Qyyy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getQyyys());
+                // this->output_adaptor.write("/moments/species_" + ii.str() + "/Qyzz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getQyzzs());
+                // this->output_adaptor.write("/moments/species_" + ii.str() + "/Qzzz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getQzzzs());
+                // this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxyz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getQxyzs());
+                // this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxxz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getQxxzs());
+                // this->output_adaptor.write("/moments/species_" + ii.str() + "/Qyyz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getQyyzs());
+            }
+		}
+
         //! ************************* Energies ************************* !//
 
 		//* Kinetic energy for species s (normalized to q)
-		if (tag.find("k_energy", 0) != string::npos) 
+		if (tag.find("K_energy", 0) != string::npos) 
 		{
 			double K_en;
 			for (int i = 0; i < ns; ++i) 
@@ -642,7 +658,7 @@ public:
 			for (int i = 1; i < _grid->getNXN(); i++)
 				for (int j = 1; j < _grid->getNYN(); j++)
 					for (int k = 1; k < _grid->getNYN(); k++)
-						B_en += _field->getBxTot(i, j, k) * _field->getBxTot(i, j, k) + _field->getByTot(i, j, k) * _field->getByTot(i, j, k) + _field->getBzTot(i, j, k) * _field->getBzTot(i, j, k);
+						B_en += _field->getBx(i, j, k) * _field->getBx(i, j, k) + _field->getBy(i, j, k) * _field->getBy(i, j, k) + _field->getBz(i, j, k) * _field->getBz(i, j, k);
 			B_en = B_en / 32 / atan(1.0); //! here there should be a getfourPI for the right value of pi 
 			
 			this->output_adaptor.write("/energy/magnetic/cycle_" + cc.str(), B_en);
