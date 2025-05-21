@@ -412,13 +412,10 @@ public:
     void timeAveragedRho(double ma);
     void timeAveragedDivE(double ma);
 
-    /*! get the electric field energy */
-    double getEenergy();
-    /*! get the magnetic field energy */
-    double getBintenergy();
-    double getBextenergy();
-    /*! get bulk kinetic energy */
-    double getBulkEnergy(int is);
+    double get_E_field_energy();        //* Electric field energy
+    double get_B_field_energy();        //* Magnetic (internal) field energy
+    double get_Bext_energy();           //* External magnetic field energy
+    double getBulkEnergy(int is);       //* Bulk kinetic energy
 
     void setZeroCurrent();
     void setZeroRho();

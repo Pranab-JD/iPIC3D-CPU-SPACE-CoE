@@ -5965,7 +5965,7 @@ void EMfields3D::OpenBoundaryInflowE(arr3_double vectorX, arr3_double vectorY, a
 //*** Get energies ***//
 
 //? Electric field energy */
-double EMfields3D::getEenergy(void) 
+double EMfields3D::get_E_field_energy(void) 
 {
     double localEenergy = 0.0;
     double totalEenergy = 0.0;
@@ -5981,7 +5981,7 @@ double EMfields3D::getEenergy(void)
 }
 
 //*! Get internal magnetic field energy
-double EMfields3D::getBintenergy(void) 
+double EMfields3D::get_B_field_energy(void) 
 {
     double localBenergy = 0.0;
     double totalBenergy = 0.0;
@@ -6005,7 +6005,7 @@ double EMfields3D::getBintenergy(void)
 }
 
 //*! Get external magnetic field energy
-double EMfields3D::getBextenergy(void) 
+double EMfields3D::get_Bext_energy(void) 
 {
     double localBenergy = 0.0;
     double totalBenergy = 0.0;

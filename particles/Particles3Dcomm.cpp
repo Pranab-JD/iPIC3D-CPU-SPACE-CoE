@@ -1367,7 +1367,7 @@ void Particles3Dcomm::communicate_particles()
 }
 
 //? Kinetic energy of all particles
-double Particles3Dcomm::getKe() 
+double Particles3Dcomm::get_kinetic_energy() 
 {
     double localKe = 0.0;
     double totalKe = 0.0;
@@ -1396,7 +1396,7 @@ double Particles3Dcomm::getKe()
     return (totalKe);
 }
 
-//? Kinetic energy removed from the system
+//? Kinetic energy removed from the system (needed in presence of damping)
 // double Particles3Dcomm::getKremoved() 
 // {
 //     double localK = K_removed;
@@ -1411,7 +1411,7 @@ double Particles3Dcomm::getKe()
 // momentum, which has no physical meaning that I can see.
 // we should be summing each component of the momentum. -eaj
 //
-double Particles3Dcomm::getP() 
+double Particles3Dcomm::get_momentum() 
 {
     double localP = 0.0;
     double totalP = 0.0;

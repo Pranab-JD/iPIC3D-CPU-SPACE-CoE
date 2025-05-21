@@ -211,13 +211,13 @@ public:
 
     // computed get access
     /** return the Kinetic energy */
-    double getKe();
+    double get_kinetic_energy();
     /** return the maximum kinetic energy */
     double getMaxVelocity();
     /** return energy distribution */
     long long *getVelocityDistribution(int nBins, double maxVel);
     /** return the momentum */
-    double getP();
+    double get_momentum();
     /** Print particles info: positions, velocities */
     void Print() const;
     /** Print the number of particles of this subdomain */
