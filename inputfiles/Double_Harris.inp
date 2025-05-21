@@ -16,9 +16,9 @@ WriteMethod                    = shdf5                                         #
 
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
 FieldOutputCycle               = 10                                            # Output for moments and fields (if <= 0, data is NOT saved)
-ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 20                                            # Output for particles (if <= 0, data is NOT saved)
 
-FieldOutputTag                 = E + B + J + rho_s + J_s + E_flux              # Select quantites to be written to files
+FieldOutputTag                 = E + B + J + rho + rho_s + J_s + E_flux        # Select quantites to be written to files
                                + B_energy + E_energy + K_energy + pressure
 ParticlesOutputTag 	           = position + velocity + q                       # Select (particle) quantites to be written to files
 
@@ -102,7 +102,7 @@ ZLEN                           = 1                                             #
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #*    ns = number of species
-#*    0 = electrons; 1 = protons; 2,3,4,5,... = ions
+#*    0 = electrons; 1 = protons/positrons; 2,3,4,5,... = electrons/positrons/ions
 
 ns                  = 4                                                         # Number of species of particles
 

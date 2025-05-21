@@ -102,7 +102,7 @@ ZLEN                           = 1                                             #
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #*    ns = number of species
-#*    0 = electrons; 1 = protons; 2,3,4,5,... = ions
+#*    0 = electrons; 1 = protons/positrons; 2,3,4,5,... = electrons/positrons/ions
 
 ns                  = 2                                                         # Number of species of particles
 
