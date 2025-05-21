@@ -99,7 +99,7 @@ int c_Solver::Init(int argc, char **argv)
     col = new Collective(argc, argv);               // Every proc loads the parameters of simulation from class Collective
     restart_cycle   = col->getRestartOutputCycle();
     SaveDirName     = col->getSaveDirName();
-    RestartDirName  = col->getRestartDirName();
+    // RestartDirName  = col->getRestartDirName();
     restart_status  = col->getRestart_status();
     ns              = col->getNs();                 // get the number of species of particles involved in simulation
     first_cycle     = col->getLast_cycle() + 1;     // get the last cycle from the restart
@@ -152,8 +152,9 @@ int c_Solver::Init(int argc, char **argv)
     {
         //! Relativistic Cases
         if      (col->getCase()=="Relativistic_Double_Harris_pairs")            EMf->init_Relativistic_Double_Harris_pairs();
-        // else if (col->getCase()=="Relativistic_Double_Harris_ion_electron")     EMf->init_Relativistic_Double_Harris_ion_electron();
-        // else if (col->getCase()=="Shock1D")                                     EMf->initShock1D();
+        else if (col->getCase()=="Relativistic_Double_Harris_ion_electron")     EMf->init_Relativistic_Double_Harris_ion_electron();
+        else if (col->getCase()=="Shock1D")                                     EMf->initShock1D();
+        else if (col->getCase()=="Maxwell_Juttner")                             EMf->init();
         else 
         {
             if (myrank==0)
@@ -214,6 +215,7 @@ int c_Solver::Init(int argc, char **argv)
 				else if (col->getCase()=="Relativistic_Double_Harris_ion_electron") 	particles[i].Relativistic_Double_Harris_ion_electron(EMf);
 				else if (col->getCase()=="Shock1D") 	                                particles[i].Shock1D(EMf);
 				else if (col->getCase()=="Shock1D_DoublePiston") 	                    particles[i].Shock1D_DoublePiston(EMf);
+                else if (col->getCase()=="Maxwell_Jutter") 	                            particles[i].Maxwell_Juttner(EMf);
 				else                                                                    particles[i].Maxwell_Juttner(EMf);
 			}
             else
