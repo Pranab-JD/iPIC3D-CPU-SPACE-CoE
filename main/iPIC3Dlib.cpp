@@ -885,42 +885,27 @@ void c_Solver::WriteConserved(int cycle)
     if (cycle == 0) 
     {
         //? Total energy = Electric field energy + Magnetic field energy
-        initial_total_energy = EMf->getEenergy() + EMf->getBintenergy();
+        initial_total_energy = EMf->get_E_field_energy() + EMf->get_B_field_energy();
         
         //? Total energy = Electric field energy + Magnetic field energy + Kinetic Energy
         for (int is = 0; is < ns; is++) 
-        {
-            initial_total_energy = initial_total_energy + particles[is].getKe();
-        }
+            initial_total_energy = initial_total_energy + particles[is].get_kinetic_energy();
     }
 
     if(col->getDiagnosticsOutputCycle() > 0 && cycle % col->getDiagnosticsOutputCycle() == 0)
     {
-        Eenergy = EMf->getEenergy();
-        // Benergy = EMf->getBenergy();
-
-        // double ExtBenergy = EMf->getBextenergy();
-        double IntBenergy = EMf->getBintenergy();
-        // double EenRem     = EMf->getEenergyRemoved(true);
-
-        // TOTenergy = 0.0;
-        TOTmomentum = 0.0;
+        double E_field_energy = EMf->get_E_field_energy();
+        double B_field_energy = EMf->get_B_field_energy();
+        double total_momentum = 0.0;
         double kinetic_energy = 0.0;
 
         for (int is = 0; is < ns; is++) 
         {
-            // Ke[is] = particles[is].getKe();
-            // double lKr = particles[is].getKremoved();
-            // Kr += lKr;
-            // TOTenergy += Ke[is];
+            total_momentum += particles[is].get_momentum();
+            kinetic_energy += particles[is].get_kinetic_energy();
 
-            kinetic_energy += particles[is].getKe();
-
-            BulkEnergy[is] = EMf->getBulkEnergy(is);
-            
-            momentum[is] = particles[is].getP();
-
-            TOTmomentum += momentum[is];
+            // BulkEnergy[is] = EMf->getBulkEnergy(is);
+            // momentum[is] = particles[is].get_momentum();
         }
         
         if (myrank == (nprocs-1)) 
@@ -934,28 +919,26 @@ void c_Solver::WriteConserved(int cycle)
                         << endl << "III. Magnetic field energy" 
                         << endl << "IV.  Kinetic Energy"
                         << endl << "V.   Total Energy" 
-                        << endl << "VI.  Energy(cycle) - Energy(initial)" << endl << endl;
+                        << endl << "VI.  Energy(cycle) - Energy(initial)" 
+                        << endl << "VII. Momentum" << endl << endl;
 
                 my_file << "=====================================================================================================================================" << endl << endl;
 
                 my_file << setw(7) 
                         << "I"   << setw(25) << "II" << setw(25) 
                         << "III" << setw(25) << "IV" << setw(25) 
-                        << "V"   << setw(25) << "VI" << endl << endl;
+                        << "V"   << setw(25) << "VI" << setw(25) << "VII" << endl << endl;
             }
             
             
             my_file << setw(7)  << cycle << scientific << setprecision(15)
-                    << setw(25) << Eenergy 
-                    << setw(25) << IntBenergy 
+                    << setw(25) << E_field_energy 
+                    << setw(25) << B_field_energy 
                     << setw(25) << kinetic_energy  
-                    << setw(25) << Eenergy + IntBenergy + kinetic_energy
-                    << setw(25) << abs(initial_total_energy - (Eenergy + IntBenergy + kinetic_energy))
+                    << setw(25) << E_field_energy + B_field_energy + kinetic_energy
+                    << setw(25) << abs(initial_total_energy - (E_field_energy + B_field_energy + kinetic_energy))
+                    << setw(25) << total_momentum 
                     << endl;
-            
-
-            // for (int is = 0; is < ns; is++) my_file << "\t" << Ke[is];
-            // for (int is = 0; is < ns; is++) my_file << "\t" << BulkEnergy[is];
             
             my_file.close();
         }
