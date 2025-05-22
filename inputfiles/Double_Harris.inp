@@ -59,6 +59,8 @@ B0x                            = 0.0097                                         
 B0y                            = 0.0                                            # Initial magnetic field strength along Y
 B0z                            = 0.00097                                        # Initial magnetic field strength along Z
 
+delta                          = 0.5                                            # Thickness of current sheet
+
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                     TIME                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -106,12 +108,12 @@ ZLEN                           = 1                                             #
 
 ns                  = 4                                                         # Number of species of particles
 
-rhoINIT             = 1.0           1.0             0.1             0.1         # Initial density
+rhoINIT             = 1.0           1.0             1.0             1.0         # Initial density
 rhoINJECT           = 0.0           0.0             0.0             0.0         # Injection density
 
-npcelx              = 2             2	            2	            2           # Particles per cell along X
-npcely              = 2             2               2	            2           # Particles per cell along Y
-npcelz              = 2	            2	            2	            2           # Particles per cell along Z
+npcelx              = 4             4	            4	            4           # Particles per cell along X
+npcely              = 4             4               4	            4           # Particles per cell along Y
+npcelz              = 4	            4	            4	            4           # Particles per cell along Z
 NpMaxNpRatio        = 6.0                                                       # Maximum number of particles allocated
 
 qom                 = -256.0        1.0             -256.0          1.0         # Charge/mass ratio
