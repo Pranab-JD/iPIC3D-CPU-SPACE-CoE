@@ -905,9 +905,6 @@ void c_Solver::WriteConserved(int cycle)
         {
             total_momentum += particles[is].get_momentum();
             kinetic_energy += particles[is].get_kinetic_energy();
-
-            // BulkEnergy[is] = EMf->getBulkEnergy(is);
-            // momentum[is] = particles[is].get_momentum();
         }
         
         if (myrank == (nprocs-1)) 
