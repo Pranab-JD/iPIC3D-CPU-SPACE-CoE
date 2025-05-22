@@ -297,20 +297,20 @@ void Particles3D::maxwellianNullPoints(Field * EMf)
 void Particles3D::maxwellianDoubleHarris(Field * EMf)
 {
     //* Initialise random generator with different seed on different processor
-    srand(vct->getCartesian_rank() + 2);
+    long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
+    srand(seed);
+    srand48(seed);
 
     assert_eq(_pcls.size(), 0);
 
     const double Ly_half = Ly/2.0;
-
-    const double q_sgn = (qom / fabs(qom));
-    const double q_factor =  q_sgn * grid->getVOL() / npcel;
+    const double q_factor =  (qom / fabs(qom)) * grid->getVOL() / npcel;
 
     for (int i = 1; i < grid->getNXC() - 1; i++)
         for (int j = 1; j < grid->getNYC() - 1; j++)
             for (int k = 1; k < grid->getNZC() - 1; k++)
             {
-                const double q = q_factor * EMf->getRHOcs(i, j, k, ns);
+                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
                 
                 for (int ii = 0; ii < npcelx; ii++)
                     for (int jj = 0; jj < npcely; jj++)
@@ -319,7 +319,10 @@ void Particles3D::maxwellianDoubleHarris(Field * EMf)
                             const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
                             const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
                             const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-
+                            
+                            if (fabs(q) < 1.e-8) 
+                                continue;                   //* skip this particle if weight is too small
+                            
                             double u, v, w;
                             if(y > Ly_half)  
                                 sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);  //* -w0
