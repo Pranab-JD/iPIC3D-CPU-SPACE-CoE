@@ -3103,9 +3103,6 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
             for (int j = 1; j < ny - 1; j++)
                 for (int k = 1; k < nz - 1; k++)
                     data.fetch(i, j, k) = smooth_temp.get(i, j, k);
-
-        //TODO: check this
-        // eq(data, smooth_temp, nx, ny, nz);
         
         //! Using new communication routines results in energy growth
         communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
@@ -3855,6 +3852,8 @@ void EMfields3D::init()
     const VirtualTopology3D *vct = &get_vct();
     const Grid *grid = &get_grid();
 
+    double v0  = col->getU0(1);
+
     if (restart1 == 0)      
     {
         //! Initial setup (NOT RESTART)
@@ -3863,10 +3862,11 @@ void EMfields3D::init()
             for (int j = 0; j < nyn; j++)
                 for (int k = 0; k < nzn; k++)
                 {
-                    //* Initialise E on nodes
+                    double xN = grid->getXN(i, j, k);
+                    double fac = (xN>Lx/2.0 && xN < Lx-grid->getDX()) ? -1.0 : 1.0;
                     Ex[i][j][k] = 0.0;
-                    Ey[i][j][k] = 0.0;
-                    Ez[i][j][k] = 0.0;
+                    Ey[i][j][k] = fac*v0*B0z;
+                    Ez[i][j][k] = -fac*v0*B0y;
 
                     //* Initialise B on nodes
                     Bxn[i][j][k] = B0x;
@@ -4266,7 +4266,7 @@ void EMfields3D::initDoubleHarris()
     const VirtualTopology3D *vct = &get_vct();
     const Grid *grid = &get_grid();
 
-    double pertX = 0.4;
+    double pertX = 0.1;
     double xpert, ypert, exp_pert;
     if (restart1 == 0)
     {
