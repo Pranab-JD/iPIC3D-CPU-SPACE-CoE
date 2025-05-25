@@ -25,7 +25,7 @@ ParticlesOutputCycle           = 0                                             #
 
 FieldOutputTag                 = E + B + J + rho_s + J_s + E_flux              # Select quantites to be written to files
                                + B_energy + E_energy + K_energy + pressure
-ParticlesOutputTag 	           = position + velocity + q                       # Select (particle) quantites to be written to files
+
 
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
