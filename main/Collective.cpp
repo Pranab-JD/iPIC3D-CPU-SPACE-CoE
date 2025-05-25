@@ -532,10 +532,10 @@ void Collective::ReadInput(string inputfile)
     #ifndef NO_HDF5 
     if (RESTART1) 
     {   // you are restarting
-        RestartDirName = config.read < string > ("RestartDirName","data");
+        RestartDirName = config.read < string > ("SaveDirName","data");
         //ReadRestart(RestartDirName);
         restart_status = 1;
-        hid_t file_id = H5Fopen((RestartDirName + "/restart0.hdf").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+        hid_t file_id = H5Fopen((RestartDirName + "/proc0.hdf").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
         if (file_id < 0) 
         {
             cout << "couldn't open file: " << inputfile << endl;
@@ -864,7 +864,7 @@ int Collective::ReadRestart(string inputfile)
 
     // read last cycle (not from settings, but from restart0.hdf)
 
-    file_id = H5Fopen((inputfile + "/restart0.hdf").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+    file_id = H5Fopen((inputfile + "/proc0.hdf").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
     if (file_id < 0) {
         cout << "couldn't open file: " << inputfile << endl;
         return -1;
@@ -895,12 +895,12 @@ void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
     const int nzn = grid->getNZN();
     if (vct->getCartesian_rank() == 0)
     {
-      printf("LOADING EM FIELD FROM RESTART FILE in %s/restart.hdf\n",getRestartDirName().c_str());
+      printf("LOADING EM FIELD FROM RESTART FILE in %s/restart.hdf\n",getSaveDirName().c_str());
     }
 
     stringstream ss;
     ss << vct->getCartesian_rank();
-    string name_file = getRestartDirName() + "/restart" + ss.str() + ".hdf";
+    string name_file = getSaveDirName() + "/proc" + ss.str() + ".hdf";
 
     // hdf stuff
     hid_t file_id, dataspace;
@@ -1043,11 +1043,11 @@ void Collective::read_particles_restart(
     if (vct->getCartesian_rank() == 0 && species_number == 0)
     {
       printf("LOADING PARTICLES FROM RESTART FILE in %s/restart.hdf\n",
-        getRestartDirName().c_str());
+        getSaveDirName().c_str());
     }
     stringstream ss;
     ss << vct->getCartesian_rank();
-    string name_file = getRestartDirName() + "/restart" + ss.str() + ".hdf";
+    string name_file = getSaveDirName() + "/proc" + ss.str() + ".hdf";
     // hdf stuff
     hid_t file_id, dataspace;
     hid_t datatype, dataset_id;

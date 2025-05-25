@@ -26,6 +26,7 @@
 #include "debug.h"
 #include "Alloc.h"
 #include "MPIdata.h"
+#include "Collective.h"
 
 #ifdef PHDF5
 

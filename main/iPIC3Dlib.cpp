@@ -254,7 +254,7 @@ int c_Solver::Init(int argc, char **argv)
     if (Parameters::get_doWriteOutput())
     {
         #ifndef NO_HDF5
-        if(col->getWriteMethod() == "shdf5" || col->getCallFinalize() || restart_cycle>0 || (col->getWriteMethod()=="pvtk" && !col->particle_output_is_off()) )
+        if(col->getWriteMethod() == "shdf5" || col->getWriteMethod() == "H5hut" || col->getCallFinalize() || restart_cycle>0 || (col->getWriteMethod()=="pvtk" && !col->particle_output_is_off()) )
         {
             outputWrapperFPP = new OutputWrapperFPP;
             fetch_outputWrapperFPP().init_output_files(col, vct, grid, EMf, particles, ns, testpart, nstestpart);
@@ -736,7 +736,7 @@ void c_Solver::WriteOutput(int cycle)
     #endif
 
     WriteConserved(cycle);
-    WriteRestart(cycle);
+    // WriteRestart(cycle);
 
     if(!Parameters::get_doWriteOutput())  return;
 
@@ -819,10 +819,9 @@ void c_Solver::WriteOutput(int cycle)
     }
     else
     {
+        //! HDF-based
 		#ifdef NO_HDF5
-			
-            eprintf("The selected output option must be compiled with HDF5");
-
+            cout << "ERROR: H5hut, shdf5, and phdf5 requires iPIC3D to be compiled with HDF5" << endl;
 		#else
 
 			if (col->getWriteMethod() == "H5hut")
@@ -863,7 +862,7 @@ void c_Solver::WriteOutput(int cycle)
 			}
             else
             {
-			    warning_printf("\nERROR: Invalid WriteMethod in input file. Available options: H5hut or phdf5 or shdf5 or pvtk or nbcvtk.");
+			    cout << "ERROR: Invalid WriteMethod in input file. Available options: H5hut, phdf5, shdf5, pvtk, nbcvtk." << endl;
 			    invalid_value_error(col->getWriteMethod().c_str());
 			}
 
@@ -871,16 +870,16 @@ void c_Solver::WriteOutput(int cycle)
   	}
 }
 
-void c_Solver::WriteRestart(int cycle)
-{
-    // #ifndef NO_HDF5
-    //     if (restart_cycle > 0 && cycle%restart_cycle==0)
-    //     {
-    //         convertParticlesToSynched();
-    //         fetch_outputWrapperFPP().append_restart(cycle);
-    //     }
-    // #endif
-}
+// void c_Solver::WriteRestart(int cycle)
+// {
+//     #ifndef NO_HDF5
+//         if (restart_cycle > 0 && cycle%restart_cycle==0)
+//         {
+//             convertParticlesToSynched();
+//             fetch_outputWrapperFPP().append_restart(cycle);
+//         }
+//     #endif
+// }
 
 void c_Solver::WriteConserved(int cycle) 
 {
@@ -1052,7 +1051,7 @@ void c_Solver::Finalize()
     // {
     //     #ifndef NO_HDF5
     //         convertParticlesToSynched();
-    //         fetch_outputWrapperFPP().append_restart((col->getNcycles() + first_cycle));
+    //         fetch_outputWrapperFPP().append_output((col->getNcycles() + first_cycle));
     //     #endif
     // }
 

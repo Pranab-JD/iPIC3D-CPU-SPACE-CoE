@@ -35,6 +35,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include "Collective.h"
 
 /*! Function used to write the EM fields using the parallel HDF5 library */
 void WriteOutputParallel(Grid3DCU *grid, EMfields3D *EMf, Particles3Dcomm *part, CollectiveIO *col, VCtopology3D *vct, int cycle)
@@ -109,134 +110,137 @@ void WriteOutputParallel(Grid3DCU *grid, EMfields3D *EMf, Particles3Dcomm *part,
     outputfile.ClosePHDF5file();
 
     #else  
-    eprintf(" The input file requests the use of the Parallel HDF5 functions,\n"
-            " but the code has been compiled using the sequential HDF5 library.\n"
-            " Recompile the code using the parallel HDF5 options\n"
-            " or change the input file options. ");
+        eprintf(" The input file requests the use of the Parallel HDF5 functions, \n"
+                " but the code has been compiled using the sequential HDF5 library. \n"
+                " Recompile the code using the parallel HDF5 options or change 'WriteMethod'. ");
     #endif
 }
 
 /*! Function to write the EM fields using the H5hut library. */
-void WriteFieldsH5hut(int nspec, Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct, int cycle){
-  if(col->field_output_is_off())
-    return;
-#ifdef USEH5HUT
-  timeTasks_set_task(TimeTasks::WRITE_FIELDS);
+void WriteFieldsH5hut(int num_species, Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct, int cycle)
+{
+    if(col->field_output_is_off())
+        return;
 
-  H5output file;
+    #ifdef USE_H5HUT
 
-  /* ---------------- */
-  /* Write the fields */
-  /* ---------------- */
+        H5output file;
+        string filename = col->getSaveDirName() + "/" + col->getSimName();
+        cout << filename << "       " << cycle << endl;
+        file.SetNameCycle(filename, cycle);
 
-  string filename = col->getSaveDirName() + "/" + col->getSimName();
+        file.OpenFieldsFile("Node", num_species, col->getNxc()+1, col->getNyc()+1, col->getNzc()+1, vct->getCoordinates(), vct->getDims(), vct->getFieldComm());
 
-  file.SetNameCycle(filename, cycle);
+        //? Save electric and magnetic fields
+        file.WriteFields(EMf->getEx(), "Ex", grid->getNXN(), grid->getNYN(), grid->getNZN());
+        file.WriteFields(EMf->getEy(), "Ey", grid->getNXN(), grid->getNYN(), grid->getNZN());
+        file.WriteFields(EMf->getEz(), "Ez", grid->getNXN(), grid->getNYN(), grid->getNZN());
+        file.WriteFields(EMf->getBx(), "Bx", grid->getNXN(), grid->getNYN(), grid->getNZN());
+        file.WriteFields(EMf->getBy(), "By", grid->getNXN(), grid->getNYN(), grid->getNZN());
+        file.WriteFields(EMf->getBz(), "Bz", grid->getNXN(), grid->getNYN(), grid->getNZN());
 
-  file.OpenFieldsFile("Node", nspec, col->getNxc()+1, col->getNyc()+1, col->getNzc()+1, vct->getCoordinates(), vct->getDims(), vct->getFieldComm());
+        // for (int is = 0; is < num_species; is++) 
+        // {
+        //     stringstream  ss;
+        //     ss << is;
+        //     string s_is = ss.str();
+            
+        //     file.WriteFields(EMf->getRHOns(is), "rho_"+ s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
 
-  file.WriteFields(EMf->getEx(), "Ex", grid->getNXN(), grid->getNYN(), grid->getNZN());
-  file.WriteFields(EMf->getEy(), "Ey", grid->getNXN(), grid->getNYN(), grid->getNZN());
-  file.WriteFields(EMf->getEz(), "Ez", grid->getNXN(), grid->getNYN(), grid->getNZN());
-  file.WriteFields(EMf->getBx(), "Bx", grid->getNXN(), grid->getNYN(), grid->getNZN());
-  file.WriteFields(EMf->getBy(), "By", grid->getNXN(), grid->getNYN(), grid->getNZN());
-  file.WriteFields(EMf->getBz(), "Bz", grid->getNXN(), grid->getNYN(), grid->getNZN());
+        //     file.WriteFields(EMf->getJxs(is), "Jx_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+        //     file.WriteFields(EMf->getJys(is), "Jy_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+        //     file.WriteFields(EMf->getJzs(is), "Jz_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
 
-  for (int is=0; is<nspec; is++) {
-    stringstream  ss;
-    ss << is;
-    string s_is = ss.str();
-    file.WriteFields(EMf->getRHOns(is), "rho_"+ s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
-  }
+        //     file.WriteFields(EMf->getEFxs(is), "EFx_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+        //     file.WriteFields(EMf->getEFys(is), "EFy_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+        //     file.WriteFields(EMf->getEFzs(is), "EFz_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+        // }
 
-  file.CloseFieldsFile();
+        file.CloseFieldsFile();
 
-//--- SAVE FIELDS IN THE CELLS:
-//
-//  file.OpenFieldsFile("Cell", nspec, col->getNxc(), col->getNyc(), col->getNzc(), vct->getCoordinates(), vct->getDims(), vct->getComm());
-//
-//  file.WriteFields(EMf->getExc(), "Exc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-//  file.WriteFields(EMf->getEyc(), "Eyc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-//  file.WriteFields(EMf->getEzc(), "Ezc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-//  file.WriteFields(EMf->getBxc(), "Bxc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-//  file.WriteFields(EMf->getByc(), "Byc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-//  file.WriteFields(EMf->getBzc(), "Bzc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-//
-//  for (int is=0; is<nspec; is++) {
-//    stringstream  ss;
-//    ss << is;
-//    string s_is = ss.str();
-//    file.WriteFields(EMf->getRHOcs(is), "rhoc_"+ s_is, grid->getNXC(), grid->getNYC(), grid->getNZC());
-//  }
-//
-//  file.CloseFieldsFile();
-//
-//--- END SAVE FIELDS IN THE CELLS.
+        //--- SAVE FIELDS IN THE CELLS:
+        //
+        //  file.OpenFieldsFile("Cell", num_species, col->getNxc(), col->getNyc(), col->getNzc(), vct->getCoordinates(), vct->getDims(), vct->getComm());
+        //
+        //  file.WriteFields(EMf->getExc(), "Exc", grid->getNXC(), grid->getNYC(), grid->getNZC());
+        //  file.WriteFields(EMf->getEyc(), "Eyc", grid->getNXC(), grid->getNYC(), grid->getNZC());
+        //  file.WriteFields(EMf->getEzc(), "Ezc", grid->getNXC(), grid->getNYC(), grid->getNZC());
+        //  file.WriteFields(EMf->getBxc(), "Bxc", grid->getNXC(), grid->getNYC(), grid->getNZC());
+        //  file.WriteFields(EMf->getByc(), "Byc", grid->getNXC(), grid->getNYC(), grid->getNZC());
+        //  file.WriteFields(EMf->getBzc(), "Bzc", grid->getNXC(), grid->getNYC(), grid->getNZC());
+        //
+        //  for (int is=0; is<num_species; is++) {
+        //    stringstream  ss;
+        //    ss << is;
+        //    string s_is = ss.str();
+        //    file.WriteFields(EMf->getRHOcs(is), "rhoc_"+ s_is, grid->getNXC(), grid->getNYC(), grid->getNZC());
+        //  }
+        //
+        //  file.CloseFieldsFile();
+        //
+        //--- END SAVE FIELDS IN THE CELLS.
 
-#else  
-  eprintf(
-    " The input file requests the use of the Parallel HDF5 functions,\n"
-    " but the code has been compiled using the sequential HDF5 library.\n"
-    " Recompile the code using the parallel HDF5 options\n"
-    " or change the input file options. ");
-#endif
-
+    #else  
+        cout << "The input file requires iPIC3D to be compiled with the H5hut library." << endl;
+        cout << "Please recompile the code with H5hut or change 'WriteMethod'. " << endl << endl;
+        abort();
+    #endif
 }
 
 /*! Function to write the particles using the H5hut library. */
-void WritePartclH5hut(int nspec, Grid3DCU *grid, Particles3Dcomm *part, CollectiveIO *col, VCtopology3D *vct, int cycle){
-#ifdef USEH5HUT
-  timeTasks_set_task(TimeTasks::WRITE_PARTICLES);
+void WritePartclH5hut(int num_species, Grid3DCU *grid, Particles3Dcomm *particles, CollectiveIO *col, VCtopology3D *vct, int cycle)
+{
+    if(col->particle_output_is_off())
+        return;
+    
+    #ifdef USE_H5HUT
 
-  H5output file;
+        H5output file;
+        string filename = col->getSaveDirName() + "/" + col->getSimName();
+        cout << filename << "     " << cycle << endl;
+        file.SetNameCycle(filename, cycle);
+        cout << filename << "     " << cycle << endl;
 
-  string filename = col->getSaveDirName() + "/" + col->getSimName();
+        file.OpenPartclFile(num_species, vct->getParticleComm());
 
-  file.SetNameCycle(filename, cycle);
+        for (int i=0; i<num_species; i++)
+        {
+            // this is a hack
+            particles[i].convertParticlesToSynched();
 
-  /* ------------------- */
-  /* Write the particles */
-  /* ------------------- */
+            // file.WriteParticles(i,  particles[i].getNOP(),
+            //                         particles[i].getQall(),
+            //                         particles[i].getXall(),
+            //                         particles[i].getYall(),
+            //                         particles[i].getZall(),
+            //                         particles[i].getUall(),
+            //                         particles[i].getVall(),
+            //                         particles[i].getWall(),
+            //                         vct->getParticleComm());
+        }
 
-  file.OpenPartclFile(nspec, vct->getFieldComm());
-  for (int i=0; i<nspec; i++){
-    // this is a hack
-    part[i].convertParticlesToSynched();
-    file.WriteParticles(i, part[i].getNOP(),
-                           part[i].getQall(),
-                           part[i].getXall(),
-                           part[i].getYall(),
-                           part[i].getZall(),
-                           part[i].getUall(),
-                           part[i].getVall(),
-                           part[i].getWall(),
-                           vct->getFieldComm());
-  }
-  file.ClosePartclFile();
+        file.ClosePartclFile();
 
-#else  
-  eprintf(
-    " The input file requests the use of the Parallel HDF5 functions,\n"
-    " but the code has been compiled using the sequential HDF5 library.\n"
-    " Recompile the code using the parallel HDF5 options\n"
-    " or change the input file options. ");
-#endif
-
+    #else
+        cout << "The input file requires iPIC3D to be compiled with the H5hut library." << endl;
+        cout << "Please recompile the code with H5hut or change 'WriteMethod'. " << endl << endl;
+        abort();
+    #endif
 }
 
 #if 0
-void ReadPartclH5hut(int nspec, Particles3Dcomm *part, Collective *col, VCtopology3D *vct, Grid3DCU *grid){
-#ifdef USEH5HUT
+void ReadPartclH5hut(int num_species, Particles3Dcomm *part, Collective *col, VCtopology3D *vct, Grid3DCU *grid){
+#ifdef USE_H5HUT
 
   H5input infile;
   double L[3] = {col->getLx(), col->getLy(), col->getLz()};
 
   infile.SetNameCycle(col->getinitfile(), col->getLast_cycle());
-  infile.OpenPartclFile(nspec);
+  infile.OpenPartclFile(num_species);
 
   infile.ReadParticles(vct->getCartesian_rank(), vct->getNproc(), vct->getDims(), L, vct->getFieldComm());
 
-  for (int s = 0; s < nspec; s++){
+  for (int s = 0; s < num_species; s++){
     part[s].allocate(s, infile.GetNp(s), col, vct, grid);
 
     infile.DumpPartclX(part[s].getXref(), s);
@@ -272,7 +276,7 @@ void ReadPartclH5hut(int nspec, Particles3Dcomm *part, Collective *col, VCtopolo
 
 #if 0
 void ReadFieldsH5hut(int nspec, EMfields3D *EMf, Collective *col, VCtopology3D *vct, Grid3DCU *grid){
-#ifdef USEH5HUT
+#ifdef USE_H5HUT
 
   H5input infile;
 

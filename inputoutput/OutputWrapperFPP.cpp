@@ -40,7 +40,7 @@ void OutputWrapperFPP::init_output_files(Collective *col, VCtopology3D *vct, Gri
         output_file = SaveDirName + "/proc"   + num_proc_str + ".hdf";
         // restart_file= RestartDirName + "/restart"+ num_proc_str + ".hdf";
 
-        // Initialize the output (simulation results and restart file)
+        //* Initialize the output (simulation results and restart file)
         hdf5_agent.set_simulation_pointers(EMf, grid, vct, col);
 
         for (int i = 0; i < ns; ++i)
@@ -49,7 +49,7 @@ void OutputWrapperFPP::init_output_files(Collective *col, VCtopology3D *vct, Gri
         for (int i = 0; i < nstestpart; ++i)
             hdf5_agent.set_simulation_pointers_part(&testpart[i]);
 
-        // Add the HDF5 output agent to the Output Manager's list
+        //* Add the HDF5 output agent to the Output Manager's list
         output_mgr.push_back(&hdf5_agent);
 
         if(col->getWriteMethod() == "shdf5" || (col->getWriteMethod() == "pvtk" && !col->particle_output_is_off()) 
@@ -105,6 +105,7 @@ void OutputWrapperFPP::append_output(const char* tag, int cycle)
     #ifndef NO_HDF5
         hdf5_agent.open_append(output_file);
         output_mgr.output(tag, cycle);
+        output_mgr.output("last_cycle", cycle);
         hdf5_agent.close();
     #endif
 }
@@ -114,6 +115,7 @@ void OutputWrapperFPP::append_output(const char* tag, int cycle, int sample)
     #ifndef NO_HDF5
         hdf5_agent.open_append(output_file);
         output_mgr.output(tag, cycle, sample);
+        output_mgr.output("last_cycle", cycle);
         hdf5_agent.close();
     #endif
 }

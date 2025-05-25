@@ -30,6 +30,7 @@
 #include <sstream>
 #include <iomanip>
 #include "phdf5.h"
+#include "Collective.h"
 
 using std::string;
 
