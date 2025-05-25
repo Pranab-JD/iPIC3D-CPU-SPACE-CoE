@@ -37,6 +37,20 @@
 #include <iomanip>
 #include "Collective.h"
 
+bool contains_tag(const std::string& taglist, const std::string& target) 
+{
+    std::istringstream iss(taglist);
+    std::string token;
+    while (iss >> token) 
+    {
+        if (token == target) 
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 /*! Function used to write the EM fields using the parallel HDF5 library */
 void WriteOutputParallel(Grid3DCU *grid, EMfields3D *EMf, Particles3Dcomm *part, CollectiveIO *col, VCtopology3D *vct, int cycle)
 {
@@ -116,8 +130,8 @@ void WriteOutputParallel(Grid3DCU *grid, EMfields3D *EMf, Particles3Dcomm *part,
     #endif
 }
 
-/*! Function to write the EM fields using the H5hut library. */
-void WriteFieldsH5hut(int num_species, Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct, int cycle)
+//! Write fields and moments using H5hut
+void WriteFieldsH5hut(int num_species, Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct, int cycle, const std::string &tag)
 {
     if(col->field_output_is_off())
         return;
@@ -126,59 +140,117 @@ void WriteFieldsH5hut(int num_species, Grid3DCU *grid, EMfields3D *EMf, Collecti
 
         H5output file;
         string filename = col->getSaveDirName() + "/" + col->getSimName();
-        cout << filename << "       " << cycle << endl;
         file.SetNameCycle(filename, cycle);
-
         file.OpenFieldsFile("Node", num_species, col->getNxc()+1, col->getNyc()+1, col->getNzc()+1, vct->getCoordinates(), vct->getDims(), vct->getFieldComm());
 
-        //? Save electric and magnetic fields
-        file.WriteFields(EMf->getEx(), "Ex", grid->getNXN(), grid->getNYN(), grid->getNZN());
-        file.WriteFields(EMf->getEy(), "Ey", grid->getNXN(), grid->getNYN(), grid->getNZN());
-        file.WriteFields(EMf->getEz(), "Ez", grid->getNXN(), grid->getNYN(), grid->getNZN());
-        file.WriteFields(EMf->getBx(), "Bx", grid->getNXN(), grid->getNYN(), grid->getNZN());
-        file.WriteFields(EMf->getBy(), "By", grid->getNXN(), grid->getNYN(), grid->getNZN());
-        file.WriteFields(EMf->getBz(), "Bz", grid->getNXN(), grid->getNYN(), grid->getNZN());
+        //? Electric field
+        if (contains_tag(tag, "E"))
+        {
+            file.WriteFields(EMf->getEx(), "Ex", grid->getNXN(), grid->getNYN(), grid->getNZN());
+            file.WriteFields(EMf->getEy(), "Ey", grid->getNXN(), grid->getNYN(), grid->getNZN());
+            file.WriteFields(EMf->getEz(), "Ez", grid->getNXN(), grid->getNYN(), grid->getNZN());
+        }
 
-        // for (int is = 0; is < num_species; is++) 
-        // {
-        //     stringstream  ss;
-        //     ss << is;
-        //     string s_is = ss.str();
-            
-        //     file.WriteFields(EMf->getRHOns(is), "rho_"+ s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+        //? Magnetic field
+        if (contains_tag(tag, "B"))
+        {
+            file.WriteFields(EMf->getBx(), "Bx", grid->getNXN(), grid->getNYN(), grid->getNZN());
+            file.WriteFields(EMf->getBy(), "By", grid->getNXN(), grid->getNYN(), grid->getNZN());
+            file.WriteFields(EMf->getBz(), "Bz", grid->getNXN(), grid->getNYN(), grid->getNZN());
+        }
 
-        //     file.WriteFields(EMf->getJxs(is), "Jx_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
-        //     file.WriteFields(EMf->getJys(is), "Jy_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
-        //     file.WriteFields(EMf->getJzs(is), "Jz_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+        //? Overall charge density (all species combined)
+        if (contains_tag(tag, "rho"))
+        {
+            file.WriteFields(EMf->getRHOn(), "rho_total", grid->getNXN(), grid->getNYN(), grid->getNZN());
+        }
 
-        //     file.WriteFields(EMf->getEFxs(is), "EFx_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
-        //     file.WriteFields(EMf->getEFys(is), "EFy_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
-        //     file.WriteFields(EMf->getEFzs(is), "EFz_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
-        // }
+        //? Overall current density (all species combined)
+        if (contains_tag(tag, "J"))
+        {
+            file.WriteFields(EMf->getJx(), "Jx_total", grid->getNXN(), grid->getNYN(), grid->getNZN());
+            file.WriteFields(EMf->getJy(), "Jy_total", grid->getNXN(), grid->getNYN(), grid->getNZN());
+            file.WriteFields(EMf->getJz(), "Jz_total", grid->getNXN(), grid->getNYN(), grid->getNZN());
+        }
+
+        for (int is = 0; is < num_species; is++) 
+        {
+            stringstream  ss;
+            ss << is;
+            string s_is = ss.str();
+
+            //? Charge density for each species
+            if (contains_tag(tag, "rho_s"))
+            {
+                arr4_double moment_4D = EMf->getRHOns();
+                file.WriteFields(moment_4D[is], "rho_"+ s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+            }
+
+            //? Current density for each species
+            if (contains_tag(tag, "J_s"))
+            {
+                {
+                    arr4_double moment_4D = EMf->getJxs();
+                    file.WriteFields(moment_4D[is], "Jx_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+                {
+                    arr4_double moment_4D = EMf->getJys();
+                    file.WriteFields(moment_4D[is], "Jy_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+                {
+                    arr4_double moment_4D = EMf->getJzs();
+                    file.WriteFields(moment_4D[is], "Jz_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+            }
+
+            //? Energy flux for each species
+            if (contains_tag(tag, "E_Flux"))
+            {
+                {
+                    arr4_double moment_4D = EMf->getEFxs();
+                    file.WriteFields(moment_4D[is], "EFx_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+                {
+                    arr4_double moment_4D = EMf->getEFys();
+                    file.WriteFields(moment_4D[is], "EFy_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+                {
+                    arr4_double moment_4D = EMf->getEFzs();
+                    file.WriteFields(moment_4D[is], "EFz_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+            }
+
+            //? Pressure tensor for each species
+            if (contains_tag(tag, "pressure"))
+            {
+                {
+                    arr4_double moment_4D = EMf->getpXXsn();
+                    file.WriteFields(moment_4D[is], "Pxx_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+                {
+                    arr4_double moment_4D = EMf->getpXYsn();
+                    file.WriteFields(moment_4D[is], "Pxy_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+                {
+                    arr4_double moment_4D = EMf->getpXZsn();
+                    file.WriteFields(moment_4D[is], "Pxz_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+                                {
+                    arr4_double moment_4D = EMf->getpYYsn();
+                    file.WriteFields(moment_4D[is], "Pyy_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+                {
+                    arr4_double moment_4D = EMf->getpYZsn();
+                    file.WriteFields(moment_4D[is], "Pyz_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+                {
+                    arr4_double moment_4D = EMf->getpZZsn();
+                    file.WriteFields(moment_4D[is], "Pzz_" + s_is, grid->getNXN(), grid->getNYN(), grid->getNZN());
+                }
+            }
+        }
 
         file.CloseFieldsFile();
-
-        //--- SAVE FIELDS IN THE CELLS:
-        //
-        //  file.OpenFieldsFile("Cell", num_species, col->getNxc(), col->getNyc(), col->getNzc(), vct->getCoordinates(), vct->getDims(), vct->getComm());
-        //
-        //  file.WriteFields(EMf->getExc(), "Exc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-        //  file.WriteFields(EMf->getEyc(), "Eyc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-        //  file.WriteFields(EMf->getEzc(), "Ezc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-        //  file.WriteFields(EMf->getBxc(), "Bxc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-        //  file.WriteFields(EMf->getByc(), "Byc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-        //  file.WriteFields(EMf->getBzc(), "Bzc", grid->getNXC(), grid->getNYC(), grid->getNZC());
-        //
-        //  for (int is=0; is<num_species; is++) {
-        //    stringstream  ss;
-        //    ss << is;
-        //    string s_is = ss.str();
-        //    file.WriteFields(EMf->getRHOcs(is), "rhoc_"+ s_is, grid->getNXC(), grid->getNYC(), grid->getNZC());
-        //  }
-        //
-        //  file.CloseFieldsFile();
-        //
-        //--- END SAVE FIELDS IN THE CELLS.
 
     #else  
         cout << "The input file requires iPIC3D to be compiled with the H5hut library." << endl;
@@ -187,7 +259,8 @@ void WriteFieldsH5hut(int num_species, Grid3DCU *grid, EMfields3D *EMf, Collecti
     #endif
 }
 
-/*! Function to write the particles using the H5hut library. */
+
+//! Write particles using H5hut
 void WritePartclH5hut(int num_species, Grid3DCU *grid, Particles3Dcomm *particles, CollectiveIO *col, VCtopology3D *vct, int cycle)
 {
     if(col->particle_output_is_off())
@@ -197,9 +270,8 @@ void WritePartclH5hut(int num_species, Grid3DCU *grid, Particles3Dcomm *particle
 
         H5output file;
         string filename = col->getSaveDirName() + "/" + col->getSimName();
-        cout << filename << "     " << cycle << endl;
         file.SetNameCycle(filename, cycle);
-        cout << filename << "     " << cycle << endl;
+
 
         file.OpenPartclFile(num_species, vct->getParticleComm());
 

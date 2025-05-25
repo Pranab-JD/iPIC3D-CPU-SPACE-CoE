@@ -338,6 +338,7 @@ public:
     double getRHOc_avg(int X, int Y, int Z) const { return rhoc_avg.get(X, Y, Z); }
     arr3_double getRHOn() { return rhon; }
     arr4_double getRHOns() { return rhons; }
+    // arr3_double getRHOns(int is) { return rhons.get(is); }
     arr4_double getRHOcs() { return rhocs; }
     arr3_double getRHOc_avg() { return rhoc_avg; }
 

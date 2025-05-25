@@ -736,7 +736,6 @@ void c_Solver::WriteOutput(int cycle)
     #endif
 
     WriteConserved(cycle);
-    // WriteRestart(cycle);
 
     if(!Parameters::get_doWriteOutput())  return;
 
@@ -826,12 +825,22 @@ void c_Solver::WriteOutput(int cycle)
 
 			if (col->getWriteMethod() == "H5hut")
             {
-                //! No guarantee that this will work
 			    if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
-				    WriteFieldsH5hut(ns, grid, EMf, col, vct, cycle);
+                {
+                    if (vct->getCartesian_rank() == 0)
+                        cout << endl << "Writing FIELDS and MOMENTS at cycle " << cycle << endl;
+
+                    SupplementaryMoments();
+				    WriteFieldsH5hut(ns, grid, EMf, col, vct, cycle, col->getFieldOutputTag());
+                }
 
 			    if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
+                {
+                    if (vct->getCartesian_rank() == 0)
+                        cout << endl << "Writing PARTICLES at cycle " << cycle << endl;
+
 				    WritePartclH5hut(ns, grid, particles, col, vct, cycle);
+                }
 			}
             else if (col->getWriteMethod() == "phdf5")
             {
@@ -850,8 +859,8 @@ void c_Solver::WriteOutput(int cycle)
                 //! Serial HDF5
                 if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
                 {
-                    WriteFields(cycle);
                     SupplementaryMoments();
+                    WriteFields(cycle);
                 }
 
                 if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
@@ -864,22 +873,12 @@ void c_Solver::WriteOutput(int cycle)
             {
 			    cout << "ERROR: Invalid WriteMethod in input file. Available options: H5hut, phdf5, shdf5, pvtk, nbcvtk." << endl;
 			    invalid_value_error(col->getWriteMethod().c_str());
+                abort();
 			}
 
 		#endif
   	}
 }
-
-// void c_Solver::WriteRestart(int cycle)
-// {
-//     #ifndef NO_HDF5
-//         if (restart_cycle > 0 && cycle%restart_cycle==0)
-//         {
-//             convertParticlesToSynched();
-//             fetch_outputWrapperFPP().append_restart(cycle);
-//         }
-//     #endif
-// }
 
 void c_Solver::WriteConserved(int cycle) 
 {
@@ -994,6 +993,7 @@ void c_Solver::WriteVirtualSatelliteTraces()
     my_file.close();
 }
 
+//! HDF5 only
 void c_Solver::WriteFields(int cycle) 
 {
     #ifndef NO_HDF5
@@ -1009,7 +1009,6 @@ void c_Solver::WriteFields(int cycle)
         //* Moments
         if(!(col->getMomentsOutputTag()).empty())
             fetch_outputWrapperFPP().append_output((col->getMomentsOutputTag()).c_str(), cycle);
-
     #endif
 }
 

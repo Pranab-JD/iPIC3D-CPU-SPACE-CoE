@@ -77,24 +77,21 @@ void H5output::CloseFieldsFile(){
   H5CloseFile(fldsfile);
 }
 
-void H5output::WriteFields(double ***field, std::string fname, int nx, int ny, int nz, int rank){
+void H5output::WriteFields(double ***field, std::string fname, int nx, int ny, int nz, int rank)
+{
+    h5_float64_t*     buffer;
 
-  h5_float64_t*     buffer;
+    buffer = new h5_float64_t[nz*ny*nx];
 
-  buffer = new h5_float64_t[nz*ny*nx];
+    int n = 0;
+    for (int k=1; k<nz-1; k++)
+        for (int j=1; j<ny-1; j++)
+            for (int i=1; i<nx-1; i++)
+            buffer[n++] = field[i][j][k];
 
-  int n = 0;
-  for (int k=1; k<nz-1; k++) {
-    for (int j=1; j<ny-1; j++) {
-      for (int i=1; i<nx-1; i++) {
-        buffer[n++] = field[i][j][k];
-      }
-    }
-  }
+    H5Block3dWriteScalarFieldFloat64(fldsfile, fname.c_str(), buffer);
 
-  H5Block3dWriteScalarFieldFloat64(fldsfile, fname.c_str(), buffer);
-
-  delete [] buffer;
+    delete [] buffer;
 }
 
 void H5output::OpenPartclFile(int nspec, MPI_Comm CART_COMM)

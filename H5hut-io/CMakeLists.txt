@@ -1,21 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 
-#
-# Project declaration
-#
-
 project(H5hut-io)
 
-#
 # Set exec path
-#
-
 set(LIBRARY_OUTPUT_PATH lib)
 
-#
-# Find third class libraries
-#
-
+# Find libraries
 find_package(HDF5 COMPONENTS C REQUIRED)
 find_package(MPI REQUIRED)
 
@@ -28,39 +18,30 @@ set(H5HUT_INCLUDE_DIRS ${H5HUT_HOME}/include)
 set(H5HUT_LIBRARY_DIRS ${H5HUT_HOME}/lib)
 set(H5HUT_LIBRARIES ${H5HUT_LIBRARY_DIRS}/libH5hut.a)
 
-#
+
 # include and lib directories
-#
+link_directories(${H5HUT_LIBRARY_DIRS})
 
-link_directories(
-        ${H5HUT_LIBRARY_DIRS}
-)
 
-#
 # Header file list
-#
 file(GLOB inc_files include/*.h)
 file(GLOB src_files src/*.cpp)
 
-#
-# Compilation options
-#
 
+# Compilation options
 add_library(H5hut-io STATIC ${src_files})
 set_target_properties(H5hut-io PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+
 target_include_directories(H5hut-io PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${H5HUT_INCLUDE_DIRS}
+                            ${CMAKE_CURRENT_SOURCE_DIR}/include
+                            ${H5HUT_INCLUDE_DIRS}
 )
 
-#
-# Link external libraries
-#
 
-target_link_libraries(
-         H5hut-io
-         ${H5HUTIO_LIBRARIES}
-         ${H5HUT_LIBRARIES}
-         ${HDF5_LIBRARIES}
+# Link external libraries
+target_link_libraries(H5hut-io
+                        ${H5HUTIO_LIBRARIES}
+                        ${H5HUT_LIBRARIES}
+                        ${HDF5_LIBRARIES}
 )

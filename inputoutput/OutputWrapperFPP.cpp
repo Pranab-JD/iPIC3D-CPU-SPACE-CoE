@@ -37,6 +37,7 @@ void OutputWrapperFPP::init_output_files(Collective *col, VCtopology3D *vct, Gri
         SaveDirName = col->getSaveDirName();
         RestartDirName = col->getRestartDirName();
         int restart_status = col->getRestart_status();
+
         output_file = SaveDirName + "/proc"   + num_proc_str + ".hdf";
         // restart_file= RestartDirName + "/restart"+ num_proc_str + ".hdf";
 
@@ -62,41 +63,43 @@ void OutputWrapperFPP::init_output_files(Collective *col, VCtopology3D *vct, Gri
                 hdf5_agent.close();
             }
 
-            if (col->getFieldOutputCycle() > 0 && col->getParticlesOutputCycle() > 0)
+            if (col->getWriteMethod() != "H5hut")
+                if (col->getFieldOutputCycle() > 0 && col->getParticlesOutputCycle() > 0)
+                {
+                    if (restart_status == 0)
+                        hdf5_agent.open(output_file);
+                    else
+                        hdf5_agent.open_append(output_file);
+                
+                    output_mgr.output("proc_topology ", 0);
+                    hdf5_agent.close();
+                }
+        }
+
+        if (col->getWriteMethod() != "H5hut")
+            if(col->getCallFinalize() || col->getRestartOutputCycle()>0)
             {
-                if (restart_status == 0)
+                if (cartesian_rank == 0 && restart_status < 2) 
+                {
+                    hdf5_agent.open(SaveDirName + "/settings.hdf");
+                    output_mgr.output("collective + total_topology + proc_topology", 0);
+                    hdf5_agent.close();
+                }
+
+                if (restart_status == 0) 
+                {
                     hdf5_agent.open(output_file);
-                else
-                    hdf5_agent.open_append(output_file);
-            
-                output_mgr.output("proc_topology ", 0);
-                hdf5_agent.close();
+                    output_mgr.output("proc_topology ", 0);
+                    hdf5_agent.close();
+                }
+                else 
+                {   
+                    // restart, append the results to the previous simulation 
+                    hdf5_agent.open(output_file);
+                    output_mgr.output("proc_topology ", 0);
+                    hdf5_agent.close();
+                }
             }
-        }
-
-        if(col->getCallFinalize() || col->getRestartOutputCycle()>0)
-        {
-            if (cartesian_rank == 0 && restart_status < 2) 
-            {
-        	    hdf5_agent.open(SaveDirName + "/settings.hdf");
-        	    output_mgr.output("collective + total_topology + proc_topology", 0);
-        	    hdf5_agent.close();
-            }
-
-        	if (restart_status == 0) 
-            {
-        		hdf5_agent.open(output_file);
-                output_mgr.output("proc_topology ", 0);
-        		hdf5_agent.close();
-        	}
-            else 
-            {   
-                // restart, append the results to the previous simulation 
-                hdf5_agent.open(output_file);
-                output_mgr.output("proc_topology ", 0);
-                hdf5_agent.close();
-            }
-        }
     #endif
 }
 

@@ -16,7 +16,7 @@ WriteMethod                    = H5hut                                         #
 
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
 FieldOutputCycle               = 20                                            # Output for moments and fields (if <= 0, data is NOT saved)
-ParticlesOutputCycle           = 0                                            # Output for particles (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
 
 FieldOutputTag                 = E + B + J + rho + rho_s + J_s + E_flux        # Select quantites to be written to files
                                + B_energy + E_energy + K_energy + pressure
@@ -27,13 +27,10 @@ ParticlesOutputTag 	           = position + velocity + q                       #
 ##* Fields
     # B                 --> Bx, By, and Bz
     # E                 --> Ex, Ey, and Ez
-    # Bx (By, Bz)       --> Bx (By or Bz)
-    # Ex (Ey, Ez)       --> Ex (Ey or Ez)
-    # B_ext             --> Bx_ext, By_ext, and Bz_ext
 
 ##* Moments
-    # J                 --> Jxh, Jyh, and Jzh (total current)
-    # Jx (Jy, Jz)       --> Jxh (Jyh or Jzh; total current along X, Y, or Z)
+    # J                 --> Jxh, Jyh, and Jzh: overall current density (all species combined)
+    # rho               --> rho: overall charge density (all species combined)
     # J_s               --> current densities for each species
     # rho_s             --> charge densities for each species
     # pressure          --> pressure tensor for each species
@@ -95,8 +92,8 @@ nzc                            = 1                                             #
 # %                                  MPI TOPOLOGY                              %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-XLEN                           = 1                                             # Number of MPI subdomains along X
-YLEN                           = 1                                             # Number of MPI subdomains along Y
+XLEN                           = 5                                             # Number of MPI subdomains along X
+YLEN                           = 5                                             # Number of MPI subdomains along Y
 ZLEN                           = 1                                             # Number of MPI subdomains along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
