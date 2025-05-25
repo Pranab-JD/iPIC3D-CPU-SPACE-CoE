@@ -15,43 +15,28 @@ Relativistic_pusher            = Boris                                         #
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-WriteMethod                    = shdf5                                         # Output method [ shdf5 | pvtk | nbcvtk ]
+WriteMethod                    = H5hut                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
 
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
-FieldOutputCycle               = 0                                             # Output for moments and fields (if <= 0, data is NOT saved)
-ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
+FieldOutputCycle               = 20                                            # Output for moments and fields (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 20                                            # Output for particles (if <= 0, data is NOT saved)
 
-FieldOutputTag                 = E + B + J + rho_s + J_s + E_flux              # Select quantites to be written to files
-                               + B_energy + E_energy + K_energy + pressure
-
+FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 # Select quantites to be written to files
 
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
 ##* Fields
     # B                 --> Bx, By, and Bz
     # E                 --> Ex, Ey, and Ez
-    # Bx (By, Bz)       --> Bx (By or Bz)
-    # Ex (Ey, Ez)       --> Ex (Ey or Ez)
-    # B_ext             --> Bx_ext, By_ext, and Bz_ext
 
 ##* Moments
-    # J                 --> Jxh, Jyh, and Jzh (total current)
-    # Jx (Jy, Jz)       --> Jxh (Jyh or Jzh; total current along X, Y, or Z)
+    # J                 --> Jxh, Jyh, and Jzh: overall current density (all species combined)
+    # rho               --> rho: overall charge density (all species combined)
     # J_s               --> current densities for each species
     # rho_s             --> charge densities for each species
     # pressure          --> pressure tensor for each species
     # E_flux            --> energy flux for each species
     # H_flux            --> heat flux tensor for each species
-
-##* Particles
-    # position          --> particle positions (X, Y, Z)
-    # velocity          --> particle velocities (U, V, W)
-    # q                 --> particle charges
-        
-##* Energies
-    # K_energy          --> Kinetic energy for each species
-    # B_energy          --> Magnetic field energy
-    # E_energy          --> Electric field energy
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
