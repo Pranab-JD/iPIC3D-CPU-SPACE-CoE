@@ -21,9 +21,11 @@ class H5output{
     void CloseFieldsFile();
 
     void OpenPartclFile(int nspec, MPI_Comm CART_COMM);
-    void WriteParticles(int ispec, long long np, double *q, double *x, double *y, double *z, double *u, double *v, double *w, MPI_Comm CART_COMM);
-    void WriteParticles(int ispec, long long np, long long* rank, long long *id, double *q, double *x, double *y, double *z, double *u, double *v, double *w, MPI_Comm CART_COMM);
-    void WriteTestParticles(int ispec, long long np, long long *rank, long long* id,  double *q, double *x, double *y, double *z, double *u, double *v, double *w, double* Exl, double* Eyl, double* Ezl, double* Bxl, double *Byl, double* Bzl, MPI_Comm CART_COMM);
+    // void WriteParticles(int ispec, long long np, double *q, double *x, double *y, double *z, double *u, double *v, double *w, MPI_Comm CART_COMM);
+    void WriteParticles(int ispec, int np, const double *q, const double *x, const double *y, const double *z, 
+                                                            const double *u, const double *v, const double *w, MPI_Comm CART_COMM);
+    // void WriteParticles(int ispec, long long np, long long* rank, long long *id, double *q, double *x, double *y, double *z, double *u, double *v, double *w, MPI_Comm CART_COMM);
+    // void WriteTestParticles(int ispec, long long np, long long *rank, long long* id,  double *q, double *x, double *y, double *z, double *u, double *v, double *w, double* Exl, double* Eyl, double* Ezl, double* Bxl, double *Byl, double* Bzl, MPI_Comm CART_COMM);
     void ClosePartclFile();
     
   private:
@@ -41,7 +43,7 @@ class H5input{
     void SetNameCycle(std::string name, int rc);
 
     // Field read functions:
-    int  OpenFieldsFile(std::string dtype, int nspec, int ntx, int nty, int ntz, int *coord, int *pdims, MPI_Comm CART_COMM);
+    int OpenFieldsFile(std::string dtype, int nspec, int ntx, int nty, int ntz, int *coord, int *pdims, MPI_Comm CART_COMM);
     int ReadFields(double ***field, std::string fname, int nx, int ny, int nz, int rank=-1);
     void CloseFieldsFile();
 

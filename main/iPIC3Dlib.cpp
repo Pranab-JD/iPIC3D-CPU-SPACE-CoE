@@ -716,7 +716,8 @@ void c_Solver::SupplementaryMoments()
 
     //? Compute density
     EMf->setZeroRho();
-    
+
+    //TODO: Is computecharge needed?
     for (int is = 0; is < ns; is++)
         particles[is].computeCharge(EMf);
   
@@ -839,7 +840,7 @@ void c_Solver::WriteOutput(int cycle)
                     if (vct->getCartesian_rank() == 0)
                         cout << endl << "Writing PARTICLES at cycle " << cycle << endl;
 
-				    WritePartclH5hut(ns, grid, particles, col, vct, cycle);
+				    WriteParticlesH5hut(ns, grid, particles, col, vct, cycle);
                 }
 			}
             else if (col->getWriteMethod() == "phdf5")
