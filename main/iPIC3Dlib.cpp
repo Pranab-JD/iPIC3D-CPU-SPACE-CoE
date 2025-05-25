@@ -181,6 +181,7 @@ int c_Solver::Init(int argc, char **argv)
         else if (col->getCase()=="NullPoints")      EMf->initNullPoints();
         else if (col->getCase()=="TaylorGreen")     EMf->initTaylorGreen();
         else if (col->getCase()=="Uniform")         EMf->init();
+        else if (col->getCase()=="Maxwellian")      EMf->init();
         #ifdef BATSRUS
             else if (col->getCase()=="BATSRUS")   	EMf->initBATSRUS();
         #endif
