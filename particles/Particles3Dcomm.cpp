@@ -1366,6 +1366,34 @@ void Particles3Dcomm::communicate_particles()
   recommunicate_particles_until_done(1);
 }
 
+double Particles3Dcomm::get_total_charge()
+{
+    double localQ = 0.0;
+    double totalQ = 0.0;
+
+    for (int i = 0; i < _pcls.size(); i++)
+    {
+        SpeciesParticle& pcl = _pcls[i];
+        const double q = pcl.get_q();
+        
+        localQ += q;
+    }
+    
+    MPI_Allreduce(&localQ, &totalQ, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    return (totalQ);
+}
+
+int Particles3Dcomm::get_num_particles()
+{
+    long long localN = 0.0;
+    long long totalN = 0.0;
+    
+    localN = _pcls.size();
+    
+    MPI_Allreduce(&localN, &totalN, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    return (totalN);
+}
+
 //? Kinetic energy of all particles
 double Particles3Dcomm::get_kinetic_energy() 
 {

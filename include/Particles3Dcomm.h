@@ -178,6 +178,15 @@ public:
     const double *getYall()  const { assert(particlesAreSoA()); return &y[0]; }
     const double *getZall()  const { assert(particlesAreSoA()); return &z[0]; }
     const double *getParticleIDall() const{assert(particlesAreSoA());return &t[0];  }
+
+    //* Downsampled particles
+    const double *getU_DS()  const { assert(particlesAreSoA()); return &u[0]; }
+    const double *getV_DS()  const { assert(particlesAreSoA()); return &v[0]; }
+    const double *getW_DS()  const { assert(particlesAreSoA()); return &w[0]; }
+    const double *getQ_DS()  const { assert(particlesAreSoA()); return &q[0]; }
+    const double *getX_DS()  const { assert(particlesAreSoA()); return &x[0]; }
+    const double *getY_DS()  const { assert(particlesAreSoA()); return &y[0]; }
+    const double *getZ_DS()  const { assert(particlesAreSoA()); return &z[0]; }
   
     //* accessors for particle with index indexPart
     int getNOP()  const { return _pcls.size(); }
@@ -212,6 +221,8 @@ public:
     // computed get access
     /** return the Kinetic energy */
     double get_kinetic_energy();
+    int get_num_particles();
+    double get_total_charge();
     /** return the maximum kinetic energy */
     double getMaxVelocity();
     /** return energy distribution */

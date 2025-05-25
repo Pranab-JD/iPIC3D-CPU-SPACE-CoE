@@ -53,9 +53,9 @@ namespace iPic3D {
 #ifndef NO_HDF5
       outputWrapperFPP(0),
 #endif
-      Ke(0),
+      kinetic_energy_species(0),
       BulkEnergy(0),
-      momentum(0),
+      momentum_species(0),
       Qremoved(0),
       my_clock(0)
     {}
@@ -99,9 +99,11 @@ namespace iPic3D {
     EMfields3D    *EMf; // 
     Particles3D   *particles;
     Particles3D   *testpart;
-    double        *Ke; // kinetic energy of each species, the normal one, added up
+    double        *kinetic_energy_species;  //* kinetic energy of each species, the normal one, added up
     double        *BulkEnergy; // bulk kinetic energy of each species, consider the bulk motion
-    double        *momentum; // an array of doubles, total momentum of all particle species
+    double        *momentum_species; // an array of doubles, total momentum of all particle species
+    int           *num_particles_species;
+    double        *charge_species;
     double        *Qremoved; // array of double, with species length, removed charges from the depopulation area
     Timing        *my_clock;
 
@@ -116,6 +118,7 @@ namespace iPic3D {
     string RestartDirName;
     string cqsat;
     string cq;
+    string cqs;
     string ds;
     string num_proc_str;
     int restart_cycle;
