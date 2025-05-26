@@ -147,15 +147,6 @@ public:
 
     void C2NB();
 
-    //* Calculate the three components of Pi(implicit pressure) cross image vector -- Not needed for ECSim *//
-    void PIdot(arr3_double PIdotX, arr3_double PIdotY, arr3_double PIdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int ns);
-
-    //* Calculate the three components of mu (implicit permeattivity) cross image vector -- Not needed for ECSim *//
-    void MUdot(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ);
-    
-    //* Calculate the three components of mu (implicit permeattivity) cross image vector using mass matrix *//
-    // void MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, arr3_double tempX, arr3_double tempY, arr3_double tempZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ);
-    
     //* Compute the product of mass matrix with vector "V = (Vx, Vy, Vz)"
     void mass_matrix_times_vector(double* MEx, double* MEy, double* MEz, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int i, int j, int k);
 

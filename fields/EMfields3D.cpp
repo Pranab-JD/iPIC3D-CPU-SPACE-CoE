@@ -2252,62 +2252,6 @@ void EMfields3D::sumMoments_vectorized_AoS(const Particles3Dcomm* part)
   }
 }
 
-//* Calculate PI dot (vectX, vectY, vectZ) -- Not needed for ECSim *//
-void EMfields3D::PIdot(arr3_double PIdotX, arr3_double PIdotY, arr3_double PIdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int ns)
-{
-  const Grid *grid = &get_grid();
-  double beta, edotb, omcx, omcy, omcz, denom;
-  beta = .5 * qom[ns] * dt / c;
-  for (int i = 1; i < nxn - 1; i++)
-    for (int j = 1; j < nyn - 1; j++)
-      for (int k = 1; k < nzn - 1; k++) {
-        omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
-        omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
-        omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
-        edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
-        denom = 1 / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
-        PIdotX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
-        PIdotY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
-        PIdotZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
-      }
-}
-
-//* Calculate MU dot (vectX, vectY, vectZ) -- Not needed for ECSim *//
-void EMfields3D::MUdot(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
-{
-    const Grid *grid = &get_grid();
-    
-    //? Initialise all arrays with zeros
-    for (int i = 1; i < nxn - 1; i++)
-        for (int j = 1; j < nyn - 1; j++)
-            for (int k = 1; k < nzn - 1; k++) 
-            {
-                MUdotX[i][j][k] = 0.0;
-                MUdotY[i][j][k] = 0.0;
-                MUdotZ[i][j][k] = 0.0;
-            }
-
-    double beta, edotb, omcx, omcy, omcz, denom;
-
-    for (int is = 0; is < ns; is++) 
-    {
-        beta = .5 * qom[is] * dt / c;
-        
-        for (int i = 1; i < nxn - 1; i++)
-            for (int j = 1; j < nyn - 1; j++)
-                for (int k = 1; k < nzn - 1; k++) 
-                {
-                    omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
-                    omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
-                    omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
-                    edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
-                    denom = FourPI / 2 * delt * dt / c * qom[is] * rhons[is][i][j][k] / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
-                    MUdotX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
-                    MUdotY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
-                    MUdotZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
-                }
-    }
-}
 
 //* Compute the product of mass matrix with vector "V = (Vx, Vy, Vz)"
 void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int i, int j, int k)
@@ -2342,53 +2286,6 @@ void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz,
     *MEy = resY;
     *MEz = resZ;
 }
-
-//? Compute MU dot using mass matrix ?//
-// void EMfields3D::MUdot_mass_matrix(arr3_double MUdotX, arr3_double MUdotY, arr3_double MUdotZ, 
-//                                    arr3_double tempX, arr3_double tempY, arr3_double tempZ, 
-//                                    const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ)
-// {
-//     const Grid *grid = &get_grid();
-    
-//     //? Initialise all arrays with zeros
-//     eqValue(0.0, MUdotX, nxn, nyn, nzn);
-//     eqValue(0.0, MUdotY, nxn, nyn, nzn);
-//     eqValue(0.0, MUdotZ, nxn, nyn, nzn);
-
-//     double beta, edotb, omcx, omcy, omcz, denom;
-
-//     //? Iterate over each species
-//     for (int is = 0; is < ns; is++) 
-//     {
-//         beta = 0.5 * qom[is] * dt/c;
-        
-//         for (int i = 1; i < nxn - 1; i++)
-//             for (int j = 1; j < nyn - 1; j++)
-//                 for (int k = 1; k < nzn - 1; k++) 
-//                 {
-//                     omcx = beta * (Bxn[i][j][k] + Bx_ext[i][j][k]);
-//                     omcy = beta * (Byn[i][j][k] + By_ext[i][j][k]);
-//                     omcz = beta * (Bzn[i][j][k] + Bz_ext[i][j][k]);
-//                     edotb = vectX.get(i,j,k) * omcx + vectY.get(i,j,k) * omcy + vectZ.get(i,j,k) * omcz;
-//                     denom = FourPI / 2 * delt * dt / c * qom[is] * rhons[is][i][j][k] / (1.0 + omcx * omcx + omcy * omcy + omcz * omcz);
-//                     tempX.fetch(i,j,k) += (vectX.get(i,j,k) + (vectY.get(i,j,k) * omcz - vectZ.get(i,j,k) * omcy + edotb * omcx)) * denom;
-//                     tempY.fetch(i,j,k) += (vectY.get(i,j,k) + (vectZ.get(i,j,k) * omcx - vectX.get(i,j,k) * omcz + edotb * omcy)) * denom;
-//                     tempZ.fetch(i,j,k) += (vectZ.get(i,j,k) + (vectX.get(i,j,k) * omcy - vectY.get(i,j,k) * omcx + edotb * omcz)) * denom;
-//                 }
-
-//         for (int i = 1; i < nxn - 1; i++)
-//             for (int j = 1; j < nyn - 1; j++)
-//                 for (int k = 1; k < nzn - 1; k++)
-//                     for (int ix = -1; ix < 2; ix++)
-//                         for (int iy = -1; iy < 2; iy++)
-//                             for (int iz = -1; iz < 2; iz++) 
-//                             {
-//                                 MUdotX.fetch(i,j,k) += tempX.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
-//                                 MUdotY.fetch(i,j,k) += tempY.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
-//                                 MUdotZ.fetch(i,j,k) += tempZ.get(i + ix, j + iy, k + iz) * mass_matrix[ix + 1] * mass_matrix[iy + 1] * mass_matrix[iz + 1];
-//                             }
-//     }
-// }
 
 //! Communicate ghost data for IMM moments
 void EMfields3D::communicateGhostP2G(int ns)
