@@ -99,24 +99,24 @@ endif()
 ############### H5HUT ###############
 
 if(USE_H5HUT)
-
     add_subdirectory(H5hut-io)
-    set(H5HUT_ROOT "/users/dekapran/H5hut" CACHE PATH "Path to H5hut install")
-    find_library(H5HUT_LIBRARY NAMES H5hut PATHS ${H5HUT_ROOT}/lib NO_DEFAULT_PATH)
+    set(H5HUT_DIR "$ENV{H5HUT_DIR}" CACHE PATH "Path to H5hut install")
+    find_library(H5HUT_LIBRARY NAMES H5hut PATHS ${H5HUT_DIR}/lib NO_DEFAULT_PATH)
     message(STATUS "H5HUT library found at: ${H5HUT_LIBRARY}")
 
     message(STATUS "H5hut support is ON")
     add_definitions(-DUSE_H5HUT)
 
-    include_directories(${H5HUT_ROOT}/include)
-    link_directories(${H5HUT_ROOT}/lib)
+    include_directories(${H5HUT_DIR}/include)
+    link_directories(${H5HUT_DIR}/lib)
 
     if(NOT H5HUT_LIBRARY)
-        message(FATAL_ERROR "H5hut library not found in ${H5HUT_ROOT}/lib")
+        message(FATAL_ERROR "H5hut library not found in ${H5HUT_DIR}/lib")
     endif()
 else()
     message(STATUS "H5hut support is OFF")
 endif()
+
 
 ############### MPI and OpenMP ###############
 

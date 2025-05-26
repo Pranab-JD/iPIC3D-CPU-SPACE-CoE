@@ -5,6 +5,7 @@
   - cmake (minimum version 2.8)
   - MPI (OpenMPI or MPICH)
   - HDF5 (optional)
+  - H5HUT (optional, need parallel HF5 to use H5HUT)
   - VTK (optional)
   - Paraview/Catalyst (optional)
 
@@ -19,12 +20,17 @@ git clone https://github.com/Pranab-JD/iPIC3D-CPU-SPACE-CoE.git
 cd iPIC3D-CPU-SPACE-CoE && mkdir build && cd build
 ```
 
-3. Compile the code (part 1)
+3. Checkout to the ```ecsim_relsim``` branch
+``` shell
+git checkout ecsim_relsim
+```
+
+4. Compile the code (part 1)
 ``` shell
 cmake ..
 ```
 
-4. Compile the code (part 2)
+5. Compile the code (part 2)
 ``` shell
 make -j     # -j = build with max # of threads - fast, recommended
 ```
