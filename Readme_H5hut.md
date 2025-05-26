@@ -5,16 +5,11 @@
 
 
 ## Installation
-1. Set compiler environment
+1. Set variable for H5hut directory
 ``` shell
-### Cray environment (e.g., LUMI)
-export CC=cc
-export CXX=cxx
-
-### Non-Cray environment
-export CC=mpicc
-export CXX=mpicxx
+export H5HUT_DIR=$HOME/H5hut
 ```
+Set a variable for the H5hut directory (iPIC3D uses this variable). This will create the lib and include files in the ```$HOME/H5hut``` directory. If you are not installing H5hut in the home directory, please replace this with the desired directory.
 
 2. Download H5hut
 ``` shell
@@ -33,16 +28,15 @@ cd H5hut-2.0.0rc3
 
 5. Compile (part 2)
 ``` shell
-./configure --enable-parallel --enable-large-indices --enable-shared --enable-static --with-hdf5=$EBROOTHDF5 --prefix=$HOME/H5hut
+CC=mpicc CXX=mpicxx ./configure --enable-parallel --enable-large-indices --enable-shared --enable-static --with-hdf5=$EBROOTHDF5 --prefix=H5HUT_DIR
 ```
-This will create the lib and include files in the ```$HOME/H5hut``` directory. If you are not installing H5hut in the home directory, please replace ```--prefix=$HOME/H5hut``` with the correct directory. 
 
 6. Compile (part 3)
 ``` shell
-make -j
+CC=mpicc CXX=mpicxx make -j
 ```
 
 7. Compile (part 4)
 ``` shell
-make install
+CC=mpicc CXX=mpicxx make install
 ```
