@@ -9,7 +9,7 @@
 ``` shell
 export H5HUT_DIR=$HOME/H5hut
 ```
-Set a variable for the H5hut directory (iPIC3D uses this variable). This will create the lib and include files in the ```$HOME/H5hut``` directory. If you are not installing H5hut in the home directory, please replace this with the desired directory.
+Set a variable for the H5hut directory (iPIC3D uses this variable). This will create the lib and include files in the ```$HOME/H5hut``` directory. If you do not wish to install H5hut in the home directory, please replace this with the desired directory.
 
 2. Download H5hut
 ``` shell
@@ -28,7 +28,7 @@ cd H5hut-2.0.0rc3
 
 5. Compile (part 2)
 ``` shell
-CC=mpicc CXX=mpicxx ./configure --enable-parallel --enable-large-indices --enable-shared --enable-static --with-hdf5=$EBROOTHDF5 --prefix=H5HUT_DIR
+CC=mpicc CXX=mpicxx ./configure --enable-parallel --enable-large-indices --enable-shared --enable-static --with-hdf5=$EBROOTHDF5 --prefix=$H5HUT_DIR
 ```
 
 6. Compile (part 3)
