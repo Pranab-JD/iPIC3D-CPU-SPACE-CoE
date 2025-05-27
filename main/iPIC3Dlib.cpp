@@ -933,8 +933,16 @@ void c_Solver::WriteConserved(int cycle)
 
     if(col->getDiagnosticsOutputCycle() > 0 && cycle % col->getDiagnosticsOutputCycle() == 0)
     {
-        double E_field_energy = EMf->get_E_field_energy();
-        double B_field_energy = EMf->get_B_field_energy();
+        double E_field_energy  = EMf->get_E_field_energy();
+        double Ex_field_energy = EMf->get_Ex_field_energy();
+        double Ey_field_energy = EMf->get_Ey_field_energy();
+        double Ez_field_energy = EMf->get_Ez_field_energy();
+
+        double B_field_energy  = EMf->get_B_field_energy();
+        double Bx_field_energy = EMf->get_Bx_field_energy();
+        double By_field_energy = EMf->get_By_field_energy();
+        double Bz_field_energy = EMf->get_Bz_field_energy();
+
         double total_momentum = 0.0;
         double kinetic_energy = 0.0;
 
@@ -957,8 +965,14 @@ void c_Solver::WriteConserved(int cycle)
             if(cycle == 0 && restart_status == 0)
             {
                 my_file << endl << "I.    Cycle" 
-                        << endl << "II.   Electric field energy" 
-                        << endl << "III.  Magnetic field energy" 
+                        << endl << "II.   Electric field energy (total)"
+                        << endl << "IIa.  Electric field energy along X"
+                        << endl << "IIb.  Electric field energy along Y"
+                        << endl << "IIc.  Electric field energy along Z" 
+                        << endl << "III.  Magnetic field energy (total)"
+                        << endl << "IIIa. Magnetic field energy along X"
+                        << endl << "IIIb. Magnetic field energy along Y"
+                        << endl << "IIIc. Magnetic field energy along Z" 
                         << endl << "IV.   Kinetic Energy (all species)"
                         << endl << "V.    Total Energy" 
                         << endl << "VI.   Energy(cycle) - Energy(initial)" 
@@ -967,15 +981,16 @@ void c_Solver::WriteConserved(int cycle)
                 my_file << "=====================================================================================================================================" << endl << endl;
 
                 my_file << setw(7) 
-                        << "I"   << setw(25) << "II" << setw(25) 
-                        << "III" << setw(25) << "IV" << setw(25) 
-                        << "V"   << setw(25) << "VI" << setw(25) 
+                        << "I"   << setw(25) 
+                        << "II"  << setw(25) << "IIa"  << setw(25) << setw(25) << "IIb"  << setw(25) << setw(25) << "IIc"  << setw(25) 
+                        << "III" << setw(25) << "IIIa" << setw(25) << setw(25) << "IIIb" << setw(25) << setw(25) << "IIIc" << setw(25) 
+                        << "IV"  << setw(25) << "V"    << setw(25) << "VI" << setw(25) 
                         << "VII" << endl << endl;
             }
             
             my_file << setw(7)  << cycle << scientific << setprecision(15)
-                    << setw(25) << E_field_energy 
-                    << setw(25) << B_field_energy 
+                    << setw(25) << E_field_energy << setw(25) << Ex_field_energy << setw(25) << Ey_field_energy  << setw(25) << Ez_field_energy 
+                    << setw(25) << B_field_energy << setw(25) << Bx_field_energy << setw(25) << By_field_energy  << setw(25) << Bz_field_energy 
                     << setw(25) << kinetic_energy  
                     << setw(25) << E_field_energy + B_field_energy + kinetic_energy
                     << setw(25) << abs(initial_total_energy - (E_field_energy + B_field_energy + kinetic_energy))

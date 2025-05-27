@@ -5866,7 +5866,7 @@ void EMfields3D::OpenBoundaryInflowE(arr3_double vectorX, arr3_double vectorY, a
 
 //*** Get energies ***//
 
-//? Electric field energy */
+//! Electric field energy
 double EMfields3D::get_E_field_energy(void) 
 {
     double localEenergy = 0.0;
@@ -5879,7 +5879,48 @@ double EMfields3D::get_E_field_energy(void)
 
     MPI_Allreduce(&localEenergy, &totalEenergy, 1, MPI_DOUBLE, MPI_SUM, (&get_vct())->getFieldComm());
     return (totalEenergy);
+}
 
+double EMfields3D::get_Ex_field_energy(void) 
+{
+    double localEenergy = 0.0;
+    double totalEenergy = 0.0;
+
+    for (int i = 1; i < nxn - 2; i++)
+        for (int j = 1; j < nyn - 2; j++)
+            for (int k = 1; k < nzn - 2; k++)
+                localEenergy += .5 * dx * dy * dz * (Ex[i][j][k] * Ex[i][j][k]) / (FourPI);
+
+    MPI_Allreduce(&localEenergy, &totalEenergy, 1, MPI_DOUBLE, MPI_SUM, (&get_vct())->getFieldComm());
+    return (totalEenergy);
+}
+
+double EMfields3D::get_Ey_field_energy(void) 
+{
+    double localEenergy = 0.0;
+    double totalEenergy = 0.0;
+
+    for (int i = 1; i < nxn - 2; i++)
+        for (int j = 1; j < nyn - 2; j++)
+            for (int k = 1; k < nzn - 2; k++)
+                localEenergy += .5 * dx * dy * dz * (Ey[i][j][k] * Ey[i][j][k]) / (FourPI);
+
+    MPI_Allreduce(&localEenergy, &totalEenergy, 1, MPI_DOUBLE, MPI_SUM, (&get_vct())->getFieldComm());
+    return (totalEenergy);
+}
+
+double EMfields3D::get_Ez_field_energy(void) 
+{
+    double localEenergy = 0.0;
+    double totalEenergy = 0.0;
+
+    for (int i = 1; i < nxn - 2; i++)
+        for (int j = 1; j < nyn - 2; j++)
+            for (int k = 1; k < nzn - 2; k++)
+                localEenergy += .5 * dx * dy * dz * (Ez[i][j][k] * Ez[i][j][k]) / (FourPI);
+
+    MPI_Allreduce(&localEenergy, &totalEenergy, 1, MPI_DOUBLE, MPI_SUM, (&get_vct())->getFieldComm());
+    return (totalEenergy);
 }
 
 //*! Get internal magnetic field energy
@@ -5901,6 +5942,48 @@ double EMfields3D::get_B_field_energy(void)
 
                 localBenergy += .5*dx*dy*dz*(Bxt*Bxt + Byt*Byt + Bzt*Bzt)/(FourPI);
             }
+
+    MPI_Allreduce(&localBenergy, &totalBenergy, 1, MPI_DOUBLE, MPI_SUM, (&get_vct())->getFieldComm());
+    return (totalBenergy);
+}
+
+double EMfields3D::get_Bx_field_energy(void) 
+{
+    double localBenergy = 0.0;
+    double totalBenergy = 0.0;
+
+    for (int i = 1; i < nxc - 1; i++)
+        for (int j = 1; j < nyc - 1; j++)
+            for (int k = 1; k < nzc - 1; k++)
+                localBenergy += .5 * dx * dy * dz * (Bxc[i][j][k] * Bxc[i][j][k])/(FourPI);
+
+    MPI_Allreduce(&localBenergy, &totalBenergy, 1, MPI_DOUBLE, MPI_SUM, (&get_vct())->getFieldComm());
+    return (totalBenergy);
+}
+
+double EMfields3D::get_By_field_energy(void) 
+{
+    double localBenergy = 0.0;
+    double totalBenergy = 0.0;
+
+    for (int i = 1; i < nxc - 1; i++)
+        for (int j = 1; j < nyc - 1; j++)
+            for (int k = 1; k < nzc - 1; k++)
+                localBenergy += .5 * dx * dy * dz * (Byc[i][j][k] * Byc[i][j][k])/(FourPI);
+
+    MPI_Allreduce(&localBenergy, &totalBenergy, 1, MPI_DOUBLE, MPI_SUM, (&get_vct())->getFieldComm());
+    return (totalBenergy);
+}
+
+double EMfields3D::get_Bz_field_energy(void) 
+{
+    double localBenergy = 0.0;
+    double totalBenergy = 0.0;
+
+    for (int i = 1; i < nxc - 1; i++)
+        for (int j = 1; j < nyc - 1; j++)
+            for (int k = 1; k < nzc - 1; k++)
+                localBenergy += .5 * dx * dy * dz * (Bzc[i][j][k] * Bzc[i][j][k])/(FourPI);
 
     MPI_Allreduce(&localBenergy, &totalBenergy, 1, MPI_DOUBLE, MPI_SUM, (&get_vct())->getFieldComm());
     return (totalBenergy);

@@ -405,7 +405,13 @@ public:
     void timeAveragedDivE(double ma);
 
     double get_E_field_energy();        //* Electric field energy
-    double get_B_field_energy();        //* Magnetic (internal) field energy
+    double get_Ex_field_energy();       //* Electric field energy along X
+    double get_Ey_field_energy();       //* Electric field energy along Y
+    double get_Ez_field_energy();       //* Electric field energy along Z
+    double get_B_field_energy();        //* Magnetic (internal) field energy along X
+    double get_Bx_field_energy();       //* Magnetic (internal) field energy along Y
+    double get_By_field_energy();       //* Magnetic (internal) field energy along Z
+    double get_Bz_field_energy();       //* Magnetic (internal) field energy
     double get_Bext_energy();           //* External magnetic field energy
     double getBulkEnergy(int is);       //* Bulk kinetic energy
 
