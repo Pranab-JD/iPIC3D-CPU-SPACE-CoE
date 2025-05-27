@@ -534,10 +534,10 @@ void Collective::ReadInput(string inputfile)
     #ifndef NO_HDF5 
     if (RESTART1) 
     {   // you are restarting
-        RestartDirName = config.read < string > ("SaveDirName","data");
+        RestartDirName = config.read < string > ("RestartDirName","data");
         //ReadRestart(RestartDirName);
-        restart_status = 1;
-        hid_t file_id = H5Fopen((RestartDirName + "/proc0.hdf").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+        restart_status = 2;
+        hid_t file_id = H5Fopen((RestartDirName + "/restart0.hdf").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
         if (file_id < 0) 
         {
             cout << "couldn't open file: " << inputfile << endl;
@@ -842,7 +842,8 @@ int Collective::ReadRestart(string inputfile)
 
 
     // if RestartDirName == SaveDirName overwrite dt,Th,Smooth (append to old hdf files)
-    if (RestartDirName == SaveDirName) {
+    if (RestartDirName == SaveDirName) 
+    {
         restart_status = 2;
         // read dt
         dataset_id = H5Dopen2(file_id, "/collective/Dt", H5P_DEFAULT); // HDF 1.8.8
@@ -866,7 +867,7 @@ int Collective::ReadRestart(string inputfile)
 
     // read last cycle (not from settings, but from restart0.hdf)
 
-    file_id = H5Fopen((inputfile + "/proc0.hdf").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+    file_id = H5Fopen((inputfile + "/restart0.hdf").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
     if (file_id < 0) {
         cout << "couldn't open file: " << inputfile << endl;
         return -1;
@@ -898,7 +899,7 @@ void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
 
         stringstream ss;
         ss << vct->getCartesian_rank();
-        string name_file = getSaveDirName() + "/proc" + ss.str() + ".hdf";
+        string name_file = getRestartDirName() + "/restart" + ss.str() + ".hdf";
 
         // hdf stuff
         hid_t file_id, dataspace;
@@ -912,10 +913,13 @@ void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
         file_id = H5Fopen(name_file.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
         
         if (file_id < 0)
+        {
             cout << "Failed to open file " << name_file << " in read_field_restart()" << endl;
+            abort();
+        }
 
         //* find the last cycle
-        int lastcycle = 60;
+        int lastcycle = 0;
         dataset_id = H5Dopen2(file_id, "/last_cycle", H5P_DEFAULT); // HDF 1.8.8
         status = H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &lastcycle);
         status = H5Dclose(dataset_id);
@@ -1032,7 +1036,7 @@ void Collective::read_particles_restart(const VCtopology3D* vct, int species_num
 
         stringstream ss;
         ss << vct->getCartesian_rank();
-        string name_file = getSaveDirName() + "/proc" + ss.str() + ".hdf";
+        string name_file = getRestartDirName() + "/restart" + ss.str() + ".hdf";
 
         // hdf stuff
         hid_t file_id, dataspace;
@@ -1047,10 +1051,13 @@ void Collective::read_particles_restart(const VCtopology3D* vct, int species_num
         // open the hdf file
         file_id = H5Fopen(name_file.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
         if (file_id < 0) 
+        {
             cout << "Failed to open file " << name_file << " in read_particles_restart()" << endl;
+            abort();
+        }
 
         //* find the last cycle
-        int lastcycle = 60;
+        int lastcycle = 0;
         dataset_id = H5Dopen2(file_id, "/last_cycle", H5P_DEFAULT); // HDF 1.8.8
         status = H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &lastcycle);
         status = H5Dclose(dataset_id);

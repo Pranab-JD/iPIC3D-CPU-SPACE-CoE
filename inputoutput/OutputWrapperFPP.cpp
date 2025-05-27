@@ -38,8 +38,8 @@ void OutputWrapperFPP::init_output_files(Collective *col, VCtopology3D *vct, Gri
         RestartDirName = col->getRestartDirName();
         int restart_status = col->getRestart_status();
 
-        output_file = SaveDirName + "/proc"   + num_proc_str + ".hdf";
-        // restart_file= RestartDirName + "/restart"+ num_proc_str + ".hdf";
+        output_file = SaveDirName + "/proc" + num_proc_str + ".hdf";
+        restart_file = RestartDirName + "/restart" + num_proc_str + ".hdf";
 
         //* Initialize the output (simulation results and restart file)
         hdf5_agent.set_simulation_pointers(EMf, grid, vct, col);
@@ -63,30 +63,30 @@ void OutputWrapperFPP::init_output_files(Collective *col, VCtopology3D *vct, Gri
                 hdf5_agent.close();
             }
 
-            // if (col->getWriteMethod() != "H5hut")
-            //     if (col->getFieldOutputCycle() > 0 && col->getParticlesOutputCycle() > 0)
-            //     {
-            //         if (restart_status == 0)
-            //             hdf5_agent.open(output_file);
-            //         else
-            //             hdf5_agent.open_append(output_file);
+            if (col->getWriteMethod() != "H5hut")
+                if (col->getFieldOutputCycle() > 0 && col->getParticlesOutputCycle() > 0)
+                {
+                    if (restart_status == 0)
+                        hdf5_agent.open(output_file);
+                    else
+                        hdf5_agent.open_append(output_file);
                 
-            //         output_mgr.output("proc_topology ", 0);
-            //         hdf5_agent.close();
-            //     }
+                    output_mgr.output("proc_topology ", 0);
+                    hdf5_agent.close();
+                }
         }
 
-        // if (col->getWriteMethod() != "H5hut")
-        //     if(col->getCallFinalize() || col->getRestartOutputCycle()>0)
-        //     {
-                // if (cartesian_rank == 0 && restart_status < 2) 
-                // {
-                //     hdf5_agent.open(SaveDirName + "/settings.hdf");
-                //     output_mgr.output("collective + total_topology + proc_topology", 0);
-                //     hdf5_agent.close();
-                // }
+        if (col->getWriteMethod() == "shdf5")
+            if(col->getCallFinalize() || col->getRestartOutputCycle()>0)
+            {
+                if (cartesian_rank == 0 && restart_status < 2) 
+                {
+                    hdf5_agent.open(RestartDirName + "/settings.hdf");
+                    output_mgr.output("collective + total_topology + proc_topology", 0);
+                    hdf5_agent.close();
+                }
 
-                if (restart_status == 0) 
+                if (restart_status == 0)
                 {
                     hdf5_agent.open(output_file);
                     output_mgr.output("proc_topology ", 0);
@@ -95,11 +95,11 @@ void OutputWrapperFPP::init_output_files(Collective *col, VCtopology3D *vct, Gri
                 else 
                 {   
                     // restart, append the results to the previous simulation 
-                    hdf5_agent.open_append(output_file);
+                    hdf5_agent.open_append(restart_file);
                     output_mgr.output("proc_topology ", 0);
                     hdf5_agent.close();
                 }
-            // }
+            }
     #endif
 }
 
@@ -108,7 +108,6 @@ void OutputWrapperFPP::append_output(const char* tag, int cycle)
     #ifndef NO_HDF5
         hdf5_agent.open_append(output_file);
         output_mgr.output(tag, cycle);
-        output_mgr.output("last_cycle", cycle);
         hdf5_agent.close();
     #endif
 }
@@ -118,7 +117,6 @@ void OutputWrapperFPP::append_output(const char* tag, int cycle, int sample)
     #ifndef NO_HDF5
         hdf5_agent.open_append(output_file);
         output_mgr.output(tag, cycle, sample);
-        output_mgr.output("last_cycle", cycle);
         hdf5_agent.close();
     #endif
 }
@@ -127,7 +125,9 @@ void OutputWrapperFPP::append_restart(int cycle)
 {
     #ifndef NO_HDF5
         hdf5_agent.open_append(restart_file);
-        output_mgr.output("position + velocity + q + ID", cycle, 0);
+        output_mgr.output("proc_topology ", cycle);
+        output_mgr.output("E + B + rho_s", cycle); 
+        output_mgr.output("position + velocity + q", cycle, 0);
         // output_mgr.output("testpartpos + testpartvel + testpartcharge", cycle, 0);
         output_mgr.output("last_cycle", cycle);
         hdf5_agent.close();

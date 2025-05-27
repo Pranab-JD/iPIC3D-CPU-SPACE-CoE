@@ -104,6 +104,7 @@ int c_Solver::Init(int argc, char **argv)
     col = new Collective(argc, argv);               // Every proc loads the parameters of simulation from class Collective
     restart_cycle   = col->getRestartOutputCycle();
     SaveDirName     = col->getSaveDirName();
+    RestartDirName  = col->getRestartDirName();
     restart_status  = col->getRestart_status();
     ns              = col->getNs();                 // get the number of species of particles involved in simulation
 
@@ -116,14 +117,12 @@ int c_Solver::Init(int argc, char **argv)
 
     //? Check if we can map the processes into a matrix ordering defined in Collective.cpp
     if (nprocs != vct->getNprocs()) 
-    {
         if (myrank == 0) 
         {
             cerr << "Error: " << nprocs << " processes cant be mapped as " << vct->getXLEN() << "x" << vct->getYLEN() << "x" << vct->getZLEN() << ". Change XLEN, YLEN, & ZLEN in input file. " << endl;
             MPIdata::instance().finalize_mpi();
             return (1);
         }
-    }
 
     // We create a new communicator with a 3D virtual Cartesian topology
     vct->setup_vctopology(MPIdata::get_PicGlobalComm());
@@ -778,6 +777,7 @@ void c_Solver::WriteOutput(int cycle)
     SupplementaryMoments();
 
     WriteConserved(cycle);
+    WriteRestart(cycle);
 
     if(!Parameters::get_doWriteOutput())  return;
 
@@ -918,6 +918,17 @@ void c_Solver::WriteOutput(int cycle)
 
 		#endif
   	}
+}
+
+void c_Solver::WriteRestart(int cycle)
+{
+    #ifndef NO_HDF5
+    if (restart_cycle>0 && cycle%restart_cycle==0)
+    {
+        convertParticlesToSynched();
+        fetch_outputWrapperFPP().append_restart(cycle);
+    }
+    #endif
 }
 
 void c_Solver::WriteConserved(int cycle) 

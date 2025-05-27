@@ -304,6 +304,9 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
             col->read_particles_restart(vct, species_number,u, v, w, q, x, y, z, t);
             convertParticlesToAoS();
         #endif
+
+        if (vct->getCartesian_rank() == 0)
+            cout << "SUCCESSFULLY READ PARTICLE DATA FROM HDF5 FILES FOR RESTART" << endl;
     }
 
     //* set_velocity_caps()
@@ -317,8 +320,6 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
     if(false && is_output_thread())
         printf("species %d velocity cap: umax=%g,vmax=%g,wmax=%g\n", ns, umax,vmax,wmax);
 
-    if (vct->getCartesian_rank() == 0)
-        cout << "SUCCESSFULLY READ PARTICLE DATA FROM HDF5 FILES FOR RESTART" << endl;
 }
 
 // pad capacities so that aligned vectorization does not result in an array overrun.
