@@ -35,7 +35,7 @@
 #include "Timing.h"
 #include "ParallelIO.h"
 #include "outputPrepare.h"
-//
+
 #ifndef NO_HDF5
     #include "WriteOutputParallel.h"
     #include "OutputWrapperFPP.h"
@@ -45,6 +45,8 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <sys/stat.h>
+#include <filesystem>
 
 #include "Moments.h" // for debugging
 #include "../LeXInt_Timer.hpp"
@@ -103,7 +105,11 @@ int c_Solver::Init(int argc, char **argv)
     SaveDirName     = col->getSaveDirName();
     restart_status  = col->getRestart_status();
     ns              = col->getNs();                 // get the number of species of particles involved in simulation
-    first_cycle     = col->getLast_cycle() + 1;     // get the last cycle from the restart
+
+    if (restart_status == 0)
+        first_cycle     = col->getLast_cycle() + 1;     // get the last cycle from the restart
+    else if (restart_status == 1 || restart_status == 2)
+        first_cycle     = col->getLast_cycle();
 
     vct = new VCtopology3D(*col);
 
@@ -133,7 +139,7 @@ int c_Solver::Init(int argc, char **argv)
     #endif
 
     //* Print initial settings to stdout and file
-    if (myrank == 0) 
+    if (myrank == 0 && restart_status == 0) 
     {
         //* Create output directory
         checkOutputFolder(SaveDirName);
@@ -147,65 +153,87 @@ int c_Solver::Init(int argc, char **argv)
     grid = new Grid3DCU(col, vct);          // Create the local grid
     EMf = new EMfields3D(col, grid, vct);   // Create Electromagnetic Fields Object
 
-    //! ======================== Initial Field Distribution (if NOT starting from RESTART) ======================== !//
+    //! ======================== Initial Field Distribution ======================== !//
 
-    if (col->getRelativistic())
-    {
-        //! Relativistic Cases
-        if      (col->getCase()=="Relativistic_Double_Harris_pairs")            EMf->init_Relativistic_Double_Harris_pairs();
-        else if (col->getCase()=="Relativistic_Double_Harris_ion_electron")     EMf->init_Relativistic_Double_Harris_ion_electron();
-        else if (col->getCase()=="Shock1D")                                     EMf->initShock1D();
-        else if (col->getCase()=="Maxwell_Juttner")                             EMf->init();
-        else 
+    if (restart_status == 1 || restart_status == 2)
+    {   
+        //! RESTART
+        EMf->init();
+    }
+    else if (restart_status == 0)
+    {   
+        //! NEW INPUT FILE
+        if (col->getRelativistic())
         {
-            if (myrank==0)
+            //! Relativistic Cases
+            if      (col->getCase()=="Relativistic_Double_Harris_pairs")            EMf->init_Relativistic_Double_Harris_pairs();
+            else if (col->getCase()=="Relativistic_Double_Harris_ion_electron")     EMf->init_Relativistic_Double_Harris_ion_electron();
+            else if (col->getCase()=="Shock1D")                                     EMf->initShock1D();
+            else if (col->getCase()=="Maxwell_Juttner")                             EMf->init();
+            else 
             {
-                cout << " =================================================================== " << endl;
-                cout << " WARNING: The case '" << col->getCase() << "' was not recognized. " << endl;
-                cout << "     Runing relativistic simulation with the default initialisation. " << endl;
-                cout << " =================================================================== " << endl;
-            }
+                if (myrank==0)
+                {
+                    cout << " =================================================================== " << endl;
+                    cout << " WARNING: The case '" << col->getCase() << "' was not recognized. " << endl;
+                    cout << "     Runing relativistic simulation with the default initialisation. " << endl;
+                    cout << " =================================================================== " << endl;
+                }
 
-            EMf->init();
+                EMf->init();
+            }
+        }
+        else
+        {
+            //! Non Relativistic Cases
+            if      (col->getCase()=="GEMnoPert") 		EMf->initGEMnoPert();
+            else if (col->getCase()=="ForceFree") 		EMf->initForceFree();
+            else if (col->getCase()=="GEM")       		EMf->initGEM();
+            else if (col->getCase()=="DoubleHarris")    EMf->initDoubleHarris();
+            else if (col->getCase()=="Dipole")    		EMf->initDipole();
+            else if (col->getCase()=="Dipole2D")  		EMf->initDipole2D();
+            else if (col->getCase()=="NullPoints")      EMf->initNullPoints();
+            else if (col->getCase()=="TaylorGreen")     EMf->initTaylorGreen();
+            else if (col->getCase()=="Uniform")         EMf->init();
+            else if (col->getCase()=="Maxwellian")      EMf->init();
+            #ifdef BATSRUS
+                else if (col->getCase()=="BATSRUS")   	EMf->initBATSRUS();
+            #endif
+            else if (col->getCase()=="RandomCase")      EMf->initRandomField();
+            else 
+            {
+                if (myrank==0)
+                {
+                    cout << " ================================================================ " << endl;
+                    cout << " WARNING: The case '" << col->getCase() << "' was not recognized. " << endl;
+                    cout << "       Runing simulation with the default initialisation. " << endl;
+                    cout << " ================================================================ " << endl;
+                }
+
+                EMf->init();
+            }
         }
     }
     else
     {
-        //! Non Relativistic Cases
-        if      (col->getCase()=="GEMnoPert") 		EMf->initGEMnoPert();
-        else if (col->getCase()=="ForceFree") 		EMf->initForceFree();
-        else if (col->getCase()=="GEM")       		EMf->initGEM();
-        else if (col->getCase()=="DoubleHarris")    EMf->initDoubleHarris();
-        else if (col->getCase()=="Dipole")    		EMf->initDipole();
-        else if (col->getCase()=="Dipole2D")  		EMf->initDipole2D();
-        else if (col->getCase()=="NullPoints")      EMf->initNullPoints();
-        else if (col->getCase()=="TaylorGreen")     EMf->initTaylorGreen();
-        else if (col->getCase()=="Uniform")         EMf->init();
-        else if (col->getCase()=="Maxwellian")      EMf->init();
-        #ifdef BATSRUS
-            else if (col->getCase()=="BATSRUS")   	EMf->initBATSRUS();
-        #endif
-        else if (col->getCase()=="RandomCase")      EMf->initRandomField();
-        else 
+        if (myrank==0)
         {
-            if (myrank==0)
-            {
-                cout << " ================================================================ " << endl;
-                cout << " WARNING: The case '" << col->getCase() << "' was not recognized. " << endl;
-                cout << "       Runing simulation with the default initialisation. " << endl;
-                cout << " ================================================================ " << endl;
-            }
-
-            EMf->init();
+            cout << "Incorrect restart status!" << endl;
+            cout << "restart_status = 0 ---> New inputfile" << endl;
+            cout << "restart_status = 1 ---> RESTART! Write to new output files" << endl;
+            cout << "restart_status = 1 ---> RESTART! Append to old output files" << endl;
         }
+        abort();
     }
 
     //! ======================= Initial Particle Distribution (if NOT starting from RESTART) ======================= !//
 
     //* Allocation of particles
     particles = (Particles3D*) malloc(sizeof(Particles3D)*ns);
-    for (int i = 0; i < ns; i++)  new(&particles[i]) Particles3D(i,col,vct,grid);
-    
+
+    for (int is = 0; is < ns; is++)  
+        new(&particles[is]) Particles3D(is, col, vct, grid);
+
     if (restart_status == 0) 
     {
         for (int i = 0; i < ns; i++)
@@ -291,9 +319,10 @@ int c_Solver::Init(int argc, char **argv)
     momentum_species = new double[ns];
     charge_species = new double[ns];
     num_particles_species = new int[ns];
+
     cq = SaveDirName + "/ConservedQuantities.txt";
     cqs = SaveDirName + "/SpeciesQuantities.txt";
-    if (myrank == 0) 
+    if (myrank == 0 && restart_status == 0) 
     {
         ofstream my_file(cq.c_str());
         my_file.close();
@@ -744,6 +773,9 @@ void c_Solver::WriteOutput(int cycle)
         Adaptor::CoProcess(col->getDt()*cycle, cycle, EMf);
     #endif
 
+    //* Compute additional moments (to be written to files)
+    SupplementaryMoments();
+
     WriteConserved(cycle);
 
     if(!Parameters::get_doWriteOutput())  return;
@@ -839,7 +871,6 @@ void c_Solver::WriteOutput(int cycle)
                     if (vct->getCartesian_rank() == 0)
                         cout << endl << "Writing FIELDS and MOMENTS at cycle " << cycle << endl;
 
-                    SupplementaryMoments();
 				    WriteFieldsH5hut(ns, grid, EMf, col, vct, cycle, col->getFieldOutputTag());
                 }
 
@@ -868,14 +899,13 @@ void c_Solver::WriteOutput(int cycle)
                 //! Serial HDF5
                 if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
                 {
-                    SupplementaryMoments();
                     WriteFields(cycle);
                 }
 
                 if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
                 {
                     WriteParticles(cycle);
-                    WriteTestParticles(cycle);
+                    // WriteTestParticles(cycle);
                 }
 			}
             else
@@ -922,9 +952,9 @@ void c_Solver::WriteConserved(int cycle)
         if (myrank == (nprocs-1)) 
         {
             //? Conserved Quantities
-            ofstream my_file(cq.c_str(), fstream::app);
+            ofstream my_file(cq.c_str(), std::ios::app);
 
-            if(cycle == 0)
+            if(cycle == 0 && restart_status == 0)
             {
                 my_file << endl << "I.    Cycle" 
                         << endl << "II.   Electric field energy" 
@@ -957,7 +987,7 @@ void c_Solver::WriteConserved(int cycle)
             //? Species-specific quantities
             ofstream my_file_(cqs.c_str(), fstream::app);
 
-            if(cycle == 0)
+            if(cycle == 0 && restart_status == 0)
             {
                 my_file_ << endl << "I.   Cycle" 
                          << endl << "II.  Species" 

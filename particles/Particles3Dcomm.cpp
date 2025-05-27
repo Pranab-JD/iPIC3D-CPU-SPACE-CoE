@@ -292,8 +292,8 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
     assert_eq(sizeof(SpeciesParticle),64);
 
     //? if RESTART is true, initialize the particle in allocate method
-    restart = col->getRestart_status();
-    if (restart != 0)
+    int restart_status = col->getRestart_status();
+    if (restart_status == 1 || restart_status == 2)
     {
         #ifdef NO_HDF5
             eprintf("restart is supported only if compiling with HDF5");
@@ -316,6 +316,9 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
 
     if(false && is_output_thread())
         printf("species %d velocity cap: umax=%g,vmax=%g,wmax=%g\n", ns, umax,vmax,wmax);
+
+    if (vct->getCartesian_rank() == 0)
+        cout << "SUCCESSFULLY READ PARTICLE DATA FROM HDF5 FILES FOR RESTART" << endl;
 }
 
 // pad capacities so that aligned vectorization does not result in an array overrun.

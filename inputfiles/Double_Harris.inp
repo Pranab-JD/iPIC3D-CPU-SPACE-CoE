@@ -12,7 +12,8 @@ SaveDirName                    = data_double_H                                 #
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-WriteMethod                    = H5hut                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+WriteMethod                    = shdf5                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+restart_status                 = 2
 
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
 FieldOutputCycle               = 20                                            # Output for moments and fields (if <= 0, data is NOT saved)
@@ -20,7 +21,8 @@ ParticlesOutputCycle           = 20                                            #
 
 FieldOutputTag                 = E + B + J + rho + rho_s + J_s + E_flux        # Select quantites to be written to files
                                + pressure
-
+ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
+                              
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
 ##* Fields

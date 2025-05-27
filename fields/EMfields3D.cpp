@@ -43,6 +43,7 @@
 #include <iostream>
 #include <fstream>
 #include "../LeXInt_Timer.hpp"
+#include <filesystem>
 
 #ifndef NO_HDF5
 #endif
@@ -3783,7 +3784,7 @@ void EMfields3D::init()
         for (int is = 0; is < ns; is++)
             grid->interpN2C(rhocs, is, rhons);
     }
-    else 
+    else
     {   
         //! READ FROM RESTART
         #ifdef NO_HDF5
@@ -3792,7 +3793,7 @@ void EMfields3D::init()
             
             col->read_field_restart(vct, grid, Bxn, Byn, Bzn, Ex, Ey, Ez, &rhons, ns);
 
-            // communicate species densities to ghost nodes
+            //* Communicate ghost data for rho on nodes
             for (int is = 0; is < ns; is++) 
             {
                 double ***moment0 = convert_to_arr3(rhons[is]);
@@ -3807,28 +3808,32 @@ void EMfields3D::init()
             else if ((col->getCase().find("TaylorGreen") != std::string::npos) && (col->getCase() != "NullPoints"))
                 ConstantChargeOpenBC();
 
-            // communicate ghost
+            //* Communicate ghost data for B on nodes
             communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
             communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
             communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
-            // initialize B on centers
+            //* Initialise B at cell centers
             grid->interpN2C(Bxc, Bxn);
             grid->interpN2C(Byc, Byn);
             grid->interpN2C(Bzc, Bzn);
 
-            // communicate ghost
+            //* Communicate ghost data for B at cell centres
             communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct,this);
             communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct,this);
             communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct,this);
 
-            // communicate E
+            //* Communicate ghost data for E on nodes
             communicateNodeBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
             communicateNodeBC(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
             communicateNodeBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
 
+            //* Initialise rho at cell centers
             for (int is = 0; is < ns; is++)
                 grid->interpN2C(rhocs, is, rhons);
+
+            if (get_vct().getCartesian_rank() == 0)
+                cout << "SUCCESSFULLY READ FIELD DATA FROM HDF5 FILES FOR RESTART" << endl;
         
         #endif // NO_HDF5
     }
