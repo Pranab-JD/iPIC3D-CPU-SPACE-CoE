@@ -82,6 +82,7 @@ c_Solver::~c_Solver()
         Adaptor::Finalize();
     #endif
     delete [] kinetic_energy_species;
+    delete [] bulk_energy_species;
     delete [] momentum_species;
     delete [] charge_species;
     delete [] num_particles_species;
@@ -315,7 +316,7 @@ int c_Solver::Init(int argc, char **argv)
 
     //? Write conserved parameters to files
     kinetic_energy_species = new double[ns];
-    BulkEnergy = new double[ns];
+    bulk_energy_species = new double[ns];
     momentum_species = new double[ns];
     charge_species = new double[ns];
     num_particles_species = new int[ns];
@@ -950,8 +951,10 @@ void c_Solver::WriteConserved(int cycle)
         {
             momentum_species[is] += particles[is].get_momentum();
             kinetic_energy_species[is] = particles[is].get_kinetic_energy();
-            num_particles_species[is] = particles[is].get_num_particles();
-            charge_species[is] = particles[is].get_total_charge();
+            bulk_energy_species[is] = EMf->get_bulk_energy(is);
+
+            // num_particles_species[is] = particles[is].get_num_particles();
+            // charge_species[is] = particles[is].get_total_charge();
             
             kinetic_energy += kinetic_energy_species[is];
             total_momentum += momentum_species[is];
@@ -1006,30 +1009,24 @@ void c_Solver::WriteConserved(int cycle)
             {
                 my_file_ << endl << "I.   Cycle" 
                          << endl << "II.  Species" 
-                         << endl << "III. Total number of particles (of each species)"
-                         << endl << "IV.  Total charge (of each species)"
-                         << endl << "V.   Momentum (of each species)" 
-                         << endl << "VI.  Kinetic Energy (of each species)"  << endl << endl;
+                         << endl << "III. Momentum (of each species)" 
+                         << endl << "IV.  Total Kinetic Energy (of each species)"
+                         << endl << "V.   Bulk Kinetic Energy (of each species)"
+                         << endl << "VI.  Thermal Kinetic Energy (of each species)"  << endl << endl;
 
                 my_file_ << "=====================================================================================================================================" << endl << endl;
 
-                my_file_ << setw(7) << "I"   << setw(7) << "II" << setw(20) << "III"
-                         << setw(25) << "IV" << setw(25) << "V" << setw(25) << "VI" 
+                my_file_ << setw(7)  << "I"  << setw(7) << "II" << setw(25) << "III"
+                         << setw(25) << "IV" << setw(25) << "V"  << setw(25) << "VI" 
                          << setw(25) << endl << endl;
             }
 
             for (int is = 0; is < ns; ++is) 
             {
-                my_file_ << setw(7) << cycle
-                        << setw(7) << is
-                        << setw(20) << num_particles_species[is]
-
-                        << scientific << setprecision(15)
-                        << setw(25) << charge_species[is]
-                        << setw(25) << momentum_species[is]
-                        << setw(25) << kinetic_energy_species[is]
-
-                    << endl;
+                my_file_ << setw(7) << cycle << setw(7) << is << scientific << setprecision(15)
+                         << setw(25) << momentum_species[is] << setw(25) << kinetic_energy_species[is]
+                         << setw(25) << bulk_energy_species[is] << setw(25) << kinetic_energy_species[is] - bulk_energy_species[is]
+                         << endl;
             }
             my_file_ << endl;
         }

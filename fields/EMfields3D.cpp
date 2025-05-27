@@ -6014,18 +6014,18 @@ double EMfields3D::get_Bext_energy(void)
 }
 
 /*! get bulk kinetic energy*/
-double EMfields3D::getBulkEnergy(int is) 
+double EMfields3D::get_bulk_energy(int is) 
 {
-  double localBenergy = 0.0;
-  double totalBenergy = 0.0;
-  for (int i = 1; i < nxn - 2; i++)
-    for (int j = 1; j < nyn - 2; j++)
-      for (int k = 1; k < nzn - 2; k++)
-        // Trying to avoid division by zero. Where rho iz 0, current must be 0.
-        localBenergy += (fabs(rhons[is][i][j][k]) > 1.e-20) ? (0.5 * dx * dy * dz * (Jxs[is][i][j][k] * Jxs[is][i][j][k] + Jys[is][i][j][k] * Jys[is][i][j][k] + Jzs[is][i][j][k] * Jzs[is][i][j][k]) / rhons[is][i][j][k]) : 0.0;
+    double localBenergy = 0.0;
+    double totalBenergy = 0.0;
+    for (int i = 1; i < nxn - 2; i++)
+        for (int j = 1; j < nyn - 2; j++)
+            for (int k = 1; k < nzn - 2; k++)
+                // Trying to avoid division by zero. Where rho iz 0, current must be 0.
+                localBenergy += (fabs(rhons[is][i][j][k]) > 1.e-20) ? (0.5 * dx * dy * dz * (Jxs[is][i][j][k] * Jxs[is][i][j][k] + Jys[is][i][j][k] * Jys[is][i][j][k] + Jzs[is][i][j][k] * Jzs[is][i][j][k]) / rhons[is][i][j][k]) : 0.0;
 
-  MPI_Allreduce(&localBenergy, &totalBenergy, 1, MPI_DOUBLE, MPI_SUM, (&get_vct())->getFieldComm());
-  return (totalBenergy / qom[is]);
+    MPI_Allreduce(&localBenergy, &totalBenergy, 1, MPI_DOUBLE, MPI_SUM, (&get_vct())->getFieldComm());
+    return (totalBenergy / qom[is]);
 }
 
 /*! Print info about electromagnetic field */

@@ -54,7 +54,7 @@ namespace iPic3D {
       outputWrapperFPP(0),
 #endif
       kinetic_energy_species(0),
-      BulkEnergy(0),
+      bulk_energy_species(0),
       momentum_species(0),
       Qremoved(0),
       my_clock(0)
@@ -100,7 +100,7 @@ namespace iPic3D {
     Particles3D   *particles;
     Particles3D   *testpart;
     double        *kinetic_energy_species;  //* kinetic energy of each species, the normal one, added up
-    double        *BulkEnergy; // bulk kinetic energy of each species, consider the bulk motion
+    double        *bulk_energy_species; // bulk kinetic energy of each species, consider the bulk motion
     double        *momentum_species; // an array of doubles, total momentum of all particle species
     int           *num_particles_species;
     double        *charge_species;

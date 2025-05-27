@@ -413,7 +413,7 @@ public:
     double get_By_field_energy();       //* Magnetic (internal) field energy along Z
     double get_Bz_field_energy();       //* Magnetic (internal) field energy
     double get_Bext_energy();           //* External magnetic field energy
-    double getBulkEnergy(int is);       //* Bulk kinetic energy
+    double get_bulk_energy(int is);       //* Bulk kinetic energy
 
     void setZeroCurrent();
     void setZeroRho();
