@@ -126,7 +126,7 @@ void OutputWrapperFPP::append_restart(int cycle)
     #ifndef NO_HDF5
         hdf5_agent.open_append(restart_file);
         output_mgr.output("proc_topology ", cycle);
-        output_mgr.output("E + B + rho_s", cycle); 
+        output_mgr.output("E + B + B_c + rho_s", cycle); 
         output_mgr.output("position + velocity + q", cycle, 0);
         // output_mgr.output("testpartpos + testpartvel + testpartcharge", cycle, 0);
         output_mgr.output("last_cycle", cycle);

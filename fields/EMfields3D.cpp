@@ -3791,7 +3791,7 @@ void EMfields3D::init()
             eprintf("restart requires compiling with HDF5");
         #else
             
-            col->read_field_restart(vct, grid, Bxn, Byn, Bzn, Ex, Ey, Ez, &rhons, ns);
+            col->read_field_restart(vct, grid, Bxn, Byn, Bzn, Bxc, Byc, Bzc, Ex, Ey, Ez, &rhons, ns);
 
             //* Communicate ghost data for rho on nodes
             for (int is = 0; is < ns; is++) 
@@ -3814,9 +3814,9 @@ void EMfields3D::init()
             communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
             //* Initialise B at cell centers
-            grid->interpN2C(Bxc, Bxn);
-            grid->interpN2C(Byc, Byn);
-            grid->interpN2C(Bzc, Bzn);
+            // grid->interpN2C(Bxc, Bxn);
+            // grid->interpN2C(Byc, Byn);
+            // grid->interpN2C(Bzc, Bzn);
 
             //* Communicate ghost data for B at cell centres
             communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct,this);
@@ -6029,8 +6029,7 @@ double EMfields3D::get_bulk_energy(int is)
 }
 
 /*! Print info about electromagnetic field */
-void EMfields3D::print(void) const {
-}
+void EMfields3D::print(void) const { }
 
 //* =========================================================================================================== *//
 

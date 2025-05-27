@@ -17,11 +17,11 @@ WriteMethod                    = shdf5                                         #
 restart_status                 = 2
 
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
-RestartOutputCycle             = 50                                            # Restart cycle
+RestartOutputCycle             = 50                                            # Restart cycle (suggest this to a factor of ncycles)
 FieldOutputCycle               = 30                                            # Output for moments and fields (if <= 0, data is NOT saved)
 ParticlesOutputCycle           = 65                                            # Output for particles (if <= 0, data is NOT saved)
 
-FieldOutputTag                 = E + B + rho_s                                 # Select quantites to be written to files
+FieldOutputTag                 = E + B                                         # Select quantites to be written to files
 ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
                               
 ###? Options for output tags
@@ -59,7 +59,7 @@ delta                          = 0.5                                            
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.125	                                       # Time-step size
-ncycles                        = 100                                           # Number of time steps
+ncycles                        = 175                                           # Number of time steps
 th                             = 0.5                                           # Decentering parameter
 c                              = 1.0                                           # Speed of light 
 GMREStol                       = 1E-15                                         # GMRES tolerance (must be <= 1e-15 for exact energy conservation)

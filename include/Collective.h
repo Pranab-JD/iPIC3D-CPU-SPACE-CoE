@@ -69,7 +69,10 @@ class Collective
     /*! read the restart input file from HDF5 */
     int ReadRestart(string inputfile);
 
-    void read_field_restart(const VCtopology3D* vct,const Grid* grid,arr3_double Bxn, arr3_double Byn, arr3_double Bzn,
+    void trim_conserved_quantities_file(const std::string& filename, int restart_cycle);
+
+    void read_field_restart(const VCtopology3D* vct,const Grid* grid, arr3_double Bxn, arr3_double Byn, arr3_double Bzn,
+                            arr3_double Bxc, arr3_double Byc, arr3_double Bzc,
     						arr3_double Ex, arr3_double Ey, arr3_double Ez,array4_double* rhons_, int ns)const;
 
     void read_particles_restart(const VCtopology3D* vct,int species_number,vector_double& u,vector_double& v,vector_double& w,

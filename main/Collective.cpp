@@ -34,7 +34,10 @@
 #include "asserts.h" // for assert_ge
 #include "string.h"
 #include <filesystem>
-
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
 
 // order must agree with Enum in Collective.h
 static const char *enumNames[] =
@@ -582,6 +585,38 @@ bool Collective::testparticle_output_is_off()const
     return getTestParticlesOutputCycle() <= 0;
 }
 
+void Collective::trim_conserved_quantities_file(const std::string& filename, int restart_cycle) 
+{
+    std::ifstream infile(filename);
+    std::vector<std::string> retained_lines;
+    std::string line;
+
+    bool inside_data_block = false;
+
+    while (std::getline(infile, line)) {
+        std::istringstream iss(line);
+        int cycle_value;
+
+        // Check if the line starts with a valid cycle number
+        if (iss >> cycle_value) {
+            if (cycle_value >= restart_cycle) {
+                break;  // Stop keeping lines once we reach the restart cycle
+            }
+            inside_data_block = true;
+        }
+
+        retained_lines.push_back(line);
+    }
+    infile.close();
+
+    // Rewrite file with only retained content
+    std::ofstream outfile(filename, std::ios::out | std::ios::trunc);
+    for (const auto& l : retained_lines) {
+        outfile << l << std::endl;
+    }
+    outfile.close();
+}
+
 /*! Read the collective information from the RESTART file in HDF5 format
  * There are three restart status: restart_status = 0 ---> new inputfile
  * restart_status = 1 ---> RESTART and restart and result directories does not coincide
@@ -884,9 +919,9 @@ int Collective::ReadRestart(string inputfile)
 }
 
 
-
 void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
                                     arr3_double Bxn, arr3_double Byn, arr3_double Bzn,
+                                    arr3_double Bxc, arr3_double Byc, arr3_double Bzc,
                                     arr3_double Ex, arr3_double Ey, arr3_double Ez,
                                     array4_double* rhons_, int ns) const
 {
@@ -896,6 +931,10 @@ void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
         const int nxn = grid->getNXN();
         const int nyn = grid->getNYN();
         const int nzn = grid->getNZN();
+
+        const int nxc = grid->getNXC();
+        const int nyc = grid->getNYC();
+        const int nzc = grid->getNZC();
 
         stringstream ss;
         ss << vct->getCartesian_rank();
@@ -924,6 +963,48 @@ void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
         status = H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &lastcycle);
         status = H5Dclose(dataset_id);
 
+        //* Bxc
+        ss.str("");ss << "/fields/Bxc/cycle_" << lastcycle;
+        dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
+        datatype = H5Dget_type(dataset_id);
+        size = H5Tget_size(datatype);
+        dataspace = H5Dget_space(dataset_id);
+        status_n = H5Sget_simple_extent_dims(dataspace, dims_out, NULL);
+
+        std::vector<double> temp_storage_c(dims_out[0] * dims_out[1] * dims_out[2]);
+        status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, temp_storage_c.data());
+        int k = 0;
+        for (int i = 1; i < nxc - 1; i++)
+            for (int j = 1; j < nyc - 1; j++)
+                for (int jj = 1; jj < nzc - 1; jj++)
+                    Bxc[i][j][jj] = temp_storage_c[k++];
+
+        status = H5Dclose(dataset_id);
+
+        //* Byc
+        ss.str("");ss << "/fields/Byc/cycle_" << lastcycle;
+        dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
+        status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, temp_storage_c.data());
+        k = 0;
+        for (int i = 1; i < nxc - 1; i++)
+            for (int j = 1; j < nyc - 1; j++)
+                for (int jj = 1; jj < nzc - 1; jj++)
+                    Byc[i][j][jj] = temp_storage_c[k++];
+
+        status = H5Dclose(dataset_id);
+
+        //* Bzc
+        ss.str("");ss << "/fields/Bzc/cycle_" << lastcycle;
+        dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
+        status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, temp_storage_c.data());
+        k = 0;
+        for (int i = 1; i < nxc - 1; i++)
+            for (int j = 1; j < nyc - 1; j++)
+                for (int jj = 1; jj < nzc - 1; jj++)
+                    Bzc[i][j][jj] = temp_storage_c[k++];
+
+        status = H5Dclose(dataset_id);
+
         //* Bxn
         ss.str("");ss << "/fields/Bx/cycle_" << lastcycle;
         dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
@@ -934,7 +1015,7 @@ void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
 
         std::vector<double> temp_storage(dims_out[0] * dims_out[1] * dims_out[2]);
         status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, temp_storage.data());
-        int k = 0;
+        k = 0;
         for (int i = 1; i < nxn - 1; i++)
             for (int j = 1; j < nyn - 1; j++)
                 for (int jj = 1; jj < nzn - 1; jj++)

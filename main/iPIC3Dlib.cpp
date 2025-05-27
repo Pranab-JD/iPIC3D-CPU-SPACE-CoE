@@ -925,6 +925,9 @@ void c_Solver::WriteRestart(int cycle)
     #ifndef NO_HDF5
     if (restart_cycle>0 && cycle%restart_cycle==0)
     {
+        if (myrank == 0)
+            cout << "Writing RESTART data at time cycle " << cycle << endl;
+               
         convertParticlesToSynched();
         fetch_outputWrapperFPP().append_restart(cycle);
     }
@@ -1002,14 +1005,18 @@ void c_Solver::WriteConserved(int cycle)
                         << "VII" << endl << endl;
             }
             
-            my_file << setw(7)  << cycle << scientific << setprecision(15)
-                    << setw(25) << E_field_energy << setw(25) << Ex_field_energy << setw(25) << Ey_field_energy  << setw(25) << Ez_field_energy 
-                    << setw(25) << B_field_energy << setw(25) << Bx_field_energy << setw(25) << By_field_energy  << setw(25) << Bz_field_energy 
-                    << setw(25) << kinetic_energy  
-                    << setw(25) << E_field_energy + B_field_energy + kinetic_energy
-                    << setw(25) << abs(initial_total_energy - (E_field_energy + B_field_energy + kinetic_energy))
-                    << setw(25) << total_momentum << endl;
-            
+            if (restart_status == 0 || ((restart_status == 1 || restart_status == 2) && cycle == restart_cycle + 1))
+            {
+                col->trim_conserved_quantities_file(cq, restart_cycle);
+
+                my_file << setw(7)  << cycle << scientific << setprecision(15)
+                        << setw(25) << E_field_energy << setw(25) << Ex_field_energy << setw(25) << Ey_field_energy  << setw(25) << Ez_field_energy 
+                        << setw(25) << B_field_energy << setw(25) << Bx_field_energy << setw(25) << By_field_energy  << setw(25) << Bz_field_energy 
+                        << setw(25) << kinetic_energy  
+                        << setw(25) << E_field_energy + B_field_energy + kinetic_energy
+                        << setw(25) << abs(initial_total_energy - (E_field_energy + B_field_energy + kinetic_energy))
+                        << setw(25) << total_momentum << endl;
+            }
             my_file.close();
 
 
@@ -1032,14 +1039,19 @@ void c_Solver::WriteConserved(int cycle)
                          << setw(25) << endl << endl;
             }
 
-            for (int is = 0; is < ns; ++is) 
+            if (restart_status == 0 || (restart_status == 1 || restart_status == 2 && cycle == restart_cycle + 1))
             {
-                my_file_ << setw(7) << cycle << setw(7) << is << scientific << setprecision(15)
-                         << setw(25) << momentum_species[is] << setw(25) << kinetic_energy_species[is]
-                         << setw(25) << bulk_energy_species[is] << setw(25) << kinetic_energy_species[is] - bulk_energy_species[is]
-                         << endl;
+                col->trim_conserved_quantities_file(cq, restart_cycle);
+
+                for (int is = 0; is < ns; ++is) 
+                {
+                    my_file_ << setw(7) << cycle << setw(7) << is << scientific << setprecision(15)
+                            << setw(25) << momentum_species[is] << setw(25) << kinetic_energy_species[is]
+                            << setw(25) << bulk_energy_species[is] << setw(25) << kinetic_energy_species[is] - bulk_energy_species[is]
+                            << endl;
+                }
+                my_file_ << endl;
             }
-            my_file_ << endl;
         }
     }
 }
