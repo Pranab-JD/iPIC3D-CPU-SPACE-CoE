@@ -109,9 +109,9 @@ int c_Solver::Init(int argc, char **argv)
     ns              = col->getNs();                 // get the number of species of particles involved in simulation
 
     if (restart_status == 0)
-        first_cycle     = col->getLast_cycle() + 1;     // get the last cycle from the restart
+        first_cycle = col->getLast_cycle() + 1;     
     else if (restart_status == 1 || restart_status == 2)
-        first_cycle     = col->getLast_cycle();
+        first_cycle = col->getLast_cycle();         // get the last cycle from the restart
 
     vct = new VCtopology3D(*col);
 
@@ -162,7 +162,7 @@ int c_Solver::Init(int argc, char **argv)
     }
     else if (restart_status == 0)
     {   
-        //! NEW INPUT FILE
+        //! NEW INITIAL CONDITION (FIELDS)
         if (col->getRelativistic())
         {
             //! Relativistic Cases
@@ -219,9 +219,9 @@ int c_Solver::Init(int argc, char **argv)
         if (myrank==0)
         {
             cout << "Incorrect restart status!" << endl;
-            cout << "restart_status = 0 ---> New inputfile" << endl;
-            cout << "restart_status = 1 ---> RESTART! Write to new output files" << endl;
-            cout << "restart_status = 1 ---> RESTART! Append to old output files" << endl;
+            cout << "restart_status = 0 ---> NO RESTART!" << endl;
+            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are different" << endl;
+            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are the same" << endl;
         }
         abort();
     }
@@ -234,6 +234,7 @@ int c_Solver::Init(int argc, char **argv)
     for (int is = 0; is < ns; is++)  
         new(&particles[is]) Particles3D(is, col, vct, grid);
 
+    //! NEW INITIAL CONDITION (PARTICLES)
     if (restart_status == 0) 
     {
         for (int i = 0; i < ns; i++)

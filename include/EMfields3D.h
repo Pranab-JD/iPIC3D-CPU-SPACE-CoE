@@ -654,12 +654,8 @@ private:
     double *rhoINIT;
     /*! Drift of the species */
     bool *DriftSpecies;
-
-    /*! boolean for divergence cleaning */
-    bool PoissonCorrection;
-    int PoissonCorrectionCycle;
-    /*! RESTART BOOLEAN */
-    int restart1;
+    
+    int restart_status;
 
     double GMREStol;                            //* GMRES tolerance criterium for stopping iterations
 

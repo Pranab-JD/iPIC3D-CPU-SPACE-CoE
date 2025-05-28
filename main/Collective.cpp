@@ -145,9 +145,6 @@ void Collective::ReadInput(string inputfile)
         B1y = config.read<double>("B1y", 0.0);
         B1z = config.read<double>("B1z", 0.0);
 
-        //* Thickness of current sheet (only for nonrelativistic magnetic reconnection)
-        delta = config.read < double >("delta", 0.5);
-
         Case                        = config.read<string>   ("Case");
         wmethod                     = config.read<string>   ("WriteMethod");
         SimName                     = config.read<string>   ("SimulationName");
@@ -1410,7 +1407,6 @@ void Collective::save()
         my_file << "rho init species   " << is << " = " << rhoINIT[is] << endl;
         my_file << "rho inject species " << is << " = " << rhoINJECT[is]  << endl;
     }
-    my_file << "current sheet thickness  = " << delta << endl;
     my_file << "B0x                      = " << B0x << endl;
     my_file << "BOy                      = " << B0y << endl;
     my_file << "B0z                      = " << B0z << endl;

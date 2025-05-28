@@ -160,7 +160,7 @@ class Collective
     int getBcEMfaceYleft()const{ return (bcEMfaceYleft); }
     int getBcEMfaceZright()const{ return (bcEMfaceZright); }
     int getBcEMfaceZleft()const{ return (bcEMfaceZleft); }
-    double getDelta()const{ return (delta); }
+
     double getB0x()const{ return (B0x); }
     double getB0y()const{ return (B0y); }
     double getB0z()const{ return (B0z); }
@@ -397,8 +397,7 @@ class Collective
     int bcEMfaceZleft;
 
     /*! GEM Challenge parameters */
-    /*! current sheet thickness */
-    double delta;
+
     /* Amplitude of the field */
     double B0x;
     double B0y;
