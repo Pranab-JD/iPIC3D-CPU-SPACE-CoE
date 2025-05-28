@@ -263,7 +263,6 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     B0x = col->getB0x();
     B0y = col->getB0y();
     B0z = col->getB0z();
-    delta = col->getDelta();
     Smooth = col->getSmooth();
     smooth_cycle = col->getSmoothCycle();
     num_smoothings = col->getNumSmoothings();
@@ -281,7 +280,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     }
 
     FourPI = 16 * atan(1.0);
-    restart1 = col->getRestart_status();
+    restart_status = col->getRestart_status();
 
     //! Mass Matrix (dyadic product of a vector)
     mass_matrix = new double[3];
@@ -301,8 +300,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
 
     //* Set all memory allocated to zero
     setAllzero();
-    // Eenergy = 0;
-    // Benergy = 0;
+
 
     if(Parameters::get_VECTORIZE_MOMENTS())
     {
@@ -3752,7 +3750,7 @@ void EMfields3D::init()
 
     double v0  = col->getU0(1);
 
-    if (restart1 == 0)      
+    if (restart_status == 0)      
     {
         //! Initial setup (NOT RESTART)
 
@@ -3889,7 +3887,7 @@ void EMfields3D::initGEM()
     double pertX = 0.4;
     double xpert, ypert, exp_pert;
     
-    if (restart1 == 0) 
+    if (restart_status == 0) 
     {
     // initialize
     if (get_vct().getCartesian_rank() == 0) {
@@ -3968,7 +3966,7 @@ void EMfields3D::initNullPoints()
 {
 	const VirtualTopology3D *vct = &get_vct();
 	const Grid *grid = &get_grid();
-	if (restart1 ==0){
+	if (restart_status ==0){
 		if (vct->getCartesian_rank() ==0){
 			cout << "----------------------------------------" << endl;
 			cout << "       Initialize 3D null point(s)" << endl;
@@ -4043,7 +4041,7 @@ void EMfields3D::initTaylorGreen()
 {
   const VirtualTopology3D *vct = &get_vct();
   const Grid *grid = &get_grid();
-  if (restart1 ==0){
+  if (restart_status ==0){
     if (vct->getCartesian_rank() ==0){
       cout << "----------------------------------------" << endl;
       cout << "       Initialize Taylor-Green flow     " << endl;
@@ -4099,7 +4097,7 @@ void EMfields3D::initOriginalGEM()
 {
   const Grid *grid = &get_grid();
   // perturbation localized in X
-  if (restart1 == 0) {
+  if (restart_status == 0) {
     // initialize
     if (get_vct().getCartesian_rank() == 0) {
       cout << "------------------------------------------" << endl;
@@ -4168,9 +4166,12 @@ void EMfields3D::initDoubleHarris()
     const VirtualTopology3D *vct = &get_vct();
     const Grid *grid = &get_grid();
 
-    double pertX = 0.1;
+    //* Custom input parameters
+    const double perturbation               = input_param[0];       //* Amplitude of initial perturbation
+    const double delta                      = input_param[1];       //* Half-thickness of current sheet
+
     double xpert, ypert, exp_pert;
-    if (restart1 == 0)
+    if (restart_status == 0)
     {
         if (vct->getCartesian_rank() ==0)
         {
@@ -4230,12 +4231,12 @@ void EMfields3D::initDoubleHarris()
                     Byn[i][j][k] = B0y;
                     Bzn[i][j][k] = B0z;
                     
-                    //* Add initial X perturbation
+                    //* Add initial perturbation
                     xpert = grid->getXN(i, j, k) - Lx / 2;
                     ypert = yB;
                     exp_pert = exp(-(xpert / delta) * (xpert / delta) - (ypert / delta) * (ypert / delta));
-                    Bxn[i][j][k] += (B0x * pertX) * exp_pert * (-cos(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * 2.0 * ypert / delta - cos(M_PI * xpert / 10.0 / delta) * sin(M_PI * ypert / 10.0 / delta) * M_PI / 10.0);
-                    Byn[i][j][k] += (B0x * pertX) * exp_pert * (cos(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * 2.0 * xpert / delta + sin(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * M_PI / 10.0);
+                    Bxn[i][j][k] += (B0x * perturbation) * exp_pert * (-cos(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * 2.0 * ypert / delta - cos(M_PI * xpert / 10.0 / delta) * sin(M_PI * ypert / 10.0 / delta) * M_PI / 10.0);
+                    Byn[i][j][k] += (B0x * perturbation) * exp_pert * (cos(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * 2.0 * xpert / delta + sin(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * M_PI / 10.0);
 
                 }
 
@@ -4271,7 +4272,7 @@ void EMfields3D::initDoublePeriodicHarrisWithGaussianHumpPerturbation()
   const double pertX = 0.4;
   const double deltax = 8. * delta;
   const double deltay = 4. * delta;
-  if (restart1 == 0) {
+  if (restart_status == 0) {
     // initialize
     if (get_vct().getCartesian_rank() == 0) {
       cout << "------------------------------------------" << endl;
@@ -4392,7 +4393,7 @@ void EMfields3D::initGEMDipoleLikeTailNoPert()
   double pi = 3.1415927;
   double r1, r2, delta_x1x2;
 
-  if (restart1 == 0) {
+  if (restart_status == 0) {
 
     // initialize
     if (get_vct().getCartesian_rank() == 0) {
@@ -4475,7 +4476,7 @@ void EMfields3D::initGEMnoPert()
   const Collective *col = &get_col();
   const VirtualTopology3D *vct = &get_vct();
   const Grid *grid = &get_grid();
-  if (restart1 == 0) {
+  if (restart_status == 0) {
 
     // initialize
     if (get_vct().getCartesian_rank() == 0) {
@@ -4540,7 +4541,7 @@ void EMfields3D::initRandomField()
   const VirtualTopology3D *vct = &get_vct();
   const Grid *grid = &get_grid();
   double **modes_seed = newArr2(double, 7, 7);
-  if (restart1 ==0){
+  if (restart_status ==0){
     // initialize
     if (get_vct().getCartesian_rank() ==0){
       cout << "------------------------------------------" << endl;
@@ -4674,7 +4675,7 @@ void EMfields3D::initForceFree()
 {
   const VirtualTopology3D *vct = &get_vct();
   const Grid *grid = &get_grid();
-  if (restart1 == 0) {
+  if (restart_status == 0) {
 
     // initialize
     if (get_vct().getCartesian_rank() == 0) {
@@ -4735,7 +4736,7 @@ void EMfields3D::initBEAM(double x_center, double y_center, double z_center, dou
 
   double distance;
   // initialize E and rhos on nodes
-  if (restart1 == 0) {
+  if (restart_status == 0) {
     for (int i = 0; i < nxn; i++)
       for (int j = 0; j < nyn; j++)
         for (int k = 0; k < nzn; k++) {
@@ -4867,7 +4868,7 @@ void EMfields3D::initDipole()
 	for (int is=0 ; is<ns; is++)
 		grid->interpN2C(rhocs,is,rhons);
 
-	if (restart1 != 0) { // EM initialization from RESTART
+	if (restart_status != 0) { // EM initialization from RESTART
 		init();  // use the fields from restart file
 	}
 
@@ -4970,7 +4971,7 @@ void EMfields3D::initDipole2D()
 
 
 
-	if (restart1 != 0) { // EM initialization from RESTART
+	if (restart_status != 0) { // EM initialization from RESTART
 		init();  // use the fields from restart file
 	}
 }
@@ -4988,7 +4989,7 @@ void EMfields3D::initShock1D()
     double v0  = col->getU0(1);
     double thb = col->getUth(1);
 
-    if (restart1 == 0)
+    if (restart_status == 0)
     {
         //! Initial setup (NOT RESTART)
         if (vct->getCartesian_rank() == 0) 
@@ -5077,7 +5078,7 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
     double lorentz_factor_CS   = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS   = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     
-    if (restart1 == 0) 
+    if (restart_status == 0) 
     {
         if (vct->getCartesian_rank() == 0) 
         {
@@ -5207,7 +5208,7 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
     double thermal_spread_CS_ions       = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread of ions (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     double thermal_spread_CS_electrons  = thermal_spread_CS_ions * fabs(col->getQOM(0));         //* Thermal spread of electrons (Ratio of thermal spread = mass ratio)
     
-    if (restart1 == 0) 
+    if (restart_status == 0) 
     {
         if (vct->getCartesian_rank() == 0) 
         {

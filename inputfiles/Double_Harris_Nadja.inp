@@ -7,19 +7,24 @@
 Case                           = DoubleHarris                                  # Case
 SimulationName                 = Double_Harris                                 # Simulation name for output
 SaveDirName                    = data_DH_Nadja                                 # Output directory
+RestartDirName                 = data_DH_Nadja                                       # Restart directory   
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-WriteMethod                    = H5hut                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+WriteMethod                    = shdf5                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+
+#! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are
+restart_status                 = 0                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
 
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
-FieldOutputCycle               = 20                                            # Output for moments and fields (if <= 0, data is NOT saved)
-ParticlesOutputCycle           = 20                                            # Output for particles (if <= 0, data is NOT saved)
+RestartOutputCycle             = 30                                            # Restart cycle (suggest to set this to a factor of ncycles)
+FieldOutputCycle               = 0                                             # Output for moments and fields (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 30                                            # Output for particles (if <= 0, data is NOT saved)
 
-FieldOutputTag                 = E + B + J + rho + rho_s + J_s + E_flux        # Select quantites to be written to files
-                               + pressure
+FieldOutputTag                 =                                               # Select quantites to be written to files
+ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
 
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
@@ -36,6 +41,22 @@ FieldOutputTag                 = E + B + J + rho + rho_s + J_s + E_flux        #
     # E_flux            --> energy flux for each species
     # H_flux            --> heat flux tensor for each species
 
+##* Particles
+    # position          --> Positions of all particles
+    # velocity          --> Velocities of all particles
+    # q                 --> Charge of all particles
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                             PHYSICS and GEOMETRY                           %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+###? Custom paramters (max. 10)
+nparam                         = 2
+custom_parameters              = 0.1        0.35
+
+#* custom_parameter 1 --> Amplitude of initial perturbation
+#* custom_parameter 2 --> Half-thickness of current sheet
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                         ELECTRIC and MAGNETIC FIELD                        %
@@ -44,8 +65,6 @@ FieldOutputTag                 = E + B + J + rho + rho_s + J_s + E_flux        #
 B0x                            = 0.005                                          # Initial magnetic field strength along X
 B0y                            = 0.0                                            # Initial magnetic field strength along Y
 B0z                            = 0.0                                            # Initial magnetic field strength along Z
-
-delta                          = 0.35                                           # Thickness of current sheet
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                     TIME                                   %
