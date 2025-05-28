@@ -22,22 +22,23 @@ void remove_all_contents(const fs::path& dir) {
  * @param relativePath: Output folder path relative to the current directory 
  * @returns 0 if succeed
  */
-int checkOutputFolder(std::string relativePath){
 
+int checkOutputFolder(std::string relativePath)
+{
     fs::path current_path = fs::current_path();
     fs::path subdir = current_path / relativePath;
 
-    if (fs::exists(subdir)) {
-        if (fs::is_directory(subdir)) {
-
-            if (!fs::is_empty(subdir)) {
+    if (fs::exists(subdir)) 
+    {
+        if (fs::is_directory(subdir))
+        {
+            if (!fs::is_empty(subdir))
                 remove_all_contents(subdir);
-            } 
-
-        } else throw std::runtime_error("Output path is not a directory");
-    } else {
-        fs::create_directory(subdir);
-    }
+        }
+        else throw std::runtime_error("Output path is not a directory");
+    } 
+    else
+        fs::create_directories(subdir);
 
     return 0;
 
