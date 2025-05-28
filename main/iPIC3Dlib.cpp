@@ -1005,10 +1005,11 @@ void c_Solver::WriteConserved(int cycle)
                         << "VII" << endl << endl;
             }
             
-            if (restart_status == 0 || ((restart_status == 1 || restart_status == 2) && cycle == restart_cycle + 1))
-            {
-                col->trim_conserved_quantities_file(cq, restart_cycle);
+            if ((restart_status == 1 || restart_status == 2) && cycle == 0)
+                    col->trim_conserved_quantities_file(cq, col->getLast_cycle() + 1);
 
+            if (restart_status == 0 || ((restart_status == 1 || restart_status == 2) && cycle > 0))
+            {
                 my_file << setw(7)  << cycle << scientific << setprecision(15)
                         << setw(25) << E_field_energy << setw(25) << Ex_field_energy << setw(25) << Ey_field_energy  << setw(25) << Ez_field_energy 
                         << setw(25) << B_field_energy << setw(25) << Bx_field_energy << setw(25) << By_field_energy  << setw(25) << Bz_field_energy 
@@ -1039,10 +1040,11 @@ void c_Solver::WriteConserved(int cycle)
                          << setw(25) << endl << endl;
             }
 
-            if (restart_status == 0 || (restart_status == 1 || restart_status == 2 && cycle == restart_cycle + 1))
-            {
-                col->trim_conserved_quantities_file(cq, restart_cycle);
+            if ((restart_status == 1 || restart_status == 2) && cycle == 0)
+                col->trim_conserved_quantities_file(cqs, col->getLast_cycle() + 1);
 
+            if (restart_status == 0 || ((restart_status == 1 || restart_status == 2) && cycle > 0))
+            {
                 for (int is = 0; is < ns; ++is) 
                 {
                     my_file_ << setw(7) << cycle << setw(7) << is << scientific << setprecision(15)
