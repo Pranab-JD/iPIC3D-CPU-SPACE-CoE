@@ -295,37 +295,32 @@ void WriteParticlesH5hut(int num_species, Grid3DCU *grid, Particles3Dcomm *parti
 
 //! Write downsampled particles using H5hut
 void WriteDSParticlesH5hut(int num_species, Grid3DCU *grid, Particles3Dcomm *particles, CollectiveIO *col, VCtopology3D *vct, int cycle)
-{
-    //TODO: Modify to downsample cycle
-    if(col->particle_output_is_off())
-        return;
-    
+{ 
     #ifdef USE_H5HUT
 
         H5output file;
-        string filename = col->getSaveDirName() + "/" + col->getSimName() + "Down_Sampled";
+        string filename = col->getSaveDirName() + "/" + col->getSimName() + "_DownSampled";
         file.SetNameCycle(filename, cycle);
 
-        // file.OpenPartclFile(num_species, vct->getParticleComm());
+        file.OpenPartclFile(num_species, vct->getParticleComm());
 
-        // for (int is = 0; is < num_species; is++)
-        // {
-        //     // this is a hack
-        //     particles[is].convertParticlesToSynched();
+        for (int is = 0; is < num_species; is++)
+        {
+            // this is a hack
+            particles[is].convertParticlesToSynched();
 
-        //     int num_DS_particles =  particles[is].getNOP_DS();
+            file.WriteParticles(is, particles[is].get_NOP_DS(), particles[is].getQ_DS(),
+                                    particles[is].getX_DS(), particles[is].getY_DS(), particles[is].getZ_DS(),
+                                    particles[is].getU_DS(), particles[is].getV_DS(), particles[is].getW_DS(),
+                                    vct->getParticleComm());
+        }
 
-        //     file.WriteParticles(is, num_DS_particles, particles[is].getQ_DS(num_DS_particles),
-        //                             particles[is].getX_DS(num_DS_particles), particles[is].getY_DS(num_DS_particles), particles[is].getZ_DS(num_DS_particles),
-        //                             particles[is].getU_DS(num_DS_particles), particles[is].getV_DS(num_DS_particles), particles[is].getW_DS(num_DS_particles),
-        //                             vct->getParticleComm());
-        // }
-
-        // file.ClosePartclFile();
+        file.ClosePartclFile();
 
     #else
         cout << "The input file requires iPIC3D to be compiled with the H5hut library." << endl;
-        cout << "Please recompile the code with H5hut or change 'WriteMethod'. " << endl << endl;
+        cout << "Please recompile the code with H5hut or change 'WriteMethod'. " << endl 
+        cout << "===== SIMULATIONS ABORTED =====" << endl << endl;
         abort();
     #endif
 }

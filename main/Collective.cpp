@@ -116,11 +116,7 @@ void Collective::ReadInput(string inputfile)
         nstestpart      = config.read<int>       ("nsTestPart", 0);
         NpMaxNpRatio    = config.read<double>    ("NpMaxNpRatio", 1.5);
         assert_ge(NpMaxNpRatio, 1.);
-
-        // mode parameters for second order in time
-        PushWithBatTime = config.read<double>    ("PushWithBatTime", 0);
-        PushWithEatTime = config.read<double>    ("PushWithEatTime", 1);
-        ImplSusceptTime = config.read<double>    ("ImplSusceptTime", 0);
+        output_data_precision  = config.read<string>    ("output_data_precision", "double");
         ImplSusceptMode = read_enum_parameter("ImplSusceptMode", "initial",config);
         
         switch(ImplSusceptMode)
@@ -203,6 +199,8 @@ void Collective::ReadInput(string inputfile)
         DiagnosticsOutputCycle      = config.read <int>     ("DiagnosticsOutputCycle", FieldOutputCycle);
         ParaviewScriptPath          = config.read <string>  ("ParaviewScriptPath", "");
         CallFinalize                = config.read <bool>    ("CallFinalize", true);
+        ParticlesDownsampleFactor   = config.read <int>     ("ParticlesDownsampleFactor", 1);
+        ParticlesDownsampleOutputCycle = config.read <int>  ("ParticlesDownsampleOutputCycle", 1);
     }
 
     //* read everything from input file, if restart is true, overwrite the setting - bug fixing

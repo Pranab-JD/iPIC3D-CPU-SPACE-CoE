@@ -110,63 +110,57 @@ class Collective
     double getDz()                      const{ return (dz); }
     double getC()                       const{ return (c); }
     double getDt()                      const{ return (dt); }
-    double getTh()                      const{ return (th); }
-    
-    double getPushWithBatTime()const{ return PushWithBatTime; }
-    double getPushWithEatTime()const{ return PushWithEatTime; }
-    double getImplSusceptTime()const{ return ImplSusceptTime; }
-    double getSmooth()const{ return (Smooth); }
-    int getImplSusceptMode()const{ return ImplSusceptMode; }
-    
-    int getNcycles()const{ return (ncycles); }
-    int getNs()const{ return (ns); }
-    int getNsTestPart()const{ return (nstestpart); }
-    int getNpcel(int nspecies)const{ return (npcel[nspecies]); }
-    int getNpcelx(int nspecies)const{ return (npcelx[nspecies]); }
-    int getNpcely(int nspecies)const{ return (npcely[nspecies]); }
-    int getNpcelz(int nspecies)const{ return (npcelz[nspecies]); }
-    //int getNp(int nspecies)const{ return (np[nspecies]); }
-    //int getNpMax(int nspecies)const{ return (npMax[nspecies]); }
-    double getNpMaxNpRatio()const{ return (NpMaxNpRatio); }
-    double getQOM(int nspecies)const{ return (qom[nspecies]); }
-    double getRHOinit(int nspecies)const{ return (rhoINIT[nspecies]); }
-    double getRHOinject(int nspecies)const { return(rhoINJECT[nspecies]); }
-    double getUth(int nspecies)const{ return (uth[nspecies]); }
-    double getVth(int nspecies)const{ return (vth[nspecies]); }
-    double getWth(int nspecies)const{ return (wth[nspecies]); }
-    double getU0(int nspecies)const{ return (u0[nspecies]); }
-    double getV0(int nspecies)const{ return (v0[nspecies]); }
-    double getW0(int nspecies)const{ return (w0[nspecies]); }
+    double getTh()                      const{ return (th); }    
+    double getSmooth()                  const{ return (Smooth); }
+    int getNcycles()                    const{ return (ncycles); }
 
-    double getPitchAngle(int nspecies)const{ return (pitch_angle[nspecies]); }
-    double getEnergy(int nspecies)const{ return (energy[nspecies]); }
-    int    getTestPartFlushCycle()const{ return (testPartFlushCycle); }
+    int getNs()                         const{ return (ns); }
+    int getNsTestPart()                 const{ return (nstestpart); }
+    int getNpcel(int nspecies)          const{ return (npcel[nspecies]); }
+    int getNpcelx(int nspecies)         const{ return (npcelx[nspecies]); }
+    int getNpcely(int nspecies)         const{ return (npcely[nspecies]); }
+    int getNpcelz(int nspecies)         const{ return (npcelz[nspecies]); }
 
-    int getBcPfaceXright()const{ return (bcPfaceXright); }
-    int getBcPfaceXleft()const{ return (bcPfaceXleft); }
-    int getBcPfaceYright()const{ return (bcPfaceYright); }
-    int getBcPfaceYleft()const{ return (bcPfaceYleft); }
-    int getBcPfaceZright()const{ return (bcPfaceZright); }
-    int getBcPfaceZleft()const{ return (bcPfaceZleft); }
-    int getBcPHIfaceXright()const{ return (bcPHIfaceXright); }
-    int getBcPHIfaceXleft()const{ return (bcPHIfaceXleft); }
-    int getBcPHIfaceYright()const{ return (bcPHIfaceYright); }
-    int getBcPHIfaceYleft()const{ return (bcPHIfaceYleft); }
-    int getBcPHIfaceZright()const{ return (bcPHIfaceZright); }
-    int getBcPHIfaceZleft()const{ return (bcPHIfaceZleft); }
-    int getBcEMfaceXright()const{ return (bcEMfaceXright); }
-    int getBcEMfaceXleft()const{ return (bcEMfaceXleft); }
-    int getBcEMfaceYright()const{ return (bcEMfaceYright); }
-    int getBcEMfaceYleft()const{ return (bcEMfaceYleft); }
-    int getBcEMfaceZright()const{ return (bcEMfaceZright); }
-    int getBcEMfaceZleft()const{ return (bcEMfaceZleft); }
+    double getNpMaxNpRatio()            const{ return (NpMaxNpRatio); }
+    double getQOM(int nspecies)         const{ return (qom[nspecies]); }
+    double getRHOinit(int nspecies)     const{ return (rhoINIT[nspecies]); }
+    double getRHOinject(int nspecies)   const{ return(rhoINJECT[nspecies]); }
+    double getUth(int nspecies)         const{ return (uth[nspecies]); }
+    double getVth(int nspecies)         const{ return (vth[nspecies]); }
+    double getWth(int nspecies)         const{ return (wth[nspecies]); }
+    double getU0(int nspecies)          const{ return (u0[nspecies]); }
+    double getV0(int nspecies)          const{ return (v0[nspecies]); }
+    double getW0(int nspecies)          const{ return (w0[nspecies]); }
 
-    double getB0x()const{ return (B0x); }
-    double getB0y()const{ return (B0y); }
-    double getB0z()const{ return (B0z); }
-    double getB1x()const{ return (B1x); }
-    double getB1y()const{ return (B1y); }
-    double getB1z()const{ return (B1z); }
+    double getPitchAngle(int nspecies)  const{ return (pitch_angle[nspecies]); }
+    double getEnergy(int nspecies)      const{ return (energy[nspecies]); }
+
+    //? Nonperiodic boundaries
+    int getBcPfaceXright()              const{ return (bcPfaceXright); }
+    int getBcPfaceXleft()               const{ return (bcPfaceXleft); }
+    int getBcPfaceYright()              const{ return (bcPfaceYright); }
+    int getBcPfaceYleft()               const{ return (bcPfaceYleft); }
+    int getBcPfaceZright()              const{ return (bcPfaceZright); }
+    int getBcPfaceZleft()               const{ return (bcPfaceZleft); }
+    int getBcPHIfaceXright()            const{ return (bcPHIfaceXright); }
+    int getBcPHIfaceXleft()             const{ return (bcPHIfaceXleft); }
+    int getBcPHIfaceYright()            const{ return (bcPHIfaceYright); }
+    int getBcPHIfaceYleft()             const{ return (bcPHIfaceYleft); }
+    int getBcPHIfaceZright()            const{ return (bcPHIfaceZright); }
+    int getBcPHIfaceZleft()             const{ return (bcPHIfaceZleft); }
+    int getBcEMfaceXright()             const{ return (bcEMfaceXright); }
+    int getBcEMfaceXleft()              const{ return (bcEMfaceXleft); }
+    int getBcEMfaceYright()             const{ return (bcEMfaceYright); }
+    int getBcEMfaceYleft()              const{ return (bcEMfaceYleft); }
+    int getBcEMfaceZright()             const{ return (bcEMfaceZright); }
+    int getBcEMfaceZleft()              const{ return (bcEMfaceZleft); }
+
+    double getB0x()                     const{ return (B0x); }
+    double getB0y()                     const{ return (B0y); }
+    double getB0z()                     const{ return (B0z); }
+    double getB1x()                     const{ return (B1x); }
+    double getB1y()                     const{ return (B1y); }
+    double getB1z()                     const{ return (B1z); }
 
     int getRestart_status()             const{ return (restart_status); }
     string getSaveDirName()             const{ return (SaveDirName); }
@@ -178,6 +172,8 @@ class Collective
     string getFieldOutputTag()          const{ return FieldOutputTag;}
     string getMomentsOutputTag()        const{ return MomentsOutputTag;}
     string getPclOutputTag()            const{ return ParticlesOutputTag;}
+    string getPclDSOutputTag()          const{ return ParticlesDownsampleOutputTag;}
+    string get_output_data_precision()  const{ return output_data_precision; }
 
     double getVinj()                    const{ return (Vinj); }
     double getGMREStol()                const{ return (GMREStol); }
@@ -188,6 +184,8 @@ class Collective
     int getTestParticlesOutputCycle()   const{ return (TestParticlesOutputCycle); }
     int getRestartOutputCycle()         const{ return (RestartOutputCycle); }
     int getDiagnosticsOutputCycle()     const{ return (DiagnosticsOutputCycle); }
+    int getParticlesDownsampleOutputCycle()    const{ return (ParticlesDownsampleOutputCycle); }
+    int getParticlesDownsampleFactor()  const{ return (ParticlesDownsampleFactor); }
     
     bool getCallFinalize()              const{ return (CallFinalize); }
     bool particle_output_is_off()       const;
@@ -224,31 +222,13 @@ class Collective
     /*! inputfile */
     string inputfile;
     string ParaviewScriptPath;
-    /*! light speed */
-    double c;
-    /*! 4 pi */
-    double fourpi;
-    /*! time step */
-    double dt;
-    //
-    // parameters used to support second order accuracy in time 
-    //
-    /*! decentering parameter */
-    double th; // second-order for th=1/2, stable for 1/2 <= th <= 1
-    /*! time of magnetic field used in particle push (0=initial, 1=final) */
-    double PushWithBatTime; // 0=initial (default), 1=final
-    /*! time of electric field used in particle push */
-    double PushWithEatTime; // 0=initial, 1=final (default)
-    /*! means of estimating time-advanced implicit susceptibility */
+
+    double c; double fourpi; double dt; double th; //! second-order for th=1/2; stable for 1/2 <= th <= 1
+
     int ImplSusceptMode; // "initial" (default), "explPredict", "implPredict"
-    /*! time of implicit susceptibility used in field advance */
-    double ImplSusceptTime; // 0=initial (default), 1=final
-    //
     
     //* Smoothing parameters
-    double Smooth;
-    int num_smoothings;
-    int SmoothCycle;
+    double Smooth; int num_smoothings; int SmoothCycle;
 
     int CurrentCycle;
     int zeroCurrent;
@@ -334,7 +314,6 @@ class Collective
     std::unique_ptr<double[]> pitch_angle;
     /*! Energy for Test Particles */
     std::unique_ptr<double[]> energy;
-
 
     /*! Case type */
     string Case;
@@ -429,7 +408,11 @@ class Collective
     //* Output for particles
     int ParticlesOutputCycle;
     string ParticlesOutputTag;
-    
+    string ParticlesDownsampleOutputTag;
+
+    //* Downsamplimg of particles
+    int ParticlesDownsampleOutputCycle; int ParticlesDownsampleFactor;
+
     //* Output for test particles
     int TestParticlesOutputCycle;
     
@@ -460,6 +443,9 @@ class Collective
 
     //* Custom input parameters
     double *input_param; int nparam;
+
+    //* Output data precision
+    string output_data_precision;
 
 };
 typedef Collective CollectiveIO;

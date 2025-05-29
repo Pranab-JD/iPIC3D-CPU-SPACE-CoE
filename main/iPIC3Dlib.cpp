@@ -883,6 +883,14 @@ void c_Solver::WriteOutput(int cycle)
 
 				    WriteParticlesH5hut(ns, grid, particles, col, vct, cycle);
                 }
+
+                if ((cycle%(col->getParticlesDownsampleOutputCycle())==0) && col->getParticlesDownsampleFactor() > 1) 
+                {
+                    if (vct->getCartesian_rank() == 0)
+                        cout << endl << "Writing DOWNSAMPLED PARTICLES at cycle " << cycle << endl;
+
+                    WriteDSParticlesH5hut(ns, grid, particles, col, vct, cycle);
+                }
 			}
             else if (col->getWriteMethod() == "phdf5")
             {
@@ -900,15 +908,16 @@ void c_Solver::WriteOutput(int cycle)
             {
                 //! Serial HDF5
                 if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
-                {
                     WriteFields(cycle);
-                }
 
                 if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
                 {
                     WriteParticles(cycle);
                     // WriteTestParticles(cycle);
                 }
+
+                if (cycle%(col->getParticlesDownsampleOutputCycle())==0 && col->getParticlesDownsampleFactor() > 1)
+                    WriteDSParticles(cycle);
 			}
             else
             {
@@ -919,20 +928,6 @@ void c_Solver::WriteOutput(int cycle)
 
 		#endif
   	}
-}
-
-void c_Solver::WriteRestart(int cycle)
-{
-    #ifndef NO_HDF5
-    if (restart_cycle>0 && cycle%restart_cycle==0)
-    {
-        if (myrank == 0)
-            cout << "Writing RESTART data at time cycle " << cycle << endl;
-               
-        convertParticlesToSynched();
-        fetch_outputWrapperFPP().append_restart(cycle);
-    }
-    #endif
 }
 
 void c_Solver::WriteConserved(int cycle) 
@@ -1141,7 +1136,23 @@ void c_Solver::WriteParticles(int cycle)
         for (int i = 0; i < ns; i++)
             particles[i].convertParticlesToSynched();
 
-        fetch_outputWrapperFPP().append_output((col->getPclOutputTag()).c_str(), cycle, 0);//"position + velocity + q "
+        fetch_outputWrapperFPP().append_output((col->getPclOutputTag()).c_str(), cycle, 0); //* "position + velocity + q "
+    #endif
+}
+
+void c_Solver::WriteDSParticles(int cycle)
+{
+    #ifndef NO_HDF5
+        if(cycle%(col->getParticlesDownsampleOutputCycle())!=0 || col->getParticlesDownsampleFactor() <= 1) return;
+
+        if (vct->getCartesian_rank() == 0)
+            cout << "Writing downsampled particle data at cycle " << cycle << endl;
+
+        // this is a hack
+        // for (int i = 0; i < ns; i++)
+        //     particles[i].convertParticlesToSynched();
+
+        fetch_outputWrapperFPP().append_particles_DS(cycle);     //* "position + velocity + q "
     #endif
 }
 
@@ -1155,6 +1166,20 @@ void c_Solver::WriteTestParticles(int cycle)
             testpart[i].convertParticlesToSynched();
 
         fetch_outputWrapperFPP().append_output("testpartpos + testpartvel+ testparttag", cycle, 0); // + testpartcharge
+    #endif
+}
+
+void c_Solver::WriteRestart(int cycle)
+{
+    #ifndef NO_HDF5
+    if (restart_cycle>0 && cycle%restart_cycle==0)
+    {
+        if (myrank == 0)
+            cout << "Writing RESTART data at time cycle " << cycle << endl;
+               
+        convertParticlesToSynched();
+        fetch_outputWrapperFPP().append_restart(cycle);
+    }
     #endif
 }
 

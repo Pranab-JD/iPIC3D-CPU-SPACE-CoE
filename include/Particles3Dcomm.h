@@ -166,6 +166,7 @@ public:
     double get_xstart(){return xstart;}
     double get_ystart(){return ystart;}
     double get_zstart(){return zstart;}
+
     ParticleType::Type get_particleType()const { return particleType; }
     const SpeciesParticle& get_pcl(int pidx)const{ return _pcls[pidx]; }
     const vector_SpeciesParticle& get_pcl_list()const{ return _pcls; }
@@ -173,23 +174,148 @@ public:
     const double *getUall()  const { assert(particlesAreSoA()); return &u[0]; }
     const double *getVall()  const { assert(particlesAreSoA()); return &v[0]; }
     const double *getWall()  const { assert(particlesAreSoA()); return &w[0]; }
-    const double *getQall()  const { assert(particlesAreSoA()); return &q[0]; }
     const double *getXall()  const { assert(particlesAreSoA()); return &x[0]; }
     const double *getYall()  const { assert(particlesAreSoA()); return &y[0]; }
     const double *getZall()  const { assert(particlesAreSoA()); return &z[0]; }
+    const double *getQall()  const { assert(particlesAreSoA()); return &q[0]; }
     const double *getParticleIDall() const{assert(particlesAreSoA());return &t[0];  }
 
-    //* Downsampled particles
-    const double *getU_DS()  const { assert(particlesAreSoA()); return &u[0]; }
-    const double *getV_DS()  const { assert(particlesAreSoA()); return &v[0]; }
-    const double *getW_DS()  const { assert(particlesAreSoA()); return &w[0]; }
-    const double *getQ_DS()  const { assert(particlesAreSoA()); return &q[0]; }
-    const double *getX_DS()  const { assert(particlesAreSoA()); return &x[0]; }
-    const double *getY_DS()  const { assert(particlesAreSoA()); return &y[0]; }
-    const double *getZ_DS()  const { assert(particlesAreSoA()); return &z[0]; }
+
+    //* Downsampled particles 
+    double *getU_DS()
+    {
+        const long long required_size = (getNOP() + ParticlesDownsampleFactor - 1) / ParticlesDownsampleFactor;
+
+        if (u_ds != nullptr)
+            delete[] u_ds;
+
+        u_ds = new double[required_size];
+
+        long long counter = 0;
+        for (long long ip = 0; ip < getNOP(); ip += ParticlesDownsampleFactor) 
+            u_ds[counter++] = u[ip];
+
+        return u_ds; 
+    }
+    
+    double *getV_DS()
+    { 
+        const long long required_size = (getNOP() + ParticlesDownsampleFactor - 1) / ParticlesDownsampleFactor;
+
+        if (v_ds != nullptr)
+            delete[] v_ds;
+
+        v_ds = new double[required_size];
+
+        long long counter = 0;
+        for (long long ip = 0; ip < getNOP(); ip += ParticlesDownsampleFactor) 
+            v_ds[counter++] = v[ip];
+
+        return v_ds;
+    }
+
+    double *getW_DS()
+    {
+        const long long required_size = (getNOP() + ParticlesDownsampleFactor - 1) / ParticlesDownsampleFactor;
+
+        if (w_ds != nullptr)
+            delete[] w_ds;
+
+        w_ds = new double[required_size];
+
+        long long counter = 0;
+        for (long long ip = 0; ip < getNOP(); ip += ParticlesDownsampleFactor) 
+            w_ds[counter++] = w[ip];
+
+        return w_ds;
+    }
+
+    double *getQ_DS()
+    {
+        const long long required_size = (getNOP() + ParticlesDownsampleFactor - 1) / ParticlesDownsampleFactor;
+
+        if (q_ds != nullptr)
+            delete[] q_ds;
+
+        q_ds = new double[required_size];
+
+        long long counter = 0;
+        for (long long ip = 0; ip < getNOP(); ip += ParticlesDownsampleFactor) 
+        {
+            q_ds[counter] = q[ip];
+            counter++;
+        }
+
+        return q_ds; 
+    }
+
+    double *getX_DS()
+    {
+        const long long required_size = (getNOP() + ParticlesDownsampleFactor - 1) / ParticlesDownsampleFactor;
+
+        if (x_ds != nullptr)
+            delete[] x_ds;
+
+        x_ds = new double[required_size];
+
+        long long counter = 0;
+        for (long long ip = 0; ip < getNOP(); ip += ParticlesDownsampleFactor) 
+        {
+            x_ds[counter] = x[ip];
+            counter++;
+        }
+
+        return x_ds; 
+    }
+    
+    double *getY_DS()
+    {
+        const long long required_size = (getNOP() + ParticlesDownsampleFactor - 1) / ParticlesDownsampleFactor;
+
+        if (y_ds != nullptr)
+            delete[] y_ds;
+
+        y_ds = new double[required_size];
+
+        long long counter = 0;
+        for (long long ip = 0; ip < getNOP(); ip += ParticlesDownsampleFactor) 
+        {
+            y_ds[counter] = y[ip];
+            counter++;
+        }
+
+        return y_ds; 
+    }
+
+    double *getZ_DS()
+    {
+        const long long required_size = (getNOP() + ParticlesDownsampleFactor - 1) / ParticlesDownsampleFactor;
+
+        if (z_ds != nullptr)
+            delete[] z_ds;
+
+        z_ds = new double[required_size];
+
+        long long counter = 0;
+        for (long long ip = 0; ip < getNOP(); ip += ParticlesDownsampleFactor) 
+        {
+            z_ds[counter] = z[ip];
+            counter++;
+        }
+
+        return z_ds; 
+    }
   
     //* accessors for particle with index indexPart
-    int getNOP()  const { return _pcls.size(); }
+    int getNOP() const { return _pcls.size(); }
+
+    //* Get number of downsampled particles
+    long long get_NOP_DS() const 
+    {
+        long long nop_ds = static_cast<long long>(ceil(static_cast<double>(getNOP())/ParticlesDownsampleFactor));
+        return (nop_ds);
+    }
+
     // set particle components
     void setU(int i, double in){_pcls[i].set_u(in);}
     void setV(int i, double in){_pcls[i].set_v(in);}
@@ -234,7 +360,6 @@ public:
     /** Print the number of particles of this subdomain */
     void PrintNp() const;
       
-
 public:
 
     int get_species_num()const { return ns; }
@@ -256,9 +381,6 @@ protected:
 
     //* Charge to mass ratio
     double qom;
-
-    //* Reconnection layer thickness
-    double delta;
     
     //* Thermal velocity (X, Y, Z)
     double uth, vth, wth;
@@ -279,23 +401,27 @@ protected:
     // AoS representation
     vector_SpeciesParticle _pcls;
 
-    // particles data
-    // SoA representation
-    //
-    // velocity components
+    //? Particles' data (SoA representation)
     vector_double u;
     vector_double v;
     vector_double w;
-    // charge
     vector_double q;
-    // position
     vector_double x;
     vector_double y;
     vector_double z;
-    // subcycle time
-    vector_double t;
+    vector_double t;            // subcycle time
+
+    //? Downsampled particles' data
+    double* u_ds;
+    double* v_ds;
+    double* w_ds;
+    double* q_ds;
+    double* x_ds;
+    double* y_ds;
+    double* z_ds;
+
     // indicates whether this class is for tracking particles
-    //bool TrackParticleID;
+    bool TrackParticleID;
     bool isTestParticle;
     double pitch_angle;
     double energy;
@@ -399,6 +525,9 @@ protected:
 
     //* Custom input parameters
     double *input_param; int nparam;
+
+    //* Downsampling factor
+    int ParticlesDownsampleFactor;
 
 };
 

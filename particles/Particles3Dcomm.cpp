@@ -47,7 +47,7 @@ developers: Stefano Markidis, Giovanni Lapenta.
 #include "Parameters.h"
 
 #include "ipichdf5.h"
-//#include <vector>
+#include <vector>
 //#include <complex>
 #include "debug.h"
 #include "TimeTasks.h"
@@ -122,6 +122,15 @@ Particles3Dcomm::~Particles3Dcomm()
     delete numpcls_in_bucket;
     delete numpcls_in_bucket_now;
     delete bucket_offset;
+
+    //* Downsampled particles (not used for computations; only written to files)
+    if (u_ds) delete[] u_ds;
+    if (v_ds) delete[] v_ds;
+    if (w_ds) delete[] w_ds;
+    if (x_ds) delete[] q_ds;
+    if (y_ds) delete[] x_ds;
+    if (z_ds) delete[] y_ds;
+    if (q_ds) delete[] z_ds; 
 }
 
 //! Constructor for a single species !//
@@ -170,6 +179,7 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
     npcelz = col->getNpcelz(get_species_num());
     qom    = col->getQOM(get_species_num());
     SaveHeatFluxTensor = col->getSaveHeatFluxTensor();
+    ParticlesDownsampleFactor = col->getParticlesDownsampleFactor();
 
     if(!isTestParticle)
     {
@@ -262,33 +272,38 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
     const int nop = dNp;
     // initialize particle ID generator based on number of particles that will initially be produced.
     pclIDgenerator.reserve_num_particles(nop);
+
     // initialize each process with capacity for some extra particles
-    const int initial_capacity = roundup_to_multiple(nop*1.2,DVECWIDTH);
+    const int initial_capacity = roundup_to_multiple(nop*1.2, DVECWIDTH);
+    const int downsampled_capacity = roundup_to_multiple(nop/ParticlesDownsampleFactor*1.2, DVECWIDTH);
 
     //* SoA particle representation
-    // velocities
     u.reserve(initial_capacity);
     v.reserve(initial_capacity);
     w.reserve(initial_capacity);
-    // charge
     q.reserve(initial_capacity);
-    // positions
     x.reserve(initial_capacity);
     y.reserve(initial_capacity);
     z.reserve(initial_capacity);
-    // subcycle time
-    t.reserve(initial_capacity);
+    t.reserve(initial_capacity);        // subcycle time
+
+    if (ParticlesDownsampleFactor < 1) 
+    {
+        cout << "ERROR! ParticlesDownsampleFactor must be greater than or equal to 1!" << endl;
+        cout << "===== SIMULATIONS ABORTED =====" << endl << endl;
+        abort();
+    }
 
     // AoS particle representation
     _pcls.reserve(initial_capacity);
     particleType = ParticleType::AoS; // canonical representation
 
     // allocate arrays for sorting particles
-    numpcls_in_bucket = new array3_int(nxc,nyc,nzc);
-    numpcls_in_bucket_now = new array3_int(nxc,nyc,nzc);
-    bucket_offset = new array3_int(nxc,nyc,nzc);
+    numpcls_in_bucket = new array3_int(nxc, nyc, nzc);
+    numpcls_in_bucket_now = new array3_int(nxc, nyc, nzc);
+    bucket_offset = new array3_int(nxc, nyc, nzc);
 
-    assert_eq(sizeof(SpeciesParticle),64);
+    assert_eq(sizeof(SpeciesParticle), 64);
 
     //? if RESTART is true, initialize the particle in allocate method
     int restart_status = col->getRestart_status();
