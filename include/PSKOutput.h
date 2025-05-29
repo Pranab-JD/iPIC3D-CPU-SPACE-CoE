@@ -292,69 +292,125 @@ template < class Toa > class OutputAgent:public OutputAgentBase {
 }                               // end namespace PSK
 
 
-template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa > {
-  Field *_field;
-  Grid *_grid;
-  VCtopology3D *_vct;
-  Collective *_col;
-  int ns;
-  std::vector < Particles * >_part;
+template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa > 
+{
+    Field *_field;
+    Grid *_grid;
+    VCtopology3D *_vct;
+    Collective *_col;
+    int ns;
+    std::vector < Particles * >_part;
 
-public:
-  myOutputAgent(void) {;
-  }
+    public:
+    // static void convert_to_single_precision(const arr3_double&, float*, int, int, int);
+    myOutputAgent(void) {;
+    }
 
-  void set_simulation_pointers(Field * field, Grid * grid, VCtopology3D * vct, Collective * col) {
-    _field = field;
-    _grid = grid;
-    _vct = vct;
-    _col = col;
-  }
+    void set_simulation_pointers(Field * field, Grid * grid, VCtopology3D * vct, Collective * col) {
+        _field = field;
+        _grid = grid;
+        _vct = vct;
+        _col = col;
+    }
 
-  void set_simulation_pointers_part(Particles * part) {
-    _part.push_back(part);
-  }
+    void set_simulation_pointers_part(Particles * part) {
+        _part.push_back(part);
+    }
 
-//  void set_simulation_pointers_testpart(Particles * part) {
-//    _testpart.push_back(part);
-//  }
+    void write_single_node(const std::string& path, const double* d_array) 
+    {
+        const int nx = _grid->getNXN() - 2;
+        const int ny = _grid->getNYN() - 2;
+        const int nz = _grid->getNZN() - 2;
+        const size_t size = static_cast<size_t>(nx) * ny * nz;
 
-//! ============================================================================================================ !//
+        std::vector<float> f_array(size);
+        for (size_t i = 0; i < size; ++i) 
+            f_array[i] = static_cast<float>(d_array[i]);
 
-    /****************************************************************************
-    //? Tags for writing for files 
+        this->output_adaptor.write(path, PSK::Dimens(nx, ny, nz), f_array.data());
+    };
 
-        collective
-        total_topology 
-        proc_topology
-    
-    //? Fields
-        # Ball              --> Bx, By, and Bz
-        # Bx (By, Bz)       --> Bx (By or Bz)
-        # Eall              --> Ex, Ey, and Ez
-        # Ex (Ey, Ez)       --> Ex (Ey or Ez)
-        # phi               --> scalar vector
+    void write_single_cell_centre(const std::string& path, const double* d_array) 
+    {
+        const int nx = _grid->getNXC() - 2;
+        const int ny = _grid->getNYC() - 2;
+        const int nz = _grid->getNZC() - 2;
+        const size_t size = static_cast<size_t>(nx) * ny * nz;
 
-    //? Moments
-        # Jall              --> Jx, Jy, and Jz (total current)
-        # Jx (Jy, Jz)       --> Jx (Jy or Jz; total current along X, Y, or Z)
-        # Jsall             --> Jxs, Jys, and Jzs (current densities for each species)
-        # Jxs (Jys, Jzs)    --> Jxs (Jys or Jzs; current densities along X, Y, or Z)
-        # rhos              --> charge densities for each species
-        # pressure          --> pressure tensor for each species
+        std::vector<float> f_array(size);
+        for (size_t i = 0; i < size; ++i) 
+            f_array[i] = static_cast<float>(d_array[i]);
 
-    //? Particles
-        # position          --> particle positions (X, Y, Z)
-        # velocity          --> particle velocities (U, V, W)
-        # q                 --> particle charges
-        # ID                --> particle ID (note: TrackParticleID has to be set true in Collective)
-            
-    //? Energies
-        # k_energy          --> Kinetic energy for each species
-        # B_energy          --> Magnetic field energy
-        # E_energy          --> Electric field energy
+        this->output_adaptor.write(path, PSK::Dimens(nx, ny, nz), f_array.data());
+    };
 
-    ****************************************************************************/
+    // std::vector<float> convert_to_single_precision(double*** d_array, int nx, int ny, int nz)
+    // {
+    //     std::vector<float> f_array(static_cast<size_t>(nx) * ny * nz);
+
+    //     for (int iz = 0; iz < nz; ++iz)
+    //         for (int iy = 0; iy < ny; ++iy)
+    //             for (int ix = 0; ix < nx; ++ix) 
+    //             {
+    //                 size_t flat_index = static_cast<size_t>(ix) + nx * (iy + ny * iz);
+    //                 f_array[flat_index] = static_cast<float>(d_array[iz][iy][ix]);
+    //             }
+
+    //     return f_array;
+    // }
+
+    void convert_to_single_precision(double*** input_array, float* output_array, int nx, int ny, int nz)
+    {
+        for (int iz = 0; iz < nz; ++iz) 
+            for (int iy = 0; iy < ny; ++iy) 
+                for (int ix = 0; ix < nx; ++ix) 
+                {
+                    size_t flat_index = static_cast<size_t>(ix) + nx * (iy + ny * iz);
+                    output_array[flat_index] = static_cast<float>(input_array[ix][iy][iz]);
+                }
+    }
+
+    //  void set_simulation_pointers_testpart(Particles * part) {
+    //    _testpart.push_back(part);
+    //  }
+
+    //! ============================================================================================================ !//
+
+        /****************************************************************************
+        //? Tags for writing for files 
+
+            collective
+            total_topology 
+            proc_topology
+        
+        //? Fields
+            # Ball              --> Bx, By, and Bz
+            # Bx (By, Bz)       --> Bx (By or Bz)
+            # Eall              --> Ex, Ey, and Ez
+            # Ex (Ey, Ez)       --> Ex (Ey or Ez)
+            # phi               --> scalar vector
+
+        //? Moments
+            # Jall              --> Jx, Jy, and Jz (total current)
+            # Jx (Jy, Jz)       --> Jx (Jy or Jz; total current along X, Y, or Z)
+            # Jsall             --> Jxs, Jys, and Jzs (current densities for each species)
+            # Jxs (Jys, Jzs)    --> Jxs (Jys or Jzs; current densities along X, Y, or Z)
+            # rhos              --> charge densities for each species
+            # pressure          --> pressure tensor for each species
+
+        //? Particles
+            # position          --> particle positions (X, Y, Z)
+            # velocity          --> particle velocities (U, V, W)
+            # q                 --> particle charges
+            # ID                --> particle ID (note: TrackParticleID has to be set true in Collective)
+                
+        //? Energies
+            # k_energy          --> Kinetic energy for each species
+            # B_energy          --> Magnetic field energy
+            # E_energy          --> Electric field energy
+
+        ****************************************************************************/
 
     //! Moment and Field Output
     void output(const string & tag, int cycle) 
@@ -477,12 +533,48 @@ public:
 
 		//! ************************* Fields ************************* !//
 
+        //TODO: Atm, writing in single precision involves writing the desired data to an array in double, converting that array to single, and writing this data
+        //TODO: This may be further optimised - PJD
+        double*** temp_double; float* temp_single;     //* Temporary array to store data in double & single precision, respectively
+
 		//* B field (defined at nodes) is written without ghost cells
 		if (tag.find("B", 0) != string::npos) 
 		{
-			this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx());
-			this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy());
-			this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBz());
+            if (_col->get_output_data_precision() == "double")
+            {
+                //* Double precision
+                this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx());
+                this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy());
+                this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBz());
+            }
+            // else if (_col->get_output_data_precision() == "single")
+            // {
+            //     cout << "WRITING OUTPUT DATA IN SINGLE PRECISION" << endl;
+
+            //     for (int i = 0; i < _grid->getNXN(); i++)
+            //         for (int j = 0; j < _grid->getNYN(); j++)
+            //             for (int k = 0; k < _grid->getNYN(); k++)
+            //                temp_double[i][j][k] = _field->getBx(i, j, k);
+                        
+            //     convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+            //     this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+
+            //     for (int i = 0; i < _grid->getNXN(); i++)
+            //         for (int j = 0; j < _grid->getNYN(); j++)
+            //             for (int k = 0; k < _grid->getNYN(); k++)
+            //                temp_double[i][j][k] = _field->getBy(i, j, k);
+                        
+            //     convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+            //     this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+
+            //     for (int i = 0; i < _grid->getNXN(); i++)
+            //         for (int j = 0; j < _grid->getNYN(); j++)
+            //             for (int k = 0; k < _grid->getNYN(); k++)
+            //                temp_double[i][j][k] = _field->getBz(i, j, k);
+                        
+            //     convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+            //     this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+            // }
 		}
 		else if (tag.find("Bx", 0) != string::npos)
 			this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx());
@@ -512,9 +604,41 @@ public:
     	//* E field (defined at nodes) is written without ghost cells
 		if (tag.find("E", 0) != string::npos) 
 		{
-			this->output_adaptor.write("/fields/Ex/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEx());
-			this->output_adaptor.write("/fields/Ey/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEy());
-			this->output_adaptor.write("/fields/Ez/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEz());
+            if (_col->get_output_data_precision() == "double")
+            {
+                //* Double precision
+                this->output_adaptor.write("/fields/Ex/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEx());
+                this->output_adaptor.write("/fields/Ey/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEy());
+                this->output_adaptor.write("/fields/Ez/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEz());
+            }
+            // else if (_col->get_output_data_precision() == "single")
+            // {
+            //     cout << "WRITING OUTPUT DATA IN SINGLE PRECISION" << endl;
+
+            //     for (int i = 0; i < _grid->getNXN(); i++)
+            //         for (int j = 0; j < _grid->getNYN(); j++)
+            //             for (int k = 0; k < _grid->getNYN(); k++)
+            //                temp_double[i][j][k] = _field->getEx(i, j, k);
+                        
+            //     convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+            //     this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+
+            //     for (int i = 0; i < _grid->getNXN(); i++)
+            //         for (int j = 0; j < _grid->getNYN(); j++)
+            //             for (int k = 0; k < _grid->getNYN(); k++)
+            //                temp_double[i][j][k] = _field->getEy(i, j, k);
+                        
+            //     convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+            //     this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+
+            //     for (int i = 0; i < _grid->getNXN(); i++)
+            //         for (int j = 0; j < _grid->getNYN(); j++)
+            //             for (int k = 0; k < _grid->getNYN(); k++)
+            //                temp_double[i][j][k] = _field->getEz(i, j, k);
+                        
+            //     convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+            //     this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+            // }
 		}
 		else if (tag.find("Ex", 0) != string::npos)
 			this->output_adaptor.write("/fields/Ex/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEx());

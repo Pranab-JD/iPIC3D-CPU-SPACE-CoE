@@ -278,41 +278,41 @@ void TimeTasks::print_cycle_times(int cycle,
     double communtot=0.;
     double allredtot=0.;
     double sndrcvtot=0.;
-    fprintf(file, "Total        Computation   Communication      Module\n", reduce_mode);
-    assert_eq(FIELDS+2,MOMENTS);
-    for(int e=FIELDS; e<=MOMENTS; e++)
-    {
-      const double comput = tskdur[e]-commun[e];
-      tskdurtot += tskdur[e];
-      computtot += comput;
-      communtot += commun[e];
-      allredtot += allred[e];
-      sndrcvtot += sndrcv[e];
-      fprintf(file, "%s%6.8f    %6.8f     %6.8f       %s\n",
-        reduce_mode,
-        tskdur[e],
-        comput,
-        commun[e],
-        //loccom[e],
-        get_taskname(e));
+//     fprintf(file, "Total        Computation   Communication      Module\n", reduce_mode);
+//     assert_eq(FIELDS+2,MOMENTS);
+//     for(int e=FIELDS; e<=MOMENTS; e++)
+//     {
+//       const double comput = tskdur[e]-commun[e];
+//       tskdurtot += tskdur[e];
+//       computtot += comput;
+//       communtot += commun[e];
+//       allredtot += allred[e];
+//       sndrcvtot += sndrcv[e];
+//       fprintf(file, "%s%6.8f    %6.8f     %6.8f       %s\n",
+//         reduce_mode,
+//         tskdur[e],
+//         comput,
+//         commun[e],
+//         //loccom[e],
+//         get_taskname(e));
 
-#ifdef LOG_TASKS_TOTAL_TIME
-      tasksTotalTime[e] += tskdur[e];
-#endif
+// #ifdef LOG_TASKS_TOTAL_TIME
+//       tasksTotalTime[e] += tskdur[e];
+// #endif
 
-    }
+//     }
 
-    // report total times
-    fprintf(file, "%s%6.8f    %6.8f     %6.8f       %s\n",
-      reduce_mode,
-      tskdurtot,
-      computtot,
-      communtot,
-      //loccomtot,
-      "Total");
+//     // report total times
+//     fprintf(file, "%s%6.8f    %6.8f     %6.8f       %s\n",
+//       reduce_mode,
+//       tskdurtot,
+//       computtot,
+//       communtot,
+//       //loccomtot,
+//       "Total");
 
    
-    fflush(file);
+//     fflush(file);
   }
 }
 
