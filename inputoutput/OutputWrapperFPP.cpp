@@ -103,32 +103,46 @@ void OutputWrapperFPP::init_output_files(Collective *col, VCtopology3D *vct, Gri
     #endif
 }
 
-void OutputWrapperFPP::append_output(const char* tag, int cycle)
+//* Particles + Fields + Moments
+void OutputWrapperFPP::append_output_fields(const char* tag, int cycle)
 {
     #ifndef NO_HDF5
         hdf5_agent.open_append(output_file);
-        output_mgr.output(tag, cycle);
+        output_mgr.output_fields(tag, cycle);
         hdf5_agent.close();
     #endif
 }
 
-void OutputWrapperFPP::append_output(const char* tag, int cycle, int sample)
+// //* Particles + Fields + Moments
+void OutputWrapperFPP::append_output_particles(const char* tag, int cycle)
 {
     #ifndef NO_HDF5
         hdf5_agent.open_append(output_file);
-        output_mgr.output(tag, cycle, sample);
+        output_mgr.output_particles(tag, cycle);
         hdf5_agent.close();
     #endif
 }
 
+
+//* Downsampled Particles
+void OutputWrapperFPP::append_particles_DS(const char* tag, int cycle, int sample)
+{
+    #ifndef NO_HDF5
+        hdf5_agent.open_append(output_file);
+        output_mgr.output_particles_DS(tag, cycle, sample);
+        hdf5_agent.close();
+    #endif
+}
+
+//* Restart data
 void OutputWrapperFPP::append_restart(int cycle)
 {
     #ifndef NO_HDF5
         hdf5_agent.open_append(restart_file);
         output_mgr.output("proc_topology ", cycle);
-        output_mgr.output("E + B + B_c + rho_s", cycle); 
-        output_mgr.output("position + velocity + q", cycle, 0);
-        // output_mgr.output("testpartpos + testpartvel + testpartcharge", cycle, 0);
+        output_mgr.output_fields("E + B + B_c + rho_s", cycle); 
+        output_mgr.output_particles("position + velocity + q", cycle);
+        // output_mgr.output("testpartpos + testpartvel + testpartcharge", cycle);
         output_mgr.output("last_cycle", cycle);
         hdf5_agent.close();
     #endif

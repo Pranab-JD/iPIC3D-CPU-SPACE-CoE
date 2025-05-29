@@ -172,17 +172,15 @@ namespace PSK {
   class OutputAgentBase {
 
   public:
-    OutputAgentBase(void) {;
-    } OutputAgentBase(const OutputAgentBase & a) {;
-    }
+    OutputAgentBase(void) {;} 
+    OutputAgentBase(const OutputAgentBase & a) {;}
 
+    virtual void output_fields(const std::string & tag, int cycle) = 0;
+    virtual void output_particles(const std::string & tag, int cycle) = 0;
+    virtual void output_particles_DS(const std::string & tag, int cycle, int sample) = 0;
     virtual void output(const std::string & tag, int cycle) = 0;
-    virtual void output(const std::string & tag, int cycle, int sample) = 0;
-
     virtual void open(const std::string & outf) = 0;
     virtual void close(void) = 0;
-
-
   };
 
   /** \brief Base class for OutputAgents using template for output adaptor */
@@ -192,13 +190,13 @@ template < class Toa > class OutputAgent:public OutputAgentBase {
     Toa output_adaptor;
 
   public:
-    OutputAgent(void) {;
-    }
-    OutputAgent(const OutputAgent & a) {;
-    }
+    OutputAgent(void) {;}
+    OutputAgent(const OutputAgent & a) {;}
 
     virtual void output(const std::string & tag, int cycle) = 0;
-    virtual void output(const std::string & tag, int cycle, int sample) = 0;
+    virtual void output_fields(const std::string & tag, int cycle) = 0;
+    virtual void output_particles(const std::string & tag, int cycle) = 0;
+    virtual void output_particles_DS(const std::string & tag, int cycle, int sample) = 0;
 
     void open(const std::string & outf) {
       output_adaptor.open(outf);
@@ -226,16 +224,32 @@ template < class Toa > class OutputAgent:public OutputAgentBase {
       agents_list.push_back(a_p);
     }
 
-    void output(const std::string & tag, int cycle) {
-      typename std::list < OutputAgentBase * >::iterator p = agents_list.begin();
-      while (p != agents_list.end())
-        (*p++)->output(tag, cycle);
+    void output(const std::string & tag, int cycle) 
+    {
+        typename std::list < OutputAgentBase * >::iterator p = agents_list.begin();
+        while (p != agents_list.end())
+            (*p++)->output(tag, cycle);
     }
 
-    void output(const std::string & tag, int cycle, int sample) {
-      typename std::list < OutputAgentBase * >::iterator p = agents_list.begin();
-      while (p != agents_list.end())
-        (*p++)->output(tag, cycle, sample);
+    void output_fields(const std::string & tag, int cycle) 
+    {
+        typename std::list < OutputAgentBase * >::iterator p = agents_list.begin();
+        while (p != agents_list.end())
+            (*p++)->output_fields(tag, cycle);
+    }
+
+    void output_particles(const std::string & tag, int cycle) 
+    {
+        typename std::list < OutputAgentBase * >::iterator p = agents_list.begin();
+        while (p != agents_list.end())
+            (*p++)->output_particles(tag, cycle);
+    }
+
+    void output_particles_DS(const std::string & tag, int cycle, int sample) 
+    {
+        typename std::list < OutputAgentBase * >::iterator p = agents_list.begin();
+        while (p != agents_list.end())
+            (*p++)->output_particles_DS(tag, cycle, sample);
     }
 
   };
@@ -252,7 +266,7 @@ template < class Toa > class OutputAgent:public OutputAgentBase {
     }
 
 
-    // write int functions
+    //* write int functions
     void write(const std::string & objname, int i) {
       std::cout << "coutPSKOutputAdaptor write int: <" << objname << "> : " << i << "\n";
     }
@@ -265,7 +279,7 @@ template < class Toa > class OutputAgent:public OutputAgentBase {
     }
 
 
-    // write float functions
+    //* write float functions
     void write(const std::string & objname, float f) {
       std::cout << "coutPSKOutputAdaptor write float: <" << objname << "> : " << f << "\n";
     }
@@ -276,7 +290,7 @@ template < class Toa > class OutputAgent:public OutputAgentBase {
       std::cout << "coutPSKOutputAdaptor write vector<float> array: <" << objname << "> : " << "\n";
     }
 
-    // write double functions
+    //* write double functions
     void write(const std::string & objname, double d) {
       std::cout << "coutPSKOutputAdaptor write double: <" << objname << "> : " << d << "\n";
     }
@@ -345,21 +359,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         this->output_adaptor.write(path, PSK::Dimens(nx, ny, nz), f_array.data());
     };
 
-    // std::vector<float> convert_to_single_precision(double*** d_array, int nx, int ny, int nz)
-    // {
-    //     std::vector<float> f_array(static_cast<size_t>(nx) * ny * nz);
-
-    //     for (int iz = 0; iz < nz; ++iz)
-    //         for (int iy = 0; iy < ny; ++iy)
-    //             for (int ix = 0; ix < nx; ++ix) 
-    //             {
-    //                 size_t flat_index = static_cast<size_t>(ix) + nx * (iy + ny * iz);
-    //                 f_array[flat_index] = static_cast<float>(d_array[iz][iy][ix]);
-    //             }
-
-    //     return f_array;
-    // }
-
     void convert_to_single_precision(double*** input_array, float* output_array, int nx, int ny, int nz)
     {
         for (int iz = 0; iz < nz; ++iz) 
@@ -377,45 +376,9 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 
     //! ============================================================================================================ !//
 
-        /****************************************************************************
-        //? Tags for writing for files 
-
-            collective
-            total_topology 
-            proc_topology
-        
-        //? Fields
-            # Ball              --> Bx, By, and Bz
-            # Bx (By, Bz)       --> Bx (By or Bz)
-            # Eall              --> Ex, Ey, and Ez
-            # Ex (Ey, Ez)       --> Ex (Ey or Ez)
-            # phi               --> scalar vector
-
-        //? Moments
-            # Jall              --> Jx, Jy, and Jz (total current)
-            # Jx (Jy, Jz)       --> Jx (Jy or Jz; total current along X, Y, or Z)
-            # Jsall             --> Jxs, Jys, and Jzs (current densities for each species)
-            # Jxs (Jys, Jzs)    --> Jxs (Jys or Jzs; current densities along X, Y, or Z)
-            # rhos              --> charge densities for each species
-            # pressure          --> pressure tensor for each species
-
-        //? Particles
-            # position          --> particle positions (X, Y, Z)
-            # velocity          --> particle velocities (U, V, W)
-            # q                 --> particle charges
-            # ID                --> particle ID (note: TrackParticleID has to be set true in Collective)
-                
-        //? Energies
-            # k_energy          --> Kinetic energy for each species
-            # B_energy          --> Magnetic field energy
-            # E_energy          --> Electric field energy
-
-        ****************************************************************************/
-
-    //! Moment and Field Output
-    void output(const string & tag, int cycle) 
-	{
-		stringstream ss;
+    void output(const std::string & tag, int cycle) 
+    {
+        stringstream ss;
 		stringstream cc;
 		stringstream ii;
 		ss << MPIdata::instance().get_rank();
@@ -530,6 +493,57 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 			this->output_adaptor.write("/topology/Zright_neighbor", _vct->getZright_neighbor());
 			delete[]coord;
 		}
+    }
+
+        /****************************************************************************
+        //? Tags for writing for files 
+
+            collective
+            total_topology 
+            proc_topology
+        
+        //? Fields
+            # Ball              --> Bx, By, and Bz
+            # Bx (By, Bz)       --> Bx (By or Bz)
+            # Eall              --> Ex, Ey, and Ez
+            # Ex (Ey, Ez)       --> Ex (Ey or Ez)
+            # phi               --> scalar vector
+
+        //? Moments
+            # Jall              --> Jx, Jy, and Jz (total current)
+            # Jx (Jy, Jz)       --> Jx (Jy or Jz; total current along X, Y, or Z)
+            # Jsall             --> Jxs, Jys, and Jzs (current densities for each species)
+            # Jxs (Jys, Jzs)    --> Jxs (Jys or Jzs; current densities along X, Y, or Z)
+            # rhos              --> charge densities for each species
+            # pressure          --> pressure tensor for each species
+
+        //? Particles
+            # position          --> particle positions (X, Y, Z)
+            # velocity          --> particle velocities (U, V, W)
+            # q                 --> particle charges
+            # ID                --> particle ID (note: TrackParticleID has to be set true in Collective)
+                
+        //? Energies
+            # k_energy          --> Kinetic energy for each species
+            # B_energy          --> Magnetic field energy
+            # E_energy          --> Electric field energy
+
+        ****************************************************************************/
+
+    //! ============================================================================================================ !//
+
+    //! Moment and Field Output
+    void output_fields(const string & tag, int cycle) 
+	{
+		stringstream ss;
+		stringstream cc;
+		stringstream ii;
+		ss << MPIdata::instance().get_rank();
+		cc << cycle;
+		const int ns = _col->getNs();
+		
+		if (tag.find("last_cycle", 0) != string::npos)
+			this->output_adaptor.write("/last_cycle", cycle);
 
 		//! ************************* Fields ************************* !//
 
@@ -813,8 +827,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
   	//! ============================================================================================================ !//
 
     //! Particle Output
-
-    void output(const string & tag, int cycle, int sample) 
+    void output_particles(const string & tag, int cycle) 
     {
         stringstream cc;
         cc << cycle;
@@ -823,7 +836,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 
         //! ************************* Positions ************************* !//
 
-        if (tag.find("position", 0) != string::npos & sample == 0) 
+        if (tag.find("position", 0) != string::npos) 
         {
             for (int i = 0; i < ns; ++i) 
             {
@@ -835,8 +848,106 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
             }
         }
 
-        else if (tag.find("position", 0) != string::npos & sample != 0) 
+        //* Test Particles
+        if (tag.find("testpartpos", 0) != string::npos) 
         {
+            for (int i = 0; i < nstestpart; ++i) 
+            {
+                stringstream ii;
+                ii << (_part[i+ns]->get_species_num());
+                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getXall());
+                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getYall());
+                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getZall());
+            }
+        }
+
+        //! ************************* Velocities ************************* !//
+
+        if (tag.find("velocity", 0) != string::npos) 
+        {
+            for (int i = 0; i < ns; ++i) 
+            {
+                stringstream ii;
+                ii << i;
+                this->output_adaptor.write("/particles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getUall());
+                this->output_adaptor.write("/particles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getVall());
+                this->output_adaptor.write("/particles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getWall());
+            }
+        }
+        
+        //* Test Particles
+        if (tag.find("testpartvel", 0) != string::npos) 
+        {
+            for (int i = 0; i < nstestpart; ++i) 
+            {
+                stringstream ii;
+                ii << (_part[i+ns]->get_species_num());
+                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getUall());
+                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getVall());
+                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getWall());
+            }
+        }
+
+        //! ************************* Charge ************************* !//
+
+        if (tag.find("q", 0) != string::npos) 
+        {
+            for (int i = 0; i < ns; ++i) 
+            {
+                stringstream ii;
+                ii << i;
+                this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getQall());
+            }
+        }
+
+        //* Test Particles
+        if (tag.find("testpartcharge", 0) != string::npos) 
+        {
+            for (int i = 0; i < nstestpart; ++i)
+            {
+                stringstream ii;
+                ii <<  (_part[i+ns]->get_species_num());
+                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getQall());
+            }
+        }
+
+        //! ************************* ID ************************* !//
+
+        if (tag.find("ID", 0) != string::npos) 
+        {
+            for (int i = 0; i < ns; ++i) 
+            {
+                stringstream ii;
+                ii << i;
+                this->output_adaptor.write("/particles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getParticleIDall());
+            }
+        }
+
+        //* Test Particles
+        if (tag.find("testparttag", 0) != string::npos) 
+        {
+            for (int i = 0; i < nstestpart; ++i) 
+            {
+                stringstream ii;
+                ii <<  (_part[i+ns]->get_species_num());
+                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getParticleIDall());
+            }
+        }
+    }
+
+    //! ============================================================================================================ !//
+
+    //! Downsampled Particles
+    void output_particles_DS(const string & tag, int cycle, int sample) 
+    {
+        stringstream cc;
+        cc << cycle;
+        const int ns = _col->getNs();
+
+        //* Downsampled Particles
+        if (tag.find("position_DS", 0) != string::npos) 
+        {
+            // int sample = _col->getParticlesDownsampleFactor();
             std::vector < double >X, Y, Z;
             for (int i = 0; i < ns; ++i) 
             {
@@ -853,69 +964,16 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                     Y.push_back(_part[i]->getY(n));
                     Z.push_back(_part[i]->getZ(n));
                 }
+
+                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(X.size()), X);
+                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(Y.size()), Y);
+                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(Z.size()), Z);
+            }
+        }
                 
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(X.size()), X);
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(Y.size()), Y);
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(Z.size()), Z);
-            }
-        }
-        
-        else if (tag.find("x", 0) != string::npos & sample == 0) 
+        if (tag.find("velocity_DS", 0) != string::npos) 
         {
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getXall());
-            }
-        }
-
-        else if (tag.find("x", 0) != string::npos & sample != 0) 
-        {
-            std::vector < double >X;
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-                const int num_samples = _part[i]->getNOP()/sample;
-                X.reserve(num_samples);
-                
-                for (int n = 0; n < _part[i]->getNOP(); n += sample)
-                    X.push_back(_part[i]->getX(n));
-
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(X.size()), X);
-            }
-        }
-
-        //* Test Particles
-        else if (tag.find("testpartpos", 0) != string::npos & sample == 0) 
-        {
-            for (int i = 0; i < nstestpart; ++i) 
-            {
-                stringstream ii;
-                ii << (_part[i+ns]->get_species_num());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getXall());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getYall());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getZall());
-            }
-        }
-
-        //! ************************* Velocities ************************* !//
-
-        if (tag.find("velocity", 0) != string::npos & sample == 0) 
-        {
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getUall());
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getVall());
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getWall());
-            }
-        }
-        
-        else if (tag.find("velocity", 0) != string::npos & sample != 0) 
-        {
+            // int sample = _col->getParticlesDownsampleFactor();
             std::vector < double >U, V, W;
             for (int i = 0; i < ns; ++i) 
             {
@@ -933,66 +991,16 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                     W.push_back(_part[i]->getW(n));
                 }
                 
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(U.size()), U);
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(V.size()), V);
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(W.size()), W);
+                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(U.size()), U);
+                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(V.size()), V);
+                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(W.size()), W);
             }
         }
 
-        else if (tag.find("u", 0) != string::npos & sample == 0) 
+        //* Downsampled Particles
+        if (tag.find("q_DS", 0) != string::npos) 
         {
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getUall());
-            }
-        }
-        
-        else if (tag.find("u", 0) != string::npos & sample != 0) 
-        {
-            std::vector < double >U;
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-                const int num_samples = _part[i]->getNOP()/sample;
-                U.reserve(num_samples);
-                
-                for (int n = 0; n < _part[i]->getNOP(); n += sample)
-                    U.push_back(_part[i]->getU(n));
-
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(U.size()), U);
-            }
-        }
-
-        //* Test Particles
-        else if (tag.find("testpartvel", 0) != string::npos & sample == 0) 
-        {
-            for (int i = 0; i < nstestpart; ++i) 
-            {
-                stringstream ii;
-                ii << (_part[i+ns]->get_species_num());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getUall());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getVall());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getWall());
-            }
-        }
-
-        //! ************************* Charge ************************* !//
-
-        if (tag.find("q", 0) != string::npos & sample == 0) 
-        {
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getQall());
-            }
-        }
-
-        else if (tag.find("q", 0) != string::npos & sample != 0) 
-        {
+            // int sample = _col->getParticlesDownsampleFactor();
             std::vector < double >Q;
             for (int i = 0; i < ns; ++i) 
             {
@@ -1004,35 +1012,14 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 for (int n = 0; n < _part[i]->getNOP(); n += sample)
                     Q.push_back(_part[i]->getQ(n));
                 
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(Q.size()), Q);
-            }
-        }
-        
-        //* Test Particles
-        else if (tag.find("testpartcharge", 0) != string::npos & sample == 0) 
-        {
-            for (int i = 0; i < nstestpart; ++i)
-            {
-                stringstream ii;
-                ii <<  (_part[i+ns]->get_species_num());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getQall());
+                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(Q.size()), Q);
             }
         }
 
-        //! ************************* ID ************************* !//
-
-        if (tag.find("ID", 0) != string::npos & sample == 0) 
+        //* Downsampled Particles
+        if (tag.find("ID_DS", 0) != string::npos) 
         {
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getParticleIDall());
-            }
-        }
-
-        else if (tag.find("ID", 0) != string::npos & sample != 0) 
-        {
+            // int sample = _col->getParticlesDownsampleFactor();
             std::vector <double>ID;
             for (int i = 0; i < ns; ++i) 
             {
@@ -1045,20 +1032,10 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 for (int n = 0; n < _part[i]->getNOP(); n += sample)
                     ID.push_back(pclID[n]);
                 
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(ID.size()), &ID[0]);
+                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(ID.size()), &ID[0]);
             }
         }
 
-        //* Test Particles
-        else if (tag.find("testparttag", 0) != string::npos & sample == 0) 
-        {
-            for (int i = 0; i < nstestpart; ++i) 
-            {
-                stringstream ii;
-                ii <<  (_part[i+ns]->get_species_num());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getParticleIDall());
-            }
-        }
     }
 
 };

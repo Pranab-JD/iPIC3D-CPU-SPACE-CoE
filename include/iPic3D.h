@@ -76,6 +76,7 @@ namespace iPic3D {
     void WriteVirtualSatelliteTraces();
     void WriteFields(int cycle);
     void WriteParticles(int cycle);
+    void WriteDSParticles(int cycle);
     void WriteTestParticles(int cycle);
     void WriteOutput(int cycle);
     void Finalize();

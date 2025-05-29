@@ -1112,15 +1112,15 @@ void c_Solver::WriteFields(int cycle)
         if(col->field_output_is_off() || cycle%(col->getFieldOutputCycle())!=0) return;
 
         if (vct->getCartesian_rank() == 0)
-            cout << "Writing field data at cycle " << cycle << endl;
+            cout << endl << "Writing field data at cycle " << cycle << endl;
 
         //* Fields
         if(!(col->getFieldOutputTag()).empty())
-            fetch_outputWrapperFPP().append_output((col->getFieldOutputTag()).c_str(), cycle);      
+            fetch_outputWrapperFPP().append_output_fields((col->getFieldOutputTag()).c_str(), cycle);      
         
         //* Moments
         if(!(col->getMomentsOutputTag()).empty())
-            fetch_outputWrapperFPP().append_output((col->getMomentsOutputTag()).c_str(), cycle);
+            fetch_outputWrapperFPP().append_output_fields((col->getMomentsOutputTag()).c_str(), cycle);
     #endif
 }
 
@@ -1130,13 +1130,12 @@ void c_Solver::WriteParticles(int cycle)
         if(col->particle_output_is_off() || cycle%(col->getParticlesOutputCycle())!=0) return;
 
         if (vct->getCartesian_rank() == 0)
-            cout << "Writing particle data at cycle " << cycle << endl;
+            cout << endl << "Writing particle data at cycle " << cycle << endl;
 
-        // this is a hack
-        for (int i = 0; i < ns; i++)
-            particles[i].convertParticlesToSynched();
+        //* This is crucial
+        convertParticlesToSynched();
 
-        fetch_outputWrapperFPP().append_output((col->getPclOutputTag()).c_str(), cycle, 0); //* "position + velocity + q "
+        fetch_outputWrapperFPP().append_output_particles((col->getPclOutputTag()).c_str(), cycle); //* "position + velocity + q "
     #endif
 }
 
@@ -1146,13 +1145,12 @@ void c_Solver::WriteDSParticles(int cycle)
         if(cycle%(col->getParticlesDownsampleOutputCycle())!=0 || col->getParticlesDownsampleFactor() <= 1) return;
 
         if (vct->getCartesian_rank() == 0)
-            cout << "Writing downsampled particle data at cycle " << cycle << endl;
+            cout << endl << "Writing downsampled particle data at cycle " << cycle << endl;
 
-        // this is a hack
-        // for (int i = 0; i < ns; i++)
-        //     particles[i].convertParticlesToSynched();
+        //* This is crucial
+        convertParticlesToSynched();
 
-        fetch_outputWrapperFPP().append_particles_DS(cycle);     //* "position + velocity + q "
+        fetch_outputWrapperFPP().append_particles_DS("position_DS + velocity_DS + q_DS", cycle, col->getParticlesDownsampleFactor());
     #endif
 }
 
@@ -1161,11 +1159,10 @@ void c_Solver::WriteTestParticles(int cycle)
     #ifndef NO_HDF5
         if(nstestpart == 0 || col->testparticle_output_is_off() || cycle%(col->getTestParticlesOutputCycle())!=0) return;
 
-        // this is a hack
-        for (int i = 0; i < nstestpart; i++)
-            testpart[i].convertParticlesToSynched();
+        //* This is crucial
+        convertParticlesToSynched();
 
-        fetch_outputWrapperFPP().append_output("testpartpos + testpartvel+ testparttag", cycle, 0); // + testpartcharge
+        fetch_outputWrapperFPP().append_output_particles("testpartpos + testpartvel+ testparttag", cycle); // + testpartcharge
     #endif
 }
 
@@ -1175,9 +1172,11 @@ void c_Solver::WriteRestart(int cycle)
     if (restart_cycle>0 && cycle%restart_cycle==0)
     {
         if (myrank == 0)
-            cout << "Writing RESTART data at time cycle " << cycle << endl;
-               
+            cout << endl << "Writing RESTART data at time cycle " << cycle << endl;
+
+        //* This is crucial
         convertParticlesToSynched();
+
         fetch_outputWrapperFPP().append_restart(cycle);
     }
     #endif

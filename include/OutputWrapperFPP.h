@@ -56,8 +56,9 @@ class OutputWrapperFPP
     int 		  ns,
     Particles3D   *testpart,
     int 		  nstestpart);
-  void append_output(const char* tag, int cycle);
-  void append_output(const char* tag, int cycle, int sample);
+  void append_output_fields(const char* tag, int cycle);
+  void append_output_particles(const char* tag, int cycle);
+  void append_particles_DS(const char* tag, int cycle, int sample);
   void append_restart(int cycle);
 };
 
