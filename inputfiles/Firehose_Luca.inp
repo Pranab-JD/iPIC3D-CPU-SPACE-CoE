@@ -7,18 +7,27 @@
 Case                           = Maxwellian                                    # Case
 SimulationName                 = Firehose                                      # Simulation name for output
 SaveDirName                    = data_firehose                                 # Output directory
+RestartDirName                 = data_firehose                                 # Restart directory   
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-WriteMethod                    = H5hut                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+WriteMethod                    = shdf5                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+
+#! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are
+restart_status                 = 0                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
 
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
+RestartOutputCycle             = 50                                            # Restart cycle (suggest to set this to a factor of ncycles; if <= 0, data is NOT saved)
 FieldOutputCycle               = 20                                            # Output for moments and fields (if <= 0, data is NOT saved)
-ParticlesOutputCycle           = 20                                            # Output for particles (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 80                                            # Output for particles (if <= 0, data is NOT saved)
+ParticlesDownsampleOutputCycle = 10                                            # Downsample output cycle (if <= 0, data is NOT saved)
+ParticlesDownsampleFactor      = 10                                            # Downsampling factor (must be >= 1; if = 1 NO downsampling)
 
 FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 # Select quantites to be written to files
+ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
+ParticlesDownsampleOutputTag   = position_DS + velocity_DS + q_DS              # Select quantites to be written to files
 
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
@@ -35,6 +44,15 @@ FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 #
     # E_flux            --> energy flux for each species
     # H_flux            --> heat flux tensor for each species
 
+##* Particles
+    # position          --> Positions of all particles
+    # velocity          --> Velocities of all particles
+    # q                 --> Charge of all particles
+
+##* Downsampled Particles
+    # position_DS       --> Positions of downsampled particles
+    # velocity_DS       --> Velocities of downsampled particles
+    # q_DS              --> Charge of downsampled particles
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                         ELECTRIC and MAGNETIC FIELD                        %
@@ -49,7 +67,7 @@ B0z                            = 0.0                                            
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.5	                                       # Time-step size
-ncycles                        = 50                                            # Number of time steps
+ncycles                        = 100                                           # Number of time steps
 th                             = 0.5                                           # Decentering parameter
 c                              = 1.0                                           # Speed of light 
 GMREStol                       = 1E-9                                          # GMRES tolerance (must be <= 1e-15 for exact energy conservation)
@@ -70,16 +88,16 @@ Lx                             = 64.0                                          #
 Ly                             = 256.0                                         # Simulation box length along Y
 Lz                             = 0.1                                           # Simulation box length along Z
 
-nxc                            = 256                                           # Number of cells along X
-nyc                            = 1024                                          # Number of cells along Y
+nxc                            = 64                                            # Number of cells along X
+nyc                            = 256                                           # Number of cells along Y
 nzc                            = 1                                             # Number of cells along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                  MPI TOPOLOGY                              %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-XLEN                           = 32                                            # Number of MPI subdomains along X
-YLEN                           = 128                                           # Number of MPI subdomains along Y
+XLEN                           = 8                                             # Number of MPI subdomains along X
+YLEN                           = 16                                            # Number of MPI subdomains along Y
 ZLEN                           = 1                                             # Number of MPI subdomains along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -91,12 +109,11 @@ ZLEN                           = 1                                             #
 
 ns                  = 3                                                         # Number of species of particles
 
-
 rhoINIT             = 1.0	        0.864	       0.136                        # Initial density
 rhoINJECT           = 0.0           0.0            0.0                          # Injection density
 
-npcelx              = 64            64              64                          # Particles per cell along X
-npcely              = 64            64              64                          # Particles per cell along Y
+npcelx              = 16            16              16                          # Particles per cell along X
+npcely              = 16            16              16                          # Particles per cell along Y
 npcelz              = 1	            1               1                           # Particles per cell along Z
 NpMaxNpRatio        = 12.0                                                      # Maximum number of particles allocated
 

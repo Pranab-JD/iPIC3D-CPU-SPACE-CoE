@@ -7,7 +7,7 @@
 Case                           = DoubleHarris                                  # Case
 SimulationName                 = Double_Harris                                 # Simulation name for output
 SaveDirName                    = data_DH_Nadja                                 # Output directory
-RestartDirName                 = data_DH_Nadja                                       # Restart directory   
+RestartDirName                 = data_DH_Nadja                                 # Restart directory   
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
@@ -25,6 +25,7 @@ ParticlesOutputCycle           = 30                                            #
 
 FieldOutputTag                 =                                               # Select quantites to be written to files
 ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
+ParticlesDownsampleOutputTag   =                                               # Select quantites to be written to files
 
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
@@ -46,6 +47,10 @@ ParticlesOutputTag             = position + velocity + q                       #
     # velocity          --> Velocities of all particles
     # q                 --> Charge of all particles
 
+##* Downsampled Particles
+    # position_DS       --> Positions of downsampled particles
+    # velocity_DS       --> Velocities of downsampled particles
+    # q_DS              --> Charge of downsampled particles
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                             PHYSICS and GEOMETRY                           %

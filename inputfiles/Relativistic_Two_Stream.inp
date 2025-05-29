@@ -7,6 +7,7 @@
 Case                           = default                                       # Case
 SimulationName                 = Relativistic_two_stream                       # Simulation name for output
 SaveDirName                    = data_rel_2_stream                             # Output directory
+RestartDirName                 = data_rel_2_stream                             # Restart directory
 
 Relativistic                   = true                                          # Relativistic Case [ true | false ]
 Relativistic_pusher            = Boris                                         # Relativistic Particle Pusher [ Boris | Lapenta_Markidis ]
@@ -15,13 +16,18 @@ Relativistic_pusher            = Boris                                         #
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-WriteMethod                    = H5hut                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+WriteMethod                    = shdf5                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+
+#! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are
+restart_status                 = 0                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
 
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
-FieldOutputCycle               = 20                                            # Output for moments and fields (if <= 0, data is NOT saved)
-ParticlesOutputCycle           = 20                                            # Output for particles (if <= 0, data is NOT saved)
+RestartOutputCycle             = 0                                             # Restart cycle (suggest to set this to a factor of ncycles)
+FieldOutputCycle               = 0                                             # Output for moments and fields (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
 
 FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 # Select quantites to be written to files
+ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
 
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
@@ -38,6 +44,15 @@ FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 #
     # E_flux            --> energy flux for each species
     # H_flux            --> heat flux tensor for each species
 
+##* Particles
+    # position          --> Positions of all particles
+    # velocity          --> Velocities of all particles
+    # q                 --> Charge of all particles
+
+##* Downsampled Particles
+    # position_DS       --> Positions of downsampled particles
+    # velocity_DS       --> Velocities of downsampled particles
+    # q_DS              --> Charge of downsampled particles
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                     TIME                                   %

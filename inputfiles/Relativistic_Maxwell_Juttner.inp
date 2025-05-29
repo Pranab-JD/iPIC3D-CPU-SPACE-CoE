@@ -7,21 +7,30 @@
 Case                           = Maxwell_Juttner                                # Case
 SimulationName                 = Relativistic_MJ                                # Simulation name for output
 SaveDirName                    = data_rel_MJ                                    # Output directory
+RestartDirName                 = data_rel_MJ                                    # Restart directory
 
-Relativistic                   = true                                          # Relativistic Case (true or false)
-Relativistic_pusher            = Boris                                         # Relativistic Particle Pusher (Boris or Lapenta_Markidis)
+Relativistic                   = true                                           # Relativistic Case (true or false)
+Relativistic_pusher            = Boris                                          # Relativistic Particle Pusher (Boris or Lapenta_Markidis)
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-WriteMethod                    = H5hut                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+WriteMethod                    = shdf5                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+
+#! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are
+restart_status                 = 0                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
 
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
-FieldOutputCycle               = 20                                            # Output for moments and fields (if <= 0, data is NOT saved)
-ParticlesOutputCycle           = 20                                            # Output for particles (if <= 0, data is NOT saved)
+RestartOutputCycle             = 0                                             # Restart cycle (suggest to set this to a factor of ncycles)
+FieldOutputCycle               = 0                                             # Output for moments and fields (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
+ParticlesDownsampleOutputCycle = 0                                             # Downsample output cycle (if <= 0, data is NOT saved)
+ParticlesDownsampleFactor      = 1                                             # Downsampling factor (must be >= 1; if = 1 NO downsampling)
 
 FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 # Select quantites to be written to files
+ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
+ParticlesDownsampleOutputTag   =                                               # Select quantites to be written to files
 
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
@@ -38,21 +47,22 @@ FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 #
     # E_flux            --> energy flux for each species
     # H_flux            --> heat flux tensor for each species
 
+##* Particles
+    # position          --> Positions of all particles
+    # velocity          --> Velocities of all particles
+    # q                 --> Charge of all particles
 
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# %                         ELECTRIC and MAGNETIC FIELD                        %
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-B0x                            = 0.001                                          # Initial magnetic field strength along X
-B0y                            = 0.0                                            # Initial magnetic field strength along Y
-B0z                            = 0.0                                            # Initial magnetic field strength along Z
+##* Downsampled Particles
+    # position_DS       --> Positions of downsampled particles
+    # velocity_DS       --> Velocities of downsampled particles
+    # q_DS              --> Charge of downsampled particles
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                     TIME                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.01	                                       # Time-step size
-ncycles                        = 10                                            # Number of time steps
+ncycles                        = 100                                           # Number of time steps
 th                             = 0.5                                           # Decentering parameter (0.5 --> 2nd order; 1.0 --> 1st order)
 c                              = 1.0                                           # Speed of light 
 GMREStol                       = 1E-8                                          # GMRES tolerance

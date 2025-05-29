@@ -7,6 +7,7 @@
 Case                           = Relativistic_Double_Harris_ion_electron       # Case
 SimulationName                 = Relativistic_DH_ion_electron                  # Simulation name for output
 SaveDirName                    = data_rel_DH_ion_electron                      # Output directory
+RestartDirName                 = data_rel_DH_ion_electron                      # Restart directory
 
 Relativistic                   = true                                          # Relativistic Case (true or false)
 Relativistic_pusher            = Boris                                         # Relativistic Particle Pusher (Boris or Lapenta_Markidis)
@@ -15,13 +16,19 @@ Relativistic_pusher            = Boris                                         #
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-WriteMethod                    = H5hut                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+WriteMethod                    = shdf5                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+
+#! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are
+restart_status                 = 0                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
 
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
-FieldOutputCycle               = 20                                            # Output for moments and fields (if <= 0, data is NOT saved)
-ParticlesOutputCycle           = 20                                            # Output for particles (if <= 0, data is NOT saved)
+RestartOutputCycle             = 0                                             # Restart cycle (suggest to set this to a factor of ncycles)
+FieldOutputCycle               = 0                                             # Output for moments and fields (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
 
 FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 # Select quantites to be written to files
+ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
+ParticlesDownsampleOutputTag   =                                               # Select quantites to be written to files
 
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
@@ -38,6 +45,15 @@ FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 #
     # E_flux            --> energy flux for each species
     # H_flux            --> heat flux tensor for each species
 
+##* Particles
+    # position          --> Positions of all particles
+    # velocity          --> Velocities of all particles
+    # q                 --> Charge of all particles
+
+##* Downsampled Particles
+    # position_DS       --> Positions of downsampled particles
+    # velocity_DS       --> Velocities of downsampled particles
+    # q_DS              --> Charge of downsampled particles
 
 ## Output params for relativistic cases
 DistOutputCycle                = 1
@@ -56,15 +72,15 @@ custom_parameters              = 10.0        5.0        1.0        0.0        0.
 #* custom_parameter 1 --> Magnetisation parameter
 #* custom_parameter 2 --> Ratio of current sheet density to upstream density
 #* custom_parameter 3 --> Half-thickness of current sheet (free parameter)
-#* custom_parameter 2 --> Amplitude of initial perturbation
-#* custom_parameter 2 --> Ratio of guide field to in-plane magnetic field
+#* custom_parameter 4 --> Amplitude of initial perturbation
+#* custom_parameter 5 --> Ratio of guide field to in-plane magnetic field
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                     TIME                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.35	                                       # Time-step size
-ncycles                        = 20                                            # Number of time steps
+ncycles                        = 200                                           # Number of time steps
 th                             = 0.5                                           # Decentering parameter (0.5 --> 2nd order; 1.0 --> 1st order)
 c                              = 1.0                                           # Speed of light 
 GMREStol                       = 1E-15                                         # GMRES tolerance
