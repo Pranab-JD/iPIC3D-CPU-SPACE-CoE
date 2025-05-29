@@ -625,34 +625,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 this->output_adaptor.write("/fields/Ey/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEy());
                 this->output_adaptor.write("/fields/Ez/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEz());
             }
-            // else if (_col->get_output_data_precision() == "single")
-            // {
-            //     cout << "WRITING OUTPUT DATA IN SINGLE PRECISION" << endl;
-
-            //     for (int i = 0; i < _grid->getNXN(); i++)
-            //         for (int j = 0; j < _grid->getNYN(); j++)
-            //             for (int k = 0; k < _grid->getNYN(); k++)
-            //                temp_double[i][j][k] = _field->getEx(i, j, k);
-                        
-            //     convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-            //     this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
-
-            //     for (int i = 0; i < _grid->getNXN(); i++)
-            //         for (int j = 0; j < _grid->getNYN(); j++)
-            //             for (int k = 0; k < _grid->getNYN(); k++)
-            //                temp_double[i][j][k] = _field->getEy(i, j, k);
-                        
-            //     convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-            //     this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
-
-            //     for (int i = 0; i < _grid->getNXN(); i++)
-            //         for (int j = 0; j < _grid->getNYN(); j++)
-            //             for (int k = 0; k < _grid->getNYN(); k++)
-            //                temp_double[i][j][k] = _field->getEz(i, j, k);
-                        
-            //     convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-            //     this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
-            // }
 		}
 		else if (tag.find("Ex", 0) != string::npos)
 			this->output_adaptor.write("/fields/Ex/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEx());
@@ -675,24 +647,24 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 		if (tag.find("J", 0) != string::npos)
 		{
 			// _field->sumOverSpeciesJ();
-			this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJxh());
-			this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJyh());
-			this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJzh());
+			this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJx());
+			this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJy());
+			this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJz());
 		}
 		else if (tag.find("Jx", 0) != string::npos) 
 		{
 			// _field->sumOverSpeciesJ();
-			this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJxh());
+			this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJx());
 		}
 		else if (tag.find("Jy", 0) != string::npos) 
 		{
 			// _field->sumOverSpeciesJ();
-			this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJyh());
+			this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJy());
 		}
 		else if (tag.find("Jz", 0) != string::npos) 
 		{
 			// _field->sumOverSpeciesJ();
-			this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJzh());
+			this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJz());
 		}
 
 		//* Js (current for each species, defined at nodes) is written without ghost cells
@@ -834,8 +806,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         const int ns = _col->getNs();
         const int nstestpart = _col->getNsTestPart();
 
-        //! ************************* Positions ************************* !//
-
         if (tag.find("position", 0) != string::npos) 
         {
             for (int i = 0; i < ns; ++i) 
@@ -847,21 +817,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 this->output_adaptor.write("/particles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getZall());
             }
         }
-
-        //* Test Particles
-        if (tag.find("testpartpos", 0) != string::npos) 
-        {
-            for (int i = 0; i < nstestpart; ++i) 
-            {
-                stringstream ii;
-                ii << (_part[i+ns]->get_species_num());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getXall());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getYall());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getZall());
-            }
-        }
-
-        //! ************************* Velocities ************************* !//
 
         if (tag.find("velocity", 0) != string::npos) 
         {
@@ -875,7 +830,40 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
             }
         }
         
-        //* Test Particles
+        if (tag.find("q", 0) != string::npos) 
+        {
+            for (int i = 0; i < ns; ++i) 
+            {
+                stringstream ii;
+                ii << i;
+                this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getQall());
+            }
+        }
+
+        if (tag.find("ID", 0) != string::npos) 
+        {
+            for (int i = 0; i < ns; ++i) 
+            {
+                stringstream ii;
+                ii << i;
+                this->output_adaptor.write("/particles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getParticleIDall());
+            }
+        }
+
+        //* --------------- Test Particles --------------- *//
+
+        if (tag.find("testpartpos", 0) != string::npos) 
+        {
+            for (int i = 0; i < nstestpart; ++i) 
+            {
+                stringstream ii;
+                ii << (_part[i+ns]->get_species_num());
+                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getXall());
+                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getYall());
+                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getZall());
+            }
+        }
+
         if (tag.find("testpartvel", 0) != string::npos) 
         {
             for (int i = 0; i < nstestpart; ++i) 
@@ -888,19 +876,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
             }
         }
 
-        //! ************************* Charge ************************* !//
-
-        if (tag.find("q", 0) != string::npos) 
-        {
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getQall());
-            }
-        }
-
-        //* Test Particles
         if (tag.find("testpartcharge", 0) != string::npos) 
         {
             for (int i = 0; i < nstestpart; ++i)
@@ -911,19 +886,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
             }
         }
 
-        //! ************************* ID ************************* !//
-
-        if (tag.find("ID", 0) != string::npos) 
-        {
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getParticleIDall());
-            }
-        }
-
-        //* Test Particles
         if (tag.find("testparttag", 0) != string::npos) 
         {
             for (int i = 0; i < nstestpart; ++i) 
@@ -947,7 +909,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         //* Downsampled Particles
         if (tag.find("position_DS", 0) != string::npos) 
         {
-            // int sample = _col->getParticlesDownsampleFactor();
             std::vector < double >X, Y, Z;
             for (int i = 0; i < ns; ++i) 
             {
@@ -973,7 +934,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 
         if (tag.find("velocity_DS", 0) != string::npos) 
         {
-            // int sample = _col->getParticlesDownsampleFactor();
             std::vector < double >U, V, W;
             for (int i = 0; i < ns; ++i) 
             {
@@ -1000,7 +960,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         //* Downsampled Particles
         if (tag.find("q_DS", 0) != string::npos) 
         {
-            // int sample = _col->getParticlesDownsampleFactor();
             std::vector < double >Q;
             for (int i = 0; i < ns; ++i) 
             {
@@ -1019,7 +978,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         //* Downsampled Particles
         if (tag.find("ID_DS", 0) != string::npos) 
         {
-            // int sample = _col->getParticlesDownsampleFactor();
             std::vector <double>ID;
             for (int i = 0; i < ns; ++i) 
             {
@@ -1035,9 +993,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(ID.size()), &ID[0]);
             }
         }
-
     }
-
 };
 
 #endif // _PSK_OUTPUT_H_
