@@ -192,12 +192,12 @@ endif()
 
 # Particle solver
 add_executable(
-  iPIC3D
+  iPIC3D_IMM
   iPIC3D.cpp
   )
 
 target_link_libraries(
-  iPIC3D
+  iPIC3D_IMM
   iPIC3Dlib
   stdc++fs
   )
@@ -212,14 +212,14 @@ endif()
 
 if(BENCH_MARK)
 target_compile_definitions(iPIC3Dlib PUBLIC LOG_TASKS_TOTAL_TIME)
-target_compile_definitions(iPIC3D PUBLIC LOG_TASKS_TOTAL_TIME)
+target_compile_definitions(iPIC3D_IMM PUBLIC LOG_TASKS_TOTAL_TIME)
 endif()
 
 ## to save the executable in the folder where the CMakeLists.txt file is, i.e. CMAKE_CURRENT_SOURCE_DIR
-set_target_properties(iPIC3D PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set_target_properties(iPIC3D_IMM PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 ## debug releases have a _d appended to the executable
-set_target_properties(iPIC3D PROPERTIES DEBUG_POSTFIX "_d")
+set_target_properties(iPIC3D_IMM PROPERTIES DEBUG_POSTFIX "_d")
 
 # Here we do the RPATH stuff so the exe is relocatable.
 # Make it a function to avoid variables leaking.
@@ -238,9 +238,9 @@ function(add_install_libdir_to_rpath tgt)
       )
   endif()
 endfunction()
-add_install_libdir_to_rpath(iPIC3D)
+add_install_libdir_to_rpath(iPIC3D_IMM)
 
-install(TARGETS iPIC3D)
+install(TARGETS iPIC3D_IMM)
 
 add_subdirectory(inputfiles)
 
