@@ -319,7 +319,7 @@ void WriteDSParticlesH5hut(int num_species, Grid3DCU *grid, Particles3Dcomm *par
 
     #else
         cout << "The input file requires iPIC3D to be compiled with the H5hut library." << endl;
-        cout << "Please recompile the code with H5hut or change 'WriteMethod'. " << endl 
+        cout << "Please recompile the code with H5hut or change 'WriteMethod'. " << endl;
         cout << "===== SIMULATIONS ABORTED =====" << endl << endl;
         abort();
     #endif

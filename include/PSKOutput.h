@@ -495,41 +495,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 		}
     }
 
-        /****************************************************************************
-        //? Tags for writing for files 
-
-            collective
-            total_topology 
-            proc_topology
-        
-        //? Fields
-            # Ball              --> Bx, By, and Bz
-            # Bx (By, Bz)       --> Bx (By or Bz)
-            # Eall              --> Ex, Ey, and Ez
-            # Ex (Ey, Ez)       --> Ex (Ey or Ez)
-            # phi               --> scalar vector
-
-        //? Moments
-            # Jall              --> Jx, Jy, and Jz (total current)
-            # Jx (Jy, Jz)       --> Jx (Jy or Jz; total current along X, Y, or Z)
-            # Jsall             --> Jxs, Jys, and Jzs (current densities for each species)
-            # Jxs (Jys, Jzs)    --> Jxs (Jys or Jzs; current densities along X, Y, or Z)
-            # rhos              --> charge densities for each species
-            # pressure          --> pressure tensor for each species
-
-        //? Particles
-            # position          --> particle positions (X, Y, Z)
-            # velocity          --> particle velocities (U, V, W)
-            # q                 --> particle charges
-            # ID                --> particle ID (note: TrackParticleID has to be set true in Collective)
-                
-        //? Energies
-            # k_energy          --> Kinetic energy for each species
-            # B_energy          --> Magnetic field energy
-            # E_energy          --> Electric field energy
-
-        ****************************************************************************/
-
     //! ============================================================================================================ !//
 
     //! Moment and Field Output
