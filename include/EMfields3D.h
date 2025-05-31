@@ -57,43 +57,57 @@ public:
     //* Initialise electromagnetic fields with constant values
     void init();
 
-    /*! init beam */
+    //* Initialise beam
     void initBEAM(double x_center, double y_center, double z_center, double radius);
-    /*! initialize GEM challenge */
+    
+    //* Initialise GEM challenge 
     void initGEM();
 
     void initOriginalGEM();
     
-    void initDoubleHarris();
+    //* Initialise double Harris sheets for magnetic reconnection
+    void init_double_Harris();
 
     void initDoublePeriodicHarrisWithGaussianHumpPerturbation();
-    /*! initialize GEM challenge with dipole-like tail without perturbation */
+    
+    //* Initialise GEM challenge with dipole-like tail without perturbation
     void initGEMDipoleLikeTailNoPert();
-    /*! initialize GEM challenge with no Perturbation */
+    
+    //* Initialise GEM challenge with no Perturbation
     void initGEMnoPert();
 
-    /*! initialize from BATSRUS */
+    //* Initialise from BATSRUS
     #ifdef BATSRUS
         void initBATSRUS();
     #endif
 
-    /*! Random initial field */
+    //* Random initial fields
     void initRandomField();
-    /*! Init Force Free (JxB=0) */
+    
+    //* Initialise force free field (JxB=0)
     void initForceFree();
-    /*! initialized with rotated magnetic field */
+    
+    //* Initialise rotated magnetic field
     void initEM_rotate(double B, double theta);
-    /*! add a perturbattion to charge density */
+    
+    //* Add a perturbation to charge density
     void AddPerturbationRho(double deltaBoB, double kx, double ky, double Bx_mod, double By_mod, double Bz_mod, double ne_mod, double ne_phase, double ni_mod, double ni_phase, double B0, Grid * grid);
-    /*! add a perturbattion to the EM field */
+    
+    //* Add perturbation to the EM field
     void AddPerturbation(double deltaBoB, double kx, double ky, double Ex_mod, double Ex_phase, double Ey_mod, double Ey_phase, double Ez_mod, double Ez_phase, double Bx_mod, double Bx_phase, double By_mod, double By_phase, double Bz_mod, double Bz_phase, double B0, Grid * grid);
-    /*! Initialise a combination of magnetic dipoles */
+    
+    //* Initialise a combination of magnetic dipoles
     void initDipole();
     void initDipole2D();
-    /*! Initialise magnetic nulls */
+    
+    //* Initialise magnetic nulls
     void initNullPoints();
-    /*! Initialise Taylor-Green flow */
+    
+    //* Initialise Taylor-Green flow
     void initTaylorGreen();
+
+    //* Initialise fields for shear velocity in fluid finite Larmor radius (FLR) equilibrium (Cerri et al. 2013)
+    void init_shear_flow_finite_Larmor_radius(); 
 
     //? ---------- Initial particle distributions (Relativistic) ---------- ?//
 
