@@ -885,7 +885,7 @@ void c_Solver::WriteOutput(int cycle)
 				    WriteParticlesH5hut(ns, grid, particles, col, vct, cycle);
                 }
 
-                if ((cycle%(col->getParticlesDownsampleOutputCycle())==0) && col->getParticlesDownsampleFactor() > 1) 
+                if (!col->DS_particle_output_is_off() && cycle%(col->getParticlesDownsampleOutputCycle())==0 && col->getParticlesDownsampleFactor() > 1) 
                 {
                     if (vct->getCartesian_rank() == 0)
                         cout << endl << "Writing DOWNSAMPLED PARTICLES at cycle " << cycle << endl;
@@ -917,7 +917,7 @@ void c_Solver::WriteOutput(int cycle)
                     // WriteTestParticles(cycle);
                 }
 
-                if (cycle%(col->getParticlesDownsampleOutputCycle())==0 && col->getParticlesDownsampleFactor() > 1)
+                if (!col->DS_particle_output_is_off() && cycle%(col->getParticlesDownsampleOutputCycle())==0 && col->getParticlesDownsampleFactor() > 1)
                     WriteDSParticles(cycle);
 			}
             else
@@ -1113,7 +1113,7 @@ void c_Solver::WriteFields(int cycle)
         if(col->field_output_is_off() || cycle%(col->getFieldOutputCycle())!=0) return;
 
         if (vct->getCartesian_rank() == 0)
-            cout << endl << "Writing field data at cycle " << cycle << endl;
+            cout << endl << "Writing FIELD data at cycle " << cycle << endl;
 
         //* Fields
         if(!(col->getFieldOutputTag()).empty())
@@ -1131,7 +1131,7 @@ void c_Solver::WriteParticles(int cycle)
         if(col->particle_output_is_off() || cycle%(col->getParticlesOutputCycle())!=0) return;
 
         if (vct->getCartesian_rank() == 0)
-            cout << endl << "Writing particle data at cycle " << cycle << endl;
+            cout << endl << "Writing PARTICLE data at cycle " << cycle << endl;
 
         //* This is crucial
         convertParticlesToSynched();
@@ -1143,10 +1143,10 @@ void c_Solver::WriteParticles(int cycle)
 void c_Solver::WriteDSParticles(int cycle)
 {
     #ifndef NO_HDF5
-        if(cycle%(col->getParticlesDownsampleOutputCycle())!=0 || col->getParticlesDownsampleFactor() <= 1) return;
+        if(col->DS_particle_output_is_off() || col->getParticlesDownsampleFactor() <= 1) return;
 
         if (vct->getCartesian_rank() == 0)
-            cout << endl << "Writing downsampled particle data at cycle " << cycle << endl;
+            cout << endl << "Writing DOWNSAMPLED PARTICLE data at cycle " << cycle << endl;
 
         //* This is crucial
         convertParticlesToSynched();
@@ -1188,13 +1188,13 @@ void c_Solver::WriteRestart(int cycle)
 // This needs to be separated into methods that save particles and methods that save field data
 void c_Solver::Finalize() 
 {
-    // if (col->getCallFinalize() && Parameters::get_doWriteOutput())
-    // {
-    //     #ifndef NO_HDF5
-    //         convertParticlesToSynched();
-    //         fetch_outputWrapperFPP().append_output((col->getNcycles() + first_cycle));
-    //     #endif
-    // }
+    if (col->getCallFinalize() && Parameters::get_doWriteOutput())
+    {
+        #ifndef NO_HDF5
+            convertParticlesToSynched();
+            fetch_outputWrapperFPP().append_restart((col->getNcycles() + first_cycle));
+        #endif
+    }
 
     // stop profiling
     my_clock->stopTiming();

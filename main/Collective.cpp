@@ -575,6 +575,12 @@ bool Collective::particle_output_is_off()const
 {
     return getParticlesOutputCycle() <= 0;
 }
+
+bool Collective::DS_particle_output_is_off()const
+{
+    return getParticlesDownsampleOutputCycle() <= 0;
+}
+
 bool Collective::testparticle_output_is_off()const
 {
     return getTestParticlesOutputCycle() <= 0;

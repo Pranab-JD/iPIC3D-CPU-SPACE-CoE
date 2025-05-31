@@ -49,15 +49,10 @@ int main(int argc, char **argv)
         KCode.Init(argc, argv); //! load param from file, init the grid, fields
         KCode.WriteConserved(0);
 
-        timeTasks.resetCycle(); //reset timer
-
-
         for (int i = KCode.FirstCycle() + 1; i <= KCode.LastCycle(); i++) 
         {
             if (KCode.get_myrank() == 0)
                 std::cout << std::endl << "=================== Cycle " << i << " ===================" << std::endl ;
-
-            timeTasks.resetCycle();
             
             //? Moment Gatherer --> Compute charge density, current density, and mass matrix
             time_MG.start();
@@ -78,11 +73,6 @@ int main(int argc, char **argv)
             KCode.WriteOutput(i);
             time_WD.stop();
 
-            //? Print out total time for all tasks
-            #ifdef LOG_TASKS_TOTAL_TIME
-                timeTasks.print_cycle_times(i);
-            #endif
-
             if(MPIdata::get_rank() == 0)
             {
                 std::cout << std::endl << "Runtime of iPIC3D modules " << std::endl;
@@ -94,10 +84,6 @@ int main(int argc, char **argv)
         }
 
         time_total.stop();
-
-        #ifdef LOG_TASKS_TOTAL_TIME
-            timeTasks.print_tasks_total_times();
-        #endif
 
         KCode.Finalize();
     }

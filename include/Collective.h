@@ -189,6 +189,7 @@ class Collective
     
     bool getCallFinalize()              const{ return (CallFinalize); }
     bool particle_output_is_off()       const;
+    bool DS_particle_output_is_off()    const;
     bool testparticle_output_is_off()   const;
     bool field_output_is_off()          const;
     bool getSaveHeatFluxTensor()        const { return (SaveHeatFluxTensor); }
