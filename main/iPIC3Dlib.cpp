@@ -139,10 +139,11 @@ int c_Solver::Init(int argc, char **argv)
     #endif
 
     //* Print initial settings to stdout and file
-    if (myrank == 0 && restart_status == 0) 
+    if (myrank == 0) 
     {
-        //* Create output directory
-        checkOutputFolder(SaveDirName);
+        if (restart_status == 0)
+            checkOutputFolder(SaveDirName);     //* Create output directory
+
         MPIdata::instance().Print();
         vct->Print();
         col->Print();
@@ -189,7 +190,7 @@ int c_Solver::Init(int argc, char **argv)
             if      (col->getCase()=="GEMnoPert") 		EMf->initGEMnoPert();
             else if (col->getCase()=="ForceFree") 		EMf->initForceFree();
             else if (col->getCase()=="GEM")       		EMf->initGEM();
-            else if (col->getCase()=="DoubleHarris")    EMf->initDoubleHarris();
+            else if (col->getCase()=="DoubleHarris")    EMf->init_double_Harris();
             else if (col->getCase()=="Dipole")    		EMf->initDipole();
             else if (col->getCase()=="Dipole2D")  		EMf->initDipole2D();
             else if (col->getCase()=="NullPoints")      EMf->initNullPoints();

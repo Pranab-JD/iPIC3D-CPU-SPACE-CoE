@@ -1315,36 +1315,43 @@ void Collective::init_derived_parameters()
     }
 }
 
-/*! Print Simulation Parameters */
+//! Print Simulation Parameters
 void Collective::Print() 
 {
-    cout << endl;
-    cout << "Simulation Parameters" << endl;
-    cout << "---------------------" << endl;
-    cout << "Number of species          = " << ns << endl;
-    for (int i = 0; i < ns; i++)
-    cout << "qom[" << i << "]           = " << qom[i] << endl;
-    cout << "X length                   = " << Lx << endl;
-    cout << "Y length                   = " << Ly << endl;
-    cout << "Z length                   = " << Lz << endl;
-    cout << "# of cells along X         = " << nxc << endl;
-    cout << "# of cells along Y         = " << nyc << endl;
-    cout << "# of cells along Z         = " << nzc << endl << endl;
+    cout << "-----------------------------------------------------------"   << endl;
+    cout << "                  Simulation Paramters"                        << endl;
+    cout << "-----------------------------------------------------------"   << endl << endl; 
     
-    cout << "Smooth                     = " << Smooth << endl;
-    cout << "SmoothCycle                = " << SmoothCycle << endl;
-    cout << "# of smoothings per cycle  = " << num_smoothings << endl;
-    cout << "GMRES tolerance            = " << GMREStol << endl;
-    cout << "Time step size             = " << dt << endl;
-    cout << "# of time cycles           = " << ncycles << endl << endl;
+    cout << "Simulation domain                      = " << Lx << " x " << Ly << " x " << Lz << endl;
+    cout << "Grid resolution                        = " << nxc << " x " << nyc << " x " << nzc << endl;
+    cout << "Number of time steps                   = " << getNcycles() << endl;
+    cout << "Time step size (dt)                    = " << dt << endl;
+    cout << "Tolerance of the field (GMRes) solver  = " << getGMREStol() << endl << endl;
+
+    if (Smooth == 1)
+        cout << "Smoothing is enabled; data is smoothed " <<  num_smoothings << " times every " << SmoothCycle << " time cycle(s)" << endl<< endl;
+    else
+        cout << "Smoothing is disabled" << endl << endl;
     
-    cout << "Results saved in           : " << SaveDirName << endl;
-    cout << "Case type                  : " << Case << endl;
-    cout << "Simulation name            : " << SimName << endl << endl;
+    cout << "Number of species of particles = " << ns << endl;
+    for (int is = 0; is < ns; is++)
+    {
+        cout << endl << "Species: " << is << endl;
+        cout << "   Initial density         "  << "   = " << rhoINIT[is] << endl;
+        cout << "   Particles per cell      "  << "   = " << getNpcelx(is) << " x " << getNpcely(is) << " x " << getNpcelz(is) << endl;
+        cout << "   Charge-to-mass ratio    "  << "   = " << getQOM(is) << endl;
+    }
     
-    cout << "----------------------------" << endl;
-    cout << "Check Simulation Constraints" << endl;
-    cout << "----------------------------" << endl;
+    cout << endl << "-----------------------------------------------------------"   << endl << endl;
+
+    cout << "Results are saved in           : " << SaveDirName << endl;
+    cout << "Simulation Case                : " << Case << endl;
+    cout << "Simulation name                : " << SimName << endl << endl;
+    
+    cout << "-----------------------------------------------------------"   << endl;
+    cout << "                Simulation Constraints"                        << endl;
+    cout << "-----------------------------------------------------------"   << endl << endl; 
+    
     cout << "Accuracy Constraints:  " << endl;
     for (int i = 0; i < ns; i++) 
     {
@@ -1354,7 +1361,7 @@ void Collective::Print()
         else
             cout << "NOT SATISFIED. STOP THE SIMULATION." << endl;
 
-        cout << "v_th < dy/dt species " << i << "......";
+        cout << "v_th < dy/dt species " << i << ".....";
         if (vth[i] < (dy / dt))
             cout << "OK" << endl;
         else
@@ -1376,46 +1383,41 @@ void Collective::Print()
     }
 }
 
-/*! Print Simulation Parameters */
+//! Save Simulation Parameters 
 void Collective::save() 
 {
     string temp;
     temp = SaveDirName + "/SimulationData.txt";
     ofstream my_file(temp.c_str());
-    my_file << "---------------------------" << endl;
-    my_file << "-  Simulation Parameters  -" << endl;
-    my_file << "---------------------------" << endl;
 
-    my_file << "Number of species    = " << ns << endl;
-    for (int i = 0; i < ns; i++)
-        my_file << "qom[" << i << "] = " << qom[i] << endl;
-    my_file << "---------------------------" << endl;
-    my_file << "x-Length                 = " << Lx << endl;
-    my_file << "y-Length                 = " << Ly << endl;
-    my_file << "z-Length                 = " << Lz << endl;
-    my_file << "Number of cells (x)      = " << nxc << endl;
-    my_file << "Number of cells (y)      = " << nyc << endl;
-    my_file << "Number of cells (z)      = " << nzc << endl;
-    my_file << "---------------------------" << endl;
-    my_file << "Time step                = " << dt << endl;
-    my_file << "Number of cycles         = " << ncycles << endl;
-    my_file << "---------------------------" << endl;
+    my_file << "-----------------------------------------------------------"   << endl;
+    my_file << "                  Simulation Paramters"                        << endl;
+    my_file << "-----------------------------------------------------------"   << endl << endl; 
+
+    my_file << "Initial magnetic field components      = " << B0x << ", " << B0y << ", " << B0z << endl << endl;
+    
+    my_file << "Simulation domain                      = " << Lx << " x " << Ly << " x " << Lz << endl;
+    my_file << "Grid resolution                        = " << nxc << " x " << nyc << " x " << nzc << endl;
+    my_file << "Number of time steps                   = " << getNcycles() << endl;
+    my_file << "Time step size (dt)                    = " << dt << endl;
+    my_file << "Tolerance of the field (GMRes) solver  = " << getGMREStol() << endl << endl;
+    if (Smooth == 1)
+        my_file << "Smoothing is enabled; data is smoothed " <<  num_smoothings << " times every " << SmoothCycle << " time cycle(s)" << endl<< endl;
+    else
+        my_file << "Smoothing is disabled" << endl << endl;
+    
+    my_file << "Number of species of particles = " << ns << endl;
     for (int is = 0; is < ns; is++)
     {
-        my_file << "rho init species   " << is << " = " << rhoINIT[is] << endl;
-        my_file << "rho inject species " << is << " = " << rhoINJECT[is]  << endl;
+        my_file << endl << "Species: " << is << endl;
+        my_file << "   Initial density         "  << "   = " << rhoINIT[is] << endl;
+        my_file << "   Particles per cell      "  << "   = " << getNpcelx(is) << " x " << getNpcely(is) << " x " << getNpcelz(is) << endl;
+        my_file << "   Charge-to-mass ratio    "  << "   = " << getQOM(is) << endl;
     }
-    my_file << "B0x                      = " << B0x << endl;
-    my_file << "BOy                      = " << B0y << endl;
-    my_file << "B0z                      = " << B0z << endl;
-    my_file << "---------------------------" << endl;
-    my_file << "Smooth                   = " << Smooth << endl;
-    my_file << "SmoothCycle              = " << SmoothCycle<< endl;
-    my_file << "GMRES error tolerance    = " << GMREStol << endl;
-    my_file << "---------------------------" << endl;
-    my_file << "Results saved in: " << SaveDirName << endl;
-    my_file << "Restart saved in: " << RestartDirName << endl;
-    my_file << "---------------------" << endl;
+
+    my_file << endl << endl << "Output data is saved in: " << SaveDirName << endl;
+    my_file << "Restart data is saved in: " << RestartDirName << endl;
+
     my_file.close();
 }
 
