@@ -3742,27 +3742,28 @@ void EMfields3D::interpolateCenterSpecies(int is)
 
 //! Initial field distributions (Non Relativistic) !//
 
+//* Default electric and magnetic field configurations
 void EMfields3D::init()
 {
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
     const Grid *grid = &get_grid();
 
-    double v0  = col->getU0(1);
-
-    if (restart_status == 0)      
+    if (restart_status == 0)
     {
+        if (vct->getCartesian_rank() == 0) 
+            cout << "Default field initialisation; initial magnetic field components (Bx, By, Bz) = " << "(" << B0x << ", " << B0y << ", " << B0z << ")" << endl;
+
         //! Initial setup (NOT RESTART)
 
         for (int i = 0; i < nxn; i++)
             for (int j = 0; j < nyn; j++)
                 for (int k = 0; k < nzn; k++)
                 {
-                    double xN = grid->getXN(i, j, k);
-                    double fac = (xN>Lx/2.0 && xN < Lx-grid->getDX()) ? -1.0 : 1.0;
+                    //* Initialise E on nodes (if external E exixts, this needs to be initalised here)
                     Ex[i][j][k] = 0.0;
-                    Ey[i][j][k] = fac*v0*B0z;
-                    Ez[i][j][k] = -fac*v0*B0y;
+                    Ey[i][j][k] = 0.0;
+                    Ez[i][j][k] = 0.0;
 
                     //* Initialise B on nodes
                     Bxn[i][j][k] = B0x;
@@ -3774,7 +3775,7 @@ void EMfields3D::init()
                         rhons[is][i][j][k] = rhoINIT[is] / FourPI;
                 }
 
-        //* Initialize B and rho on cell centers
+        //* Initialise B and rho on cell centers
         grid->interpN2C(Bxc, Bxn);
         grid->interpN2C(Byc, Byn);
         grid->interpN2C(Bzc, Bzn);
@@ -3790,6 +3791,13 @@ void EMfields3D::init()
         #else
             
             col->read_field_restart(vct, grid, Bxn, Byn, Bzn, Bxc, Byc, Bzc, Ex, Ey, Ez, &rhons, ns);
+
+        if (vct->getCartesian_rank() == 0) 
+        {
+            cout << "-----------------------------------------------------------"   << endl;
+            cout << "    Field data has been initialised from restart files"        << endl;
+            cout << "-----------------------------------------------------------"   << endl << endl; 
+        }
 
             //* Communicate ghost data for rho on nodes
             for (int is = 0; is < ns; is++) 
@@ -4160,7 +4168,8 @@ void EMfields3D::initOriginalGEM()
   }
 }
 
-void EMfields3D::initDoubleHarris()
+//* Initialise double Harris sheets for magnetic reconnection
+void EMfields3D::init_double_Harris()
 {
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
@@ -4378,7 +4387,7 @@ void EMfields3D::initDoublePeriodicHarrisWithGaussianHumpPerturbation()
   }
 }
 
-/*! initialize GEM challenge with no Perturbation with dipole-like tail topology */
+//* initialize GEM challenge with no Perturbation with dipole-like tail topology
 void EMfields3D::initGEMDipoleLikeTailNoPert()
 {
   const Grid *grid = &get_grid();
@@ -4470,7 +4479,7 @@ void EMfields3D::initGEMDipoleLikeTailNoPert()
 
 }
 
-/*! initialize GEM challenge with no Perturbation */
+//* initialize GEM challenge with no Perturbation
 void EMfields3D::initGEMnoPert()
 {
   const Collective *col = &get_col();
@@ -4535,7 +4544,7 @@ void EMfields3D::initGEMnoPert()
   }
 }
 
-// new init, random problem
+//* Random field generation
 void EMfields3D::initRandomField()
 {
   const VirtualTopology3D *vct = &get_vct();
@@ -4670,7 +4679,7 @@ void EMfields3D::initRandomField()
   delArr2(modes_seed, 7);
 }
 
-/*! Init Force Free (JxB=0) */
+//* Initialise force free fields (JxB=0)
 void EMfields3D::initForceFree()
 {
   const VirtualTopology3D *vct = &get_vct();
@@ -4729,7 +4738,8 @@ void EMfields3D::initForceFree()
     init(); // use the fields from restart file
   }
 }
-/*! Initialize the EM field with constants values or from restart */
+
+//* Initialize the EM field with constants values or from restart
 void EMfields3D::initBEAM(double x_center, double y_center, double z_center, double radius)
 {
   const Grid *grid = &get_grid();
@@ -4776,7 +4786,7 @@ void EMfields3D::initBEAM(double x_center, double y_center, double z_center, dou
   }
 }
 
-/*! Initialise a combination of magnetic dipoles */
+//* Initialise a combination of magnetic dipoles
 void EMfields3D::initDipole()
 {
   const Collective *col = &get_col();
@@ -4874,7 +4884,7 @@ void EMfields3D::initDipole()
 
 }
 
-/*! Initialise a 2D magnetic dipoles according to paper L.K.S Two-way coupling of a global Hall ....*/
+//* Initialise a 2D magnetic dipoles according to paper L.K.S Two-way coupling of a global Hall
 void EMfields3D::initDipole2D()
 {
   const Collective *col = &get_col();
@@ -4974,6 +4984,31 @@ void EMfields3D::initDipole2D()
 	if (restart_status != 0) { // EM initialization from RESTART
 		init();  // use the fields from restart file
 	}
+}
+
+//* Initialise fields for shear velocity in fluid finite Larmor radius (FLR) equilibrium (Cerri et al. 2013)
+//* The charge is set to 1/(4 pi) in order to satisfy the omega_pi = 1 . The 2 species have same charge density to guarantee plasma neutrality
+void EMfields3D::init_shear_flow_finite_Larmor_radius() 
+{
+    const Collective *col = &get_col();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
+
+    //* Custom input parameters
+    const double perturbation               = input_param[0];       //* Amplitude of initial perturbation
+    const double delta                      = input_param[1];       //* Thickness of shear layer
+
+    double shear_velocity = col->getU0(0);
+
+    if (restart_status == 0)
+    {
+
+
+
+    } 
+    else
+        init();  //! READ FROM RESTART
+
 }
 
 
