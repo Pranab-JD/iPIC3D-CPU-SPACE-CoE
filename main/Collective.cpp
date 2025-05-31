@@ -1319,7 +1319,7 @@ void Collective::init_derived_parameters()
 void Collective::Print() 
 {
     cout << "-----------------------------------------------------------"   << endl;
-    cout << "                  Simulation Paramters"                        << endl;
+    cout << "                  Simulation Parameters"                        << endl;
     cout << "-----------------------------------------------------------"   << endl << endl; 
     
     cout << "Simulation domain                      = " << Lx << " x " << Ly << " x " << Lz << endl;
@@ -1391,7 +1391,7 @@ void Collective::save()
     ofstream my_file(temp.c_str());
 
     my_file << "-----------------------------------------------------------"   << endl;
-    my_file << "                  Simulation Paramters"                        << endl;
+    my_file << "                  Simulation Parameters"                        << endl;
     my_file << "-----------------------------------------------------------"   << endl << endl; 
 
     my_file << "Initial magnetic field components      = " << B0x << ", " << B0y << ", " << B0z << endl << endl;
