@@ -3792,13 +3792,6 @@ void EMfields3D::init()
             
             col->read_field_restart(vct, grid, Bxn, Byn, Bzn, Bxc, Byc, Bzc, Ex, Ey, Ez, &rhons, ns);
 
-        if (vct->getCartesian_rank() == 0) 
-        {
-            cout << "-----------------------------------------------------------"   << endl;
-            cout << "    Field data has been initialised from restart files"        << endl;
-            cout << "-----------------------------------------------------------"   << endl << endl; 
-        }
-
             //* Communicate ghost data for rho on nodes
             for (int is = 0; is < ns; is++) 
             {
@@ -3838,8 +3831,11 @@ void EMfields3D::init()
             for (int is = 0; is < ns; is++)
                 grid->interpN2C(rhocs, is, rhons);
 
-            if (get_vct().getCartesian_rank() == 0)
+            if (vct->getCartesian_rank() == 0)
+            {
+                cout << "--------------------------------------------------------" << endl;
                 cout << "SUCCESSFULLY READ FIELD DATA FROM HDF5 FILES FOR RESTART" << endl;
+            }
         
         #endif // NO_HDF5
     }
@@ -4185,22 +4181,12 @@ void EMfields3D::init_double_Harris()
         if (vct->getCartesian_rank() ==0)
         {
             cout << "------------------------------------------" << endl;
-            cout << "  Double Harris Sheet with Perturbation" << endl;
+            cout << "     Initialising double Harris sheet     " << endl;
             cout << "------------------------------------------" << endl;
-            cout << "B0x                              = " << B0x << endl;
-            cout << "B0y                              = " << B0y << endl;
-            cout << "B0z                              = " << B0z << endl;
-            cout << "Delta (current sheet thickness)  = " << delta << endl;
-            
-            for (int i=0; i < ns; i++)
-            {
-                cout << "rho species " << i <<" = " << rhoINIT[i];
-                if (DriftSpecies[i])
-                    cout << " DRIFTING " << endl;
-                else
-                    cout << " BACKGROUND " << endl;
-            }
-            cout << "-------------------------" << endl;
+            cout << "Initial magnetic field components (Bx, By, Bz) = " << "(" << B0x << ", " << B0y << ", " << B0z << ")" << endl;
+            cout << "Initial perturbation                           = " << perturbation << endl;
+            cout << "Half-thickness of current sheet                = " << delta << endl;
+            cout << "------------------------------------------" << endl;
         }
 
         for (int i=0; i < nxn; i++)
