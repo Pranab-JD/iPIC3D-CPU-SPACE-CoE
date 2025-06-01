@@ -150,15 +150,13 @@ VCtopology3D::~VCtopology3D() {
 
 }
 /** print topology info */
-void VCtopology3D::Print() {
-  cout << endl;
-  cout << "Virtual Cartesian Processors Topology" << endl;
-  cout << "-------------------------------------" << endl;
-  cout << "Processors grid: " << XLEN << "x" << YLEN << "x" << ZLEN << endl;
-  cout << "Periodicity X: " << periods[0] << endl;
-  cout << "Periodicity Y: " << periods[1] << endl;
-  cout << "Periodicity Z: " << periods[2] << endl;
-  cout << endl;
+void VCtopology3D::Print() 
+{
+    cout << "Processor topology                        = " << XLEN << "x" << YLEN << "x" << ZLEN << endl << endl;
+    cout << "Periodicity X: " << periods[0] << endl;
+    cout << "Periodicity Y: " << periods[1] << endl;
+    cout << "Periodicity Z: " << periods[2] << endl;
+    cout << endl;
 }
 /** print cartesian rank of neighbors and coordinate of process */
 void VCtopology3D::PrintMapping() {

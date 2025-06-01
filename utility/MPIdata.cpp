@@ -87,8 +87,9 @@ void MPIdata::finalize_mpi()
 
 void MPIdata::Print(void) 
 {
-    std::cout << "Parallelisation"                                                       << std::endl;
-    std::cout << "---------------------------------------------"                         << std::endl;
+    std::cout << "-----------------------------------------------------------"   << std::endl;
+    std::cout << "                   Parallelisation                         "   << std::endl;
+    std::cout << "-----------------------------------------------------------"   << std::endl << std::endl; 
     std::cout << "Total number of MPI processes             = " << get_nprocs()          << std::endl;
     std::cout << "Number of OpenMP threads per MPI process  = " << omp_get_max_threads() << std::endl;
 }

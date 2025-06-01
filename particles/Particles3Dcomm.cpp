@@ -124,13 +124,13 @@ Particles3Dcomm::~Particles3Dcomm()
     delete bucket_offset;
 
     //* Downsampled particles (not used for computations; only written to files)
-    if (u_ds) delete[] u_ds;
-    if (v_ds) delete[] v_ds;
-    if (w_ds) delete[] w_ds;
-    if (x_ds) delete[] q_ds;
-    if (y_ds) delete[] x_ds;
-    if (z_ds) delete[] y_ds;
-    if (q_ds) delete[] z_ds; 
+    // if (u_ds) delete[] u_ds;
+    // if (v_ds) delete[] v_ds;
+    // if (w_ds) delete[] w_ds;
+    // if (x_ds) delete[] q_ds;
+    // if (y_ds) delete[] x_ds;
+    // if (z_ds) delete[] y_ds;
+    // if (q_ds) delete[] z_ds; 
 }
 
 //! Constructor for a single species !//
