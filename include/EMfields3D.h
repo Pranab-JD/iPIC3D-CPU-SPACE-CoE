@@ -360,6 +360,9 @@ public:
     arr3_double getJx() { return Jx; }
     arr3_double getJy() { return Jy; }
     arr3_double getJz() { return Jz; }
+    double getJx(int X,int Y,int Z) const { return Jx.get(X,Y,Z); }
+    double getJy(int X,int Y,int Z) const { return Jy.get(X,Y,Z); }
+    double getJz(int X,int Y,int Z) const { return Jz.get(X,Y,Z); }
 
     arr3_double getJxh() { return Jxh; }
     arr3_double getJyh() { return Jyh; }
@@ -392,6 +395,11 @@ public:
     arr4_double getEFxs() { return E_flux_xs; }
     arr4_double getEFys() { return E_flux_ys; }
     arr4_double getEFzs() { return E_flux_zs; }
+
+    double getEFxs(int X, int Y, int Z, int is) const { return E_flux_xs.get(is,X,Y,Z); }
+    double getEFys(int X, int Y, int Z, int is) const { return E_flux_ys.get(is,X,Y,Z); }
+    double getEFzs(int X, int Y, int Z, int is) const { return E_flux_zs.get(is,X,Y,Z); }
+    
 
     //* Heat Flux Tensor 
     double ****getQxxxs() { return (Qxxxs); }

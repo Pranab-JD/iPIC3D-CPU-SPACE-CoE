@@ -116,8 +116,8 @@ void Collective::ReadInput(string inputfile)
         nstestpart      = config.read<int>       ("nsTestPart", 0);
         NpMaxNpRatio    = config.read<double>    ("NpMaxNpRatio", 1.5);
         assert_ge(NpMaxNpRatio, 1.);
-        output_data_precision  = config.read<string>    ("output_data_precision", "double");
-        ImplSusceptMode = read_enum_parameter("ImplSusceptMode", "initial",config);
+        output_data_precision  = config.read<string> ("output_data_precision", "DOUBLE");
+        ImplSusceptMode = read_enum_parameter("ImplSusceptMode", "initial", config);
         
         switch(ImplSusceptMode)
         {
@@ -1326,7 +1326,17 @@ void Collective::init_derived_parameters()
 void Collective::Print() 
 {
     cout << "-----------------------------------------------------------"   << endl;
-    cout << "                  Simulation Parameters"                        << endl;
+    cout << "               Test Case and Data Ouput"                       << endl;
+    cout << "-----------------------------------------------------------"   << endl << endl; 
+
+    cout << "Simulation Case                : " << Case << endl;
+    cout << "Simulation Name                : " << SimName << endl << endl;
+    cout << "Output data is saved in the '" << SaveDirName << "' directory" << endl;
+    cout << "Restart data is saved in the '" << RestartDirName << "' directory" << endl << endl;
+    cout << "Output and restart data are stored in " << output_data_precision << " precision" << endl << endl;
+
+    cout << "-----------------------------------------------------------"   << endl;
+    cout << "                  Simulation Parameters"                       << endl;
     cout << "-----------------------------------------------------------"   << endl << endl; 
     
     cout << "Simulation domain                      = " << Lx << " x " << Ly << " x " << Lz << endl;
@@ -1351,9 +1361,7 @@ void Collective::Print()
     
     cout << endl << "-----------------------------------------------------------"   << endl << endl;
 
-    cout << "Results are saved in           : " << SaveDirName << endl;
-    cout << "Simulation Case                : " << Case << endl;
-    cout << "Simulation name                : " << SimName << endl << endl;
+
     
     cout << "-----------------------------------------------------------"   << endl;
     cout << "                Simulation Constraints"                        << endl;
@@ -1422,8 +1430,9 @@ void Collective::save()
         my_file << "   Charge-to-mass ratio    "  << "   = " << getQOM(is) << endl;
     }
 
-    my_file << endl << endl << "Output data is saved in: " << SaveDirName << endl;
-    my_file << "Restart data is saved in: " << RestartDirName << endl;
+    my_file << endl << endl << "Output data is saved in " << SaveDirName << endl;
+    my_file << "Restart data is saved in " << RestartDirName << endl;
+    my_file << "Output and restart data are written in " << output_data_precision << " precision" << endl;
 
     my_file.close();
 }
