@@ -7,8 +7,8 @@ Description: Plot total charge density (summed over all species; 2D)
 """
 
 import numpy as np
-import os, glob, h5py
 from mpi4py import MPI
+import os, glob, h5py, argparse
 import matplotlib.pyplot as plt
 
 from datetime import datetime
@@ -21,11 +21,18 @@ size = comm.Get_size()
 
 ###* =================================================================== *###
 
+###* Argument parser
+parser = argparse.ArgumentParser(description= "Plot 2D charge density from iPIC3D output data")
+parser.add_argument("dir_data", type=str, help="Directory where proc.hdf files are stored, e.g., './data_reconnection/'")
+parser.add_argument("time_cycle", type=str, help="Time cycle to plot, e.g., 'cycle_100'")
+
+args = parser.parse_args()
+
 ###* Directory where proc.hdf files are saved (plots are saved to the same directory)
-dir_data = "./data_DH/"
+dir_data = args.dir_data
 
 ###* Time cycle when data is to plotted 
-time_cycle = "cycle_3000"
+time_cycle = args.time_cycle
 
 ###! MPI topology (must match simulation)
 XLEN, YLEN, ZLEN = 20, 20, 1
