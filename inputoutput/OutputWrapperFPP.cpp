@@ -113,7 +113,7 @@ void OutputWrapperFPP::append_output_fields(const char* tag, int cycle)
     #endif
 }
 
-// //* Particles + Fields + Moments
+//* Particles + Fields + Moments
 void OutputWrapperFPP::append_output_particles(const char* tag, int cycle)
 {
     #ifndef NO_HDF5
@@ -122,7 +122,6 @@ void OutputWrapperFPP::append_output_particles(const char* tag, int cycle)
         hdf5_agent.close();
     #endif
 }
-
 
 //* Downsampled Particles
 void OutputWrapperFPP::append_particles_DS(const char* tag, int cycle, int sample)

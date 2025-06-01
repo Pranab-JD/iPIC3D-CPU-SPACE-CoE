@@ -2,6 +2,8 @@
 Created on Wed May 31 21:00 2025
 
 @author: Pranab JD
+
+Description: Plot the electric field (2D)
 """
 
 import os

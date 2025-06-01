@@ -2,6 +2,8 @@
 Created on Wed May 31 21:00 2025
 
 @author: Pranab JD
+
+Description: Plot the TOTAL charge density (summed over species; 2D)
 """
 
 import os
@@ -15,11 +17,11 @@ startTime = datetime.now()
 
 ###* =================================================================== *###
 
-dir_data = "./data_DH/"
-time_cycle = "cycle_30"
+dir_data = "./data_firehose/"
+time_cycle = "cycle_1000"
 
 ###? MPI topology (must match simulation)
-XLEN = 10; YLEN = 10
+XLEN = 8; YLEN = 16
 num_expected_files = XLEN * YLEN
 
 print("Plotting magnetic field at", time_cycle, "\n")

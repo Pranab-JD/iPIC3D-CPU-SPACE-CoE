@@ -2,6 +2,8 @@
 Created on Wed May 31 21:00 2025
 
 @author: Pranab JD
+
+Description: Plot the magnetic field (2D)
 """
 
 import os
@@ -16,7 +18,7 @@ startTime = datetime.now()
 ###* =================================================================== *###
 
 dir_data = "./data_DH/"
-time_cycle = "cycle_30"
+time_cycle = "cycle_100"
 
 ###? MPI topology (must match simulation)
 XLEN = 10; YLEN = 10
