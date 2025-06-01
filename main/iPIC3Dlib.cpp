@@ -767,6 +767,9 @@ void c_Solver::SupplementaryMoments()
     //? Communicate current, energy flux, heat flux, and pressure tensor
     for (int is = 0; is < ns; is++)
         EMf->communicateGhostP2G_J_EF_Q_PT(is);
+
+    //? Sum all over the species (charge and current density)
+    EMf->sumOverSpecies_supplementary();
 }
 
 void c_Solver::WriteOutput(int cycle) 
