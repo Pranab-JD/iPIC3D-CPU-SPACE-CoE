@@ -1,100 +1,136 @@
 """
-Created on Wed May 31 21:00 2025
+Created on Wed Jun 17:00 2025
 
 @author: Pranab JD
 
-Description: Plot the electric field (2D)
+Description: Plot electric field (2D)
 """
 
-import os
-import glob, h5py
 import numpy as np
+import os, glob, h5py
+from mpi4py import MPI
 import matplotlib.pyplot as plt
 
 from datetime import datetime
 
 startTime = datetime.now()
 
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+
 ###* =================================================================== *###
 
+###* Directory where proc.hdf files are saved (plots are saved to the same directory)
 dir_data = "./data_DH/"
-time_cycle = "cycle_30"
 
-###? MPI topology (must match simulation)
-XLEN = 10; YLEN = 10
-num_expected_files = XLEN * YLEN
+###* Time cycle when data is to plotted 
+time_cycle = "cycle_3000"
 
-print("Plotting electric field at", time_cycle, "\n")
+###! MPI topology (must match simulation)
+XLEN, YLEN, ZLEN = 20, 20, 1
+num_expected_files = XLEN * YLEN * ZLEN
 
-###* Discover all processor files
-hdf_files = sorted(glob.glob(os.path.join(dir_data, "proc*.hdf")))
-assert len(hdf_files) == num_expected_files, "Mismatch between expected and found HDF5 files."
+###* =================================================================== *###
 
-###* Read one file to get local shape
-with h5py.File(hdf_files[0], "r") as f:
+###? Read and process data
+if rank == 0:
+    print("Plotting electric field at ", time_cycle, " with ", size,  " MPI ranks\n")
+
+###* Discover all HDF5 files
+all_hdf_files = sorted(glob.glob(os.path.join(dir_data, "proc*.hdf")))
+if rank == 0:
+   print("Expected ", num_expected_files, "files, found ", len(all_hdf_files), "\n")
+
+###* Broadcast number of local grid cells
+with h5py.File(all_hdf_files[0], "r") as f:
     sample = np.array(f["fields/Ex/" + time_cycle])
     nx_local, ny_local, nz = sample.shape
 
-###* Define global domain size
+###* Define global size
 nx_global = XLEN * nx_local
 ny_global = YLEN * ny_local
 
-Ex = np.zeros((nx_global, ny_global))
-Ey = np.zeros((nx_global, ny_global))
-Ez = np.zeros((nx_global, ny_global))
+###* Divide files among ranks (chunked distribution)
+local_files = all_hdf_files[rank::size]
+if rank == 0:
+    print("Processing ", len(all_hdf_files), " files with ", size, " MPI tasks")
 
-for rank in range(num_expected_files):
+###* Local storage (per MPI task)
+local_data_X = np.zeros((nx_global, ny_global))
+local_data_Y = np.zeros((nx_global, ny_global))
+local_data_Z = np.zeros((nx_global, ny_global))
 
-    file_path = os.path.join(dir_data, f"proc{rank}.hdf")
-    
-    with h5py.File(file_path, "r") as f:
+###* Process assigned files
+if local_files:
+    for file_path in local_files:
+        
+        rank_id = int(os.path.basename(file_path).replace("proc", "").replace(".hdf", ""))
 
-        Ex_data = np.array(f["fields/Ex/" + time_cycle])
-        Ey_data = np.array(f["fields/Ey/" + time_cycle])
-        Ez_data = np.array(f["fields/Ez/" + time_cycle])
-
-        ## Determine processor position in 2D MPI grid
-        i = rank // YLEN  # x index
-        j = rank % YLEN   # y index
-
+        i = rank_id // YLEN
+        j = rank_id % YLEN
         x0 = i * nx_local
         y0 = j * ny_local
 
-        Ex[x0:x0 + nx_local, y0:y0 + ny_local] = Ex_data[:, :, 0]
-        Ey[x0:x0 + nx_local, y0:y0 + ny_local] = Ey_data[:, :, 0]
-        Ez[x0:x0 + nx_local, y0:y0 + ny_local] = Ez_data[:, :, 0]
+        with h5py.File(file_path, "r") as f:
 
+            Ex_data = np.array(f["fields/Ex/" + time_cycle])
+            Ey_data = np.array(f["fields/Ey/" + time_cycle])
+            Ez_data = np.array(f["fields/Ez/" + time_cycle])
 
-###? Plot (2D)
-fig = plt.figure(figsize = (14, 4), dpi = 250)
-
-plt.subplot(1, 3, 1)
-plt.imshow(Ex, origin='lower', cmap='seismic', aspect = "auto")
-plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
-plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
-plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
-plt.title("Ex", fontsize = 18); plt.colorbar()
-
-plt.subplot(1, 3, 2)
-plt.imshow(Ey, origin='lower', cmap='seismic', aspect = "auto")
-plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
-plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
-plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
-plt.title("Ey", fontsize = 18); plt.colorbar()
-
-plt.subplot(1, 3, 3)
-plt.imshow(Ez, origin='lower', cmap='seismic', aspect = "auto")
-plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
-plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
-plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
-plt.title("Ez", fontsize = 18); plt.colorbar()
-
-fig.tight_layout(rect = [0.0, 0.0, 1.0, 1.0])
-plt.savefig(dir_data + "E_field_" + time_cycle + ".png")
-plt.savefig(dir_data + "E_field_" + time_cycle + ".eps")
-plt.close()
+            local_data_X[x0:x0 + nx_local, y0:y0 + ny_local] = Ex_data[:, :, 0]
+            local_data_Y[x0:x0 + nx_local, y0:y0 + ny_local] = Ey_data[:, :, 0]
+            local_data_Z[x0:x0 + nx_local, y0:y0 + ny_local] = Ez_data[:, :, 0]
 
 ###* =================================================================== *###
 
-print()
-print("Complete .....", "Time Elapsed = ", datetime.now() - startTime, "\n\n")
+###? Gather results at root MPI process
+Ex = None; Ey = None; Ez = None
+if rank == 0:
+    Ex = np.zeros((nx_global, ny_global))
+    Ey = np.zeros((nx_global, ny_global))
+    Ez = np.zeros((nx_global, ny_global))
+
+comm.Reduce(local_data_X, Ex, op=MPI.SUM, root=0)
+comm.Reduce(local_data_Y, Ey, op=MPI.SUM, root=0)
+comm.Reduce(local_data_Z, Ez, op=MPI.SUM, root=0)
+
+###* =================================================================== *###
+
+###* Plot 2D on root MPI process
+if rank == 0:
+
+    fig = plt.figure(figsize = (14, 4), dpi = 250)
+
+    plt.subplot(1, 3, 1)
+    plt.imshow(Ex, origin='lower', cmap='jet', aspect = "auto")
+    plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
+    plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
+    plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
+    plt.title("Ex", fontsize = 18); plt.colorbar()
+
+    plt.subplot(1, 3, 2)
+    plt.imshow(Ey, origin='lower', cmap='jet', aspect = "auto")
+    plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
+    plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
+    plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
+    plt.title("Ey", fontsize = 18); plt.colorbar()
+
+    plt.subplot(1, 3, 3)
+    plt.imshow(Ez, origin='lower', cmap='jet', aspect = "auto")
+    plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
+    plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
+    plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
+    plt.title("Ez", fontsize = 18); plt.colorbar()
+    
+    fig.tight_layout()
+    plt.savefig(dir_data + "E_field_" + time_cycle + ".png")
+    plt.close()
+
+###* =================================================================== *###
+
+    print()
+    print("Plots are saved in ", dir_data)
+    print()
+    print("Complete .....", "Time Elapsed = ", datetime.now() - startTime)
+    print()

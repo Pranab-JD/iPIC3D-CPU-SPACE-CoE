@@ -1,100 +1,136 @@
 """
-Created on Wed May 31 21:00 2025
+Created on Wed Jun 17:00 2025
 
 @author: Pranab JD
 
-Description: Plots the TOTAL currrent density (summed over species; 2D)
+Description: Plot electric field (2D)
 """
 
-import os
-import glob, h5py
 import numpy as np
+import os, glob, h5py
+from mpi4py import MPI
 import matplotlib.pyplot as plt
 
 from datetime import datetime
 
 startTime = datetime.now()
 
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+
 ###* =================================================================== *###
 
-dir_data = "./data_firehose/"
-time_cycle = "cycle_1000"
+###* Directory where proc.hdf files are saved (plots are saved to the same directory)
+dir_data = "./data_DH/"
 
-###? MPI topology (must match simulation)
-XLEN = 8; YLEN = 16
-num_expected_files = XLEN * YLEN
+###* Time cycle when data is to plotted 
+time_cycle = "cycle_3000"
 
-print("Plotting magnetic field at", time_cycle, "\n")
+###! MPI topology (must match simulation)
+XLEN, YLEN, ZLEN = 20, 20, 1
+num_expected_files = XLEN * YLEN * ZLEN
 
-###* Discover all processor files
-hdf_files = sorted(glob.glob(os.path.join(dir_data, "proc*.hdf")))
-assert len(hdf_files) == num_expected_files, "Mismatch between expected and found HDF5 files."
+###* =================================================================== *###
 
-###* Read one file to get local shape
-with h5py.File(hdf_files[0], "r") as f:
+###? Read and process data
+if rank == 0:
+    print("Plotting current density at at ", time_cycle, " with ", size,  " MPI ranks\n")
+
+###* Discover all HDF5 files
+all_hdf_files = sorted(glob.glob(os.path.join(dir_data, "proc*.hdf")))
+if rank == 0:
+   print("Expected ", num_expected_files, "files, found ", len(all_hdf_files), "\n")
+
+###* Broadcast number of local grid cells
+with h5py.File(all_hdf_files[0], "r") as f:
     sample = np.array(f["moments/Jx/" + time_cycle])
     nx_local, ny_local, nz = sample.shape
 
-###* Define global domain size
+###* Define global size
 nx_global = XLEN * nx_local
 ny_global = YLEN * ny_local
 
-Jx = np.zeros((nx_global, ny_global))
-Jy = np.zeros((nx_global, ny_global))
-Jz = np.zeros((nx_global, ny_global))
+###* Divide files among ranks (chunked distribution)
+local_files = all_hdf_files[rank::size]
+if rank == 0:
+    print("Processing ", len(all_hdf_files), " files with ", size, " MPI tasks")
 
-for rank in range(num_expected_files):
+###* Local storage (per MPI task)
+local_data_X = np.zeros((nx_global, ny_global))
+local_data_Y = np.zeros((nx_global, ny_global))
+local_data_Z = np.zeros((nx_global, ny_global))
 
-    file_path = os.path.join(dir_data, f"proc{rank}.hdf")
-    
-    with h5py.File(file_path, "r") as f:
+###* Process assigned files
+if local_files:
+    for file_path in local_files:
+        
+        rank_id = int(os.path.basename(file_path).replace("proc", "").replace(".hdf", ""))
 
-        Jx_data = np.array(f["moments/Jx/" + time_cycle])
-        Jy_data = np.array(f["moments/Jy/" + time_cycle])
-        Jz_data = np.array(f["moments/Jz/" + time_cycle])
-
-        ## Determine processor position in 2D MPI grid
-        i = rank // YLEN  # x index
-        j = rank % YLEN   # y index
-
+        i = rank_id // YLEN
+        j = rank_id % YLEN
         x0 = i * nx_local
         y0 = j * ny_local
 
-        Jx[x0:x0 + nx_local, y0:y0 + ny_local] = Jx_data[:, :, 0]
-        Jy[x0:x0 + nx_local, y0:y0 + ny_local] = Jy_data[:, :, 0]
-        Jz[x0:x0 + nx_local, y0:y0 + ny_local] = Jz_data[:, :, 0]
+        with h5py.File(file_path, "r") as f:
 
+            Jx_data = np.array(f["moments/Jx/" + time_cycle])
+            Jy_data = np.array(f["moments/Jy/" + time_cycle])
+            Jz_data = np.array(f["moments/Jz/" + time_cycle])
 
-###? Plot (2D)
-fig = plt.figure(figsize = (14, 4), dpi = 250)
-
-plt.subplot(1, 3, 1)
-plt.imshow(Jx, origin='lower', cmap='seismic', aspect = "auto")
-plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
-plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
-plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
-plt.title("Jx", fontsize = 18); plt.colorbar()
-
-plt.subplot(1, 3, 2)
-plt.imshow(Jy, origin='lower', cmap='seismic', aspect = "auto")
-plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
-plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
-plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
-plt.title("Jy", fontsize = 18); plt.colorbar()
-
-plt.subplot(1, 3, 3)
-plt.imshow(Jz, origin='lower', cmap='seismic', aspect = "auto")
-plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
-plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
-plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
-plt.title("Jz", fontsize = 18); plt.colorbar()
-
-fig.tight_layout(rect = [0.0, 0.0, 1.0, 1.0])
-plt.savefig(dir_data + "Current_" + time_cycle + ".png")
-plt.savefig(dir_data + "Current_" + time_cycle + ".eps")
-plt.close()
+            local_data_X[x0:x0 + nx_local, y0:y0 + ny_local] = Jx_data[:, :, 0]
+            local_data_Y[x0:x0 + nx_local, y0:y0 + ny_local] = Jy_data[:, :, 0]
+            local_data_Z[x0:x0 + nx_local, y0:y0 + ny_local] = Jz_data[:, :, 0]
 
 ###* =================================================================== *###
 
-print()
-print("Complete .....", "Time Elapsed = ", datetime.now() - startTime, "\n\n")
+###? Gather results at root MPI process
+Jx = None; Jy = None; Jz = None
+if rank == 0:
+    Jx = np.zeros((nx_global, ny_global))
+    Jy = np.zeros((nx_global, ny_global))
+    Jz = np.zeros((nx_global, ny_global))
+
+comm.Reduce(local_data_X, Jx, op=MPI.SUM, root=0)
+comm.Reduce(local_data_Y, Jy, op=MPI.SUM, root=0)
+comm.Reduce(local_data_Z, Jz, op=MPI.SUM, root=0)
+
+###* =================================================================== *###
+
+###* Plot 2D on root MPI process
+if rank == 0:
+
+    fig = plt.figure(figsize = (14, 4), dpi = 250)
+
+    plt.subplot(1, 3, 1)
+    plt.imshow(Jx, origin='lower', cmap='seismic', aspect = "auto")
+    plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
+    plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
+    plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
+    plt.title("Jx", fontsize = 18); plt.colorbar()
+
+    plt.subplot(1, 3, 2)
+    plt.imshow(Jy, origin='lower', cmap='seismic', aspect = "auto")
+    plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
+    plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
+    plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
+    plt.title("Jy", fontsize = 18); plt.colorbar()
+
+    plt.subplot(1, 3, 3)
+    plt.imshow(Jz, origin='lower', cmap='seismic', aspect = "auto")
+    plt.xlabel("X", fontsize = 16); plt.ylabel("Y", fontsize = 16)
+    plt.tick_params(axis = 'x', which = 'major', labelsize = 12, length = 6)
+    plt.tick_params(axis = 'y', which = 'major', labelsize = 12, length = 6)
+    plt.title("Jz", fontsize = 18); plt.colorbar()
+    
+    fig.tight_layout()
+    plt.savefig(dir_data + "Current_" + time_cycle + ".png")
+    plt.close()
+
+###* =================================================================== *###
+
+    print()
+    print("Plots are saved in ", dir_data)
+    print()
+    print("Complete .....", "Time Elapsed = ", datetime.now() - startTime)
+    print()
