@@ -181,9 +181,10 @@ public:
     /*! Sum rhon and J over species */
     void sumOverSpecies();
         /*! Sum rhon over species */
-    void sumOverSpeciesRho();
+    // void sumOverSpeciesRho();
     /*! Sum current over different species */
-    void sumOverSpeciesJ();
+    // void sumOverSpeciesJ();
+    void sumOverSpecies_supplementary();
     void interpolateCenterSpecies(int is); 
     /*! Smoothing after the interpolation* */
     void smooth(arr3_double vector, int type);

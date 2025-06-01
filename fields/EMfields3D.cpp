@@ -2251,7 +2251,6 @@ void EMfields3D::sumMoments_vectorized_AoS(const Particles3Dcomm* part)
   }
 }
 
-
 //* Compute the product of mass matrix with vector "V = (Vx, Vy, Vz)"
 void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int i, int j, int k)
 {
@@ -2454,7 +2453,6 @@ void EMfields3D::communicateGhostP2G_Rho(int is)
 
 void EMfields3D::communicateGhostP2G_J_EF_Q_PT(int is) 
 {
-
     const VirtualTopology3D *vct = &get_vct();
     int rank = vct->getCartesian_rank();
 
@@ -2526,7 +2524,6 @@ void solver2phys(arr3_double vectPhys, double *vectSolver, int nx, int ny, int n
         for (int j = 1; j < ny - 1; j++)
             for (int k = 1; k < nz - 1; k++)
                 vectPhys[i][j][k] = *vectSolver++;
-
 }
 
 //? Convert three 3D fields to a 1D array (not considering guard cells)
@@ -3654,7 +3651,7 @@ void EMfields3D::setZeroRho()
     // eqValue(0.0, Nns, ns, nxn, nyn, nzn);       //*
 }
 
-//* Sum charge density of different species on NODES *//
+//* Sum charge and current (hat) density of different species (used in computeMoments())
 void EMfields3D::sumOverSpecies()
 {
     const Grid *grid = &get_grid();
@@ -3686,17 +3683,32 @@ void EMfields3D::sumOverSpecies()
 //                     rhon[i][j][k] += rhons[is][i][j][k];
 // }
 
-//* Sum current density for different species //
-void EMfields3D::sumOverSpeciesJ() 
+// //* Sum current density for different species //
+// void EMfields3D::sumOverSpeciesJ() 
+// {
+//     for (int is = 0; is < ns; is++)
+//         for (int i = 0; i < nxn; i++)
+//             for (int j = 0; j < nyn; j++)
+//                 for (int k = 0; k < nzn; k++) 
+//                 {
+//                     Jx[i][j][k] += Jxs[is][i][j][k];
+//                     Jy[i][j][k] += Jys[is][i][j][k];
+//                     Jz[i][j][k] += Jzs[is][i][j][k];
+//                 }
+// }
+
+//* Sum charge and current density of different species (used in SupplementaryMoments())
+void EMfields3D::sumOverSpecies_supplementary() 
 {
     for (int is = 0; is < ns; is++)
         for (int i = 0; i < nxn; i++)
             for (int j = 0; j < nyn; j++)
                 for (int k = 0; k < nzn; k++) 
                 {
-                    Jx[i][j][k] += Jxs[is][i][j][k];
-                    Jy[i][j][k] += Jys[is][i][j][k];
-                    Jz[i][j][k] += Jzs[is][i][j][k];
+                    rhon[i][j][k] += rhons[is][i][j][k];
+                    Jx[i][j][k]   += Jxs[is][i][j][k];
+                    Jy[i][j][k]   += Jys[is][i][j][k];
+                    Jz[i][j][k]   += Jzs[is][i][j][k];
                 }
 }
 
