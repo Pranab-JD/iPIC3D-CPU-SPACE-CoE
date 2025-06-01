@@ -320,6 +320,20 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
     myOutputAgent(void) {;
     }
 
+    bool contains_tag(const std::string& taglist, const std::string& target) 
+    {
+        std::istringstream iss(taglist);
+        std::string token;
+        while (iss >> token) 
+        {
+            if (token == target) 
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void set_simulation_pointers(Field * field, Grid * grid, VCtopology3D * vct, Collective * col) {
         _field = field;
         _grid = grid;
@@ -517,7 +531,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         double*** temp_double; float* temp_single;     //* Temporary array to store data in double & single precision, respectively
 
 		//* B field (defined at nodes) is written without ghost cells
-		if (tag.find("B", 0) != string::npos) 
+        if (contains_tag(tag, "B"))
 		{
             if (_col->get_output_data_precision() == "double")
             {
@@ -555,24 +569,16 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
             //     this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
             // }
 		}
-		else if (tag.find("Bx", 0) != string::npos)
-			this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx());
-		
-		else if (tag.find("By", 0) != string::npos)
-			this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy());
-
-		else if (tag.find("Bz", 0) != string::npos)
-			this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBz());
 
         //* B field (defined at cell centres) is written without ghost cells
-		if (tag.find("B_c", 0) != string::npos) 
+        if (contains_tag(tag, "B_c"))
 		{
 			this->output_adaptor.write("/fields/Bxc/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getBxc());
 			this->output_adaptor.write("/fields/Byc/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getByc());
 			this->output_adaptor.write("/fields/Bzc/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getBzc());
 		}
 
-        if (tag.find("B_ext", 0) != string::npos) 
+        if (contains_tag(tag, "B_ext"))
         {
             this->output_adaptor.write("/fields/Bx_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx_ext());
             this->output_adaptor.write("/fields/By_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy_ext());
@@ -581,7 +587,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 
 
     	//* E field (defined at nodes) is written without ghost cells
-		if (tag.find("E", 0) != string::npos) 
+		if (contains_tag(tag, "E"))
 		{
             if (_col->get_output_data_precision() == "double")
             {
@@ -591,15 +597,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 this->output_adaptor.write("/fields/Ez/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEz());
             }
 		}
-		else if (tag.find("Ex", 0) != string::npos)
-			this->output_adaptor.write("/fields/Ex/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEx());
-
-		else if (tag.find("Ey", 0) != string::npos)
-			this->output_adaptor.write("/fields/Ey/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEy());
-
-		else if (tag.find("Ez", 0) != string::npos)
-			this->output_adaptor.write("/fields/Ez/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEz());
-
 
 		//* PHI (defined at cell centres) is written without ghost cells 
 		if (tag.find("phi", 0) != string::npos)
@@ -609,31 +606,15 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 		//! ************************* Moments ************************* !//
 
 		//* J (total current, defined at nodes) is written without ghost cells
-		if (tag.find("J", 0) != string::npos)
+		if (contains_tag(tag, "J"))
 		{
-			// _field->sumOverSpeciesJ();
 			this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJx());
 			this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJy());
-			this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJz());
-		}
-		else if (tag.find("Jx", 0) != string::npos) 
-		{
-			// _field->sumOverSpeciesJ();
-			this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJx());
-		}
-		else if (tag.find("Jy", 0) != string::npos) 
-		{
-			// _field->sumOverSpeciesJ();
-			this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJy());
-		}
-		else if (tag.find("Jz", 0) != string::npos) 
-		{
-			// _field->sumOverSpeciesJ();
 			this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJz());
 		}
 
 		//* Js (current for each species, defined at nodes) is written without ghost cells
-		if (tag.find("J_s", 0) != string::npos) 
+		if (contains_tag(tag, "J_s"))
 		{
 			for (int i = 0; i < ns; ++i)
 			{
@@ -646,24 +627,22 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 		}
 
 		//* rhos (charge density for each species, defined at nodes) is written without ghost cells
-		if (tag.find("rho_s", 0) != string::npos) 
-		{
+		if (contains_tag(tag, "rhos_s"))
+        {
 			for (int i = 0; i < ns; ++i)
 			{
 				stringstream ii;
 				ii << i;
 				this->output_adaptor.write("/moments/species_" + ii.str() + "/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getRHOns());
 			}
-		}
-
-        //* rhos (overall charge density) is written without ghost cells
-        if (tag.find("rho", 0) != string::npos) 
-        {
-            this->output_adaptor.write("/moments/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getRHOn());
         }
 
+        //* rhos (overall charge density) is written without ghost cells
+        if (contains_tag(tag, "rho"))
+            this->output_adaptor.write("/moments/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getRHOn());
+
 		//* Pressure tensor (for each species, defined at nodes) is written without ghost cells
-		if (tag.find("pressure", 0) != string::npos) 
+		if (contains_tag(tag, "pressure"))
 		{
 			for (int i = 0; i < ns; ++i) 
 			{
@@ -679,7 +658,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 		}
 
         //* Energy flux density (for each species, defined at nodes) is written without ghost cells
-		if (tag.find("E_flux", 0) != string::npos)
+		if (contains_tag(tag, "E_Flux"))
 		{
 			for (int i = 0; i < ns; ++i) 
 			{
@@ -692,8 +671,9 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         }
 
         //* Heat flux tensor (for each species, defined at nodes) is written without ghost cells
-		if (tag.find("H_flux", 0) != string::npos) 
+		if (contains_tag(tag, "H_Flux"))
 		{
+            // cout << "Heat flux is currently NOT implemented" << endl;
 			for (int i = 0; i < ns; ++i) 
 			{
                 // this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxxx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), i, _field->getQxxxs());

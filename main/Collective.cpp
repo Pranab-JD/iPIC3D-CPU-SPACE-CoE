@@ -201,6 +201,7 @@ void Collective::ReadInput(string inputfile)
         CallFinalize                = config.read <bool>    ("CallFinalize", true);
         ParticlesDownsampleFactor   = config.read <int>     ("ParticlesDownsampleFactor", 1);
         ParticlesDownsampleOutputCycle = config.read <int>  ("ParticlesDownsampleOutputCycle", 1);
+        ParticlesDownsampleOutputTag   = config.read <string>  ("ParticlesDownsampleOutputTag", "");
     }
 
     //* read everything from input file, if restart is true, overwrite the setting - bug fixing

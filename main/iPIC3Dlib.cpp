@@ -467,7 +467,7 @@ void c_Solver::CalculateMoments()
     time_int.start();
     #endif
     
-    //? Sum all over the species (charge and current density)
+    //? Sum over all the species (charge and current densities)
     EMf->sumOverSpecies();
 
     //?  Communicate average densities
@@ -768,7 +768,7 @@ void c_Solver::SupplementaryMoments()
     for (int is = 0; is < ns; is++)
         EMf->communicateGhostP2G_J_EF_Q_PT(is);
 
-    //? Sum all over the species (charge and current density)
+    //? Sum over all the species (only charge and current densities)
     EMf->sumOverSpecies_supplementary();
 }
 
@@ -1154,7 +1154,7 @@ void c_Solver::WriteDSParticles(int cycle)
         //* This is crucial
         convertParticlesToSynched();
 
-        fetch_outputWrapperFPP().append_particles_DS("position_DS + velocity_DS + q_DS", cycle, col->getParticlesDownsampleFactor());
+        fetch_outputWrapperFPP().append_particles_DS((col->getPclDSOutputTag()).c_str(), cycle, col->getParticlesDownsampleFactor());
     #endif
 }
 
