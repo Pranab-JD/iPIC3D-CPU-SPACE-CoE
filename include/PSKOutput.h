@@ -528,13 +528,16 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 
         //TODO: Atm, writing in single precision involves writing the desired data to an array in double, converting that array to single, and writing this data
         //TODO: This may be further optimised - PJD
-        float* temp_single = (float*) malloc(_grid->getNXN()*_grid->getNYN()*_grid->getNZN()*sizeof(float));    //* Temporary array to store data in single precision
-        array3_double temp_double(_grid->getNXN(), _grid->getNYN(), _grid->getNZN());                           //* Temporary array to store data in double precision
 
-        if (temp_single == NULL || temp_double == NULL)
+        //* Temporary arrays to store fields and moments in single & double precision
+        float* temp_single = (float*)malloc(_grid->getNXN()*_grid->getNYN()*_grid->getNZN()*sizeof(float));
+        array3_double temp_double(_grid->getNXN(), _grid->getNYN(), _grid->getNZN());          
+        
+        if (_col->get_output_data_precision() == "SINGLE" && (temp_single == NULL || temp_double == NULL))
         {
-            cout << "Memory is likely saturated!" << endl;
-            cout << "Array allocation failed at writing data to files in single precision!" << endl;
+            cout << "Memory is likely saturated!!" << endl;
+            cout << "Array allocation failed at writing field and moment data to files in single precision, Data is being DOUBLE precision" << endl;
+            cout << "Suggest reducing number of grid cells or number of particles OR increasing the number of nodes" << endl;
         }
 
 		//* B field (defined at nodes) is written without ghost cells
@@ -577,7 +580,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         //* B field (defined at cell centres) is written without ghost cells
         if (contains_tag(tag, "B_c"))
 		{
-            //! B, at cell centres, are always written in DOUBLE precision
+            //! B, at cell centres, is always written in DOUBLE precision
 			this->output_adaptor.write("/fields/Bxc/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getBxc());
 			this->output_adaptor.write("/fields/Byc/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getByc());
 			this->output_adaptor.write("/fields/Bzc/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getBzc());
@@ -889,7 +892,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 
   	//! ============================================================================================================ !//
 
-    //! Particle Output
+    //! ************************* Particles ************************* !//
+
     void output_particles(const string & tag, int cycle) 
     {
         stringstream cc;
@@ -897,72 +901,124 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         const int ns = _col->getNs();
         const int nstestpart = _col->getNsTestPart();
 
-        if (tag.find("position", 0) != string::npos) 
-        {
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
+        //* Temporary arrays to store particle data in single & double precision, respectively
+        std::vector<float> particle_single; const double* particle_double = nullptr;      
 
-                if (_col->get_output_data_precision() == "DOUBLE")
-                {
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getXall());
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getYall());
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getZall());
-                }
-            }
-        }
-
-        if (tag.find("velocity", 0) != string::npos) 
-        {
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-
-                if (_col->get_output_data_precision() == "DOUBLE")
-                {
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getUall());
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getVall());
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getWall());
-                }
-            }
-        }
-        
-        if (tag.find("q", 0) != string::npos) 
+        if (contains_tag(tag, "position"))
         {
             for (int is = 0; is < ns; ++is) 
             {
+                int nop = _part[is]->getNOP();
+                
                 stringstream ii;
                 ii << is;
 
                 if (_col->get_output_data_precision() == "DOUBLE")
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(_part[is]->getNOP()), _part[is]->getQall());
-                
+                {
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getXall());
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getYall());
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getZall());
+                }
                 else if (_col->get_output_data_precision() == "SINGLE")
                 {
-                    // for (int i = 0; i < _grid->getNXN(); i++)
-                    //     for (int j = 0; j < _grid->getNYN(); j++)
-                    //         for (int k = 0; k < _grid->getNZN(); k++)
-                    //             temp_double.set(i, j, k, _field->getRHOn(i, j, k));
-                            
-                    // convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    // this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(_part[is]->getNOP()), _part[is]->getQall());
+                    particle_single.resize(nop);
+                    
+                    particle_double = _part[is]->getXall();
+                    for (int i = 0; i < nop; i++)
+                        particle_single[i] = static_cast<float>(particle_double[i]);
+
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+
+                    particle_double = _part[is]->getYall();
+                    for (int i = 0; i < nop; i++)
+                        particle_single[i] = static_cast<float>(particle_double[i]);
+
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+
+                    particle_double = _part[is]->getZall();
+                    for (int i = 0; i < nop; i++)
+                        particle_single[i] = static_cast<float>(particle_double[i]);
+
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
                 }
             }
         }
 
-        if (tag.find("ID", 0) != string::npos) 
+        if (contains_tag(tag, "velocity"))
         {
-            for (int i = 0; i < ns; ++i) 
+            for (int is = 0; is < ns; ++is) 
             {
+                int nop = _part[is]->getNOP();
                 stringstream ii;
-                ii << i;
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(_part[i]->getNOP()), _part[i]->getParticleIDall());
+                ii << is;
+
+                if (_col->get_output_data_precision() == "DOUBLE")
+                {
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getUall());
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getVall());
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getWall());
+                }
+                else if (_col->get_output_data_precision() == "SINGLE")
+                {
+                    particle_single.resize(nop);
+                    
+                    particle_double = _part[is]->getUall();
+                    for (int i = 0; i < nop; i++)
+                        particle_single[i] = static_cast<float>(particle_double[i]);
+
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+
+                    particle_double = _part[is]->getVall();
+                    for (int i = 0; i < nop; i++)
+                        particle_single[i] = static_cast<float>(particle_double[i]);
+
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+
+                    particle_double = _part[is]->getWall();
+                    for (int i = 0; i < nop; i++)
+                        particle_single[i] = static_cast<float>(particle_double[i]);
+
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+                }
+            }
+        }
+        
+        if (contains_tag(tag, "q"))
+        {
+            for (int is = 0; is < ns; ++is) 
+            {
+                int nop = _part[is]->getNOP();
+                stringstream ii;
+                ii << is;
+
+                if (_col->get_output_data_precision() == "DOUBLE")
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getQall());
+                
+                else if (_col->get_output_data_precision() == "SINGLE")
+                {
+                    particle_single.resize(nop);
+                    particle_double = _part[is]->getQall();
+
+                    for (int i = 0; i < nop; i++)
+                        particle_single[i] = static_cast<float>(particle_double[i]);
+
+                    this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+                }
             }
         }
 
-        //* --------------- Test Particles --------------- *//
+        if (contains_tag(tag, "ID"))
+        {
+            for (int is = 0; is < ns; ++is) 
+            {
+                int nop = _part[is]->getNOP();
+                stringstream ii;
+                ii << is;
+                this->output_adaptor.write("/particles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getParticleIDall());
+            }
+        }
+
+        //! ************************* Test Particles ************************* !//
 
         if (tag.find("testpartpos", 0) != string::npos) 
         {
@@ -1011,98 +1067,138 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 
     //! ============================================================================================================ !//
 
-    //! Downsampled Particles
+    //! ************************* Downsampled Particles ************************* !//
+
     void output_particles_DS(const string & tag, int cycle, int sample) 
     {
+        //* sample --> Particle downsampling factor
+
+        std::vector <double> X, Y, Z, U, V, W, Q;
+        std::vector <float> X_single, Y_single, Z_single, U_single, V_single, W_single, Q_single;
+
         stringstream cc;
         cc << cycle;
         const int ns = _col->getNs();
 
-        //* Downsampled Particles
-        if (tag.find("position_DS", 0) != string::npos) 
+        if (contains_tag(tag, "position_DS"))
         {
-            std::vector < double >X, Y, Z;
-            for (int i = 0; i < ns; ++i) 
+            for (int is = 0; is < ns; ++is) 
             {
+                int nop = _part[is]->getNOP();
                 stringstream ii;
-                ii << i;
-                const int num_samples = _part[i]->getNOP()/sample;
-                X.reserve(num_samples);
-                Y.reserve(num_samples);
-                Z.reserve(num_samples);
-                
-                for (int n = 0; n < _part[i]->getNOP(); n += sample) 
+                ii << is;
+                const int num_samples = nop/sample;
+
+                if (_col->get_output_data_precision() == "DOUBLE")
                 {
-                    X.push_back(_part[i]->getX(n));
-                    Y.push_back(_part[i]->getY(n));
-                    Z.push_back(_part[i]->getZ(n));
-                }
+                    X.clear(); X.reserve(num_samples);
+                    Y.clear(); Y.reserve(num_samples);
+                    Z.clear(); Z.reserve(num_samples);
+                    
+                    for (int n = 0; n < nop; n += sample) 
+                    {
+                        X.push_back(_part[is]->getX(n));
+                        Y.push_back(_part[is]->getY(n));
+                        Z.push_back(_part[is]->getZ(n));
+                    }
 
-                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(X.size()), X);
-                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(Y.size()), Y);
-                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(Z.size()), Z);
-            }
-        }
-                
-        if (tag.find("velocity_DS", 0) != string::npos) 
-        {
-            std::vector < double >U, V, W;
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-                const int num_samples = _part[i]->getNOP()/sample;
-                U.reserve(num_samples);
-                V.reserve(num_samples);
-                W.reserve(num_samples);
-                
-                for (int n = 0; n < _part[i]->getNOP(); n += sample) 
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(X.size()), X);
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(Y.size()), Y);
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(Z.size()), Z);
+                }
+                else if (_col->get_output_data_precision() == "SINGLE")
                 {
-                    U.push_back(_part[i]->getU(n));
-                    V.push_back(_part[i]->getV(n));
-                    W.push_back(_part[i]->getW(n));
+                    X_single.clear(); X_single.reserve(num_samples);
+                    Y_single.clear(); Y_single.reserve(num_samples);
+                    Z_single.clear(); Z_single.reserve(num_samples);
+                    
+                    for (int n = 0; n < nop; n += sample) 
+                    {
+                        X_single.push_back(_part[is]->getX(n));
+                        Y_single.push_back(_part[is]->getY(n));
+                        Z_single.push_back(_part[is]->getZ(n));
+                    }
+
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(X_single.size()), X_single);
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(Y_single.size()), Y_single);
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(Z_single.size()), Z_single);
                 }
+            }
+        }
                 
-                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(U.size()), U);
-                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(V.size()), V);
-                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(W.size()), W);
+        if (contains_tag(tag, "velocity_DS"))
+        {
+            for (int is = 0; is < ns; ++is) 
+            {
+                int nop = _part[is]->getNOP();
+                stringstream ii;
+                ii << is;
+                const int num_samples = nop/sample;
+
+                if (_col->get_output_data_precision() == "DOUBLE")
+                {
+                    U.clear(); U.reserve(num_samples);
+                    V.clear(); V.reserve(num_samples);
+                    W.clear(); W.reserve(num_samples);
+                    
+                    for (int n = 0; n < nop; n += sample) 
+                    {
+                        U.push_back(_part[is]->getU(n));
+                        V.push_back(_part[is]->getV(n));
+                        W.push_back(_part[is]->getW(n));
+                    }
+                    
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(U.size()), U);
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(V.size()), V);
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(W.size()), W);
+                }
+                else if (_col->get_output_data_precision() == "SINGLE")
+                {
+                    U_single.clear(); U_single.reserve(num_samples);
+                    V_single.clear(); V_single.reserve(num_samples);
+                    W_single.clear(); W_single.reserve(num_samples);
+                    
+                    for (int n = 0; n < nop; n += sample) 
+                    {
+                        U_single.push_back(_part[is]->getU(n));
+                        V_single.push_back(_part[is]->getV(n));
+                        W_single.push_back(_part[is]->getW(n));
+                    }
+                    
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(U_single.size()), U_single);
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(V_single.size()), V_single);
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(W_single.size()), W_single);
+                }
             }
         }
 
-        //* Downsampled Particles
-        if (tag.find("q_DS", 0) != string::npos) 
+        if (contains_tag(tag, "q_DS"))
         {
-            std::vector < double >Q;
-            for (int i = 0; i < ns; ++i) 
+            for (int is = 0; is < ns; ++is) 
             {
+                int nop = _part[is]->getNOP();
                 stringstream ii;
-                ii << i;
-                const int num_samples = _part[i]->getNOP()/sample;
-                Q.reserve(num_samples);
-                
-                for (int n = 0; n < _part[i]->getNOP(); n += sample)
-                    Q.push_back(_part[i]->getQ(n));
-                
-                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(Q.size()), Q);
-            }
-        }
+                ii << is;
+                const int num_samples = nop/sample;
 
-        //* Downsampled Particles
-        if (tag.find("ID_DS", 0) != string::npos) 
-        {
-            std::vector <double>ID;
-            for (int i = 0; i < ns; ++i) 
-            {
-                stringstream ii;
-                ii << i;
-                const double* pclID = _part[i]->getParticleIDall();
-                const int num_samples = _part[i]->getNOP()/sample;
-                ID.reserve(num_samples);
-
-                for (int n = 0; n < _part[i]->getNOP(); n += sample)
-                    ID.push_back(pclID[n]);
-                
-                this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(ID.size()), &ID[0]);
+                if (_col->get_output_data_precision() == "DOUBLE")
+                {
+                    Q.clear(); Q.reserve(num_samples);
+                    
+                    for (int n = 0; n < nop; n += sample)
+                        Q.push_back(_part[is]->getQ(n));
+                    
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(Q.size()), Q);
+                }
+                else if (_col->get_output_data_precision() == "SINGLE")
+                {
+                    Q_single.clear(); Q_single.reserve(num_samples);
+                    
+                    for (int n = 0; n < nop; n += sample)
+                        Q_single.push_back(static_cast<float>(_part[is]->getQ(n)));
+                    
+                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(Q_single.size()), Q_single);
+                }
             }
         }
     }
