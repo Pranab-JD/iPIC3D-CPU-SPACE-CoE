@@ -22,9 +22,14 @@ size = comm.Get_size()
 ###* =================================================================== *###
 
 ###* Argument parser
-parser = argparse.ArgumentParser(description= "Plot 2D magnetic field from iPIC3D output data")
-parser.add_argument("dir_data", type=str, help="Directory where proc.hdf files are stored, e.g., './data_reconnection/'")
+parser = argparse.ArgumentParser(description= "Plot 2D charge density from iPIC3D output data")
+
+parser.add_argument("dir_data",   type=str, help="Directory where proc.hdf files are stored, e.g., './data_reconnection/'")
 parser.add_argument("time_cycle", type=str, help="Time cycle to plot, e.g., 'cycle_100'")
+
+parser.add_argument("xlen", type=int, help="Number of MPI processes along X (must match simulation)")
+parser.add_argument("ylen", type=int, help="Number of MPI processes along Y (must match simulation)")
+parser.add_argument("zlen", type=int, help="Number of MPI processes along Z (must match simulation)")
 
 args = parser.parse_args()
 
@@ -35,7 +40,7 @@ dir_data = args.dir_data
 time_cycle = args.time_cycle
 
 ###! MPI topology (must match simulation)
-XLEN, YLEN, ZLEN = 20, 20, 1
+XLEN, YLEN, ZLEN = args.xlen, args.ylen, args.zlen
 num_expected_files = XLEN * YLEN * ZLEN
 
 ###* =================================================================== *###
