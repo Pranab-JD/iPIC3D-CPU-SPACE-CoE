@@ -719,7 +719,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 		}
 
 		//* rhos (charge density for each species, defined at nodes) is written without ghost cells
-		if (contains_tag(tag, "rhos_s"))
+		if (contains_tag(tag, "rho_s"))
         {
 			for (int is = 0; is < ns; ++is)
 			{
