@@ -45,6 +45,21 @@ num_expected_files = XLEN * YLEN * ZLEN
 
 ###* =================================================================== *###
 
+# def get_mpi_dtype(numpy_dtype):
+#     """
+#     Map NumPy dtype to corresponding MPI datatype.
+#     """
+#     if numpy_dtype == np.float64:
+#         return MPI.DOUBLE
+#     elif numpy_dtype == np.float32:
+#         return MPI.FLOAT
+#     elif numpy_dtype == np.int32:
+#         return MPI.INT
+#     elif numpy_dtype == np.int64:
+#         return MPI.LONG
+#     else:
+#         raise TypeError(f"Unsupported dtype: {numpy_dtype}")
+
 ###? Read and process data
 if rank == 0:
     print("Plotting magnetic field at ", time_cycle, " with ", size,  " MPI ranks\n")
@@ -56,8 +71,9 @@ if rank == 0:
 
 ###* Broadcast number of local grid cells
 with h5py.File(all_hdf_files[0], "r") as f:
-    sample = np.array(f["fields/Ex/" + time_cycle])
+    sample = np.array(f["fields/Bx/" + time_cycle])
     nx_local, ny_local, nz = sample.shape
+    # dtype_in_file = sample.dtype
 
 ###* Define global size
 nx_global = XLEN * nx_local
@@ -102,6 +118,8 @@ if rank == 0:
     Bx = np.zeros((nx_global, ny_global))
     By = np.zeros((nx_global, ny_global))
     Bz = np.zeros((nx_global, ny_global))
+
+# mpi_dtype = get_mpi_dtype(dtype_in_file)
 
 comm.Reduce(local_data_X, Bx, op=MPI.SUM, root=0)
 comm.Reduce(local_data_Y, By, op=MPI.SUM, root=0)

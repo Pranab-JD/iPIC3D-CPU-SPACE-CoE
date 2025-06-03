@@ -152,7 +152,7 @@ VCtopology3D::~VCtopology3D() {
 /** print topology info */
 void VCtopology3D::Print() 
 {
-    cout << "Processor topology                        = " << XLEN << "x" << YLEN << "x" << ZLEN << endl << endl;
+    cout << "Processor topology                        = " << XLEN << " x " << YLEN << " x " << ZLEN << endl << endl;
     cout << "Periodicity X: " << periods[0] << endl;
     cout << "Periodicity Y: " << periods[1] << endl;
     cout << "Periodicity Z: " << periods[2] << endl;
