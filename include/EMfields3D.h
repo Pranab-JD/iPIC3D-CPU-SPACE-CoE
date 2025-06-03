@@ -203,10 +203,8 @@ public:
     void communicateGhostP2G_ecsim(int is);
     void communicateGhostP2G_mass_matrix();
 
-    void communicateGhostP2G_Rho(int is);
-    void communicateGhostP2G_J_EF_Q_PT(int is);
-
     //* Communicate ghost cells for grid -> particles interpolation - ECSIM output only
+    void communicateGhostP2G_supplementary_moments(int is);
 
     /*! sum moments (interp_P2G) versions */
     void sumMoments(const Particles3Dcomm* part);

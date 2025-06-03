@@ -1555,54 +1555,7 @@ void Particles3D::computeMoments(Field *EMf)
 }
 
 //? Supplementary ECSIM moments (not computed at every time step; only written to files)
-void Particles3D::computeCharge(Field * EMf)
-{
-    #pragma omp parallel
-    {
-        convertParticlesToAoS();
-
-        #pragma omp for schedule(static)
-        for (int pidx = 0; pidx < getNOP(); pidx++)
-        {
-            //* Copy the particle
-		    SpeciesParticle* pcl = &_pcls[pidx];
-		    ALIGNED(pcl);
-
-            //* Copy particles' positions and velocities at the 'n^th' time step
-            const double x_n = pcl->get_x();
-            const double y_n = pcl->get_y();
-            const double z_n = pcl->get_z();
-            const double q   = pcl->get_q();
-
-            //* Compute weights for field components
-            double weights[8] ALLOC_ALIGNED;
-            int cx, cy, cz;
-            grid->get_safe_cell_and_weights(x_n, y_n, z_n, cx, cy, cz, weights);
-
-            //* --------------------------------------- *//
-
-            //* Temporary variable used to add density and current density
-            double temp[8];
-            
-            //* Index of cell of particles
-            const int ix = cx + 1;
-            const int iy = cy + 1;
-            const int iz = cz + 1;
-
-            for (int ii = 0; ii < 8; ii++)
-                temp[ii] = q * weights[ii];
-            
-            //* Add charge density  
-            EMf->add_Rho(temp, ix, iy, iz, ns);
-
-            //* Add number of particles
-            EMf->add_N(weights, ix, iy, iz, ns);
-        }
-    }
-}
-
-//? Supplementary ECSIM moments (not computed at every time step; only written to files)
-void Particles3D::computeCurrent(Field * EMf)
+void Particles3D::compute_supplementary_moments(Field * EMf)
 {
     #pragma omp parallel
     {
@@ -1652,7 +1605,12 @@ void Particles3D::computeCurrent(Field * EMf)
             const int iy = cy + 1;
             const int iz = cz + 1;
 
-            //? Add current density - X, Y, Z
+            //! Add charge density
+            for (int ii = 0; ii < 8; ii++)
+                temp[ii] = q * weights[ii];
+            EMf->add_Rho(temp, ix, iy, iz, ns);
+
+            //! Add current density - X, Y, Z
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = q * u_n/lorentz_factor * weights[ii];
             EMf->add_Jx(temp, ix, iy, iz, ns);
@@ -1665,7 +1623,7 @@ void Particles3D::computeCurrent(Field * EMf)
                 temp[ii] = q * w_n/lorentz_factor * weights[ii];
             EMf->add_Jz(temp, ix, iy, iz, ns);
 
-            //? Add pressure tensor - X, Y, Z
+            //! Add pressure tensor - X, Y, Z
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = q * u_n*u_n/lorentz_factor * weights[ii];
             EMf->add_Pxx(temp, ix, iy, iz, ns);
@@ -1690,7 +1648,7 @@ void Particles3D::computeCurrent(Field * EMf)
                 temp[ii] = q * w_n*w_n/lorentz_factor * weights[ii];
             EMf->add_Pzz(temp, ix, iy, iz, ns);
 
-            //? Add energy flux density - X, Y, Z
+            //! Add energy flux density - X, Y, Z
             for (int ii = 0; ii < 8; ii++)
                 temp[ii] = q/qom * u_n * lorentz_factor_E_flux * weights[ii];
             EMf->add_E_flux_x(temp, ix, iy, iz, ns);

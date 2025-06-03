@@ -745,28 +745,18 @@ bool c_Solver::ParticlesMover()
 
 void c_Solver::SupplementaryMoments() 
 {
-    //? Compute current, energy flux, heat flux, and pressure tensor
+    
     EMf->setZeroDensities();
 
-    //TODO: Consolidate computecurrent and computecharge
+    //TODO: Consolidate compute_supplementary_moments and computecharge
 
+    //? Compute charge, current, energy flux, heat flux, and pressure tensor
     for (int is = 0; is < ns; is++)
-        particles[is].computeCurrent(EMf);
+        particles[is].compute_supplementary_moments(EMf);
 
-    //? Compute density
-    EMf->setZeroRho();
-
-    //TODO: Is computecharge needed?
+    //? Communicate density, current, energy flux, heat flux, and pressure tensor
     for (int is = 0; is < ns; is++)
-        particles[is].computeCharge(EMf);
-  
-    //? Communicate density
-    for (int is = 0; is < ns; is++)
-        EMf->communicateGhostP2G_Rho(is);
-
-    //? Communicate current, energy flux, heat flux, and pressure tensor
-    for (int is = 0; is < ns; is++)
-        EMf->communicateGhostP2G_J_EF_Q_PT(is);
+        EMf->communicateGhostP2G_supplementary_moments(is);
 
     //? Sum over all the species (only charge and current densities)
     EMf->sumOverSpecies_supplementary();

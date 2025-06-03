@@ -2439,23 +2439,13 @@ void EMfields3D::communicateGhostP2G_mass_matrix()
 }
 
 //! Communicate ghost data for ECSIM/RelSIM (output only) moments
-void EMfields3D::communicateGhostP2G_Rho(int is)
+void EMfields3D::communicateGhostP2G_supplementary_moments(int is) 
 {
     const VirtualTopology3D *vct = &get_vct();
     int rank = vct->getCartesian_rank();
 
     communicateInterp_old(nxn, nyn, nzn, is, rhons, 0, 0, 0, 0, 0, 0, vct, this);
-    communicateInterp_old(nxn, nyn, nzn, is, Nns, 0, 0, 0, 0, 0, 0, vct, this);
-
-    communicateNode_P_old(nxn, nyn, nzn, is, rhons, vct, this);
-    communicateNode_P_old(nxn, nyn, nzn, is, Nns, vct, this);
-}
-
-void EMfields3D::communicateGhostP2G_J_EF_Q_PT(int is) 
-{
-    const VirtualTopology3D *vct = &get_vct();
-    int rank = vct->getCartesian_rank();
-
+    
     communicateInterp_old(nxn, nyn, nzn, is, Jxs,  0, 0, 0, 0, 0, 0, vct, this);
     communicateInterp_old(nxn, nyn, nzn, is, Jys,  0, 0, 0, 0, 0, 0, vct, this);
     communicateInterp_old(nxn, nyn, nzn, is, Jzs,  0, 0, 0, 0, 0, 0, vct, this);
@@ -2484,6 +2474,8 @@ void EMfields3D::communicateGhostP2G_J_EF_Q_PT(int is)
     communicateInterp_old(nxn, nyn, nzn, is, pYYsn, 0, 0, 0, 0, 0, 0, vct, this);
     communicateInterp_old(nxn, nyn, nzn, is, pYZsn, 0, 0, 0, 0, 0, 0, vct, this);
     communicateInterp_old(nxn, nyn, nzn, is, pZZsn, 0, 0, 0, 0, 0, 0, vct, this);
+
+    communicateNode_P_old(nxn, nyn, nzn, is, rhons, vct, this);
 
     communicateNode_P_old(nxn, nyn, nzn, is, Jxs, vct, this);
     communicateNode_P_old(nxn, nyn, nzn, is, Jys, vct, this);
