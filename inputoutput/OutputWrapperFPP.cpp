@@ -139,7 +139,7 @@ void OutputWrapperFPP::append_restart(int cycle, string precision)
     #ifndef NO_HDF5
         hdf5_agent.open_append(restart_file);
         output_mgr.output("proc_topology ", cycle);
-        output_mgr.output_fields("E + B + B_c + rho_s", cycle, precision); 
+        output_mgr.output_fields("E + B + B_c", cycle, precision); 
         output_mgr.output_particles("position + velocity + q", cycle, precision);
         // output_mgr.output("testpartpos + testpartvel + testpartcharge", cycle);
         output_mgr.output("last_cycle", cycle);

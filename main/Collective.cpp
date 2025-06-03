@@ -1085,21 +1085,6 @@ void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
 
         status = H5Dclose(dataset_id);
 
-        //* rho (for each species)
-        for (int is = 0; is < ns; is++) 
-        {
-            ss.str("");ss << "/moments/species_" << is << "/rho/cycle_" << lastcycle;
-            dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
-            status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, temp_storage.data());
-            status = H5Dclose(dataset_id);
-            array4_double& rhons = *rhons_;
-            k = 0;
-            for (int i = 1; i < nxn - 1; i++)
-                for (int j = 1; j < nyn - 1; j++)
-                    for (int jj = 1; jj < nzn - 1; jj++)
-                        rhons[is][i][j][jj] = temp_storage[k++];
-        }
-
         // close the hdf file
         status = H5Fclose(file_id);
     #endif
