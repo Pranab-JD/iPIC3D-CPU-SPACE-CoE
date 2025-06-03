@@ -175,9 +175,9 @@ namespace PSK {
     OutputAgentBase(void) {;} 
     OutputAgentBase(const OutputAgentBase & a) {;}
 
-    virtual void output_fields(const std::string & tag, int cycle) = 0;
-    virtual void output_particles(const std::string & tag, int cycle) = 0;
-    virtual void output_particles_DS(const std::string & tag, int cycle, int sample) = 0;
+    virtual void output_fields(const std::string & tag, int cycle, string precision) = 0;
+    virtual void output_particles(const std::string & tag, int cycle, string precision) = 0;
+    virtual void output_particles_DS(const std::string & tag, int cycle, int sample, string precision) = 0;
     virtual void output(const std::string & tag, int cycle) = 0;
     virtual void open(const std::string & outf) = 0;
     virtual void close(void) = 0;
@@ -194,9 +194,9 @@ template < class Toa > class OutputAgent:public OutputAgentBase {
     OutputAgent(const OutputAgent & a) {;}
 
     virtual void output(const std::string & tag, int cycle) = 0;
-    virtual void output_fields(const std::string & tag, int cycle) = 0;
-    virtual void output_particles(const std::string & tag, int cycle) = 0;
-    virtual void output_particles_DS(const std::string & tag, int cycle, int sample) = 0;
+    virtual void output_fields(const std::string & tag, int cycle, string precision) = 0;
+    virtual void output_particles(const std::string & tag, int cycle, string precision) = 0;
+    virtual void output_particles_DS(const std::string & tag, int cycle, int sample, string precision) = 0;
 
     void open(const std::string & outf) {
       output_adaptor.open(outf);
@@ -231,25 +231,25 @@ template < class Toa > class OutputAgent:public OutputAgentBase {
             (*p++)->output(tag, cycle);
     }
 
-    void output_fields(const std::string & tag, int cycle) 
+    void output_fields(const std::string & tag, int cycle, string precision) 
     {
         typename std::list < OutputAgentBase * >::iterator p = agents_list.begin();
         while (p != agents_list.end())
-            (*p++)->output_fields(tag, cycle);
+            (*p++)->output_fields(tag, cycle, precision);
     }
 
-    void output_particles(const std::string & tag, int cycle) 
+    void output_particles(const std::string & tag, int cycle, string precision) 
     {
         typename std::list < OutputAgentBase * >::iterator p = agents_list.begin();
         while (p != agents_list.end())
-            (*p++)->output_particles(tag, cycle);
+            (*p++)->output_particles(tag, cycle, precision);
     }
 
-    void output_particles_DS(const std::string & tag, int cycle, int sample) 
+    void output_particles_DS(const std::string & tag, int cycle, int sample, string precision) 
     {
         typename std::list < OutputAgentBase * >::iterator p = agents_list.begin();
         while (p != agents_list.end())
-            (*p++)->output_particles_DS(tag, cycle, sample);
+            (*p++)->output_particles_DS(tag, cycle, sample, precision);
     }
 
   };
@@ -373,15 +373,51 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         this->output_adaptor.write(path, PSK::Dimens(nx, ny, nz), f_array.data());
     };
 
-    void convert_to_single_precision(array3_double& input_array, float* output_array, int nx, int ny, int nz)
+    void convert_to_single_precision(array3_double& input_array, std::vector<float>& output_array, int nx, int ny, int nz)
     {
-        for (int iz = 0; iz < nz; iz++) 
-            for (int iy = 0; iy < ny; iy++) 
-                for (int ix = 0; ix < nx; ix++) 
+        const int nx_inner = nx - 2;
+        const int ny_inner = ny - 2;
+        const int nz_inner = nz - 2;
+
+        output_array.resize(static_cast<size_t>(nx_inner * ny_inner * nz_inner));
+
+        for (int i = 1; i < nx - 1; ++i)
+            for (int j = 1; j < ny - 1; ++j)
+                for (int k = 1; k < nz - 1; ++k)
                 {
-                    size_t flat_index = static_cast<size_t> (ix + nx * (iy + ny * iz));
-                    output_array[flat_index] = static_cast<float>(input_array.get(ix, iy, iz));
+                    // Flattened index in the *inner* array (not original nx/ny/nz)
+                    size_t flat_index = (i - 1) * ny_inner * nz_inner + (j - 1) * nz_inner + (k - 1);
+                    output_array[flat_index] = static_cast<float>(input_array.get(i, j, k));
                 }
+    }
+
+    void compare_double_and_single_precision(const array3_double& input_array, const std::vector<float>& output_array,
+                                            int nx, int ny, int nz, double tolerance = 1e-5)
+    {
+        int error_count = 0;
+
+        for (int iz = 0; iz < nz; iz++)
+            for (int iy = 0; iy < ny; iy++)
+                for (int ix = 0; ix < nx; ix++)
+                {
+                    size_t flat_index = static_cast<size_t>(ix + nx * (iy + ny * iz));
+                    double original_value = input_array.get(ix, iy, iz);
+                    float converted_value = output_array[flat_index];
+                    double diff = std::abs(original_value - static_cast<double>(converted_value));
+
+                    if (diff > tolerance)
+                    {
+                        std::cout << "Mismatch at (" << ix << ", " << iy << ", " << iz << "): "
+                                << "double=" << original_value << ", float=" << converted_value
+                                << ", diff=" << diff << "\n";
+                        error_count++;
+                    }
+                }
+
+        if (error_count == 0)
+            std::cout << "All values match within tolerance (" << tolerance << ")\n";
+        else
+            std::cout << "Total mismatches: " << error_count << "\n";
     }
 
     //  void set_simulation_pointers_testpart(Particles * part) {
@@ -512,7 +548,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
     //! ============================================================================================================ !//
 
     //! Moment and Field Output
-    void output_fields(const string & tag, int cycle) 
+    void output_fields(const string & tag, int cycle, string precision) 
 	{
 		stringstream ss;
 		stringstream cc;
@@ -530,50 +566,43 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         //TODO: This may be further optimised - PJD
 
         //* Temporary arrays to store fields and moments in single & double precision
-        float* temp_single = (float*)malloc(_grid->getNXN()*_grid->getNYN()*_grid->getNZN()*sizeof(float));
-        array3_double temp_double(_grid->getNXN(), _grid->getNYN(), _grid->getNZN());          
-        
-        if (_col->get_output_data_precision() == "SINGLE" && (temp_single == NULL || temp_double == NULL))
-        {
-            cout << "Memory is likely saturated!!" << endl;
-            cout << "Array allocation failed at writing field and moment data to files in single precision, Data is being DOUBLE precision" << endl;
-            cout << "Suggest reducing number of grid cells or number of particles OR increasing the number of nodes" << endl;
-        }
+        array3_double temp_double(_grid->getNXN(), _grid->getNYN(), _grid->getNZN()); 
+        vector<float> field_single ((_grid->getNXN() - 2) *  (_grid->getNYN() - 2) * (_grid->getNZN() - 2));
 
 		//* B field (defined at nodes) is written without ghost cells
         if (contains_tag(tag, "B"))
 		{
-            if (_col->get_output_data_precision() == "DOUBLE")
+            if (precision == "DOUBLE")
             {
                 this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx());
                 this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy());
                 this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBz());
             }
-            else if (_col->get_output_data_precision() == "SINGLE")
+            else if (precision == "SINGLE")
             {
                 for (int i = 0; i < _grid->getNXN(); i++)
                     for (int j = 0; j < _grid->getNYN(); j++)
                         for (int k = 0; k < _grid->getNZN(); k++)
                             temp_double.set(i, j, k, _field->getBx(i, j, k));
 
-                convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
                 for (int i = 0; i < _grid->getNXN(); i++)
                     for (int j = 0; j < _grid->getNYN(); j++)
                         for (int k = 0; k < _grid->getNZN(); k++)
                             temp_double.set(i, j, k, _field->getBy(i, j, k));
                         
-                convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
-
+                convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                
                 for (int i = 0; i < _grid->getNXN(); i++)
                     for (int j = 0; j < _grid->getNYN(); j++)
                         for (int k = 0; k < _grid->getNZN(); k++)
                             temp_double.set(i, j, k, _field->getBz(i, j, k));
                         
-                convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
             }
 		}
 
@@ -596,38 +625,38 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
     	//* E field (defined at nodes) is written without ghost cells
 		if (contains_tag(tag, "E"))
 		{
-            if (_col->get_output_data_precision() == "DOUBLE")
+            if (precision == "DOUBLE")
             {
                 //* Double precision
                 this->output_adaptor.write("/fields/Ex/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEx());
                 this->output_adaptor.write("/fields/Ey/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEy());
                 this->output_adaptor.write("/fields/Ez/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEz());
             }
-            else if (_col->get_output_data_precision() == "SINGLE")
+            else if (precision == "SINGLE")
             {
-                for (int i = 0; i < _grid->getNXN(); i++)
-                    for (int j = 0; j < _grid->getNYN(); j++)
-                        for (int k = 0; k < _grid->getNZN(); k++)
+                for (int i = 1; i < _grid->getNXN() - 1; i++)
+                    for (int j = 1; j < _grid->getNYN() - 1; j++)
+                        for (int k = 1; k < _grid->getNZN() - 1; k++)
                             temp_double.set(i, j, k, _field->getEx(i, j, k));
 
-                convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/fields/Ex/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                this->output_adaptor.write("/fields/Ex/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                for (int i = 0; i < _grid->getNXN(); i++)
-                    for (int j = 0; j < _grid->getNYN(); j++)
-                        for (int k = 0; k < _grid->getNZN(); k++)
+                for (int i = 1; i < _grid->getNXN() - 1; i++)
+                    for (int j = 1; j < _grid->getNYN() - 1; j++)
+                        for (int k = 1; k < _grid->getNZN() - 1; k++)
                             temp_double.set(i, j, k, _field->getEy(i, j, k));
                         
-                convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/fields/Ey/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                this->output_adaptor.write("/fields/Ey/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                for (int i = 0; i < _grid->getNXN(); i++)
-                    for (int j = 0; j < _grid->getNYN(); j++)
-                        for (int k = 0; k < _grid->getNZN(); k++)
+                for (int i = 1; i < _grid->getNXN() - 1; i++)
+                    for (int j = 1; j < _grid->getNYN() - 1; j++)
+                        for (int k = 1; k < _grid->getNZN() - 1; k++)
                             temp_double.set(i, j, k, _field->getEz(i, j, k));
                         
-                convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/fields/Ez/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                this->output_adaptor.write("/fields/Ez/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
             }
 		}
 
@@ -641,37 +670,37 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 		//* J (total current, defined at nodes) is written without ghost cells
 		if (contains_tag(tag, "J"))
 		{
-            if (_col->get_output_data_precision() == "DOUBLE")
+            if (precision == "DOUBLE")
             {
                 this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJx());
                 this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJy());
                 this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJz());
             }
-            else if (_col->get_output_data_precision() == "SINGLE")
+            else if (precision == "SINGLE")
             {
-                for (int i = 0; i < _grid->getNXN(); i++)
-                    for (int j = 0; j < _grid->getNYN(); j++)
-                        for (int k = 0; k < _grid->getNZN(); k++)
+                for (int i = 1; i < _grid->getNXN() - 1; i++)
+                    for (int j = 1; j < _grid->getNYN() - 1; j++)
+                        for (int k = 1; k < _grid->getNZN() - 1; k++)
                             temp_double.set(i, j, k, _field->getJx(i, j, k));
 
-                convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                for (int i = 0; i < _grid->getNXN(); i++)
-                    for (int j = 0; j < _grid->getNYN(); j++)
-                        for (int k = 0; k < _grid->getNZN(); k++)
+                for (int i = 1; i < _grid->getNXN() - 1; i++)
+                    for (int j = 1; j < _grid->getNYN() - 1; j++)
+                        for (int k = 1; k < _grid->getNZN() - 1; k++)
                             temp_double.set(i, j, k, _field->getJy(i, j, k));
                         
-                convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                for (int i = 0; i < _grid->getNXN(); i++)
-                    for (int j = 0; j < _grid->getNYN(); j++)
-                        for (int k = 0; k < _grid->getNZN(); k++)
+                for (int i = 1; i < _grid->getNXN() - 1; i++)
+                    for (int j = 1; j < _grid->getNYN() - 1; j++)
+                        for (int k = 1; k < _grid->getNZN() - 1; k++)
                             temp_double.set(i, j, k, _field->getJz(i, j, k));
                         
-                convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
             }
 		}
 
@@ -683,37 +712,37 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 				stringstream ii;
 				ii << is;
 
-                if (_col->get_output_data_precision() == "DOUBLE")
+                if (precision == "DOUBLE")
                 {
                     this->output_adaptor.write("/moments/species_" + ii.str() + "/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getJxs());
                     this->output_adaptor.write("/moments/species_" + ii.str() + "/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getJys());
                     this->output_adaptor.write("/moments/species_" + ii.str() + "/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getJzs());
                 }
-                else if (_col->get_output_data_precision() == "SINGLE")
+                else if (precision == "SINGLE")
                 {
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getJxs(i, j, k, is));
 
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getJys(i, j, k, is));
                             
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getJzs(i, j, k, is));
                             
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
                 }
 			}
 		}
@@ -726,18 +755,18 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 				stringstream ii;
 				ii << is;
 
-                if (_col->get_output_data_precision() == "DOUBLE")
+                if (precision == "DOUBLE")
 				    this->output_adaptor.write("/moments/species_" + ii.str() + "/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getRHOns());
                 
-                else if (_col->get_output_data_precision() == "SINGLE")
+                else if (precision == "SINGLE")
                 {
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getRHOns(i, j, k, is));
                             
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
                 }
 			}
         }
@@ -745,18 +774,18 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         //* rhos (overall charge density) is written without ghost cells
         if (contains_tag(tag, "rho"))
         {
-            if (_col->get_output_data_precision() == "DOUBLE")
+            if (precision == "DOUBLE")
                 this->output_adaptor.write("/moments/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getRHOn());
 
-            else if (_col->get_output_data_precision() == "SINGLE")
+            else if (precision == "SINGLE")
             {
-                for (int i = 0; i < _grid->getNXN(); i++)
-                    for (int j = 0; j < _grid->getNYN(); j++)
-                        for (int k = 0; k < _grid->getNZN(); k++)
+                for (int i = 1; i < _grid->getNXN() - 1; i++)
+                    for (int j = 1; j < _grid->getNYN() - 1; j++)
+                        for (int k = 1; k < _grid->getNZN() - 1; k++)
                             temp_double.set(i, j, k, _field->getRHOn(i, j, k));
                         
-                convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/moments/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                this->output_adaptor.write("/moments/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
             }
         }
 
@@ -768,7 +797,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 				stringstream ii;
 				ii << is;
 
-                if (_col->get_output_data_precision() == "DOUBLE")
+                if (precision == "DOUBLE")
                 {
                     this->output_adaptor.write("/moments/species_" + ii.str() + "/pXX/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getpXXsn());
                     this->output_adaptor.write("/moments/species_" + ii.str() + "/pXY/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getpXYsn());
@@ -777,55 +806,55 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                     this->output_adaptor.write("/moments/species_" + ii.str() + "/pYZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getpYZsn());
                     this->output_adaptor.write("/moments/species_" + ii.str() + "/pZZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getpZZsn());
                 }
-                else if (_col->get_output_data_precision() == "SINGLE")
+                else if (precision == "SINGLE")
                 {
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getpXXsn(i, j, k, is));
 
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXX/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXX/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getpXYsn(i, j, k, is));
                             
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXY/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXY/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getpXZsn(i, j, k, is));
                             
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getpYYsn(i, j, k, is));
 
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pYY/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pYY/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getpYZsn(i, j, k, is));
                             
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pYZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pYZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getpZZsn(i, j, k, is));
                             
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pZZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pZZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
                 }
 			}
 		}
@@ -838,37 +867,37 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 				stringstream ii;
 				ii << is;
 
-                if (_col->get_output_data_precision() == "DOUBLE")
+                if (precision == "DOUBLE")
                 {
                     this->output_adaptor.write("/moments/species_" + ii.str() + "/EFx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getEFxs());
                     this->output_adaptor.write("/moments/species_" + ii.str() + "/EFy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getEFys());
                     this->output_adaptor.write("/moments/species_" + ii.str() + "/EFz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getEFzs());
                 }
-                else if (_col->get_output_data_precision() == "SINGLE")
+                else if (precision == "SINGLE")
                 {
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getEFxs(i, j, k, is));
 
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getEFys(i, j, k, is));
                             
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
 
-                    for (int i = 0; i < _grid->getNXN(); i++)
-                        for (int j = 0; j < _grid->getNYN(); j++)
-                            for (int k = 0; k < _grid->getNZN(); k++)
+                    for (int i = 1; i < _grid->getNXN() - 1; i++)
+                        for (int j = 1; j < _grid->getNYN() - 1; j++)
+                            for (int k = 1; k < _grid->getNZN() - 1; k++)
                                 temp_double.set(i, j, k, _field->getEFzs(i, j, k, is));
                             
-                    convert_to_single_precision(temp_double, temp_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), temp_single);
+                    convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
                 }
             }
         }
@@ -948,7 +977,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 
     //! ************************* Particles ************************* !//
 
-    void output_particles(const string & tag, int cycle) 
+    void output_particles(const string & tag, int cycle, string precision) 
     {
         stringstream cc;
         cc << cycle;
@@ -962,18 +991,18 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         {
             for (int is = 0; is < ns; ++is) 
             {
-                int nop = _part[is]->getNOP();
+                long long nop = _part[is]->getNOP();
                 
                 stringstream ii;
                 ii << is;
 
-                if (_col->get_output_data_precision() == "DOUBLE")
+                if (precision == "DOUBLE")
                 {
                     this->output_adaptor.write("/particles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getXall());
                     this->output_adaptor.write("/particles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getYall());
                     this->output_adaptor.write("/particles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getZall());
                 }
-                else if (_col->get_output_data_precision() == "SINGLE")
+                else if (precision == "SINGLE")
                 {
                     particle_single.resize(nop);
                     
@@ -1002,17 +1031,17 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         {
             for (int is = 0; is < ns; ++is) 
             {
-                int nop = _part[is]->getNOP();
+                long long nop = _part[is]->getNOP();
                 stringstream ii;
                 ii << is;
 
-                if (_col->get_output_data_precision() == "DOUBLE")
+                if (precision == "DOUBLE")
                 {
                     this->output_adaptor.write("/particles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getUall());
                     this->output_adaptor.write("/particles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getVall());
                     this->output_adaptor.write("/particles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getWall());
                 }
-                else if (_col->get_output_data_precision() == "SINGLE")
+                else if (precision == "SINGLE")
                 {
                     particle_single.resize(nop);
                     
@@ -1041,14 +1070,14 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         {
             for (int is = 0; is < ns; ++is) 
             {
-                int nop = _part[is]->getNOP();
+                long long nop = _part[is]->getNOP();
                 stringstream ii;
                 ii << is;
 
-                if (_col->get_output_data_precision() == "DOUBLE")
+                if (precision == "DOUBLE")
                     this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getQall());
                 
-                else if (_col->get_output_data_precision() == "SINGLE")
+                else if (precision == "SINGLE")
                 {
                     particle_single.resize(nop);
                     particle_double = _part[is]->getQall();
@@ -1065,7 +1094,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         {
             for (int is = 0; is < ns; ++is) 
             {
-                int nop = _part[is]->getNOP();
+                long long nop = _part[is]->getNOP();
                 stringstream ii;
                 ii << is;
                 this->output_adaptor.write("/particles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getParticleIDall());
@@ -1123,7 +1152,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 
     //! ************************* Downsampled Particles ************************* !//
 
-    void output_particles_DS(const string & tag, int cycle, int sample) 
+    void output_particles_DS(const string & tag, int cycle, int sample, string precision) 
     {
         //* sample --> Particle downsampling factor
 
@@ -1138,12 +1167,12 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         {
             for (int is = 0; is < ns; ++is) 
             {
-                int nop = _part[is]->getNOP();
+                long long nop = _part[is]->getNOP();
                 stringstream ii;
                 ii << is;
                 const int num_samples = nop/sample;
 
-                if (_col->get_output_data_precision() == "DOUBLE")
+                if (precision == "DOUBLE")
                 {
                     X.clear(); X.reserve(num_samples);
                     Y.clear(); Y.reserve(num_samples);
@@ -1160,7 +1189,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                     this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(Y.size()), Y);
                     this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(Z.size()), Z);
                 }
-                else if (_col->get_output_data_precision() == "SINGLE")
+                else if (precision == "SINGLE")
                 {
                     X_single.clear(); X_single.reserve(num_samples);
                     Y_single.clear(); Y_single.reserve(num_samples);
@@ -1184,12 +1213,12 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         {
             for (int is = 0; is < ns; ++is) 
             {
-                int nop = _part[is]->getNOP();
+                long long nop = _part[is]->getNOP();
                 stringstream ii;
                 ii << is;
                 const int num_samples = nop/sample;
 
-                if (_col->get_output_data_precision() == "DOUBLE")
+                if (precision == "DOUBLE")
                 {
                     U.clear(); U.reserve(num_samples);
                     V.clear(); V.reserve(num_samples);
@@ -1206,7 +1235,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                     this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(V.size()), V);
                     this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(W.size()), W);
                 }
-                else if (_col->get_output_data_precision() == "SINGLE")
+                else if (precision == "SINGLE")
                 {
                     U_single.clear(); U_single.reserve(num_samples);
                     V_single.clear(); V_single.reserve(num_samples);
@@ -1230,12 +1259,12 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         {
             for (int is = 0; is < ns; ++is) 
             {
-                int nop = _part[is]->getNOP();
+                long long nop = _part[is]->getNOP();
                 stringstream ii;
                 ii << is;
                 const int num_samples = nop/sample;
 
-                if (_col->get_output_data_precision() == "DOUBLE")
+                if (precision == "DOUBLE")
                 {
                     Q.clear(); Q.reserve(num_samples);
                     
@@ -1244,7 +1273,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                     
                     this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(Q.size()), Q);
                 }
-                else if (_col->get_output_data_precision() == "SINGLE")
+                else if (precision == "SINGLE")
                 {
                     Q_single.clear(); Q_single.reserve(num_samples);
                     

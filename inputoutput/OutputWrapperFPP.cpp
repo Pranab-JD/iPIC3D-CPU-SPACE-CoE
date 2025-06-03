@@ -104,43 +104,43 @@ void OutputWrapperFPP::init_output_files(Collective *col, VCtopology3D *vct, Gri
 }
 
 //* Particles + Fields + Moments
-void OutputWrapperFPP::append_output_fields(const char* tag, int cycle)
+void OutputWrapperFPP::append_output_fields(const char* tag, int cycle, string precision)
 {
     #ifndef NO_HDF5
         hdf5_agent.open_append(output_file);
-        output_mgr.output_fields(tag, cycle);
+        output_mgr.output_fields(tag, cycle, precision);
         hdf5_agent.close();
     #endif
 }
 
 //* Particles + Fields + Moments
-void OutputWrapperFPP::append_output_particles(const char* tag, int cycle)
+void OutputWrapperFPP::append_output_particles(const char* tag, int cycle, string precision)
 {
     #ifndef NO_HDF5
         hdf5_agent.open_append(output_file);
-        output_mgr.output_particles(tag, cycle);
+        output_mgr.output_particles(tag, cycle, precision);
         hdf5_agent.close();
     #endif
 }
 
 //* Downsampled Particles
-void OutputWrapperFPP::append_particles_DS(const char* tag, int cycle, int sample)
+void OutputWrapperFPP::append_particles_DS(const char* tag, int cycle, int sample, string precision)
 {
     #ifndef NO_HDF5
         hdf5_agent.open_append(output_file);
-        output_mgr.output_particles_DS(tag, cycle, sample);
+        output_mgr.output_particles_DS(tag, cycle, sample, precision);
         hdf5_agent.close();
     #endif
 }
 
 //* Restart data
-void OutputWrapperFPP::append_restart(int cycle)
+void OutputWrapperFPP::append_restart(int cycle, string precision)
 {
     #ifndef NO_HDF5
         hdf5_agent.open_append(restart_file);
         output_mgr.output("proc_topology ", cycle);
-        output_mgr.output_fields("E + B + B_c + rho_s", cycle); 
-        output_mgr.output_particles("position + velocity + q", cycle);
+        output_mgr.output_fields("E + B + B_c + rho_s", cycle, precision); 
+        output_mgr.output_particles("position + velocity + q", cycle, precision);
         // output_mgr.output("testpartpos + testpartvel + testpartcharge", cycle);
         output_mgr.output("last_cycle", cycle);
         hdf5_agent.close();

@@ -1120,11 +1120,11 @@ void c_Solver::WriteFields(int cycle)
 
         //* Fields
         if(!(col->getFieldOutputTag()).empty())
-            fetch_outputWrapperFPP().append_output_fields((col->getFieldOutputTag()).c_str(), cycle);      
+            fetch_outputWrapperFPP().append_output_fields((col->getFieldOutputTag()).c_str(), cycle, col->get_output_data_precision());      
         
         //* Moments
         if(!(col->getMomentsOutputTag()).empty())
-            fetch_outputWrapperFPP().append_output_fields((col->getMomentsOutputTag()).c_str(), cycle);
+            fetch_outputWrapperFPP().append_output_fields((col->getMomentsOutputTag()).c_str(), cycle, col->get_output_data_precision());
     #endif
 }
 
@@ -1139,7 +1139,7 @@ void c_Solver::WriteParticles(int cycle)
         //* This is crucial
         convertParticlesToSynched();
 
-        fetch_outputWrapperFPP().append_output_particles((col->getPclOutputTag()).c_str(), cycle); //* "position + velocity + q "
+        fetch_outputWrapperFPP().append_output_particles((col->getPclOutputTag()).c_str(), cycle, col->get_output_data_precision()); //* "position + velocity + q "
     #endif
 }
 
@@ -1154,7 +1154,7 @@ void c_Solver::WriteDSParticles(int cycle)
         //* This is crucial
         convertParticlesToSynched();
 
-        fetch_outputWrapperFPP().append_particles_DS((col->getPclDSOutputTag()).c_str(), cycle, col->getParticlesDownsampleFactor());
+        fetch_outputWrapperFPP().append_particles_DS((col->getPclDSOutputTag()).c_str(), cycle, col->getParticlesDownsampleFactor(), col->get_output_data_precision());
     #endif
 }
 
@@ -1166,7 +1166,7 @@ void c_Solver::WriteTestParticles(int cycle)
         //* This is crucial
         convertParticlesToSynched();
 
-        fetch_outputWrapperFPP().append_output_particles("testpartpos + testpartvel+ testparttag", cycle); // + testpartcharge
+        fetch_outputWrapperFPP().append_output_particles("testpartpos + testpartvel+ testparttag", cycle, col->get_output_data_precision()); // + testpartcharge
     #endif
 }
 
@@ -1181,7 +1181,8 @@ void c_Solver::WriteRestart(int cycle)
         //* This is crucial
         convertParticlesToSynched();
 
-        fetch_outputWrapperFPP().append_restart(cycle);
+        fetch_outputWrapperFPP().append_restart(cycle, "DOUBLE");
+
     }
     #endif
 }
@@ -1195,7 +1196,7 @@ void c_Solver::Finalize()
     {
         #ifndef NO_HDF5
             convertParticlesToSynched();
-            fetch_outputWrapperFPP().append_restart((col->getNcycles() + first_cycle));
+            fetch_outputWrapperFPP().append_restart((col->getNcycles() + first_cycle), "DOUBLE");
         #endif
     }
 

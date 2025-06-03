@@ -47,17 +47,17 @@ class OutputWrapperFPP
         string RestartDirName;
         string output_file;
         string restart_file;
-    
+
     public:
     
     void init_output_files( Collective *col, VCtopology3D *vct, Grid3DCU *grid,
                             EMfields3D *EMf, Particles3D *part, int ns,
                             Particles3D *testpart, int nstestpart);
   
-    void append_output_fields(const char* tag, int cycle);
-    void append_output_particles(const char* tag, int cycle);
-    void append_particles_DS(const char* tag, int cycle, int sample);
-    void append_restart(int cycle);
+    void append_output_fields(const char* tag, int cycle, string precision);
+    void append_output_particles(const char* tag, int cycle, string precision);
+    void append_particles_DS(const char* tag, int cycle, int sample, string precision);
+    void append_restart(int cycle, string precision);
 };
 
 #endif // OutputWrapperFPP_h
