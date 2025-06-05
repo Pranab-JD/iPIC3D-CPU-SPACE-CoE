@@ -745,10 +745,7 @@ bool c_Solver::ParticlesMover()
 
 void c_Solver::SupplementaryMoments() 
 {
-    
     EMf->setZeroDensities();
-
-    //TODO: Consolidate compute_supplementary_moments and computecharge
 
     //? Compute charge, current, energy flux, heat flux, and pressure tensor
     for (int is = 0; is < ns; is++)
@@ -862,7 +859,7 @@ void c_Solver::WriteOutput(int cycle)
 
 			if (col->getWriteMethod() == "H5hut")
             {
-			    if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
+			    if (!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
                 {
                     if (vct->getCartesian_rank() == 0)
                         cout << endl << "Writing FIELDS and MOMENTS at cycle " << cycle << endl;
@@ -870,7 +867,7 @@ void c_Solver::WriteOutput(int cycle)
 				    WriteFieldsH5hut(ns, grid, EMf, col, vct, cycle, col->getFieldOutputTag());
                 }
 
-			    if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
+			    if (!col->particle_output_is_off() && (cycle%(col->getParticlesOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
                 {
                     if (vct->getCartesian_rank() == 0)
                         cout << endl << "Writing PARTICLES at cycle " << cycle << endl;
@@ -878,7 +875,7 @@ void c_Solver::WriteOutput(int cycle)
 				    WriteParticlesH5hut(ns, grid, particles, col, vct, cycle);
                 }
 
-                if (!col->DS_particle_output_is_off() && cycle%(col->getParticlesDownsampleOutputCycle())==0 && col->getParticlesDownsampleFactor() > 1) 
+                if (!col->DS_particle_output_is_off() && col->getParticlesDownsampleFactor() > 1 && (cycle%(col->getParticlesDownsampleOutputCycle()) == 0 || cycle == first_cycle + 1  || cycle == col->getNcycles()))
                 {
                     if (vct->getCartesian_rank() == 0)
                         cout << endl << "Writing DOWNSAMPLED PARTICLES at cycle " << cycle << endl;
@@ -901,16 +898,13 @@ void c_Solver::WriteOutput(int cycle)
             else if (col->getWriteMethod() == "shdf5")
             {
                 //! Serial HDF5
-                if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
+                if (!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
                     WriteFields(cycle);
 
-                if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
-                {
+                if (!col->particle_output_is_off() && (cycle%(col->getParticlesOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
                     WriteParticles(cycle);
-                    // WriteTestParticles(cycle);
-                }
 
-                if (!col->DS_particle_output_is_off() && cycle%(col->getParticlesDownsampleOutputCycle())==0 && col->getParticlesDownsampleFactor() > 1)
+                if (!col->DS_particle_output_is_off() && col->getParticlesDownsampleFactor() > 1 && (cycle%(col->getParticlesDownsampleOutputCycle()) == 0 || cycle == first_cycle + 1  || cycle == col->getNcycles()))
                     WriteDSParticles(cycle);
 			}
             else
@@ -1103,7 +1097,7 @@ void c_Solver::WriteVirtualSatelliteTraces()
 void c_Solver::WriteFields(int cycle) 
 {
     #ifndef NO_HDF5
-        if(col->field_output_is_off() || cycle%(col->getFieldOutputCycle())!=0) return;
+        if(col->field_output_is_off()) return;
 
         if (vct->getCartesian_rank() == 0)
             cout << endl << "Writing FIELD data at cycle " << cycle << endl;
@@ -1121,7 +1115,7 @@ void c_Solver::WriteFields(int cycle)
 void c_Solver::WriteParticles(int cycle)
 {
     #ifndef NO_HDF5
-        if(col->particle_output_is_off() || cycle%(col->getParticlesOutputCycle())!=0) return;
+        if(col->particle_output_is_off()) return;
 
         if (vct->getCartesian_rank() == 0)
             cout << endl << "Writing PARTICLE data at cycle " << cycle << endl;
