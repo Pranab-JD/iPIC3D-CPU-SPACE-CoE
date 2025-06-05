@@ -336,6 +336,206 @@ void Particles3D::maxwellianDoubleHarris(Field * EMf)
     fixPosition();
 }
 
+//? Kelvin--Helmholtz Instability (Finite Larmor Radius (FLR); Cerri 2013, https://doi.org/10.1063/1.4828981)
+void Particles3D::initmaxwellian_KHI_FLR(Field* EMf)
+{
+    double harvest, prob, theta, dx = grid->getDX(),dy = grid->getDY();
+  
+    //* Initialisation shear flow
+    double udrift;                                              //* X velocity drift (identical for electrons and ions)
+    const double Vshear = u0;
+
+    //* Initial incompressibe velocity perturbation on the first modes
+    double amp_pert = v0;
+    double kx_pert;
+    double TwoPI =8*atan(1.0);
+    kx_pert = TwoPI/Lx;
+    double u_pert;
+    double v_pert;
+    int nbpert = 5;                                             //* Number of initial perturbation modes
+    double*** phase = newArr3(double,nbpert,2,1);
+    double fy_pert;
+    double dyfy_pert;
+
+    //* Needed for FLR corrections:
+    double B0x = col->getB0x();
+    double B0y = col->getB0y();
+    double B0z = col->getB0z();
+    double B0  = sqrt(B0x*B0x+B0y*B0y+B0z*B0z);                 //* Magnetic field amplitude
+    int nspecies = col->getNs();                                //* Number of particle species
+  
+    //* Custom input parameters for FLR corrections
+    const double gamma_electrons        = input_param[0];       //* Gamma for  isothermal electrons
+    const double gamma_ions_perp        = input_param[1];       //* Gamma (perpendicular) for ions 
+    const double gamma_ions_parallel    = input_param[2];       //* Gamma (parallel) for ions 
+    const double s3                     = input_param[3];       //* +/-1 (Here -1 : Ux(y) or 1 : Uy(x))
+    const double delta                  = input_param[3];       //* Thickness of shear layer
+
+    const double Omega_ci               = B0;                   //* Cf. normalisation qom = 1 for ions
+
+    //* For FLR corrections
+    double power;
+    double gammabar;
+    double betae0, betae0bar;
+    double betaiperp0, betaiperp0bar;
+    double C0, Cinf;
+    double vthperp, vthpar, vthx, vthy;
+    double ypos,ay,finf;                                        //* Used for centers
+  
+    double Vthi = col->getUth(0);                               //* Ion thermal velocity (supposed isotropic far from velocity shear layer)
+    double qomi = col->getQOM(0);                               //* Ion charge to mass ratio
+    double Vthe = col->getUth(1);                               //* Electron thermal velocity (supposed isotropic far from velocity shear layer)
+    double qome = col->getQOM(1);                               //* Electron charge to mass ratio
+
+    double TeTi = -qomi/qome * (Vthe/Vthi) * (Vthe/Vthi);       //* Electron to ion temperature ratio (computed from input file parameters)
+    double beta = 2.0*(Vthi/B0)*(Vthi/B0);                      //* Ion plasma beta from input file parameters; NOTE: ICI beta = beta_i
+  
+    gammabar        = gamma_electrons/gamma_ions_perp - 1.0;
+    betaiperp0      = beta;
+    betae0          = TeTi*betaiperp0;
+    betae0bar       = betae0 / (1.0 + betae0 + betaiperp0);
+    betaiperp0bar   = betaiperp0 / (1.0 + betae0 + betaiperp0);
+    C0              = 0.5*s3*betaiperp0bar*Vshear/(Omega_ci*delta);
+    Cinf            = C0/(1.0 + gammabar*betae0bar);
+
+    if (vct->getCartesian_rank() == 0)
+    {
+        cout << "----------------------------------------------------------------------" << endl;
+        cout << "    Initialising particles for velocity shear (with FLR correction)   " << endl;
+        cout << "----------------------------------------------------------------------" << endl;
+        cout << " Thickness of velocity shear (delta)   = " << delta  << endl;
+        cout << " Velocity shear                        = " << Vshear << endl;
+        cout << " Electron thermal velocity             = " << Vthe   << endl;
+        cout << " Ion thermal velocity                  = " << Vthi   << endl;
+        cout << " Temperature ratio Te/Ti               = " << TeTi   << endl;
+        cout << " Ion plasma beta                       = " << beta   << endl << endl;
+        cout << " No initial mean velocity perturbation: test effect SVP " << endl;
+        cout << "----------------------------------------------------------------------" << endl << endl;
+    }
+  
+    long long counter=0;
+    
+    //* Initialise random generator with different seed on different processor
+    srand (vct->getCartesian_rank()+1+ns);
+
+    //* Initialise phase for initial random noise
+    for (int iipert=0; iipert < 2; iipert++)
+        for (int ipert=0; ipert < nbpert; ipert++)
+            phase[ipert][iipert][0] = 2.0*M_PI*(0.5*ipert/nbpert+0.5*iipert);
+
+    //* Constant factor (to be multiplied to charge)
+    const double q_factor = (qom / fabs(qom)) * grid->getVOL() / npcel;
+
+    // for (int i = 1; i < grid->getNXC() - 1; i++)
+    //     for (int j = 1; j < grid->getNYC() - 1; j++)
+    //         for (int k = 1; k < grid->getNZC() - 1; k++)
+    //         {
+    //             const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
+
+    //             for (int ii = 0; ii < npcelx; ii++)
+    //                 for (int jj = 0; jj < npcely; jj++)
+    //                     for (int kk = 0; kk < npcelz; kk++)
+    //                     {
+
+    //                         //* For ion FLR corrections:
+    //                         ypos = grid->getYC(i,j,k);  //--- y-position on centers
+    //                         ay = 1.0/pow((cosh((ypos -0.25*Ly)/delta)),2.0) - 1.0/pow((cosh((ypos-0.75*Ly)/delta)),2.0);
+    //                         finf = 1.0/(1.0 - Cinf*ay);
+
+    //                         const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+    //                         const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+    //                         const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+                            
+    //                         //? Thermal velocity (should be isotropic in input!!!)
+    //                         if (qom < 0) 
+    //                         {   
+    //                             //! Electrons
+    //                             vthx = uth;
+    //                             vthy = uth;
+    //                             vthpar = uth;
+    //                         }
+    //                         else 
+    //                         { 
+    //                             //! Ions
+    //                             power = (gamma_ions_perp-1.0)/(2.0*gamma_ions_perp);
+    //                             vthperp = uth*pow( finf, power );
+    //                             vthx = vthperp*sqrt(1.0+s3*0.5*Vshear/(Omega_ci*delta)*ay);     //--- ion FLR along x
+    //                             vthy = vthperp*sqrt(1.0-s3*0.5*Vshear/(Omega_ci*delta)*ay);     //--- ion FLR along y
+    //                             power = (gamma_ions_parallel-1.0)/(2.0*gamma_ions_perp); 
+    //                             vthpar  = uth*pow( finf, power ); //--- FLR along z
+    //                         }
+                            
+    //                         double u = c, v = c, w = c;
+
+    //                         u[counter] = c;
+    //                         v[counter] = c;
+    //                         w[counter] = c;
+    //                         while ((fabs(u)>=c) | (fabs(v)>=c) | (fabs(w)>=c))
+    //                         {
+    //                             harvest =   rand()/(double)RAND_MAX;
+    //                             prob  = sqrt(-2.0*log(1.0-.999999*harvest));
+    //                             harvest =   rand()/(double)RAND_MAX;
+    //                             theta = 2.0*M_PI*harvest;
+    //                             //--- u
+    //                             u[counter] = vthx*prob*cos(theta);
+    //                             //--- v
+    //                             v[counter] = vthy*prob*sin(theta);
+    //                             //--- w
+    //                             harvest =   rand()/(double)RAND_MAX;
+    //                             prob  = sqrt(-2.0*log(1.0-.999999*harvest));
+    //                             harvest =   rand()/(double)RAND_MAX;
+    //                             theta = 2.0*M_PI*harvest;
+    //                             w[counter] = vthpar*prob*cos(theta);
+
+    //                             sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
+    //                         }
+              
+    //                         // add drift velocity
+    //                         // udrift = Vshear*(tanh((y[counter] - Ly/2)/delta));
+    //                         udrift = Vshear*(tanh((y[counter]-0.25*Ly)/delta) - tanh((y[counter]-0.75*Ly)/delta)-1.0);
+    //                         u[counter] += udrift;
+
+    //                         // add initial perturbation on velocity
+    //                         // perturbation for y=yL/4
+    //                         u_pert = 0.0;
+    //                         v_pert = 0.0;
+    //                         for (int ipert=1; ipert < (nbpert+1); ipert++)
+    //                         {
+    //                             u_pert += cos(ipert*kx_pert*x[counter]+phase[ipert-1][0][0]);
+    //                             v_pert += (ipert*kx_pert)*sin(ipert*kx_pert*x[counter]+phase[ipert-1][0][0]);
+    //                         }
+    //                         fy_pert = amp_pert * exp( - (y[counter]-0.25*Ly)*(y[counter]-0.25*Ly) / (delta*delta) );
+    //                         dyfy_pert = -2.0*(y[counter]-0.25*Ly)/(delta*delta)*fy_pert;
+    //                         u[counter] += dyfy_pert*u_pert;
+    //                         v[counter] += fy_pert*v_pert;
+                            
+    //                         // perturbation for y=yL*3/4
+    //                         u_pert = 0.0;
+    //                         v_pert = 0.0;
+    //                         for (int ipert=1; ipert < (nbpert+1); ipert++)
+    //                         {
+    //                             u_pert += cos(ipert*kx_pert*x[counter]+phase[ipert-1][1][0]);
+    //                             v_pert += (ipert*kx_pert)*sin(ipert*kx_pert*x[counter]+phase[ipert-1][1][0]);
+    //                         }
+    //                         fy_pert   = amp_pert * exp( - ( y[counter]-0.75*Ly)*(y[counter]-0.75*Ly) / (delta*delta) );
+    //                         dyfy_pert = -2.0*(y[counter]-0.75*Ly)/(delta*delta)*fy_pert;
+    //                         u[counter] += dyfy_pert*u_pert;
+    //                         v[counter] += fy_pert*v_pert;
+
+    //                     if (u[counter] != u[counter]) 
+    //                     {
+    //                         //if (vct->getCartesian_rank() == 0) 
+    //                         cout << u[counter] << " " << Vshear << " " << vthx*prob*cos(theta) << endl;
+    //                         MPI_Abort(MPI_COMM_WORLD, -1); 
+    //                     }
+
+    //           counter++ ;
+    //         }
+
+    // delArr3(phase,nbpert,2);
+    // nop=counter;
+}
+
 /** pitch_angle_energy initialization (Assume B on z only) for test particles */
 void Particles3D::pitch_angle_energy(Field * EMf) 
 {
