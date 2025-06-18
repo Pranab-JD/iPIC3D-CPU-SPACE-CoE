@@ -1282,6 +1282,37 @@ void Particles3D::RelSIM_velocity(Field *EMf)
                 const double v_prime = v_n + eps_y;
                 const double w_prime = w_n + eps_z;
 
+                //* Polynomial coefficients
+                double u_dot_eps  = u_prime*eps_x + v_prime*eps_y + w_prime*eps_z;
+                double beta_dot_e = beta_x*eps_x + beta_y*eps_y + beta_z*eps_z;
+                double u_dot_beta = u_prime*beta_x + v_prime*beta_y + w_prime*beta_z;
+                
+                double u_cross_beta_x =  v_prime*beta_z - w_prime*beta_y;
+                double v_cross_beta_y = -u_prime*beta_z + w_prime*beta_x;
+                double w_cross_beta_z =  u_prime*beta_y - v_prime*beta_x;
+                
+                double aa = u_dot_eps - B_squared;
+                double bb = u_cross_beta_x*eps_x + v_cross_beta_y*eps_y + w_cross_beta_z*eps_z + lorentz_factor_old*B_squared;
+                double cc = u_dot_beta*beta_dot_e;
+
+                //* Solution coefficients
+                double AA = 2.*aa/3.+lorentz_factor_old*lorentz_factor_old/4.;
+                double BB = 4.*aa*lorentz_factor_old+8.*bb+lorentz_factor_old*lorentz_factor_old*lorentz_factor_old;
+                double DD = aa*aa-3.*bb*lorentz_factor_old-12.*cc;
+                double FF = -2.*aa*aa*aa+9.*aa*bb*lorentz_factor_old-72.*aa*cc+27.*bb*bb-27.*cc*lorentz_factor_old*lorentz_factor_old;
+                std::complex<double> GG = FF*FF-4.*DD*DD*DD;
+                std::complex<double> EE;
+                if (std::real((FF+sqrt(GG))/2.)<0.) EE = -pow(-(FF+sqrt(GG))/2.,1./3.);
+                else EE = pow((FF+sqrt(GG))/2.,1./3.);
+                std::complex<double> CC = DD/(EE+1.e-20)/3.+EE/3.;
+                
+                //* Solution
+                std::complex<double> lorentz_factor_bar_complex = lorentz_factor_old/4.+sqrt(2.*AA+BB/4./sqrt(AA+CC+1.e-20)-CC)/2.+sqrt(AA+CC)/2.;
+                lorentz_factor_bar = (double) std::real(lorentz_factor_bar_complex);
+
+                u_bar = (u_prime + (u_prime*beta_x + v_prime*beta_y + w_prime*beta_z)*beta_x/(lorentz_factor_bar*lorentz_factor_bar) + ( v_prime*beta_z - w_prime*beta_y)/lorentz_factor_bar)/(1.0 + B_squared/lorentz_factor_bar/lorentz_factor_bar);
+                v_bar = (v_prime + (u_prime*beta_x + v_prime*beta_y + w_prime*beta_z)*beta_y/(lorentz_factor_bar*lorentz_factor_bar) + (-u_prime*beta_z + w_prime*beta_x)/lorentz_factor_bar)/(1.0 + B_squared/lorentz_factor_bar/lorentz_factor_bar);
+                w_bar = (w_prime + (u_prime*beta_x + v_prime*beta_y + w_prime*beta_z)*beta_z/(lorentz_factor_bar*lorentz_factor_bar) + ( u_prime*beta_y - v_prime*beta_x)/lorentz_factor_bar)/(1.0 + B_squared/lorentz_factor_bar/lorentz_factor_bar);
 
                 //* New velocities at the (n+1)^th time step
                 uavg = 2.0 * u_bar - u_old;
@@ -1624,6 +1655,34 @@ void Particles3D::computeMoments(Field *EMf)
                     const double u_prime = u_n + eps_x;
                     const double v_prime = v_n + eps_y;
                     const double w_prime = w_n + eps_z;
+
+                    //* Polynomial coefficients
+                    double u_dot_eps  = u_prime*eps_x + v_prime*eps_y + w_prime*eps_z;
+                    double beta_dot_e = beta_x*eps_x + beta_y*eps_y + beta_z*eps_z;
+                    double u_dot_beta = u_prime*beta_x + v_prime*beta_y + w_prime*beta_z;
+                    
+                    double u_cross_beta_x =  v_prime*beta_z - w_prime*beta_y;
+                    double v_cross_beta_y = -u_prime*beta_z + w_prime*beta_x;
+                    double w_cross_beta_z =  u_prime*beta_y - v_prime*beta_x;
+                    
+                    double aa = u_dot_eps - B_squared;
+                    double bb = u_cross_beta_x*eps_x + v_cross_beta_y*eps_y + w_cross_beta_z*eps_z + lorentz_factor_old*B_squared;
+                    double cc = u_dot_beta*beta_dot_e;
+
+                    //* Solution coefficients
+                    double AA = 2.*aa/3.+lorentz_factor_old*lorentz_factor_old/4.;
+                    double BB = 4.*aa*lorentz_factor_old+8.*bb+lorentz_factor_old*lorentz_factor_old*lorentz_factor_old;
+                    double DD = aa*aa-3.*bb*lorentz_factor_old-12.*cc;
+                    double FF = -2.*aa*aa*aa+9.*aa*bb*lorentz_factor_old-72.*aa*cc+27.*bb*bb-27.*cc*lorentz_factor_old*lorentz_factor_old;
+                    std::complex<double> GG = FF*FF-4.*DD*DD*DD;
+                    std::complex<double> EE;
+                    if (std::real((FF+sqrt(GG))/2.)<0.) EE = -pow(-(FF+sqrt(GG))/2.,1./3.);
+                    else EE = pow((FF+sqrt(GG))/2.,1./3.);
+                    std::complex<double> CC = DD/(EE+1.e-20)/3.+EE/3.;
+                    
+                    //* Solution
+                    std::complex<double> lorentz_factor_bar_complex = lorentz_factor_old/4.+sqrt(2.*AA+BB/4./sqrt(AA+CC+1.e-20)-CC)/2.+sqrt(AA+CC)/2.;
+                    lorentz_factor = (double) std::real(lorentz_factor_bar_complex);
                 }
                 else
                 {
