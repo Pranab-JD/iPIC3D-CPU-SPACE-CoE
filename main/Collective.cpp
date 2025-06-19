@@ -149,7 +149,7 @@ void Collective::ReadInput(string inputfile)
         AddExternalCurlE            = config.read<bool>     ("AddExternalCurlE", false);
         
         Relativistic                = config.read<bool>     ("Relativistic", false);
-        Relativistic_pusher         = config.read<string>   ("RelativisticPusher", "Boris");
+        Relativistic_pusher         = config.read<string>   ("Relativistic_pusher", "Boris");
 
         PoissonMAdiv                = config.read<double>   ("PoissonMAdiv", 1.0);
         PoissonMAres                = config.read<double>   ("PoissonMAres", 0.01);
@@ -1234,7 +1234,7 @@ Collective::Collective(int argc, char **argv)
         RESTART1 = true;
         }
         else {
-        cout << "Error: syntax error in mpirun arguments. Did you mean to 'restart' ?" << endl;
+        cout << "Error: syntax error in mpirun arguments. Did you mean to write 'restart' ?" << endl;
         return;
         }
     }
