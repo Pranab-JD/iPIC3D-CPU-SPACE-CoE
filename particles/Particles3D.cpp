@@ -709,7 +709,9 @@ void Particles3D::Maxwell_Juttner(Field * EMf)
 void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf) 
 {
 	//* Initialise random generator with different seed on different processor
-	srand(vct->getCartesian_rank() + 2 + ns);
+	long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
+    srand(seed);
+    srand48(seed);
 
     assert_eq(_pcls.size(), 0);    
 
@@ -799,7 +801,9 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
 void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf) 
 {
 	//* Initialise random generator with different seed on different processor
-	srand(vct->getCartesian_rank() + 2 + ns);
+	long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
+    srand(seed);
+    srand48(seed);
 
     assert_eq(_pcls.size(), 0);
 
@@ -900,7 +904,9 @@ void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf)
 void Particles3D::Shock1D(Field * EMf) 
 {
 	//* Initialise random generator with different seed on different processor
-	srand(vct->getCartesian_rank() + 2 + ns);
+	long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
+    srand(seed);
+    srand48(seed);
 
     assert_eq(_pcls.size(), 0);
   
@@ -954,7 +960,9 @@ void Particles3D::Shock1D(Field * EMf)
 void Particles3D::Shock1D_DoublePiston(Field * EMf) 
 {
     //* Initialise random generator with different seed on different processor
-	srand(vct->getCartesian_rank() + 2 + ns);
+	long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
+    srand(seed);
+    srand48(seed);
 
     assert_eq(_pcls.size(), 0);
   
@@ -1321,7 +1329,8 @@ void Particles3D::RelSIM_velocity(Field *EMf)
             }
             else
             {
-                cout << "Incorrect relativistic pusher! Please choose either 'Boris' or 'Lapenta_Markidis'" << endl;
+                if (vct->getCartesian_rank() == 0) 
+                    cout << "Incorrect relativistic pusher! Please choose either 'Boris' or 'Lapenta_Markidis'" << endl;
                 exit(1);
             }
 
@@ -1636,7 +1645,7 @@ void Particles3D::computeMoments(Field *EMf)
                 else if (Relativistic_pusher == "Lapenta_Markidis")
                 {
                     //* lorentz_factor = [1 + ((u^2 + v^2 + w^2)/c^2)]^0.5
-                    lorentz_factor = sqrt(1.0 + (u_n*u_n + v_n*v_n + w_n*w_n)/(c*c));
+                    double lorentz_factor_old = sqrt(1.0 + (u_n*u_n + v_n*v_n + w_n*w_n)/(c*c));
 
                     //? The equations for the Lapenta-Markidis pusher can be found in Bacchini (2023), ApJ, 268, 60
 
@@ -1686,7 +1695,8 @@ void Particles3D::computeMoments(Field *EMf)
                 }
                 else
                 {
-                    cout << "Incorrect relativistic pusher! Please choose either 'Boris' or 'Lapenta_Markidis'" << endl;
+                    if (vct->getCartesian_rank() == 0) 
+                        cout << "Incorrect relativistic pusher! Please choose either 'Boris' or 'Lapenta_Markidis'" << endl;
                     exit(1);
                 }
             }
