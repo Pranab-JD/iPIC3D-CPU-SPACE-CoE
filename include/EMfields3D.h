@@ -31,7 +31,9 @@
 #include "Basic.h"
 #include "Neighbouring_Nodes.h"
 #include <memory>
+#include <iomanip>
 
+using namespace std;
 /*! Electromagnetic fields and sources defined for each local grid, and for an implicit maxwell's solver @date May 2008 @par Copyright: (C) 2008 KUL @author Stefano Markidis, Giovanni Lapenta. @version 3.0 */
 
 // dimension of vectors used in fieldForPcls
