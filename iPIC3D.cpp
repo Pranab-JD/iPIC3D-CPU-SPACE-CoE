@@ -47,7 +47,7 @@ int main(int argc, char **argv)
         iPic3D::c_Solver KCode;
 
         KCode.Init(argc, argv); //! load param from file, init the grid, fields
-        KCode.WriteConserved(0);
+        KCode.WriteOutput(KCode.FirstCycle());
 
         for (int i = KCode.FirstCycle() + 1; i <= KCode.LastCycle(); i++) 
         {
