@@ -556,6 +556,13 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 		ss << MPIdata::instance().get_rank();
 		cc << cycle;
 		const int ns = _col->getNs();
+
+        const int nxc = _grid->getNXC();
+        const int nyc = _grid->getNYC();
+        const int nzc = _grid->getNZC();
+        const int nxn = _grid->getNXN();
+        const int nyn = _grid->getNYN();
+        const int nzn = _grid->getNZN();
 		
 		if (tag.find("last_cycle", 0) != string::npos)
 			this->output_adaptor.write("/last_cycle", cycle);
@@ -615,12 +622,18 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 			this->output_adaptor.write("/fields/Bzc/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getBzc());
 		}
 
-        // if (contains_tag(tag, "B_ext"))
-        // {
-        //     this->output_adaptor.write("/fields/Bx_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx_ext());
-        //     this->output_adaptor.write("/fields/By_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy_ext());
-        //     this->output_adaptor.write("/fields/Bz_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBz_ext());
-        // }
+        if (contains_tag(tag, "divergence"))
+		{
+			this->output_adaptor.write("/moments/rhoc_avg/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getRHOc_avg());
+			this->output_adaptor.write("/moments/div_E_avg/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getDivAverage());
+        }
+
+        if (contains_tag(tag, "B_ext"))
+        {
+            this->output_adaptor.write("/fields/Bx_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx_ext());
+            this->output_adaptor.write("/fields/By_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy_ext());
+            this->output_adaptor.write("/fields/Bz_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBz_ext());
+        }
 
     	//* E field (defined at nodes) is written without ghost cells
 		if (contains_tag(tag, "E"))

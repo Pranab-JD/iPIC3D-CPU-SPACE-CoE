@@ -3553,6 +3553,9 @@ void EMfields3D::timeAveragedRho(double ma)
     addscale(ma, rhoc_avg, rhoc, nxc, nyc, nzc);
 }
 
+//! Write to restart files
+//TODO: Write "rhoc_avg", "rhocs_avg" and "divE_average"
+
 void EMfields3D::timeAveragedDivE(double ma) 
 {
     // TODO: Boundary conditions - TBD later
@@ -3794,14 +3797,14 @@ void EMfields3D::init()
             eprintf("restart requires compiling with HDF5");
         #else
             
-            col->read_field_restart(vct, grid, Bxn, Byn, Bzn, Bxc, Byc, Bzc, Ex, Ey, Ez, &rhons, ns);
+            col->read_field_restart(vct, grid, Bxn, Byn, Bzn, Bxc, Byc, Bzc, Ex, Ey, Ez, rhoc_avg, divE_average, ns);
 
             //* Communicate ghost data for rho on nodes
-            for (int is = 0; is < ns; is++) 
-            {
-                double ***moment0 = convert_to_arr3(rhons[is]);
-                communicateNode_P(nxn, nyn, nzn, moment0, vct, this);
-            }
+            // for (int is = 0; is < ns; is++) 
+            // {
+            //     double ***moment0 = convert_to_arr3(rhons[is]);
+            //     communicateNode_P(nxn, nyn, nzn, moment0, vct, this);
+            // }
 
             if (col->getCase()=="Dipole") 
                 ConstantChargePlanet(col->getL_square(),col->getx_center(),col->gety_center(),col->getz_center());
@@ -3811,20 +3814,22 @@ void EMfields3D::init()
             else if ((col->getCase().find("TaylorGreen") != std::string::npos) && (col->getCase() != "NullPoints"))
                 ConstantChargeOpenBC();
 
-            //* Communicate ghost data for B on nodes
-            communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
-            communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
-            communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
-
-            //* Initialise B at cell centers
-            // grid->interpN2C(Bxc, Bxn);
-            // grid->interpN2C(Byc, Byn);
-            // grid->interpN2C(Bzc, Bzn);
-
             //* Communicate ghost data for B at cell centres
             communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct,this);
             communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct,this);
             communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct,this);
+
+            //* Communicate ghost data for rhoc_avg at cell centres
+            communicateCenterBC(nxc, nyc, nzc, rhoc_avg, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct,this);
+
+            // grid->interpC2N(Bxn, Bxc);
+            // grid->interpC2N(Byn, Byc);
+            // grid->interpC2N(Bzn, Bzc);
+
+            //* Communicate ghost data for B on nodes
+            communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+            communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+            communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
             //* Communicate ghost data for E on nodes
             communicateNodeBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
@@ -3832,8 +3837,8 @@ void EMfields3D::init()
             communicateNodeBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
 
             //* Initialise rho at cell centers
-            for (int is = 0; is < ns; is++)
-                grid->interpN2C(rhocs, is, rhons);
+            // for (int is = 0; is < ns; is++)
+            //     grid->interpN2C(rhocs, is, rhons);
 
             if (vct->getCartesian_rank() == 0)
             {
