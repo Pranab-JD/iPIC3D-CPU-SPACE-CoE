@@ -338,15 +338,17 @@ public:
     arr3_double getBzTot() { addscale(1.0,Bzn,Bz_ext,Bz_tot,nxn,nyn,nzn); return Bz_tot; }
 
     //* Densities (s --> of each species)
-    double getRHOn(int X, int Y, int Z) const { return rhon.get(X, Y, Z); }
-    double getRHOns(int X, int Y, int Z, int is) const { return rhons.get(is, X, Y, Z); }
-    double getRHOcs(int X, int Y, int Z, int is) const { return rhocs.get(is, X, Y, Z); }
-    double getRHOc_avg(int X, int Y, int Z) const { return rhoc_avg.get(X, Y, Z); }
     arr3_double getRHOn() { return rhon; }
+    double getRHOn(int X, int Y, int Z) const { return rhon.get(X, Y, Z); }
+    
     arr4_double getRHOns() { return rhons; }
-    // arr3_double getRHOns(int is) { return rhons.get(is); }
+    double getRHOns(int X, int Y, int Z, int is) const { return rhons.get(is, X, Y, Z); }
+
     arr4_double getRHOcs() { return rhocs; }
+    
+    double getRHOcs(int X, int Y, int Z, int is) const { return rhocs.get(is, X, Y, Z); }
     arr3_double getRHOc_avg() { return rhoc_avg; }
+    double getRHOc_avg(int X, int Y, int Z) const { return rhoc_avg.get(X, Y, Z); }
 
     //* Current (s --> of each species)
     double getJxs(int X,int Y,int Z,int is) const { return Jxs.get(is,X,Y,Z); }
