@@ -10,13 +10,14 @@ SaveDirName                    = data_rel_DH_ion_electron                      #
 RestartDirName                 = data_rel_DH_ion_electron                      # Restart directory
 
 Relativistic                   = true                                          # Relativistic Case (true or false)
-Relativistic_pusher            = Boris                                         # Relativistic Particle Pusher (Boris or Lapenta_Markidis)
+Relativistic_pusher            = Lapenta_Markidis                              # Relativistic Particle Pusher (Boris or Lapenta_Markidis)
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 WriteMethod                    = shdf5                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+output_data_precision          = DOUBLE                                        # Precision of output data [SINGLE | DOUBLE]
 
 #! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are
 restart_status                 = 0                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
@@ -25,10 +26,12 @@ DiagnosticsOutputCycle         = 1                                             #
 RestartOutputCycle             = 0                                             # Restart cycle (suggest to set this to a factor of ncycles)
 FieldOutputCycle               = 0                                             # Output for moments and fields (if <= 0, data is NOT saved)
 ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
+ParticlesDownsampleOutputCycle = 0                                             # Downsample output cycle (if <= 0, data is NOT saved)
+ParticlesDownsampleFactor      = 1                                             # Downsampling factor (must be >= 1; if = 1 NO downsampling)
 
 FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 # Select quantites to be written to files
 ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
-ParticlesDownsampleOutputTag   =                                               # Select quantites to be written to files
+ParticlesDownsampleOutputTag   = position_DS + velocity_DS + q_DS              # Select quantites to be written to files
 
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!

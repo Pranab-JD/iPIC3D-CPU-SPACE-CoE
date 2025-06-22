@@ -6,25 +6,25 @@
 
 Case                           = DoubleHarris                                  # Case
 SimulationName                 = Double_Harris                                 # Simulation name for output
-SaveDirName                    = /scratch/project_465001279/data                                   # Output directory
-RestartDirName                 = /scratch/project_465001279/data                                   # Restart directory   
+SaveDirName                    = /scratch/project_465001279/PJD/data_D_R       # Output directory
+RestartDirName                 = /scratch/project_465001279/PJD/data_D_R       # Restart directory   
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-WriteMethod                    = H5hut                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+WriteMethod                    = shdf5                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
 output_data_precision          = DOUBLE                                        # Precision of output data [SINGLE | DOUBLE]
 
 #! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are
-restart_status                 = 0                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
+restart_status                 = 2                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
 
-DiagnosticsOutputCycle         = 10                                             # Diagnostics cycle
-RestartOutputCycle             = 100                                            # Restart cycle (final time cycle is automatically written to restart files)
-FieldOutputCycle               = 20                                            # Output for moments and fields (if <= 0, data is NOT saved)
-ParticlesOutputCycle           = 150                                            # Output for particles (if <= 0, data is NOT saved)
-ParticlesDownsampleOutputCycle = 0                                            # Downsample output cycle (if <= 0, data is NOT saved)
-ParticlesDownsampleFactor      = 2                                             # Downsampling factor (must be >= 1; if = 1 NO downsampling)
+DiagnosticsOutputCycle         = 5                                             # Diagnostics cycle
+RestartOutputCycle             = 0                                             # Restart cycle (final time cycle is automatically written to restart files)
+FieldOutputCycle               = 25                                            # Output for moments and fields (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 100                                           # Output for particles (if <= 0, data is NOT saved)
+ParticlesDownsampleOutputCycle = 0                                             # Downsample output cycle (if <= 0, data is NOT saved)
+ParticlesDownsampleFactor      = 1                                             # Downsampling factor (must be >= 1; if = 1 NO downsampling)
 
 FieldOutputTag                 = B + E + rho + J + J_s + rho_s                 # Select quantites to be written to files
 ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
@@ -79,7 +79,7 @@ B0z                            = 0.0                                        # In
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.125	                                       # Time-step size
-ncycles                        = 25                                           # Number of time steps
+ncycles                        = 50                                           # Number of time steps
 th                             = 0.5                                           # Decentering parameter
 c                              = 1.0                                           # Speed of light 
 GMREStol                       = 1E-15                                         # GMRES tolerance (must be <= 1e-15 for exact energy conservation)
@@ -97,19 +97,19 @@ SmoothCycle                    = 1	                                           # 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Lx                             = 30.0                                          # Simulation box length along X
-Ly                             = 20.0                                          # Simulation box length along Y
+Ly                             = 30.0                                          # Simulation box length along Y
 Lz                             = 1.0                                           # Simulation box length along Z
 
 nxc                            = 100                                            # Number of cells along X
 nyc                            = 100                                            # Number of cells along Y
-nzc                            = 1                                             # Number of cells along Z
+nzc                            = 1                                              # Number of cells along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                  MPI TOPOLOGY                              %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-XLEN                           = 5                                             # Number of MPI subdomains along X
-YLEN                           = 5                                             # Number of MPI subdomains along Y
+XLEN                           = 5                                              # Number of MPI subdomains along X
+YLEN                           = 5                                              # Number of MPI subdomains along Y
 ZLEN                           = 1                                              # Number of MPI subdomains along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
