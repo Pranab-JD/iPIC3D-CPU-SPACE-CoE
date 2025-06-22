@@ -918,9 +918,9 @@ void c_Solver::WriteOutput(int cycle)
   	}
 }
 
-void c_Solver::WriteConserved(int cycle) 
+void c_Solver::WriteConserved(int cycle)
 {
-    if (cycle == 0) 
+    if (cycle == first_cycle) 
     {
         //? Total energy = Electric field energy + Magnetic field energy
         initial_total_energy = EMf->get_E_field_energy() + EMf->get_B_field_energy();
