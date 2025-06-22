@@ -205,7 +205,9 @@ void Particles3D::MaxwellianFromFluidCell(Collective *col, int is, int i, int j,
 void Particles3D::maxwellian(Field * EMf)
 {
     //* Initialise random generator with different seed on different processor
-    srand(vct->getCartesian_rank() + 2);
+    long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
+    srand(seed);
+    srand48(seed);
 
     assert_eq(_pcls.size(), 0);
 
@@ -1400,7 +1402,8 @@ void Particles3D::ECSIM_position(Field *EMf)
             double xavg = x_n; double yavg = y_n; double zavg = z_n;
 
             //? Lorentz factor at time step "n"
-            if (Relativistic) lorentz_factor = sqrt(1.0 + (u_n*u_n + v_n*v_n + w_n*w_n)/(c*c));
+            if (Relativistic) 
+                lorentz_factor = sqrt(1.0 + (u_n*u_n + v_n*v_n + w_n*w_n)/(c*c));
 
             //* --------------------------------------- *//
 
