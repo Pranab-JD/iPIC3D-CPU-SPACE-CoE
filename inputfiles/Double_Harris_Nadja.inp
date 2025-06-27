@@ -4,7 +4,7 @@
 # %                                TEST CASE                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Case                           = DoubleHarris                                  # Case
+Case                           = Double_Harris                                 # Case
 SimulationName                 = Double_Harris                                 # Simulation name for output
 SaveDirName                    = data_DH_Nadja                                 # Output directory
 RestartDirName                 = data_DH_Nadja                                 # Restart directory   

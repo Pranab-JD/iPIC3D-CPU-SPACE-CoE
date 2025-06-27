@@ -70,7 +70,7 @@ public:
     //* Initialise double Harris sheets for magnetic reconnection
     void init_double_Harris();
 
-    void initDoublePeriodicHarrisWithGaussianHumpPerturbation();
+    void init_double_Harris_hump();
     
     //* Initialise GEM challenge with dipole-like tail without perturbation
     void initGEMDipoleLikeTailNoPert();

@@ -66,10 +66,10 @@ class Particles3D:public Particles3Dcomm
     void maxwellianNullPoints(Field * EMf);
 
     //* Maxwellian velocity from currents and uniform spatial distribution for a double Harris sheet
-    void maxwellianDoubleHarris(Field * EMf);
+    void maxwellian_Double_Harris(Field * EMf);
 
     //* Kelvin--Helmholtz Instability (Finite Larmor Radius; Cerri 2013, https://doi.org/10.1063/1.4828981)
-    void initmaxwellian_KHI_FLR(Field* EMf);
+    void maxwellian_KHI_FLR(Field* EMf);
 
     /** pitch_angle_energy initialization (Assume B on z only) for test particles */
     void pitch_angle_energy(Field * EMf);

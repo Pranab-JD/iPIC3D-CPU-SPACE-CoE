@@ -4,7 +4,7 @@
 # %                                TEST CASE                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Case                           = DoubleHarris                                  # Case
+Case                           = Double_Harris                                 # Case
 SimulationName                 = Double_Harris                                 # Simulation name for output
 SaveDirName                    = /scratch/project_465001279/PJD/data_D_R       # Output directory
 RestartDirName                 = /scratch/project_465001279/PJD/data_D_R       # Restart directory   
