@@ -3787,6 +3787,11 @@ void EMfields3D::init()
         grid->interpN2C(Byc, Byn);
         grid->interpN2C(Bzc, Bzn);
 
+        //* Communicate ghost data on cell centres
+        communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+
         for (int is = 0; is < ns; is++)
             grid->interpN2C(rhocs, is, rhons);
     }
@@ -4184,7 +4189,8 @@ void EMfields3D::init_double_Harris()
     const double perturbation               = input_param[0];       //* Amplitude of initial perturbation
     const double delta                      = input_param[1];       //* Half-thickness of current sheet
 
-    double xpert, ypert, exp_pert;
+    double global_x, global_y, xpert, ypert, exp_pert;
+
     if (restart_status == 0)
     {
         if (vct->getCartesian_rank() ==0)
@@ -4198,31 +4204,30 @@ void EMfields3D::init_double_Harris()
             cout << "------------------------------------------" << endl;
         }
 
-        for (int i=0; i < nxn; i++)
-            for (int j=0; j < nyn; j++)
-	            for (int k=0; k < nzn; k++)
+        for (int i = 0; i < nxn; i++)
+            for (int j = 0; j < nyn; j++)
+	            for (int k = 0; k < nzn; k++)
                 {
-                    const double xM = grid->getXN(i,j,k) - 0.5*Lx;
-                    const double yB = grid->getYN(i,j,k) - 0.25*Ly;
-                    const double yT = grid->getYN(i,j,k) - 0.75*Ly;
+                    global_x = grid->getXN(i, j, k) + grid->getDX();
+                    global_y = grid->getYN(i, j, k) + grid->getDY();
+
+                    const double yB = global_y - 0.25*Ly;
+                    const double yT = global_y - 0.75*Ly;
                     const double yBd = yB/delta;
                     const double yTd = yT/delta;
 
                     //* Initialise rho on nodes
-                    for (int is=0; is < ns; is++)
+                    for (int is = 0; is < ns; is++) 
                     {
-                        if (DriftSpecies[is])
+                        if (DriftSpecies[is]) 
                         {
-                            const double sech_yBd = 1./cosh(yBd);//+1e-5;
-                            const double sech_yTd = 1./cosh(yTd);//+1e-5;
-                            
-                            if (is == 0 || is == 1)
-                                rhons[is][i][j][k] = rhoINIT[is]*sech_yBd*sech_yBd/FourPI;
-                            else if (is == 2 || is == 3)
-                                rhons[is][i][j][k] = rhoINIT[is]*sech_yTd*sech_yTd/FourPI;
+                            const double sech_yBd = 1. / cosh(yBd);
+                            const double sech_yTd = 1. / cosh(yTd);
+                            rhons[is][i][j][k] =  qom[is] / fabs(qom[is]) * rhoINIT[is] * sech_yBd * sech_yBd / FourPI;
+                            rhons[is][i][j][k] += qom[is] / fabs(qom[is]) * rhoINIT[is] * sech_yTd * sech_yTd / FourPI;
                         }
                         else
-                            rhons[is][i][j][k] = rhoINIT[is]/FourPI;
+                            rhons[is][i][j][k] = qom[is] / fabs(qom[is]) * rhoINIT[is] / FourPI;
                     }
 
                     //* Initialise E on nodes
@@ -4231,23 +4236,52 @@ void EMfields3D::init_double_Harris()
                     Ez[i][j][k] =  0.0;
                     
                     //* Initialise B on nodes
-                    Bxn[i][j][k] = B0x*(-1.0+tanh(yBd)-tanh(yTd));
+                    Bxn[i][j][k] = B0x * (-1.0 + tanh(yBd) - tanh(yTd));
                     Byn[i][j][k] = B0y;
-                    Bzn[i][j][k] = B0z;
+                    Bzn[i][j][k] = B0z;                             //* Guide field
                     
-                    //* Add initial perturbation
-                    xpert = grid->getXN(i, j, k) - Lx / 2;
-                    ypert = yB;
+                    //* Add first initial GEM perturbation
+                    xpert = global_x - Lx/4;
+                    ypert = global_y - Ly/4;
+
+                    if (xpert < Lx/2 and ypert < Ly/2) 
+                    {
+                        Bxn[i][j][k] += (B0x * perturbation) * (M_PI/(0.5*Ly))   * cos(2*M_PI*xpert/(0.5*Lx)) * sin(M_PI*ypert/(0.5*Ly));
+                        Byn[i][j][k] -= (B0x * perturbation) * (2*M_PI/(0.5*Lx)) * sin(2*M_PI*xpert/(0.5*Lx)) * cos(M_PI*ypert/(0.5*Ly));
+                    }
+
+                    //* Add second initial GEM perturbation
+                    xpert = global_x - 3*Lx/4;
+                    ypert = global_y - 3*Ly/4;
+
+                    if (xpert > Lx/2 and ypert > Ly/2) 
+                    {
+                        Bxn[i][j][k] += (B0x * perturbation) * (M_PI/(0.5*Ly))   * cos(2*M_PI*xpert/(0.5*Lx)) * sin(M_PI*ypert/(0.5*Ly));
+                        Byn[i][j][k] -= (B0x * perturbation) * (2*M_PI/(0.5*Lx)) * sin(2*M_PI*xpert/(0.5*Lx)) * cos(M_PI*ypert/(0.5*Ly));
+                    }
+
+                    //* Add first initial X perturbation
+                    xpert = global_x - Lx/4;
+                    ypert = global_y - Ly/4;
                     exp_pert = exp(-(xpert / delta) * (xpert / delta) - (ypert / delta) * (ypert / delta));
+
                     Bxn[i][j][k] += (B0x * perturbation) * exp_pert * (-cos(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * 2.0 * ypert / delta - cos(M_PI * xpert / 10.0 / delta) * sin(M_PI * ypert / 10.0 / delta) * M_PI / 10.0);
-                    Byn[i][j][k] += (B0x * perturbation) * exp_pert * (cos(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * 2.0 * xpert / delta + sin(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * M_PI / 10.0);
+                    Byn[i][j][k] += (B0x * perturbation) * exp_pert * ( cos(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * 2.0 * xpert / delta + sin(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * M_PI / 10.0);
+
+                    //* Add second initial X perturbation
+                    xpert = global_x - Lx/4;
+                    ypert = global_y - Ly/4;
+                    exp_pert = exp(-(xpert / delta) * (xpert / delta) - (ypert / delta) * (ypert / delta));
+
+                    Bxn[i][j][k] += (-B0x * perturbation) * exp_pert * (-cos(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * 2.0 * ypert / delta - cos(M_PI * xpert / 10.0 / delta) * sin(M_PI * ypert / 10.0 / delta) * M_PI / 10.0);
+                    Byn[i][j][k] += (-B0x * perturbation) * exp_pert * ( cos(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * 2.0 * xpert / delta + sin(M_PI * xpert / 10.0 / delta) * cos(M_PI * ypert / 10.0 / delta) * M_PI / 10.0);
 
                 }
 
         //* Communicate ghost data on nodes
-        communicateNodeBC(nxn, nyn, nzn, Bxn, 1, 1, 2, 2, 1, 1, vct, this);
-        communicateNodeBC(nxn, nyn, nzn, Byn, 1, 1, 1, 1, 1, 1, vct, this);
-        communicateNodeBC(nxn, nyn, nzn, Bzn, 1, 1, 2, 2, 1, 1, vct, this);
+        communicateCenterBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateCenterBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateCenterBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
         
         //* Initialise B on cell centres
         grid->interpN2C(Bxc, Bxn);
@@ -4255,9 +4289,9 @@ void EMfields3D::init_double_Harris()
         grid->interpN2C(Bzc, Bzn);
         
         //* Communicate ghost data on cell centres
-        communicateCenterBC(nxc, nyc, nzc, Bxc, 2, 2, 2, 2, 2, 2, vct, this);
-        communicateCenterBC(nxc, nyc, nzc, Byc, 1, 1, 1, 1, 1, 1, vct, this);
-        communicateCenterBC(nxc, nyc, nzc, Bzc, 2, 2, 2, 2, 2, 2, vct, this);
+        communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
         
         //* Initialise rho on cell centres
         for (int is = 0; is < ns; is++)
@@ -4267,119 +4301,132 @@ void EMfields3D::init_double_Harris()
         init();  //! READ FROM RESTART
 }
 
-void EMfields3D::initDoublePeriodicHarrisWithGaussianHumpPerturbation()
+void EMfields3D::init_double_Harris_hump()
 {
-  const Collective *col = &get_col();
-  const VirtualTopology3D *vct = &get_vct();
-  const Grid *grid = &get_grid();
-  // perturbation localized in X
-  const double pertX = 0.4;
-  const double deltax = 8. * delta;
-  const double deltay = 4. * delta;
-  if (restart_status == 0) {
-    // initialize
-    if (get_vct().getCartesian_rank() == 0) {
-      cout << "------------------------------------------" << endl;
-      cout << "Initialize GEM Challenge with Pertubation" << endl;
-      cout << "------------------------------------------" << endl;
-      cout << "B0x                              = " << B0x << endl;
-      cout << "B0y                              = " << B0y << endl;
-      cout << "B0z                              = " << B0z << endl;
-      cout << "Delta (current sheet thickness) = " << delta << endl;
-      for (int i = 0; i < ns; i++) {
-        cout << "rho species " << i << " = " << rhoINIT[i];
-        if (DriftSpecies[i])
-          cout << " DRIFTING " << endl;
-        else
-          cout << " BACKGROUND " << endl;
-      }
-      cout << "-------------------------" << endl;
+    const Collective *col = &get_col();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
+
+    //* Custom input parameters
+    const double perturbation               = input_param[0];       //* Amplitude of initial perturbation (localised in X)
+    const double delta                      = input_param[1];       //* Half-thickness of current sheet
+
+    const double delta_x = 8.0 * delta;
+    const double delta_y = 4.0 * delta;
+    
+    if (restart_status == 0) 
+    {
+        if (vct->getCartesian_rank() ==0) 
+        {
+            cout << "-------------------------------------------" << endl;
+            cout << " Initialising double Harris sheet with hump" << endl;
+            cout << "-------------------------------------------" << endl;
+            cout << "Initial magnetic field components (Bx, By, Bz) = " << "(" << B0x << ", " << B0y << ", " << B0z << ")" << endl;
+            cout << "Initial perturbation                           = " << perturbation << endl;
+            cout << "Half-thickness of current sheet                = " << delta << endl;
+            cout << "-------------------------------------------" << endl;
+        }
+
+        //* Initialise E, B, and rho on nodes
+        for (int i = 0; i < nxn; i++)
+            for (int j = 0; j < nyn; j++)
+                for (int k = 0; k < nzn; k++) 
+                {
+                    const double xM = grid->getXN(i, j, k) - 0.5  * Lx;
+                    const double yB = grid->getYN(i, j, k) - 0.25 * Ly;
+                    const double yT = grid->getYN(i, j, k) - 0.75 * Ly;
+                    const double yBd = yB / delta;
+                    const double yTd = yT / delta;
+
+                    //* Initialise rho on nodes
+                    for (int is = 0; is < ns; is++) 
+                    {
+                        if (DriftSpecies[is]) 
+                        {
+                            const double sech_yBd = 1. / cosh(yBd);
+                            const double sech_yTd = 1. / cosh(yTd);
+                            rhons[is][i][j][k] =  qom[is] / fabs(qom[is]) * rhoINIT[is] * sech_yBd * sech_yBd / FourPI;
+                            rhons[is][i][j][k] += qom[is] / fabs(qom[is]) * rhoINIT[is] * sech_yTd * sech_yTd / FourPI;
+                        }
+                        else
+                            rhons[is][i][j][k] = qom[is] / fabs(qom[is]) * rhoINIT[is] / FourPI;
+                    }
+
+                    //* Initialise E on nodes
+                    Ex[i][j][k] = 0.0;
+                    Ey[i][j][k] = 0.0;
+                    Ez[i][j][k] = 0.0;
+
+                    //* Initialise B on nodes
+                    Bxn[i][j][k] = B0x * (-1.0 + tanh(yBd) - tanh(yTd));
+                    Bxn[i][j][k] += 0.0;                                            // add the initial GEM perturbation
+
+                    const double xMdx = xM / delta_x;
+                    const double yBdy = yB / delta_y;
+                    const double yTdy = yT / delta_y;
+                    const double humpB = exp(-xMdx * xMdx - yBdy * yBdy);
+                    
+                    Byn[i][j][k] = B0y;
+                    Bxn[i][j][k] -= (B0x * perturbation) * humpB * (2.0 * yBdy);    // add the initial X perturbation
+                    Byn[i][j][k] += (B0x * perturbation) * humpB * (2.0 * xMdx);    // add the initial X perturbation
+                    
+                    const double humpT = exp(-xMdx * xMdx - yTdy * yTdy);
+                    
+                    Bxn[i][j][k] += (B0x * perturbation) * humpT * (2.0 * yTdy);    // add the second initial X perturbation
+                    Byn[i][j][k] -= (B0x * perturbation) * humpT * (2.0 * xMdx);    // add the second initial X perturbation
+
+                    //* Guide field
+                    Bzn[i][j][k] = B0z;
+                }
+
+        //* Communicate ghost data on nodes
+        communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+
+        //* Initialise B on cell centres
+        for (int i = 0; i < nxc; i++)
+            for (int j = 0; j < nyc; j++)
+                for (int k = 0; k < nzc; k++) 
+                {
+                    const double xM = grid->getXN(i, j, k) - 0.5  * Lx;
+                    const double yB = grid->getYN(i, j, k) - 0.25 * Ly;
+                    const double yT = grid->getYN(i, j, k) - 0.75 * Ly;
+                    const double yBd = yB / delta;
+                    const double yTd = yT / delta;
+                    
+                    Bxc[i][j][k] = B0x * (-1.0 + tanh(yBd) - tanh(yTd));
+                    Bxc[i][j][k] += 0.0;                                            // add the initial GEM perturbation
+                    
+                    const double xMdx = xM / delta_x;
+                    const double yBdy = yB / delta_y;
+                    const double yTdy = yT / delta_y;
+                    const double humpB = exp(-xMdx * xMdx - yBdy * yBdy);
+
+                    Byc[i][j][k] = B0y;
+                    Bxc[i][j][k] -= (B0x * perturbation) * humpB * (2.0 * yBdy);    // add the initial X perturbation
+                    Byc[i][j][k] += (B0x * perturbation) * humpB * (2.0 * xMdx);    // add the initial X perturbation
+                    
+                    const double humpT = exp(-xMdx * xMdx - yTdy * yTdy);
+
+                    Bxc[i][j][k] += (B0x * perturbation) * humpT * (2.0 * yTdy);    // add the second initial X perturbation
+                    Byc[i][j][k] -= (B0x * perturbation) * humpT * (2.0 * xMdx);    // add the second initial X perturbation
+                    
+                    //* Guide field
+                    Bzc[i][j][k] = B0z;
+                }
+
+        //* Communicate ghost data on cell centres
+        communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+        
+        //* Initialise rho on cell centres
+        for (int is = 0; is < ns; is++)
+            grid->interpN2C(rhocs, is, rhons);
     }
-    for (int i = 0; i < nxn; i++)
-      for (int j = 0; j < nyn; j++)
-        for (int k = 0; k < nzn; k++) {
-          const double xM = grid->getXN(i, j, k) - .5 * Lx;
-          const double yB = grid->getYN(i, j, k) - .25 * Ly;
-          const double yT = grid->getYN(i, j, k) - .75 * Ly;
-          const double yBd = yB / delta;
-          const double yTd = yT / delta;
-          // initialize the density for species
-          for (int is = 0; is < ns; is++) {
-            if (DriftSpecies[is]) {
-              const double sech_yBd = 1. / cosh(yBd);
-              const double sech_yTd = 1. / cosh(yTd);
-              rhons[is][i][j][k] = rhoINIT[is] * sech_yBd * sech_yBd / FourPI;
-              rhons[is][i][j][k] += rhoINIT[is] * sech_yTd * sech_yTd / FourPI;
-            }
-            else
-              rhons[is][i][j][k] = rhoINIT[is] / FourPI;
-          }
-          // electric field
-          Ex[i][j][k] = 0.0;
-          Ey[i][j][k] = 0.0;
-          Ez[i][j][k] = 0.0;
-          // Magnetic field
-          Bxn[i][j][k] = B0x * (-1.0 + tanh(yBd) - tanh(yTd));
-          // add the initial GEM perturbation
-          Bxn[i][j][k] += 0.;
-          Byn[i][j][k] = B0y;
-          // add the initial X perturbation
-          const double xMdx = xM / deltax;
-          const double yBdy = yB / deltay;
-          const double yTdy = yT / deltay;
-          const double humpB = exp(-xMdx * xMdx - yBdy * yBdy);
-          Bxn[i][j][k] -= (B0x * pertX) * humpB * (2.0 * yBdy);
-          Byn[i][j][k] += (B0x * pertX) * humpB * (2.0 * xMdx);
-          // add the second initial X perturbation
-          const double humpT = exp(-xMdx * xMdx - yTdy * yTdy);
-          Bxn[i][j][k] += (B0x * pertX) * humpT * (2.0 * yTdy);
-          Byn[i][j][k] -= (B0x * pertX) * humpT * (2.0 * xMdx);
-
-          // guide field
-          Bzn[i][j][k] = B0z;
-        }
-    // communicate ghost
-    communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
-
-    // initialize B on centers
-    for (int i = 0; i < nxc; i++)
-      for (int j = 0; j < nyc; j++)
-        for (int k = 0; k < nzc; k++) {
-          const double xM = grid->getXN(i, j, k) - .5 * Lx;
-          const double yB = grid->getYN(i, j, k) - .25 * Ly;
-          const double yT = grid->getYN(i, j, k) - .75 * Ly;
-          const double yBd = yB / delta;
-          const double yTd = yT / delta;
-          Bxc[i][j][k] = B0x * (-1.0 + tanh(yBd) - tanh(yTd));
-          // add the initial GEM perturbation
-          Bxc[i][j][k] += 0.;
-          Byc[i][j][k] = B0y;
-          // add the initial X perturbation
-          const double xMdx = xM / deltax;
-          const double yBdy = yB / deltay;
-          const double yTdy = yT / deltay;
-          const double humpB = exp(-xMdx * xMdx - yBdy * yBdy);
-          Bxc[i][j][k] -= (B0x * pertX) * humpB * (2.0 * yBdy);
-          Byc[i][j][k] += (B0x * pertX) * humpB * (2.0 * xMdx);
-          // add the second initial X perturbation
-          const double humpT = exp(-xMdx * xMdx - yTdy * yTdy);
-          Bxc[i][j][k] += (B0x * pertX) * humpT * (2.0 * yTdy);
-          Byc[i][j][k] -= (B0x * pertX) * humpT * (2.0 * xMdx);
-          // guide field
-          Bzc[i][j][k] = B0z;
-        }
-    // communicate ghost
-    communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct,this);
-    communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct,this);
-    communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct,this);
-    for (int is = 0; is < ns; is++)
-      grid->interpN2C(rhocs, is, rhons);
-  }
-  else {
-    init(); // use the fields from restart file
-  }
+    else
+        init();  //! READ FROM RESTART
 }
 
 //* initialize GEM challenge with no Perturbation with dipole-like tail topology

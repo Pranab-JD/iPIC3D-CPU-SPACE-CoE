@@ -296,7 +296,7 @@ void Particles3D::maxwellianNullPoints(Field * EMf)
 }
 
 /** Maxellian random velocity and uniform spatial distribution - invert w0 for the upper current sheet */
-void Particles3D::maxwellianDoubleHarris(Field * EMf)
+void Particles3D::maxwellian_Double_Harris(Field * EMf)
 {
     //* Initialise random generator with different seed on different processor
     long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
@@ -339,7 +339,7 @@ void Particles3D::maxwellianDoubleHarris(Field * EMf)
 }
 
 //? Kelvin--Helmholtz Instability (Finite Larmor Radius (FLR); Cerri 2013, https://doi.org/10.1063/1.4828981)
-void Particles3D::initmaxwellian_KHI_FLR(Field* EMf)
+void Particles3D::maxwellian_KHI_FLR(Field* EMf)
 {
     double harvest, prob, theta, dx = grid->getDX(),dy = grid->getDY();
   
