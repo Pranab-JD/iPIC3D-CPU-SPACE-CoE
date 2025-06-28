@@ -6,8 +6,8 @@
 
 Case                           = Double_Harris                                 # Case
 SimulationName                 = Double_Harris                                 # Simulation name for output
-SaveDirName                    = data_DH_Nadja                                 # Output directory
-RestartDirName                 = data_DH_Nadja                                 # Restart directory   
+SaveDirName                    = /scratch/project_465002078/data_DH_Nadja      # Output directory
+RestartDirName                 = /scratch/project_465002078/data_DH_Nadja      # Restart directory   
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
@@ -79,7 +79,7 @@ B0z                            = 0.0                                            
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.03	                                       # Time-step size
-ncycles                        = 60                                            # Number of time steps
+ncycles                        = 1000                                          # Number of time steps
 th                             = 1.0                                           # Decentering parameter
 c                              = 1.0                                           # Speed of light 
 GMREStol                       = 1E-12                                         # GMRES tolerance (must be <= 1e-15 for exact energy conservation)
@@ -98,7 +98,7 @@ SmoothCycle                    = 1	                                           # 
 
 Lx                             = 23.0                                          # Simulation box length along X
 Ly                             = 69.0                                          # Simulation box length along Y
-Lz                             = 0.1                                           # Simulation box length along Z
+Lz                             = 1.0                                           # Simulation box length along Z
 
 nxc                            = 192                                           # Number of cells along X
 nyc                            = 576                                           # Number of cells along Y

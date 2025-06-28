@@ -47,6 +47,7 @@ developers: Stefano Markidis, Giovanni Lapenta
 #include <iomanip>
 #include <fstream>
 #include "../LeXInt_Timer.hpp"
+#include <cstdlib>
 
 using std::cout;
 using std::cerr;
@@ -304,8 +305,8 @@ void Particles3D::maxwellian_Double_Harris(Field * EMf)
     srand48(seed);
 
     assert_eq(_pcls.size(), 0);
+    double prob, theta;
 
-    const double Ly_half = Ly/2.0;
     const double q_factor =  (qom / fabs(qom)) * grid->getVOL() / npcel;
 
     for (int i = 1; i < grid->getNXC() - 1; i++)
@@ -318,6 +319,9 @@ void Particles3D::maxwellian_Double_Harris(Field * EMf)
                     for (int jj = 0; jj < npcely; jj++)
                         for (int kk = 0; kk < npcelz; kk++)
                         {
+                            double global_y = grid->getYN(i, j, k) + grid->getDY();
+                            double shaper_z = -tanh((global_y - Ly/2)/0.0001);
+
                             const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
                             const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
                             const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
@@ -326,11 +330,7 @@ void Particles3D::maxwellian_Double_Harris(Field * EMf)
                                 continue;                   //* skip this particle if weight is too small
                             
                             double u, v, w;
-                            if(y > Ly_half)  
-                                sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);  //* -w0
-                            else  
-                                sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
-
+                            sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0*shaper_z);
                             create_new_particle(u,v,w,q,x,y,z);
                         }
             }
