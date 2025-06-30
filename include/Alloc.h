@@ -559,7 +559,7 @@ namespace iPic3D
         size_t s2, size_t s1) :
         const_array_ref2<type>(in,s2,s1)
       { }
-      void free(){ delArray2<type>((type***)arr2); }
+      void free(){ delArray2<type>((type**)arr2); }
     #if defined(FLAT_ARRAYS) || defined(CHECK_BOUNDS)
       inline array_fetch1<type> operator[](size_t n2){
         check_bounds(n2, S2);
