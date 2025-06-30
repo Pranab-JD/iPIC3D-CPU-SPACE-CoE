@@ -342,16 +342,16 @@ void Collective::ReadInput(string inputfile)
     {
         input_param = new double[nparam];
         array_double input_param0 = config.read <array_double> ("custom_parameters");
-        input_param[0] = input_param0.a;
+                      input_param[0] = input_param0.a;
         if (nparam>1) input_param[1] = input_param0.b;
         if (nparam>2) input_param[2] = input_param0.c;
         if (nparam>3) input_param[3] = input_param0.d;
         if (nparam>4) input_param[4] = input_param0.e;
         if (nparam>5) input_param[5] = input_param0.f;
-        if (nparam>6) input_param[2] = input_param0.g;
-        if (nparam>7) input_param[3] = input_param0.h;
-        if (nparam>8) input_param[4] = input_param0.i;
-        if (nparam>9) input_param[5] = input_param0.j;
+        if (nparam>6) input_param[6] = input_param0.g;
+        if (nparam>7) input_param[7] = input_param0.h;
+        if (nparam>8) input_param[8] = input_param0.i;
+        if (nparam>9) input_param[9] = input_param0.j;
     }
 
     if (nstestpart > 0) 
