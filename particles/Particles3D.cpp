@@ -341,19 +341,6 @@ void Particles3D::maxwellian_Double_Harris(Field * EMf)
 //? Kelvin--Helmholtz Instability (Finite Larmor Radius (FLR); Cerri 2013, https://doi.org/10.1063/1.4828981)
 void Particles3D::maxwellian_KHI_FLR(Field* EMf)
 {
-    //* Initial incompressible velocity perturbation on the first modes
-    double TwoPI = 8*atan(1.0);
-    double kx_pert = TwoPI/Lx;
-    int nbpert = 5;                                             //* Number of initial perturbation modes
-    double*** phase = newArr3(double, nbpert, 2, 1);
-
-    //* Needed for FLR corrections:
-    double B0x = col->getB0x();
-    double B0y = col->getB0y();
-    double B0z = col->getB0z();
-    double B0  = sqrt(B0x*B0x+B0y*B0y+B0z*B0z);                 //* Magnetic field amplitude
-    int nspecies = col->getNs();                                //* Number of particle species
-  
     //* Custom input parameters
     const double velocity_shear         = input_param[0];       //* Initial velocity shear
     const double perturbation           = input_param[1];       //* Amplitude of initial perturbation
@@ -363,17 +350,23 @@ void Particles3D::maxwellian_KHI_FLR(Field* EMf)
     const double s3                     = input_param[5];       //* +/-1 (Here -1 : Ux(y) or 1 : Uy(x)) (FLR corrections)
     const double delta                  = input_param[6];       //* Thickness of shear layer (FLR corrections)
 
-    const double Omega_ci               = B0;                   //* Cf. normalisation qom = 1 for ions
+    //* Initial incompressible velocity perturbation on the first modes
+    double TwoPI = 8*atan(1.0);
+    double kx_pert = TwoPI/Lx;
+    int nbpert = 5;                                             //* Number of initial perturbation modes
+    array2_double phase(nbpert, 2);
 
-    double Vthi = col->getUth(0);                               //* Ion thermal velocity (supposed isotropic far from velocity shear layer)
-    double qomi = col->getQOM(0);                               //* Ion charge to mass ratio
-    double Vthe = col->getUth(1);                               //* Electron thermal velocity (supposed isotropic far from velocity shear layer)
-    double qome = col->getQOM(1);                               //* Electron charge to mass ratio
-
+    double Vthi = col->getUth(1);                               //* Ion thermal velocity (supposed isotropic far from velocity shear layer)
+    double qomi = col->getQOM(1);                               //* Ion charge to mass ratio
+    double Vthe = col->getUth(0);                               //* Electron thermal velocity (supposed isotropic far from velocity shear layer)
+    double qome = col->getQOM(0);                               //* Electron charge to mass ratio
     double TeTi = -qomi/qome * (Vthe/Vthi) * (Vthe/Vthi);       //* Electron to ion temperature ratio (computed from input file parameters)
-    double beta = 2.0*(Vthi/B0)*(Vthi/B0);                      //* Ion plasma beta from input file parameters; NOTE: ICI beta = beta_i
   
     //* For FLR corrections
+    double B0x = col->getB0x(); double B0y = col->getB0y(); double B0z = col->getB0z();
+    double B0              = sqrt(B0x*B0x+B0y*B0y+B0z*B0z);     //* Magnetic field amplitude
+    double beta            = 2.0*(Vthi/B0)*(Vthi/B0);           //* Ion plasma beta from input file parameters; NOTE: beta = beta_i
+    const double Omega_ci  = B0;                                //* Cf. normalisation qom = 1 for ions
     double gammabar        = gamma_electrons/gamma_ions_perp - 1.0;
     double betaiperp0      = beta;
     double betae0          = TeTi*betaiperp0;
@@ -382,28 +375,13 @@ void Particles3D::maxwellian_KHI_FLR(Field* EMf)
     double C0              = 0.5*s3*betaiperp0bar*velocity_shear/(Omega_ci*delta);
     double Cinf            = C0/(1.0 + gammabar*betae0bar);
 
-    if (vct->getCartesian_rank() == 0)
-    {
-        cout << "----------------------------------------------------------------------" << endl;
-        cout << "    Initialising particles for velocity shear (with FLR correction)   " << endl;
-        cout << "----------------------------------------------------------------------" << endl;
-        cout << " Thickness of velocity shear (delta)   = " << delta            << endl;
-        cout << " Velocity shear                        = " << velocity_shear   << endl;
-        cout << " Electron thermal velocity             = " << Vthe             << endl;
-        cout << " Ion thermal velocity                  = " << Vthi             << endl;
-        cout << " Temperature ratio Te/Ti               = " << TeTi             << endl;
-        cout << " Ion plasma beta                       = " << beta             << endl << endl;
-        cout << " No initial mean velocity perturbation: test effect SVP " << endl;
-        cout << "----------------------------------------------------------------------" << endl << endl;
-    }
-
     //* Initialise random generator with different seed on different processor
     srand (vct->getCartesian_rank()+1+ns);
 
     //* Initialise phase for initial random noise
     for (int iipert=0; iipert < 2; iipert++)
         for (int ipert=0; ipert < nbpert; ipert++)
-            phase[ipert][iipert][0] = 2.0*M_PI*(0.5*ipert/nbpert+0.5*iipert);
+            phase[ipert][iipert] = 2.0*M_PI*(0.5*ipert/nbpert+0.5*iipert);
 
     //* Constant factor (to be multiplied to charge)
     const double q_factor = (qom / fabs(qom)) * grid->getVOL() / npcel;
@@ -418,8 +396,8 @@ void Particles3D::maxwellian_KHI_FLR(Field* EMf)
                     for (int jj = 0; jj < npcely; jj++)
                         for (int kk = 0; kk < npcelz; kk++)
                         {
-                            //* For ion FLR corrections:
-                            double ay  = 1.0/pow((cosh((grid->getYC(i,j,k)-0.25*Ly)/delta)),2.0) - 1.0/pow((cosh((grid->getYC(i,j,k)-0.75*Ly)/delta)), 2.0);
+                            //* For ion FLR corrections
+                            double ay  = 1.0/pow((cosh((grid->getYC(i,j,k)-0.25*Ly)/delta)), 2.0) - 1.0/pow((cosh((grid->getYC(i,j,k)-0.75*Ly)/delta)), 2.0);
                             double finf = 1.0/(1.0 - Cinf*ay);
 
                             const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
@@ -430,7 +408,7 @@ void Particles3D::maxwellian_KHI_FLR(Field* EMf)
                             double vthperp, vthpar, vthx, vthy, power;
                             
                             //? Thermal velocity (assumed isotropic in input - only uth is used!!!)
-                            if (qom < 0) 
+                            if (qom < 0.0) 
                             {   
                                 //! Electrons
                                 vthx = uth; vthy = uth; vthpar = uth;
@@ -459,8 +437,8 @@ void Particles3D::maxwellian_KHI_FLR(Field* EMf)
                             double u_pert = 0.0, v_pert = 0.0;
                             for (int ipert = 1; ipert < (nbpert+1); ipert++)
                             {
-                                u_pert += cos(ipert*kx_pert*x+phase[ipert-1][0][0]);
-                                v_pert += (ipert*kx_pert)*sin(ipert*kx_pert*x+phase[ipert-1][0][0]);
+                                u_pert += cos(ipert*kx_pert*x+phase[ipert-1][0]);
+                                v_pert += (ipert*kx_pert)*sin(ipert*kx_pert*x+phase[ipert-1][0]);
                             }
                             
                             double fy_pert = perturbation * exp( - (y-0.25*Ly)*(y-0.25*Ly) / (delta*delta) );
@@ -472,8 +450,8 @@ void Particles3D::maxwellian_KHI_FLR(Field* EMf)
                             u_pert = 0.0; v_pert = 0.0;
                             for (int ipert = 1; ipert < (nbpert+1); ipert++)
                             {
-                                u_pert += cos(ipert*kx_pert*x+phase[ipert-1][1][0]);
-                                v_pert += (ipert*kx_pert)*sin(ipert*kx_pert*x+phase[ipert-1][1][0]);
+                                u_pert += cos(ipert*kx_pert*x+phase[ipert-1][1]);
+                                v_pert += (ipert*kx_pert)*sin(ipert*kx_pert*x+phase[ipert-1][1]);
                             }
                             
                             fy_pert = perturbation * exp( - (y-0.75*Ly)*(y-0.75*Ly) / (delta*delta) );
@@ -482,15 +460,13 @@ void Particles3D::maxwellian_KHI_FLR(Field* EMf)
                             v += fy_pert*v_pert;
 
                             if (u != u) 
-                            {
-                                // if (vct->getCartesian_rank() == 0)
-                                    // cout << u << " " << velocity_shear << " " <<  << endl;
                                 MPI_Abort(MPI_COMM_WORLD, -1); 
-                            }
+
+                            create_new_particle(u, v, w, q, x, y, z);
                         }
             }
 
-    delArr3(phase, nbpert, 2);
+    fixPosition();
 }
 
 /** pitch_angle_energy initialization (Assume B on z only) for test particles */

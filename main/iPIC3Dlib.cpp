@@ -197,6 +197,7 @@ int c_Solver::Init(int argc, char **argv)
             else if (col->getCase()=="Dipole2D")  		        EMf->initDipole2D();
             else if (col->getCase()=="NullPoints")              EMf->initNullPoints();
             else if (col->getCase()=="TaylorGreen")             EMf->initTaylorGreen();
+            else if (col->getCase()=="KHI_FLR")                 EMf->init_KHI_FLR();
             else if (col->getCase()=="Uniform")                 EMf->init();
             else if (col->getCase()=="Maxwellian")              EMf->init();
             #ifdef BATSRUS
@@ -267,6 +268,7 @@ int c_Solver::Init(int argc, char **argv)
                 else if (col->getCase()=="Double_Harris")                               particles[i].maxwellian_Double_Harris(EMf);
                 else if (col->getCase()=="Double_Harris_Hump")                          particles[i].maxwellian_Double_Harris(EMf);   // In the old code, particles are read from field files
                 else if (col->getCase()=="Maxwellian") 		                            particles[i].maxwellian(EMf);
+                else if (col->getCase()=="KHI_FLR")                                     particles[i].maxwellian_KHI_FLR(EMf);
                 else                                  		                            particles[i].maxwellian(EMf);
             }
             

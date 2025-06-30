@@ -109,7 +109,7 @@ public:
     void initTaylorGreen();
 
     //* Initialise fields for shear velocity in fluid finite Larmor radius (FLR) equilibrium (Cerri et al. 2013)
-    void init_shear_flow_finite_Larmor_radius(); 
+    void init_KHI_FLR(); 
 
     //? ---------- Initial particle distributions (Relativistic) ---------- ?//
 
