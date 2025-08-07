@@ -159,6 +159,11 @@ void Collective::ReadInput(string inputfile)
         Vinj                        = config.read<double>   ("Vinj", 0.0);
         SaveHeatFluxTensor          = config.read<bool>     ("SaveHeatFluxTensor", false);
 
+        ParticleDistOutputCycle     = config.read<int>      ("ParticleDistOutputCycle", 0);
+        ParticleDistBins            = config.read<int>      ("ParticleDistBins", 90);
+        ParticleDistMinVelocity     = config.read<double>   ("ParticleDistMinVelocity", 1e-6);
+        ParticleDistMaxVelocity     = config.read<double>   ("ParticleDistMaxVelocity", 1e3);
+
         rhoINIT = std::make_unique<double[]>(ns);
         array_double rhoINIT0 = config.read < array_double > ("rhoINIT");
         rhoINIT[0] = rhoINIT0.a;

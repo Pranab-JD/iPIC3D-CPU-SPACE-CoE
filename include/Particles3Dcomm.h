@@ -344,20 +344,17 @@ public:
     double getZ(int i)const{return _pcls[i].get_z();}
     double getT(int i)const{return _pcls[i].get_t();}
 
-    // computed get access
-    /** return the Kinetic energy */
+    double get_momentum();
     double get_kinetic_energy();
+    
     int get_num_particles();
     double get_total_charge();
-    /** return the maximum kinetic energy */
+
     double getMaxVelocity();
-    /** return energy distribution */
-    long long *getVelocityDistribution(int nBins, double maxVel);
-    /** return the momentum */
-    double get_momentum();
-    /** Print particles info: positions, velocities */
+    double getMinVelocity();
+    double *getVelocityDistribution(int nBins, double minVel, double maxVel);
+
     void Print() const;
-    /** Print the number of particles of this subdomain */
     void PrintNp() const;
       
 public:

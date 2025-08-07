@@ -204,9 +204,15 @@ class Collective
     int getCurrentCycle()               const { return CurrentCycle; }
     void setCurrentCycle(int cycle)           { CurrentCycle = cycle; }
 
-    double getPoissonMAdiv()                  { return PoissonMAdiv;}
-    double getPoissonMAres()                  { return PoissonMAres;}
-    double getPoissonMArho()                  { return PoissonMArho;}
+    double getPoissonMAdiv()                  { return PoissonMAdiv; }
+    double getPoissonMAres()                  { return PoissonMAres; }
+    double getPoissonMArho()                  { return PoissonMArho; }
+
+    //* Particle distribution parameters
+    int getParticleDistOutputCycle()          { return ParticleDistOutputCycle; }
+    int getParticleDistBins()                 { return ParticleDistBins; }
+    double getParticleDistMinVelocity()       { return ParticleDistMinVelocity; }
+    double getParticleDistMaxVelocity()       { return ParticleDistMaxVelocity; }
 
     bool getRelativistic()              const { return Relativistic; }
     string getRelativisticPusher()      const { return Relativistic_pusher; }   
@@ -449,6 +455,9 @@ class Collective
     //* Output data precision
     string output_data_precision;
 
+    //* Particle distribution parameters
+    int ParticleDistOutputCycle; int ParticleDistBins;
+    double ParticleDistMinVelocity; double ParticleDistMaxVelocity;
 };
 typedef Collective CollectiveIO;
 

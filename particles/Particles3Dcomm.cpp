@@ -1490,39 +1490,71 @@ double Particles3Dcomm::getMaxVelocity() {
   return (maxVel);
 }
 
-/** get energy spectrum */
-//
-// this ignores the weight of the charges. -eaj
-//
-long long *Particles3Dcomm::getVelocityDistribution(int nBins, double maxVel) 
+//* Get particle velocity (energy) spectrum
+double *Particles3Dcomm::getVelocityDistribution(int nBins, double minVel, double maxVel) 
 {
-    //TODO: Implemnetd relativistic case - PJD
-    long long *f = new long long[nBins];
-    for (int i = 0; i < nBins; i++)
-        f[i] = 0;
-    
-    double Vel = 0.0;
-    double dv = maxVel / nBins;
-    int bin = 0;
+	double *f = new double[nBins];
 
-    for (int i = 0; i < _pcls.size(); i++)
-    {
-        SpeciesParticle& pcl = _pcls[i];
-        const double u = pcl.get_u();
-        const double v = pcl.get_v();
-        const double w = pcl.get_w();
-        Vel = sqrt(u*u + v*v + w*w);
-        bin = int (floor(Vel / dv));
-        if (bin >= nBins)
-            f[nBins - 1] += 1;
-        else
-            f[bin] += 1;
-    }
-    
-    MPI_Allreduce(MPI_IN_PLACE, f, nBins, MPI_LONG_LONG, MPI_SUM, mpi_comm);
-    return f;
+	for (int i = 0; i < nBins; i++) 
+		f[i] = 0.0;
+	
+	double Vel = 0.0;
+	int bin = 0;
+	
+	if (!Relativistic)
+	{ 
+		//! Nonrelativistic simulations
+		double dv = maxVel/nBins;
+
+        for (int i = 0; i < _pcls.size(); i++)
+        {
+            SpeciesParticle& pcl = _pcls[i];
+            const double u = pcl.get_u();
+            const double v = pcl.get_v();
+            const double w = pcl.get_w();
+
+            Vel = sqrt(u*u + v*v + w*w);
+            bin = int (floor(Vel / dv));
+            
+            if (bin >= nBins)
+                f[nBins - 1] += 1;
+            else
+                f[bin] += 1;
+        }
+	}
+	else 
+	{ 
+		//! Relativistic simulations: logspace u distribution
+		double *uDist, *du;
+		uDist = new double[nBins];
+		du = new double[nBins-1];
+		
+		for (int iu = 0; iu < nBins; iu++)  
+			uDist[iu] = pow(10.0,double(iu)*1.0/(double(nBins)-1.0)*(log10(maxVel)-log10(minVel))+log10(minVel));
+		
+		for (int iu = 0; iu < nBins-1; iu++)
+			du[iu] = uDist[iu+1] - uDist[iu];
+
+        for (int i = 0; i < _pcls.size(); i++)
+		{
+            SpeciesParticle& pcl = _pcls[i];
+            const double u = pcl.get_u();
+            const double v = pcl.get_v();
+            const double w = pcl.get_w();
+            const double q = pcl.get_q();
+
+            Vel = sqrt(u*u + v*v + w*w);
+			bin = floor((log10(Vel)-log10(minVel))/((log10(maxVel)-log10(minVel))/double(nBins-1)));
+			
+			if (bin >= 0 && bin < nBins-1)
+				f[bin] += fabs(q)/du[bin];
+		}
+	}
+
+	MPI_Allreduce(MPI_IN_PLACE, f, nBins, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+	return f;
 }
-
 
 /** print particles info */
 void Particles3Dcomm::Print() const

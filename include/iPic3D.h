@@ -69,7 +69,6 @@ namespace iPic3D {
     void ComputeEMFields(int cycle);
     void SupplementaryMoments();
 
-    
     void WriteRestart(int cycle);
     void WriteConserved(int cycle);
     void WriteVelocityDistribution(int cycle);

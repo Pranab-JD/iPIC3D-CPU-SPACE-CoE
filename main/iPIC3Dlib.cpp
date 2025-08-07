@@ -923,6 +923,64 @@ void c_Solver::WriteOutput(int cycle)
 
 		#endif
   	}
+
+    //! Output particle distributions to .txt files
+    if (col->getRelativistic()) 
+    {
+        if (col->getParticleDistOutputCycle() != 0) 
+        {
+            if (cycle == first_cycle || cycle%(col->getParticleDistOutputCycle())==0) 
+            {
+                double vmin, vmax;
+                int N_bins = col->getParticleDistBins();
+
+                double* uDist = new double[N_bins];
+                double* du = new double[N_bins-1];
+                double* fDist = new double[N_bins-1];
+
+                char place[128];
+                const char* dirtxt = SaveDirName.c_str();
+                FILE *fd;
+                for (int is=0; is<ns; is++) 
+                {
+                    vmin = col->getParticleDistMinVelocity()*fabs(col->getQOM(is));
+                    vmax = col->getParticleDistMaxVelocity()*fabs(col->getQOM(is));
+                    
+                    //* Output of u (velocity ninning) at first cycle
+                    if (cycle==first_cycle && myrank==0) 
+                    {
+                        for (int iu=0; iu<N_bins; iu++)  
+                            uDist[iu] = pow(10.0,double(iu)*1.0/(double(N_bins)-1.0)*(log10(vmax)-log10(vmin))+log10(vmin));
+                        
+                        for (int iu=0; iu<N_bins-1; iu++)
+                            du[iu] = uDist[iu+1] - uDist[iu];
+            
+                        sprintf(place,"%s/uDist_%d.txt",dirtxt,is);
+                        fd = fopen(place,"w");
+                        
+                        for (int iu=0; iu<N_bins; iu++)
+                            fprintf(fd,"%13.6e \n", uDist[iu]);
+                        
+                            fclose(fd);
+                    } 
+                    
+                    fDist = particles[is].getVelocityDistribution(N_bins, vmin, vmax);
+
+                    // Output this species' distribution to txt
+                    if (myrank==0) 
+                    {
+                        sprintf(place,"%s/fDist_%d_%06d.txt",dirtxt,is,cycle);
+                        fd = fopen(place,"w");
+                        
+                        for (int iu=0; iu<N_bins-1; iu++)
+                            fprintf(fd, "%13.6e \n", fDist[iu]);
+                        
+                        fclose(fd);
+                    }
+                }
+            }
+        }
+    }
 }
 
 void c_Solver::WriteConserved(int cycle)
@@ -1049,26 +1107,26 @@ void c_Solver::WriteConserved(int cycle)
     }
 }
 
-void c_Solver::WriteVelocityDistribution(int cycle)
-{
-  // Velocity distribution
-  //if(cycle % col->getVelocityDistributionOutputCycle() == 0)
-  {
-    for (int is = 0; is < ns; is++) {
-      double maxVel = particles[is].getMaxVelocity();
-      long long *VelocityDist = particles[is].getVelocityDistribution(nDistributionBins, maxVel);
-      if (myrank == 0) {
-        ofstream my_file(ds.c_str(), fstream::app);
-        my_file << cycle << "\t" << is << "\t" << maxVel;
-        for (int i = 0; i < nDistributionBins; i++)
-          my_file << "\t" << VelocityDist[i];
-        my_file << endl;
-        my_file.close();
-      }
-      delete [] VelocityDist;
-    }
-  }
-}
+// void c_Solver::WriteVelocityDistribution(int cycle)
+// {
+//   // Velocity distribution
+//   //if(cycle % col->getVelocityDistributionOutputCycle() == 0)
+//   {
+//     for (int is = 0; is < ns; is++) {
+//       double maxVel = particles[is].getMaxVelocity();
+//       long long *VelocityDist = particles[is].getVelocityDistribution(nDistributionBins, minVel, maxVel);
+//       if (myrank == 0) {
+//         ofstream my_file(ds.c_str(), fstream::app);
+//         my_file << cycle << "\t" << is << "\t" << maxVel;
+//         for (int i = 0; i < nDistributionBins; i++)
+//           my_file << "\t" << VelocityDist[i];
+//         my_file << endl;
+//         my_file.close();
+//       }
+//       delete [] VelocityDist;
+//     }
+//   }
+// }
 
 // This seems to record values at a grid of sample points
 void c_Solver::WriteVirtualSatelliteTraces()
