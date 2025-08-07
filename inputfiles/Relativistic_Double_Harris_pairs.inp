@@ -33,6 +33,11 @@ FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 #
 ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
 ParticlesDownsampleOutputTag   = position_DS + velocity_DS + q_DS              # Select quantites to be written to files
 
+ParticleDistOutputCycle        = 1                                             # Output cycle for particle velocity distribution
+ParticleDistBins               = 90                                            # Number of bins for particle velocity distribution in logspace
+ParticleDistMinVelocity        = 1e-6                                          # Minimum velocity binning
+ParticleDistMaxVelocity        = 1e3                                           # Maximum velocity binning
+
 ###? Options for output tags
 ###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
 ##* Fields
@@ -57,12 +62,6 @@ ParticlesDownsampleOutputTag   = position_DS + velocity_DS + q_DS              #
     # position_DS       --> Positions of downsampled particles
     # velocity_DS       --> Velocities of downsampled particles
     # q_DS              --> Charge of downsampled particles
-
-## Output params for relativistic cases
-# DistOutputCycle                = 1
-# DistNbins                      = 90
-# DistMaxVel                     = 1e3
-# DistMinVel                     = 1e-6
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                             PHYSICS and GEOMETRY                           %
