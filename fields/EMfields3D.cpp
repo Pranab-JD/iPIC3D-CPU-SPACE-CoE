@@ -5376,7 +5376,7 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
     //* Background (BG) or upstream particles
     double thermal_spread_BG_electrons  = col->getUth(0);                           //* Thermal spread of electrons
     double thermal_spread_BG_ions       = col->getUth(1);                           //* Thermal spread of ions
-    double rho_BG                       = rhoINIT[0]/FourPI;                        //* Density (rho_BG = n * mc^2)
+    double rho_BG                       = rhoINIT[0]/(4.0*M_PI);                    //* Density (rho_BG = n * mc^2)
     double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG);              //* sigma = B^2/(4*pi*rho_electrons)
     
     //* Current sheet (CS) particles
@@ -5425,12 +5425,12 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
         double xN, yN, yh, xh, cosyh, cosxh, sinyh, sinxh;
         double fBx, fBy;
         
-        for (int i = 0; i < nxn; i++)
-            for (int j = 0; j < nyn; j++)
-                for (int k = 0; k < nzn; k++)
+        for (int i = 1; i < nxc-1; i++)
+            for (int j = 1; j < nyc-1; j++)
+                for (int k = 1; k < nzc-1; k++) 
                 {
-                    double xN = grid->getXN(i, j, k);
-                    double yN = grid->getYN(i, j, k);
+                    double xN = grid->getXC(i, j, k);
+                    double yN = grid->getYC(i, j, k);
                     if (yN <= y12) 
                     {
                         yh = yN-y14;
@@ -5451,32 +5451,42 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
                     sinyh = sin(2.0*M_PI*yh/ym);
                     sinxh = sin(2.0*M_PI*xh/xm);
         
-                    Bxn[i][j][k] = fBx * B_BG * tanh(yh/delta_CS);
+                    Bxc[i][j][k] = fBx * B_BG * tanh(yh/delta_CS);
 
                     //* Add perturbation
-                    // Bxn[i][j][k] = Bxn[i][j][k] * (1.0+perturbation*cosxh*cosyh*cosyh) + fBx*2.0*perturbation*cosxh*2.0*M_PI/ym*cosyh*sinyh 
-                    //                             * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-B_BG*delta_CS*LOG_COSH(yh/delta_CS));
+                    Bxc[i][j][k] = Bxc[i][j][k] * (1.0+perturbation*cosxh*cosyh*cosyh) + fBx*2.0*perturbation*cosxh*2.0*M_PI/ym*cosyh*sinyh 
+                                                * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-B_BG*delta_CS*LOG_COSH(yh/delta_CS));
         
-                    // Byn[i][j][k] = fBy*2.0*perturbation*M_PI/xm*sinxh*cosyh*cosyh * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-delta_CS*B_BG*LOG_COSH(yh/delta_CS));
+                    Byc[i][j][k] = fBy*2.0*perturbation*M_PI/xm*sinxh*cosyh*cosyh * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-delta_CS*B_BG*LOG_COSH(yh/delta_CS));
         
-                    // //* Guide field
-                    // Bzn[i][j][k] = B_BG*guide_field_ratio;
-        
+                    //* Guide field
+                    Bzc[i][j][k] = B_BG*guide_field_ratio;
+                }
+
+        for (int i = 0; i < nxn; i++)
+            for (int j = 0; j < nyn; j++)
+                for (int k = 0; k < nzn; k++)
+                {
                     //* Initialise E on nodes
                     Ex[i][j][k] = 0.0;
                     Ey[i][j][k] = 0.0;
                     Ez[i][j][k] = 0.0;
                 }
         
-        //* Initialise B at cell centres
-        grid->interpN2C(Bxc, Bxn);
-        grid->interpN2C(Byc, Byn);
-        grid->interpN2C(Bzc, Bzn);
-
         //* Communicate ghost data at cell centres
         communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
         communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
         communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+
+        //* Initialise B on nodes
+        grid->interpC2N(Bxn, Bxc);
+        grid->interpC2N(Byn, Byc);
+        grid->interpC2N(Bzn, Bzc);
+       
+        //* Communicate ghost data on nodes
+        communicateNodeBC_old(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateNodeBC_old(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateNodeBC_old(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
     }
     else
         init();  //! READ FROM RESTART
