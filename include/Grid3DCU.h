@@ -377,7 +377,7 @@ public:
         cz = int(floor(cz_pos));
         
         // this was the old algorithm.
-        if(!suppress_runaway_particle_instability)
+        if(suppress_runaway_particle_instability)
             make_cell_coordinates_safe(cx,cy,cz);
         assert_cell_coordinates_safe(cx,cy,cz);
     

@@ -176,8 +176,10 @@ inline void sample_Maxwell_Juttner(double& u, double& v, double& w, double therm
 	}
 	
 	double rs[8];
-	for (int i=0; i<8; i++) rs[i] = rand()/(double)RAND_MAX;
-	bool reject = true;
+	for (int i=0; i<8; i++)
+        rs[i] = (rand() + 1.0) / ((double)RAND_MAX + 2.0);      //* Clamp between 0 and 1
+	
+    bool reject = true;
 	
     // Generate a random kinetic energy random_ke = sqrt{u^2+1}" - 1 in the frame of drift
 	double random_ke, pq;
@@ -185,13 +187,20 @@ inline void sample_Maxwell_Juttner(double& u, double& v, double& w, double therm
     {
 		random_ke = -thermal_spread;
 		
-        if (rs[3] < fg) random_ke = random_ke * (log(rs[0]) + log(rs[1])*pow(cos(2.*M_PI*rs[2]),2.0));
-		else            random_ke = random_ke * log(rs[0]*rs[1]*rs[2]);
+        if (rs[3] < fg) 
+            random_ke = random_ke * (log(rs[0]) + log(rs[1])*pow(cos(2.*M_PI*rs[2]),2.0));
+		else            
+            random_ke = random_ke * log(rs[0]*rs[1]*rs[2]);
 		
         pq = (random_ke+1.0)*sqrt(random_ke*(random_ke+2.0)) / (sqrt(2.0*random_ke) + random_ke*random_ke);
 		
-        if (pq >= rs[4] * eta)       reject = false; // random_ke is the result we want
-		else for (int i=0; i<5; i++) rs[i] = rand()/(double)RAND_MAX; // random_ke is rejected -- regenerate
+        if (pq >= rs[4] * eta)       
+            reject = false; // random_ke is the result we want
+		else 
+        {
+            for (int i=0; i<5; i++) 
+                rs[i] = (rand() + 1.0) / ((double)RAND_MAX + 2.0); // random_ke is rejected -- regenerate
+        }
 	}
 	
 	// find gamma and |u| in frame of drift                                                         
