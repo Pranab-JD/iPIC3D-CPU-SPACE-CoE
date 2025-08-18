@@ -997,7 +997,7 @@ void Particles3D::ECSIM_velocity(Field *EMf)
 {
     #pragma omp parallel
     {
-        convertParticlesToAoS();
+        // convertParticlesToAoS();
 
         #pragma omp master
         if (vct->getCartesian_rank() == 0) 
@@ -1097,7 +1097,7 @@ void Particles3D::RelSIM_velocity(Field *EMf)
 {
     #pragma omp parallel
     {
-        convertParticlesToAoS();
+        // convertParticlesToAoS();
 
         #pragma omp master
         if (vct->getCartesian_rank() == 0) 
@@ -1281,7 +1281,7 @@ void Particles3D::ECSIM_position(Field *EMf)
 {
     #pragma omp parallel
     {
-        convertParticlesToAoS();
+        // convertParticlesToAoS();
 
         #pragma omp master
         if (Relativistic)
@@ -1441,69 +1441,6 @@ void Particles3D::ECSIM_position(Field *EMf)
         }                             
         //! END OF ALL THE PARTICLES
 
-        //TODO: Check if periodic wrap is needed!!
-        for (int p = 0; p < getNOP(); ++p)
-        {
-            auto& pcl = _pcls[p];
-
-            // Wrap X if periodic
-            if (vct->getPERIODICX_P())
-            {
-                while (pcl.get_x() < 0.0)  pcl.set_x(pcl.get_x() + Lx);
-                while (pcl.get_x() >= Lx) pcl.set_x(pcl.get_x() - Lx);
-            }
-
-            // Wrap Y if periodic
-            if (vct->getPERIODICY_P())
-            {
-                while (pcl.get_y() < 0.0)  pcl.set_y(pcl.get_y() + Ly);
-                while (pcl.get_y() >= Ly) pcl.set_y(pcl.get_y() - Ly);
-            }
-
-            // Wrap Z if periodic
-            if (vct->getPERIODICZ_P())
-            {
-                while (pcl.get_z() < 0.0)  pcl.set_z(pcl.get_z() + Lz);
-                while (pcl.get_z() >= Lz) pcl.set_z(pcl.get_z() - Lz);
-            }
-        }
-
-        int need_wrap_x_local = 0;
-        int need_wrap_y_local = 0;
-        int need_wrap_z_local = 0;
-
-        for (int p = 0; p < getNOP(); ++p)
-        {
-            const auto& pcl = _pcls[p];
-
-            if (vct->getPERIODICX_P() && (pcl.get_x() < 0.0 || pcl.get_x() >= Lx))
-                need_wrap_x_local = 1;
-
-            if (vct->getPERIODICY_P() && (pcl.get_y() < 0.0 || pcl.get_y() >= Ly))
-                need_wrap_y_local = 1;
-
-            if (vct->getPERIODICZ_P() && (pcl.get_z() < 0.0 || pcl.get_z() >= Lz))
-                need_wrap_z_local = 1;
-
-            // Optional: break early if all three are already flagged
-            // if (need_wrap_x_local && need_wrap_y_local && need_wrap_z_local)
-            //     break;
-        }
-
-        // Communicate across ranks
-        int need_wrap_x = 0, need_wrap_y = 0, need_wrap_z = 0;
-        MPI_Allreduce(&need_wrap_x_local, &need_wrap_x, 1, MPI_INT, MPI_LOR, mpi_comm);
-        MPI_Allreduce(&need_wrap_y_local, &need_wrap_y, 1, MPI_INT, MPI_LOR, mpi_comm);
-        MPI_Allreduce(&need_wrap_z_local, &need_wrap_z, 1, MPI_INT, MPI_LOR, mpi_comm);
-
-        // Report
-        if (MPIdata::get_rank() == 0)
-        {
-            if (need_wrap_x) std::cerr << "[check] some particles need periodic wrap in X\n";
-            if (need_wrap_y) std::cerr << "[check] some particles need periodic wrap in Y\n";
-            if (need_wrap_z) std::cerr << "[check] some particles need periodic wrap in Z\n";
-        }
-
         //* 1D: particle positions for Y & Z = 0; 2D: particle positions for Z = 0
         fixPosition();
     }
@@ -1550,7 +1487,7 @@ void Particles3D::computeMoments(Field *EMf)
 
     #pragma omp parallel
     {
-        convertParticlesToAoS();
+        // convertParticlesToAoS();
 
         //TODO: External forces are to be implemented
         double Fxl = 0.0, Fyl = 0.0, Fzl = 0.0;
@@ -1825,7 +1762,7 @@ void Particles3D::compute_supplementary_moments(Field * EMf)
 {
     #pragma omp parallel
     {
-        convertParticlesToAoS();
+        // convertParticlesToAoS();
 
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++)
