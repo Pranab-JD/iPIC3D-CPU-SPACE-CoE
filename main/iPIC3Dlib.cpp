@@ -442,8 +442,6 @@ void c_Solver::CalculateMoments()
     //? Set all moments and densities to 0
     EMf->setZeroDensities();
 
-    convertParticlesToAoS();
-
     #ifdef __PROFILING__
     time_cm.start();
     #endif
@@ -905,13 +903,13 @@ void c_Solver::WriteOutput(int cycle)
             else if (col->getWriteMethod() == "shdf5")
             {
                 //! Serial HDF5
-                if (!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
+                if (!col->field_output_is_off() && restart_status == 0 && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
                     WriteFields(cycle);
 
-                if (!col->particle_output_is_off() && (cycle%(col->getParticlesOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
+                if (!col->particle_output_is_off() && restart_status == 0 && (cycle%(col->getParticlesOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
                     WriteParticles(cycle);
 
-                if (!col->DS_particle_output_is_off() && col->getParticlesDownsampleFactor() > 1 && (cycle%(col->getParticlesDownsampleOutputCycle()) == 0 || cycle == first_cycle + 1  || cycle == col->getNcycles()))
+                if (!col->DS_particle_output_is_off() && restart_status == 0 && col->getParticlesDownsampleFactor() > 1 && (cycle%(col->getParticlesDownsampleOutputCycle()) == 0 || cycle == first_cycle + 1  || cycle == col->getNcycles()))
                     WriteDSParticles(cycle);
 			}
             else
@@ -1174,6 +1172,9 @@ void c_Solver::WriteFields(int cycle)
         //* Moments
         if(!(col->getMomentsOutputTag()).empty())
             fetch_outputWrapperFPP().append_output_fields((col->getMomentsOutputTag()).c_str(), cycle, col->get_output_data_precision());
+
+        if (vct->getCartesian_rank() == 0)
+            cout << endl << "Completed Writing FIELD data at cycle " << cycle << endl;
     #endif
 }
 
