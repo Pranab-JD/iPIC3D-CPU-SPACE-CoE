@@ -556,7 +556,7 @@ class BlockCommunicator
         blockList.insert(curr_block,newBlock);
         curr_block--;
         assert(*curr_block == newBlock);
-        dprintf("inserted new block %d",nextListID-1);
+        // dprintf("inserted new block %d",nextListID-1);
 
         // hack: set flag in currblock to tell receiver
         // to insert another block for receiving
@@ -567,10 +567,9 @@ class BlockCommunicator
         // wait for communication to finish sending
         // so that we can reuse this block
         //
-        dprintf("waiting for send of block %d to complete.",
-          fetch_curr_block().get_id());
+        // dprintf("waiting for send of block %d to complete.", fetch_curr_block().get_id());
         fetch_curr_block().waitfor_send();
-        dprintf("done waiting for send to complete.");
+        // dprintf("done waiting for send to complete.");
       }
     }
     fetch_curr_block().clear();
