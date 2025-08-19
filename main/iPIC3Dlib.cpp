@@ -293,7 +293,7 @@ int c_Solver::Init(int argc, char **argv)
     if (Parameters::get_doWriteOutput())
     {
         #ifndef NO_HDF5
-        if(col->getWriteMethod() == "shdf5" || col->getWriteMethod() == "H5hut" || col->getCallFinalize() || restart_cycle>0 || (col->getWriteMethod()=="pvtk" && !col->particle_output_is_off()) )
+        if(col->getWriteMethod() == "shdf5" || col->getCallFinalize() || restart_cycle>0 || (col->getWriteMethod()=="pvtk" && !col->particle_output_is_off()) )
         {
             outputWrapperFPP = new OutputWrapperFPP;
             fetch_outputWrapperFPP().init_output_files(col, vct, grid, EMf, particles, ns, testpart, nstestpart);
@@ -859,36 +859,10 @@ void c_Solver::WriteOutput(int cycle)
     {
         //! HDF-based
 		#ifdef NO_HDF5
-            cout << "ERROR: H5hut, shdf5, and phdf5 requires iPIC3D to be compiled with HDF5" << endl;
+            cout << "ERROR: shdf5 and phdf5 requires iPIC3D to be compiled with HDF5" << endl;
 		#else
 
-			if (col->getWriteMethod() == "H5hut")
-            {
-			    if (!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
-                {
-                    if (vct->getCartesian_rank() == 0)
-                        cout << endl << "Writing FIELDS and MOMENTS at cycle " << cycle << endl;
-
-				    WriteFieldsH5hut(ns, grid, EMf, col, vct, cycle, col->getFieldOutputTag());
-                }
-
-			    if (!col->particle_output_is_off() && (cycle%(col->getParticlesOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
-                {
-                    if (vct->getCartesian_rank() == 0)
-                        cout << endl << "Writing PARTICLES at cycle " << cycle << endl;
-
-				    WriteParticlesH5hut(ns, grid, particles, col, vct, cycle);
-                }
-
-                if (!col->DS_particle_output_is_off() && col->getParticlesDownsampleFactor() > 1 && (cycle%(col->getParticlesDownsampleOutputCycle()) == 0 || cycle == first_cycle + 1  || cycle == col->getNcycles()))
-                {
-                    if (vct->getCartesian_rank() == 0)
-                        cout << endl << "Writing DOWNSAMPLED PARTICLES at cycle " << cycle << endl;
-
-                    WriteDSParticlesH5hut(ns, grid, particles, col, vct, cycle);
-                }
-			}
-            else if (col->getWriteMethod() == "phdf5")
+            if (col->getWriteMethod() == "phdf5")
             {
                 //! Parallel HDF5 (THIS DOES NOT WORK -- Maybe this could be debugged) - PJD
 			    if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
@@ -903,18 +877,36 @@ void c_Solver::WriteOutput(int cycle)
             else if (col->getWriteMethod() == "shdf5")
             {
                 //! Serial HDF5
-                if (!col->field_output_is_off() && restart_status == 0 && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
-                    WriteFields(cycle);
+                if (!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0  || cycle == col->getNcycles() + first_cycle))
+                {
+                    if (restart_status == 0 && cycle == first_cycle + 1)
+                        WriteFields(cycle);
+                    
+                        if ((restart_status == 1 || restart_status == 2) && cycle != first_cycle)
+                        WriteFields(cycle);
+                }
 
-                if (!col->particle_output_is_off() && restart_status == 0 && (cycle%(col->getParticlesOutputCycle()) == 0 || cycle == first_cycle + 1 || cycle == col->getNcycles()))
-                    WriteParticles(cycle);
+                if (!col->particle_output_is_off() && (cycle%(col->getParticlesOutputCycle()) == 0 || cycle == col->getNcycles() + first_cycle))
+                {
+                    if (restart_status == 0 && cycle == first_cycle + 1)
+                        WriteParticles(cycle);
+                    
+                    if ((restart_status == 1 || restart_status == 2) && cycle != first_cycle)
+                        WriteParticles(cycle);
+                }
 
-                if (!col->DS_particle_output_is_off() && restart_status == 0 && col->getParticlesDownsampleFactor() > 1 && (cycle%(col->getParticlesDownsampleOutputCycle()) == 0 || cycle == first_cycle + 1  || cycle == col->getNcycles()))
-                    WriteDSParticles(cycle);
+                if (!col->DS_particle_output_is_off() && col->getParticlesDownsampleFactor() > 1 && (cycle%(col->getParticlesDownsampleOutputCycle()) == 0 || cycle == col->getNcycles() + first_cycle))
+                {
+                    if (restart_status == 0 && cycle == first_cycle + 1)
+                        WriteDSParticles(cycle);
+
+                    if ((restart_status == 1 || restart_status == 2) && cycle != first_cycle)
+                        WriteDSParticles(cycle);
+                }
 			}
             else
             {
-			    cout << "ERROR: Invalid WriteMethod in input file. Available options: H5hut, phdf5, shdf5, pvtk, nbcvtk." << endl;
+			    cout << "ERROR: Invalid WriteMethod in input file. Available options: shdf5, pvtk, and nbcvtk." << endl;
 			    invalid_value_error(col->getWriteMethod().c_str());
                 abort();
 			}
@@ -927,7 +919,7 @@ void c_Solver::WriteOutput(int cycle)
     {
         if (col->getParticleDistOutputCycle() != 0) 
         {
-            if (cycle == first_cycle || cycle%(col->getParticleDistOutputCycle())==0) 
+            if (cycle == first_cycle || cycle%(col->getParticleDistOutputCycle()) == 0 || cycle == col->getNcycles() + first_cycle) 
             {
                 double vmin, vmax;
                 int N_bins = col->getParticleDistBins();
@@ -945,7 +937,7 @@ void c_Solver::WriteOutput(int cycle)
                     vmax = col->getParticleDistMaxVelocity()*fabs(col->getQOM(is));
                     
                     //* Output of u (velocity ninning) at first cycle
-                    if (cycle==first_cycle && myrank==0) 
+                    if (cycle == first_cycle && myrank == 0) 
                     {
                         for (int iu=0; iu<N_bins; iu++)  
                             uDist[iu] = pow(10.0,double(iu)*1.0/(double(N_bins)-1.0)*(log10(vmax)-log10(vmin))+log10(vmin));
@@ -959,18 +951,18 @@ void c_Solver::WriteOutput(int cycle)
                         for (int iu=0; iu<N_bins; iu++)
                             fprintf(fd,"%13.6e \n", uDist[iu]);
                         
-                            fclose(fd);
+                        fclose(fd);
                     } 
                     
                     fDist = particles[is].getVelocityDistribution(N_bins, vmin, vmax);
 
                     // Output this species' distribution to txt
-                    if (myrank==0) 
+                    if (myrank == 0) 
                     {
-                        sprintf(place,"%s/fDist_%d_%06d.txt",dirtxt,is,cycle);
-                        fd = fopen(place,"w");
+                        sprintf(place, "%s/fDist_%d_%06d.txt", dirtxt, is, cycle);
+                        fd = fopen(place, "w");
                         
-                        for (int iu=0; iu<N_bins-1; iu++)
+                        for (int iu = 0; iu < N_bins-1; iu++)
                             fprintf(fd, "%13.6e \n", fDist[iu]);
                         
                         fclose(fd);
@@ -1013,9 +1005,6 @@ void c_Solver::WriteConserved(int cycle)
             momentum_species[is] += particles[is].get_momentum();
             kinetic_energy_species[is] = particles[is].get_kinetic_energy();
             bulk_energy_species[is] = EMf->get_bulk_energy(is);
-
-            // num_particles_species[is] = particles[is].get_num_particles();
-            // charge_species[is] = particles[is].get_total_charge();
             
             kinetic_energy += kinetic_energy_species[is];
             total_momentum += momentum_species[is];
@@ -1105,27 +1094,6 @@ void c_Solver::WriteConserved(int cycle)
     }
 }
 
-// void c_Solver::WriteVelocityDistribution(int cycle)
-// {
-//   // Velocity distribution
-//   //if(cycle % col->getVelocityDistributionOutputCycle() == 0)
-//   {
-//     for (int is = 0; is < ns; is++) {
-//       double maxVel = particles[is].getMaxVelocity();
-//       long long *VelocityDist = particles[is].getVelocityDistribution(nDistributionBins, minVel, maxVel);
-//       if (myrank == 0) {
-//         ofstream my_file(ds.c_str(), fstream::app);
-//         my_file << cycle << "\t" << is << "\t" << maxVel;
-//         for (int i = 0; i < nDistributionBins; i++)
-//           my_file << "\t" << VelocityDist[i];
-//         my_file << endl;
-//         my_file.close();
-//       }
-//       delete [] VelocityDist;
-//     }
-//   }
-// }
-
 // This seems to record values at a grid of sample points
 void c_Solver::WriteVirtualSatelliteTraces()
 {
@@ -1172,9 +1140,6 @@ void c_Solver::WriteFields(int cycle)
         //* Moments
         if(!(col->getMomentsOutputTag()).empty())
             fetch_outputWrapperFPP().append_output_fields((col->getMomentsOutputTag()).c_str(), cycle, col->get_output_data_precision());
-
-        if (vct->getCartesian_rank() == 0)
-            cout << endl << "Completed Writing FIELD data at cycle " << cycle << endl;
     #endif
 }
 
@@ -1232,7 +1197,6 @@ void c_Solver::WriteRestart(int cycle)
         convertParticlesToSynched();
 
         fetch_outputWrapperFPP().append_restart(cycle, "DOUBLE");
-
     }
     #endif
 }
