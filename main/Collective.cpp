@@ -1345,7 +1345,7 @@ void Collective::Print()
     cout << "Simulation Name                : " << SimName << endl << endl;
     cout << "Output data is saved in the '" << SaveDirName << "' directory" << endl;
     cout << "Restart data is saved in the '" << RestartDirName << "' directory" << endl << endl;
-    cout << "Output and restart data are stored in " << output_data_precision << " precision" << endl << endl;
+    cout << "Output data is stored in " << output_data_precision << " precision" << endl << endl;
 
     cout << "-----------------------------------------------------------"   << endl;
     cout << "                  Simulation Parameters"                       << endl;
