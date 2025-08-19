@@ -92,12 +92,12 @@ c_Solver::~c_Solver()
 
 int c_Solver::Init(int argc, char **argv) 
 {
+
     #if defined(__MIC__)
-        assert_eq(DVECWIDTH,8);
+        assert_eq(DVECWIDTH, 8);
     #endif
 
     Parameters::init_parameters();
-    //mpi = &MPIdata::instance();
     nprocs = MPIdata::get_nprocs();
     myrank = MPIdata::get_rank();
 
@@ -126,11 +126,6 @@ int c_Solver::Init(int argc, char **argv)
 
     // We create a new communicator with a 3D virtual Cartesian topology
     vct->setup_vctopology(MPIdata::get_PicGlobalComm());
-    {
-        stringstream num_proc_ss;
-        num_proc_ss << vct->getCartesian_rank();
-        num_proc_str = num_proc_ss.str();
-    }
     
     // initialize the central cell index
     #ifdef BATSRUS
@@ -253,7 +248,6 @@ int c_Solver::Init(int argc, char **argv)
                 else if (col->getCase()=="Maxwell_Jutter") 	                            particles[i].Maxwell_Juttner(EMf);
                 else if (col->getCase()=="Double_Harris")                               particles[i].maxwellian_Double_Harris(EMf);           //* Works for small enough velocities
 				else                                                                    particles[i].Maxwell_Juttner(EMf);
-                
 			}
             else
             {

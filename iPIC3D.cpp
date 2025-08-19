@@ -41,12 +41,18 @@ int main(int argc, char **argv)
         #endif
 
         //? LeXInt timer
-        LeXInt::timer time_EF, time_PM, time_MF, time_MG, time_WD, time_total;
+        LeXInt::timer time_IN, time_EF, time_PM, time_MF, time_MG, time_WD, time_total;
         time_total.start();
 
         iPic3D::c_Solver KCode;
 
+        time_IN.start();
         KCode.Init(argc, argv); //! load param from file, init the grid, fields
+        time_IN.stop();
+
+        if(MPIdata::get_rank() == 0)
+            std::cout << std::endl << "Time needed for initialisation: " << time_IN.total()   << " s" << std::endl;
+
         KCode.WriteOutput(KCode.FirstCycle());
 
         for (int i = KCode.FirstCycle() + 1; i <= KCode.LastCycle(); i++) 
