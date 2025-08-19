@@ -51,6 +51,7 @@ developers: Stefano Markidis, Giovanni Lapenta.
 //#include <complex>
 #include "debug.h"
 #include "TimeTasks.h"
+#include "../LeXInt_Timer.hpp"
 
 using std::cout;
 using std::endl;
@@ -333,7 +334,6 @@ Particles3Dcomm::Particles3Dcomm(int species_number, CollectiveIO * col_, Virtua
 
     if(false && is_output_thread())
         printf("species %d velocity cap: umax=%g,vmax=%g,wmax=%g\n", ns, umax,vmax,wmax);
-
 }
 
 // pad capacities so that aligned vectorization does not result in an array overrun.
@@ -1737,7 +1737,7 @@ void Particles3Dcomm::copyParticlesToAoS()
 {
   timeTasks_set_task(TimeTasks::TRANSPOSE_PCLS_TO_AOS);
   const int nop = u.size();
-  if(is_output_thread()) dprintf("copying to array of structs");
+//   if(is_output_thread()) dprintf("copying to array of structs");
   resize_AoS(nop);
  #ifndef __MIC__
   // use a simple stride-8 gather
