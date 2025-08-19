@@ -13,7 +13,7 @@ RestartDirName                 = data_maxwell3D                                #
 # %                                    OUTPUT                                  %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-WriteMethod                    = shdf5                                         # Output method [ shdf5 | phdf5 | H5hut | pvtk | nbcvtk ]
+WriteMethod                    = shdf5                                         # Output method [ shdf5 | pvtk | nbcvtk ]
 output_data_precision          = DOUBLE                                        # Precision of output data [SINGLE | DOUBLE]
 
 #! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are

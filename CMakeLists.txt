@@ -39,7 +39,6 @@ option(BUILD_SHARED_LIBS "Use shared libraries if ON, static if OFF" ON)
 option(USE_CATALYST "Use Catalyst adaptor" OFF)
 option(USE_BATSRUS "Use BATSRUS flag" OFF)
 option(USE_HDF5 "Use HDF5 library" ON)
-option(USE_H5HUT "Use H5HUT library" OFF)
 option(BENCH_MARK "Print tasks time" OFF)
 option(USE_OPENMP "Use OpenMP in support loops" ON)
 option(PROFILING "Measure runtimes of substages" OFF)
@@ -96,28 +95,6 @@ if (USE_HDF5)
 	endif()
 endif()
 
-############### H5HUT ###############
-
-if(USE_H5HUT)
-    add_subdirectory(H5hut-io)
-    set(H5HUT_DIR "$ENV{H5HUT_DIR}" CACHE PATH "Path to H5hut install")
-    find_library(H5HUT_LIBRARY NAMES H5hut PATHS ${H5HUT_DIR}/lib NO_DEFAULT_PATH)
-    message(STATUS "H5HUT library found at: ${H5HUT_LIBRARY}")
-
-    message(STATUS "H5hut support is ON")
-    add_definitions(-DUSE_H5HUT)
-
-    include_directories(${H5HUT_DIR}/include)
-    link_directories(${H5HUT_DIR}/lib)
-
-    if(NOT H5HUT_LIBRARY)
-        message(FATAL_ERROR "H5hut library not found in ${H5HUT_DIR}/lib")
-    endif()
-else()
-    message(STATUS "H5hut support is OFF")
-endif()
-
-
 ############### MPI and OpenMP ###############
 
 find_package(MPI REQUIRED COMPONENTS CXX)
@@ -160,13 +137,6 @@ endif()
 
 if(USE_HDF5)
     target_link_libraries(iPIC3Dlib PRIVATE ${HDF5_C_HL_TARGET})
-endif()
-
-if(USE_H5HUT)
-    target_link_libraries(iPIC3Dlib
-        PRIVATE ${H5HUT_LIBRARY}
-        PRIVATE H5hut-io
-    )
 endif()
 
 if(USE_CATALYST)

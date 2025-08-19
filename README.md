@@ -5,7 +5,6 @@
   - cmake (minimum version 2.8)
   - MPI (OpenMPI or MPICH)
   - HDF5 (optional)
-  - H5HUT (optional, need parallel HF5 to use H5HUT)
   - VTK (optional)
   - Paraview/Catalyst (optional)
 
