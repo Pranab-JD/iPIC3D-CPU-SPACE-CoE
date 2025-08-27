@@ -1182,7 +1182,7 @@ void c_Solver::WriteTestParticles(int cycle)
 void c_Solver::WriteRestart(int cycle)
 {
     #ifndef NO_HDF5
-    if (restart_cycle>0 && cycle%restart_cycle==0)
+    if (restart_cycle > 0 && cycle%restart_cycle == 0 && cycle > 0)
     {
         if (myrank == 0)
             cout << endl << "Writing RESTART data at time cycle " << cycle << endl;

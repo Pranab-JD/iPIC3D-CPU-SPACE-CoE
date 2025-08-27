@@ -2254,30 +2254,34 @@ void EMfields3D::sumMoments_vectorized_AoS(const Particles3Dcomm* part)
 //* Compute the product of mass matrix with vector "V = (Vx, Vy, Vz)"
 void EMfields3D::mass_matrix_times_vector(double* MEx, double* MEy, double* MEz, const_arr3_double vectX, const_arr3_double vectY, const_arr3_double vectZ, int i, int j, int k)
 {
-    double resX = 0.0;
-    double resY = 0.0;
-    double resZ = 0.0;
+    double resX = 0.0; double resY = 0.0; double resZ = 0.0;
 
-    for (int g = 0; g < NE_MASS; g++) 
+    //* Center (g = 0)
+    resX  = vectX[i][j][k]*Mxx[0][i][j][k] + vectY[i][j][k]*Myx[0][i][j][k] + vectZ[i][j][k]*Mzx[0][i][j][k];
+    resY  = vectX[i][j][k]*Mxy[0][i][j][k] + vectY[i][j][k]*Myy[0][i][j][k] + vectZ[i][j][k]*Mzy[0][i][j][k];
+    resZ  = vectX[i][j][k]*Mxz[0][i][j][k] + vectY[i][j][k]*Myz[0][i][j][k] + vectZ[i][j][k]*Mzz[0][i][j][k];
+
+    //* Neighbours
+    for (int g = 1; g < NE_MASS; g++) 
     {
         int i1 = i + NeNo.getX(g);
         int j1 = j + NeNo.getY(g);
         int k1 = k + NeNo.getZ(g);
 
-        resX += vectX.get(i1, j1, k1)*Mxx[g][i][j][k] + vectY.get(i1, j1, k1)*Myx[g][i][j][k] + vectZ.get(i1, j1, k1)*Mzx[g][i][j][k];
-        resY += vectX.get(i1, j1, k1)*Mxy[g][i][j][k] + vectY.get(i1, j1, k1)*Myy[g][i][j][k] + vectZ.get(i1, j1, k1)*Mzy[g][i][j][k];
-        resZ += vectX.get(i1, j1, k1)*Mxz[g][i][j][k] + vectY.get(i1, j1, k1)*Myz[g][i][j][k] + vectZ.get(i1, j1, k1)*Mzz[g][i][j][k];
+        resX += vectX[i1][j1][k1]*Mxx[g][i][j][k] + vectY[i1][j1][k1]*Myx[g][i][j][k] + vectZ[i1][j1][k1]*Mzx[g][i][j][k];
+        resY += vectX[i1][j1][k1]*Mxy[g][i][j][k] + vectY[i1][j1][k1]*Myy[g][i][j][k] + vectZ[i1][j1][k1]*Mzy[g][i][j][k];
+        resZ += vectX[i1][j1][k1]*Mxz[g][i][j][k] + vectY[i1][j1][k1]*Myz[g][i][j][k] + vectZ[i1][j1][k1]*Mzz[g][i][j][k];
 
-        if (g == 0)
-            continue;
+        // if (g == 0)
+        //     continue;
         
         int i2 = i - NeNo.getX(g);
         int j2 = j - NeNo.getY(g);
         int k2 = k - NeNo.getZ(g);
 
-        resX += vectX.get(i2, j2, k2)*Mxx[g][i2][j2][k2] + vectY.get(i2, j2, k2)*Myx[g][i2][j2][k2] + vectZ.get(i2, j2, k2)*Mzx[g][i2][j2][k2];
-        resY += vectX.get(i2, j2, k2)*Mxy[g][i2][j2][k2] + vectY.get(i2, j2, k2)*Myy[g][i2][j2][k2] + vectZ.get(i2, j2, k2)*Mzy[g][i2][j2][k2];
-        resZ += vectX.get(i2, j2, k2)*Mxz[g][i2][j2][k2] + vectY.get(i2, j2, k2)*Myz[g][i2][j2][k2] + vectZ.get(i2, j2, k2)*Mzz[g][i2][j2][k2];
+        resX += vectX[i2][j2][k2]*Mxx[g][i2][j2][k2] + vectY[i2][j2][k2]*Myx[g][i2][j2][k2] + vectZ[i2][j2][k2]*Mzx[g][i2][j2][k2];
+        resY += vectX[i2][j2][k2]*Mxy[g][i2][j2][k2] + vectY[i2][j2][k2]*Myy[g][i2][j2][k2] + vectZ[i2][j2][k2]*Mzy[g][i2][j2][k2];
+        resZ += vectX[i2][j2][k2]*Mxz[g][i2][j2][k2] + vectY[i2][j2][k2]*Myz[g][i2][j2][k2] + vectZ[i2][j2][k2]*Mzz[g][i2][j2][k2];
     }
 
     *MEx = resX;
@@ -2794,9 +2798,9 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     const Grid *grid = &get_grid();
 
     eqValue(0.0, im, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
-    eqValue(0.0, tempX, nxn, nyn, nzn);
-    eqValue(0.0, tempY, nxn, nyn, nzn);
-    eqValue(0.0, tempZ, nxn, nyn, nzn);
+    // eqValue(0.0, tempX, nxn, nyn, nzn);
+    // eqValue(0.0, tempY, nxn, nyn, nzn);
+    // eqValue(0.0, tempZ, nxn, nyn, nzn);
 
     //? Move from Krylov space to physical space
     solver2phys(tempX, tempY, tempZ, vector, nxn, nyn, nzn);
@@ -2821,16 +2825,27 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     grid->curlC2N(imageX, imageY, imageZ, tempXC, tempYC, tempZC);
 
     //* multiply by factor
-    scale(imageX, c*th*dt*c*th*dt, nxn, nyn, nzn);
-    scale(imageY, c*th*dt*c*th*dt, nxn, nyn, nzn);
-    scale(imageZ, c*th*dt*c*th*dt, nxn, nyn, nzn);
+    // scale(imageX, c*th*dt*c*th*dt, nxn, nyn, nzn);
+    // scale(imageY, c*th*dt*c*th*dt, nxn, nyn, nzn);
+    // scale(imageZ, c*th*dt*c*th*dt, nxn, nyn, nzn);
 
-    addscale(1, imageX, tempX, nxn, nyn, nzn);
-    addscale(1, imageY, tempY, nxn, nyn, nzn);
-    addscale(1, imageZ, tempZ, nxn, nyn, nzn);
+    // addscale(1, imageX, tempX, nxn, nyn, nzn);
+    // addscale(1, imageY, tempY, nxn, nyn, nzn);
+    // addscale(1, imageZ, tempZ, nxn, nyn, nzn);
+
+    double factor = c*th*dt*c*th*dt;
+    for (int i=1;i<nxn-1;i++)
+        for (int j=1;j<nyn-1;j++)
+            for (int k=1;k<nzn-1;k++) 
+            {
+                imageX[i][j][k] = tempX[i][j][k] + factor * imageX[i][j][k];
+                imageY[i][j][k] = tempY[i][j][k] + factor * imageY[i][j][k];
+                imageZ[i][j][k] = tempZ[i][j][k] + factor * imageZ[i][j][k];
+            }
 
     energy_conserve_smooth(tempX, tempY, tempZ, nxn, nyn, nzn);
 
+    #pragma omp parallel for collapse(3) schedule(static)
     for (int i=1; i<nxn-1; i++) 
         for (int j=1; j<nyn-1; j++) 
             for (int k=1; k<nzn-1; k++) 
@@ -2839,9 +2854,9 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
                 
                 mass_matrix_times_vector(&MEx, &MEy, &MEz, tempX, tempY, tempZ, i, j, k);
                 
-                temp2X.fetch(i, j, k) = dt*th*FourPI*MEx;
-                temp2Y.fetch(i, j, k) = dt*th*FourPI*MEy;
-                temp2Z.fetch(i, j, k) = dt*th*FourPI*MEz;
+                temp2X[i][j][k] = dt*th*FourPI*MEx;
+                temp2Y[i][j][k] = dt*th*FourPI*MEy;
+                temp2Z[i][j][k] = dt*th*FourPI*MEz;
             }
     
     communicateNodeBC(nxn, nyn, nzn, temp2X, 2, 2, 2, 2, 2, 2, vct, this);
@@ -2854,15 +2869,24 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
         for (int j=1; j<nyn-1; j++)
             for (int k=1; k<nzn-1; k++) 
             {
-                temp2X.fetch(i, j, k) *= invVOL;
-                temp2Y.fetch(i, j, k) *= invVOL;
-                temp2Z.fetch(i, j, k) *= invVOL;
+                temp2X[i][j][k] *= invVOL;
+                temp2Y[i][j][k] *= invVOL;
+                temp2Z[i][j][k] *= invVOL;
             }
 
-    addscale(1.0, imageX, temp2X, nxn, nyn, nzn);
-    addscale(1.0, imageY, temp2Y, nxn, nyn, nzn);
-    addscale(1.0, imageZ, temp2Z, nxn, nyn, nzn);
+    // addscale(1.0, imageX, temp2X, nxn, nyn, nzn);
+    // addscale(1.0, imageY, temp2Y, nxn, nyn, nzn);
+    // addscale(1.0, imageZ, temp2Z, nxn, nyn, nzn);
     
+    for (int i=1;i<nxn-1;i++)
+        for (int j=1;j<nyn-1;j++)
+            for (int k=1;k<nzn-1;k++) 
+            {
+                imageX[i][j][k] = temp2X[i][j][k] + imageX[i][j][k];
+                imageY[i][j][k] = temp2Y[i][j][k] + imageY[i][j][k];
+                imageZ[i][j][k] = temp2Z[i][j][k] + imageZ[i][j][k];
+            }
+
     //? Move from physical space to Krylov space
     phys2solver(im, imageX, imageY, imageZ, nxn, nyn, nzn);
 }
@@ -2958,36 +2982,34 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
 
-    //? Initialise temporary arrays with zeros
-    eqValue(0.0, smooth_temp, nx, ny, nz);
-
     int bc[6];
     if (dir == 0)      for (int i=0; i<6; i++) bc[i] = col->bcEx[i];    //* BC along X
     else if (dir == 1) for (int i=0; i<6; i++) bc[i] = col->bcEy[i];    //* BC along Y
     else if (dir == 2) for (int i=0; i<6; i++) bc[i] = col->bcEz[i];    //* BC along Z
 
+    //? Initialise temporary arrays with zeros
+    eqValue(0.0, smooth_temp, nx, ny, nz);
+
     //! Using new communication routines results in energy growth
     communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
 
-    for (int icount = 1; icount < num_smoothings + 1; icount++)
+    for (int icount = 0; icount < num_smoothings; icount++)
     {
         for (int i = 1; i < nx - 1; i++)
             for (int j = 1; j < ny - 1; j++) 
                 for (int k = 1; k < nz - 1; k++)
-                    smooth_temp.fetch(i, j, k) = 0.015625 * (8.0 * data.get(i, j, k)
-                                                    + 4.0 *(data.get(i-1, j, k) + data.get(i+1, j, k)      //* Faces
-                                                    +       data.get(i, j-1, k) + data.get(i, j+1, k)      //* Faces
-                                                    +       data.get(i, j, k-1) + data.get(i, j, k+1))     //* Faces
-                                                    + 2.0 *(data.get(i-1, j-1, k) + data.get(i+1, j-1, k) + data.get(i-1, j+1, k) + data.get(i+1, j+1, k)      //* Edges
-                                                    +       data.get(i-1, j, k-1) + data.get(i+1, j, k-1) + data.get(i, j-1, k-1) + data.get(i, j+1, k-1)      //* Edges
-                                                    +       data.get(i-1, j, k+1) + data.get(i+1, j, k+1) + data.get(i, j-1, k+1) + data.get(i, j+1, k+1))     //* Edges
-                                                    + 1.0 *(data.get(i-1, j-1, k-1) + data.get(i+1, j-1, k-1) + data.get(i-1, j+1, k-1) + data.get(i+1, j+1, k-1)       //* Corners
-                                                    +       data.get(i-1, j-1, k+1) + data.get(i+1, j-1, k+1) + data.get(i-1, j+1, k+1) + data.get(i+1, j+1, k+1)));    //* Corners
+                    smooth_temp[i][j][k] =  0.015625  * (8.0*data[i][j][k]
+                                                + 4.0 * (data[i-1][j][k] + data[i+1][j][k] + data[i][j-1][k] + data[i][j+1][k] + data[i][j][k-1] + data[i][j][k+1])     //* Faces
+                                                + 2.0 * (data[i-1][j-1][k] + data[i+1][j-1][k] + data[i-1][j+1][k] + data[i+1][j+1][k]                                  //* Edges
+                                                       + data[i-1][j][k-1] + data[i+1][j][k-1] + data[i][j-1][k-1] + data[i][j+1][k-1]                                  //* Edges
+                                                       + data[i-1][j][k+1] + data[i+1][j][k+1] + data[i][j-1][k+1] + data[i][j+1][k+1])                                 //* Edges
+                                                + 1.0 * (data[i-1][j-1][k-1] + data[i+1][j-1][k-1] + data[i-1][j+1][k-1] + data[i+1][j+1][k-1]                          //* Corners
+                                                       + data[i-1][j-1][k+1] + data[i+1][j-1][k+1] + data[i-1][j+1][k+1] + data[i+1][j+1][k+1]));                       //* Corners
 
         for (int i = 1; i < nx - 1; i++)
             for (int j = 1; j < ny - 1; j++)
                 for (int k = 1; k < nz - 1; k++)
-                    data.fetch(i, j, k) = smooth_temp.get(i, j, k);
+                    data[i][j][k] = smooth_temp[i][j][k];
         
         //! Using new communication routines results in energy growth
         communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
@@ -3579,15 +3601,15 @@ void EMfields3D::setZeroMassMatrix()
             for (int j = 0; j < nyn; j++)
                 for (int k = 0; k < nzn; k++) 
                 {
-                    Mxx.fetch(c, i, j, k) = 0.0;
-                    Mxy.fetch(c, i, j, k) = 0.0;
-                    Mxz.fetch(c, i, j, k) = 0.0;
-                    Myx.fetch(c, i, j, k) = 0.0;
-                    Myy.fetch(c, i, j, k) = 0.0;
-                    Myz.fetch(c, i, j, k) = 0.0;
-                    Mzx.fetch(c, i, j, k) = 0.0;
-                    Mzy.fetch(c, i, j, k) = 0.0;
-                    Mzz.fetch(c, i, j, k) = 0.0;
+                    Mxx[c][i][j][k] = 0.0;
+                    Mxy[c][i][j][k] = 0.0;
+                    Mxz[c][i][j][k] = 0.0;
+                    Myx[c][i][j][k] = 0.0;
+                    Myy[c][i][j][k] = 0.0;
+                    Myz[c][i][j][k] = 0.0;
+                    Mzx[c][i][j][k] = 0.0;
+                    Mzy[c][i][j][k] = 0.0;
+                    Mzz[c][i][j][k] = 0.0;
                 }
 }
 
@@ -3598,13 +3620,13 @@ void EMfields3D::setZeroDerivedMoments()
         for (int j = 0; j < nyn; j++)
             for (int k = 0; k < nzn; k++)
             {
-                Jx.fetch(i, j, k) = 0.0;        //* J along X
-                Jy.fetch(i, j, k) = 0.0;        //* J along Y
-                Jz.fetch(i, j, k) = 0.0;        //* J along Z
-                Jxh.fetch(i, j, k) = 0.0;       //* J hat along X
-                Jyh.fetch(i, j, k) = 0.0;       //* J hat along Y
-                Jzh.fetch(i, j, k) = 0.0;       //* J hat along Z
-                rhon.fetch(i, j, k) = 0.0;       //* J hat along Z
+                Jx[i][j][k] = 0.0;        //* J along X
+                Jy[i][j][k] = 0.0;        //* J along Y
+                Jz[i][j][k] = 0.0;        //* J along Z
+                Jxh[i][j][k] = 0.0;       //* J hat along X
+                Jyh[i][j][k] = 0.0;       //* J hat along Y
+                Jzh[i][j][k] = 0.0;       //* J hat along Z
+                rhon[i][j][k] = 0.0;       //* J hat along Z
             }
 
     eqValue(0.0, rhoc, nxc, nyc, nzc);
@@ -3619,13 +3641,13 @@ void EMfields3D::setZeroPrimaryMoments()
             for (int j = 0; j < nyn; j++)
                 for (int k = 0; k < nzn; k++) 
                 {
-                    Jxs.fetch(is, i, j, k) = 0.0;       //* J along X, for each species, at nodes
-                    Jys.fetch(is, i, j, k) = 0.0;       //* J along Y, for each species, at nodes
-                    Jzs.fetch(is, i, j, k) = 0.0;       //* J along Z, for each species, at nodes
-                    Jxhs.fetch(is, i, j, k) = 0.0;      //* J hat along X, for each species, at nodes
-                    Jyhs.fetch(is, i, j, k) = 0.0;      //* J hat along Y, for each species, at nodes
-                    Jzhs.fetch(is, i, j, k) = 0.0;      //* J hat along Z, for each species, at nodes
-                    rhons.fetch(is, i, j, k) = 0.0;     //* Rho, for each species, at nodes
+                    Jxs[is][i][j][k] = 0.0;       //* J along X, for each species, at nodes
+                    Jys[is][i][j][k] = 0.0;       //* J along Y, for each species, at nodes
+                    Jzs[is][i][j][k] = 0.0;       //* J along Z, for each species, at nodes
+                    Jxhs[is][i][j][k] = 0.0;      //* J hat along X, for each species, at nodes
+                    Jyhs[is][i][j][k] = 0.0;      //* J hat along Y, for each species, at nodes
+                    Jzhs[is][i][j][k] = 0.0;      //* J hat along Z, for each species, at nodes
+                    rhons[is][i][j][k] = 0.0;     //* Rho, for each species, at nodes
                 }
 }
 
