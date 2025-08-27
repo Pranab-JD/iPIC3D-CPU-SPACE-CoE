@@ -2982,37 +2982,57 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
 
+    LeXInt::timer time_4, time_A, time_B, time_C;
+
     int bc[6];
     if (dir == 0)      for (int i=0; i<6; i++) bc[i] = col->bcEx[i];    //* BC along X
     else if (dir == 1) for (int i=0; i<6; i++) bc[i] = col->bcEy[i];    //* BC along Y
     else if (dir == 2) for (int i=0; i<6; i++) bc[i] = col->bcEz[i];    //* BC along Z
 
     //? Initialise temporary arrays with zeros
-    eqValue(0.0, smooth_temp, nx, ny, nz);
+    // eqValue(0.0, smooth_temp, nx, ny, nz);
+
+    // double ***temp = newArr3(double, nx, ny, nz);
 
     //! Using new communication routines results in energy growth
     communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
 
-    for (int icount = 0; icount < num_smoothings; icount++)
+    time_4.start();
+
+    for (int icount = 1; icount < num_smoothings + 1; icount++)
     {
+        time_A.start();
+
         for (int i = 1; i < nx - 1; i++)
             for (int j = 1; j < ny - 1; j++) 
+                // #pragma omp simd
                 for (int k = 1; k < nz - 1; k++)
                     smooth_temp[i][j][k] =  0.015625  * (8.0*data[i][j][k]
-                                                + 4.0 * (data[i-1][j][k] + data[i+1][j][k] + data[i][j-1][k] + data[i][j+1][k] + data[i][j][k-1] + data[i][j][k+1])     //* Faces
-                                                + 2.0 * (data[i-1][j-1][k] + data[i+1][j-1][k] + data[i-1][j+1][k] + data[i+1][j+1][k]                                  //* Edges
-                                                       + data[i-1][j][k-1] + data[i+1][j][k-1] + data[i][j-1][k-1] + data[i][j+1][k-1]                                  //* Edges
-                                                       + data[i-1][j][k+1] + data[i+1][j][k+1] + data[i][j-1][k+1] + data[i][j+1][k+1])                                 //* Edges
-                                                + 1.0 * (data[i-1][j-1][k-1] + data[i+1][j-1][k-1] + data[i-1][j+1][k-1] + data[i+1][j+1][k-1]                          //* Corners
-                                                       + data[i-1][j-1][k+1] + data[i+1][j-1][k+1] + data[i-1][j+1][k+1] + data[i+1][j+1][k+1]));                       //* Corners
+                                                + 4.0 * (data[i-1][j][k] + data[i+1][j][k] + data[i][j-1][k] + data[i][j+1][k] + data[i][j][k-1] + data[i][j][k+1]));                       //* Corners
+
+        time_A.stop();
+        time_B.start();
 
         for (int i = 1; i < nx - 1; i++)
             for (int j = 1; j < ny - 1; j++)
                 for (int k = 1; k < nz - 1; k++)
                     data[i][j][k] = smooth_temp[i][j][k];
-        
+
+        time_B.stop();
+        time_C.start();
+
         //! Using new communication routines results in energy growth
         communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
+
+        time_C.stop();
+    }
+
+    time_4.stop();
+
+    if(MPIdata::get_rank() == 0)
+    {
+        // std::cout << "Total : " << time_4.total() << " s" << std::endl;
+        std::cout << "      A : " << time_A.total() << " s" << "   B : " << time_B.total() << " s" << "   C : " << time_C.total() << " s" << std::endl << std::endl;
     }
 }
 
@@ -3020,7 +3040,7 @@ void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, 
 {
     const Collective *col = &get_col();
 
-    if (smooth_cycle > 0 and col->getCurrentCycle() % smooth_cycle == 0 and Smooth == true)
+    if (col->getSmoothCycle() > 0 && (col->getCurrentCycle() % col->getSmoothCycle() == 0) && Smooth == true)
     {
         //* Directional: First, smooth along X, then Y, and finally along Z (2 neighbours)
         energy_conserve_smooth_direction(data_X, nx, ny, nz, 0);

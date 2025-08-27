@@ -497,6 +497,8 @@ void c_Solver::CalculateMoments()
 //! Compute electromagnetic field
 void c_Solver::ComputeEMFields(int cycle)
 {
+    col->setCurrentCycle(cycle);
+
     #ifdef __PROFILING__
     LeXInt::timer time_e, time_b, time_div, time_total;
     
