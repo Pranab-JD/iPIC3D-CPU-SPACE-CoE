@@ -104,7 +104,8 @@ endif()
 
 ############### Source Files ###############
 
-file(GLOB src_files
+file(GLOB 
+    src_files
     ConfigFile/src/*.cpp
     PSKOutput3D/*.cpp
     bc/*.cpp
@@ -127,9 +128,7 @@ target_include_directories(iPIC3Dlib PUBLIC include)
 
 ############### Link Libraries ###############
 
-target_link_libraries(iPIC3Dlib
-    PUBLIC MPI::MPI_CXX
-)
+target_link_libraries(iPIC3Dlib PUBLIC MPI::MPI_CXX)
 
 if(USE_OPENMP)
     target_link_libraries(iPIC3Dlib PUBLIC OpenMP::OpenMP_CXX)
@@ -177,10 +176,11 @@ endif()
 add_executable(iPIC3D iPIC3D.cpp)
 target_link_libraries(iPIC3D iPIC3Dlib stdc++fs)
 
-set_target_properties(iPIC3D PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
-    DEBUG_POSTFIX "_d"
-)
+if(NOT CMAKE_BUILD_TYPE)
+  	set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set_target_properties(iPIC3D PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR} DEBUG_POSTFIX "_d")
 
 ############### RPATH Stuff ###############
 
