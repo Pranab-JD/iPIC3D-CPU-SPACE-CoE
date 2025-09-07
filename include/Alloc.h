@@ -219,8 +219,7 @@ template <class type> inline void delArr2(type ** arr, size_t sz1)
 { delArray2(arr); }
 template <class type> inline void delArr3(type *** arr, size_t sz1, size_t sz2)
 { delArray3(arr); }
-template <class type> inline void delArr4(type **** arr,
-  size_t sz1, size_t sz2, size_t sz3)
+template <class type> inline void delArr4(type **** arr, size_t sz1, size_t sz2, size_t sz3)
 { delArray3(arr); }
   
 namespace iPic3D
