@@ -44,6 +44,7 @@
 #include <fstream>
 #include "../LeXInt_Timer.hpp"
 #include <filesystem>
+#include <cstring>
 
 #ifndef NO_HDF5
 #endif
@@ -2698,11 +2699,11 @@ void EMfields3D::MaxwellSource(double *bkrylov)
 
     //? --------------------------------------------------------- ?//
 
-    communicateNodeBC(nxn, nyn, nzn, Jxh, 2, 2, 2, 2, 2, 2, vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Jyh, 2, 2, 2, 2, 2, 2, vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Jzh, 2, 2, 2, 2, 2, 2, vct, this);
+    // communicateNodeBC(nxn, nyn, nzn, Jxh, 2, 2, 2, 2, 2, 2, vct, this);
+    // communicateNodeBC(nxn, nyn, nzn, Jyh, 2, 2, 2, 2, 2, 2, vct, this);
+    // communicateNodeBC(nxn, nyn, nzn, Jzh, 2, 2, 2, 2, 2, 2, vct, this);
 
-    //* Energy-conserving smoothing
+    //* Energy-conserving smoothing (BC nodes are taken care of in the smoothing process)
     energy_conserve_smooth(Jxh, Jyh, Jzh, nxn, nyn, nzn);
 
     for (int i = 0; i < nxn; i++)
@@ -2843,6 +2844,7 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
                 imageZ[i][j][k] = tempZ[i][j][k] + factor * imageZ[i][j][k];
             }
 
+    //* Energy-conserving smoothing (BC nodes are taken care of in the smoothing process)
     energy_conserve_smooth(tempX, tempY, tempZ, nxn, nyn, nzn);
 
     #pragma omp parallel for collapse(3) schedule(static)
@@ -2859,10 +2861,11 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
                 temp2Z[i][j][k] = dt*th*FourPI*MEz;
             }
     
-    communicateNodeBC(nxn, nyn, nzn, temp2X, 2, 2, 2, 2, 2, 2, vct, this);
-    communicateNodeBC(nxn, nyn, nzn, temp2Y, 2, 2, 2, 2, 2, 2, vct, this);
-    communicateNodeBC(nxn, nyn, nzn, temp2Z, 2, 2, 2, 2, 2, 2, vct, this);
+    // communicateNodeBC(nxn, nyn, nzn, temp2X, 2, 2, 2, 2, 2, 2, vct, this);
+    // communicateNodeBC(nxn, nyn, nzn, temp2Y, 2, 2, 2, 2, 2, 2, vct, this);
+    // communicateNodeBC(nxn, nyn, nzn, temp2Z, 2, 2, 2, 2, 2, 2, vct, this);
 
+    //* Energy-conserving smoothing (BC nodes are taken care of in the smoothing process)
     energy_conserve_smooth(temp2X, temp2Y, temp2Z, nxn, nyn, nzn);
 
     for (int i=1; i<nxn-1; i++)
@@ -2947,6 +2950,7 @@ void EMfields3D::calculateB()
     // if (col->getAddExternalCurlE()) 
     //     grid->curlN2C(tempXC2, tempYC2, tempZC2, Ex_ext, Ey_ext, Ez_ext);
 
+    //* Energy-conserving smoothing (BC nodes are taken care of in the smoothing process)
     energy_conserve_smooth(Exth, Eyth, Ezth, nxn, nyn, nzn);
 
     communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
@@ -2977,7 +2981,7 @@ void EMfields3D::calculateB()
 
 //! ===================================== Smoothing ===================================== !//
 
-void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int ny, int nz, int dir)
+void EMfields3D::energy_conserve_smooth_direction(double*** data, int nx, int ny, int nz, int dir)
 {
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
@@ -2990,25 +2994,28 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
     else if (dir == 2) for (int i=0; i<6; i++) bc[i] = col->bcEz[i];    //* BC along Z
 
     //? Initialise temporary arrays with zeros
-    // eqValue(0.0, smooth_temp, nx, ny, nz);
-
-    // double ***temp = newArr3(double, nx, ny, nz);
+    double ***temp = newArr3(double, nx, ny, nz);
 
     //! Using new communication routines results in energy growth
     communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
 
     time_4.start();
+    int k = 0;
 
-    for (int icount = 1; icount < num_smoothings + 1; icount++)
+    for (int icount = 0; icount < num_smoothings; icount++)
     {
         time_A.start();
 
         for (int i = 1; i < nx - 1; i++)
-            for (int j = 1; j < ny - 1; j++) 
-                // #pragma omp simd
+            for (int j = 1; j < ny - 1; j++)
                 for (int k = 1; k < nz - 1; k++)
-                    smooth_temp[i][j][k] =  0.015625  * (8.0*data[i][j][k]
-                                                + 4.0 * (data[i-1][j][k] + data[i+1][j][k] + data[i][j-1][k] + data[i][j+1][k] + data[i][j][k-1] + data[i][j][k+1]));                       //* Corners
+                    temp[i][j][k] = 0.015625 * (8.0*data[i][j][k]
+                                              + 4.0 * (data[i-1][j][k] + data[i+1][j][k] + data[i][j-1][k] + data[i][j+1][k] + data[i][j][k-1] + data[i][j][k+1])     //* Faces
+                                              + 2.0 * (data[i-1][j-1][k] + data[i+1][j-1][k] + data[i-1][j+1][k] + data[i+1][j+1][k]                                  //* Edges
+                                                    +  data[i-1][j][k-1] + data[i+1][j][k-1] + data[i][j-1][k-1] + data[i][j+1][k-1]                                  //* Edges
+                                                    +  data[i-1][j][k+1] + data[i+1][j][k+1] + data[i][j-1][k+1] + data[i][j+1][k+1])                                 //* Edges
+                                              + 1.0 * (data[i-1][j-1][k-1] + data[i+1][j-1][k-1] + data[i-1][j+1][k-1] + data[i+1][j+1][k-1]                          //* Corners
+                                                    +  data[i-1][j-1][k+1] + data[i+1][j-1][k+1] + data[i-1][j+1][k+1] + data[i+1][j+1][k+1]));                       //* Corners
 
         time_A.stop();
         time_B.start();
@@ -3016,7 +3023,7 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
         for (int i = 1; i < nx - 1; i++)
             for (int j = 1; j < ny - 1; j++)
                 for (int k = 1; k < nz - 1; k++)
-                    data[i][j][k] = smooth_temp[i][j][k];
+                    data[i][j][k] = temp[i][j][k];
 
         time_B.stop();
         time_C.start();
@@ -3027,13 +3034,12 @@ void EMfields3D::energy_conserve_smooth_direction(arr3_double data, int nx, int 
         time_C.stop();
     }
 
+    delArr3(temp, nxn, nyn);
+
     time_4.stop();
 
-    if(MPIdata::get_rank() == 0)
-    {
-        // std::cout << "Total : " << time_4.total() << " s" << std::endl;
-        std::cout << "      A : " << time_A.total() << " s" << "   B : " << time_B.total() << " s" << "   C : " << time_C.total() << " s" << std::endl << std::endl;
-    }
+    // if(MPIdata::get_rank() == 0)
+    //     std::cout << "A : " << time_A.total() << " s" << "   B : " << time_B.total() << " s" << "   C : " << time_C.total() << " s" << std::endl << std::endl;
 }
 
 void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, arr3_double data_Z, int nx, int ny, int nz)

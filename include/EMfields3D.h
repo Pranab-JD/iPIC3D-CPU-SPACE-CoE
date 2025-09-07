@@ -168,7 +168,7 @@ public:
 
     //* Energy-conserving smoothing
     void energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, arr3_double data_Z, int nx, int ny, int nz);
-    void energy_conserve_smooth_direction(arr3_double data, int nx, int ny, int nz, int dir);
+    void energy_conserve_smooth_direction(double*** data, int nx, int ny, int nz, int dir);
 
     /*! communicate ghost for densities and interp rho from node to center */
     void interpDensitiesN2C();
