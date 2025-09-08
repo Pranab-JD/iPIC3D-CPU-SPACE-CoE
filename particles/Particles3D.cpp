@@ -1762,7 +1762,7 @@ void Particles3D::compute_supplementary_moments(Field * EMf)
 {
     #pragma omp parallel
     {
-        // convertParticlesToAoS();
+        convertParticlesToAoS();
 
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++)
