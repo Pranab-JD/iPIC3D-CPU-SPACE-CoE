@@ -997,7 +997,7 @@ void Particles3D::ECSIM_velocity(Field *EMf)
 {
     #pragma omp parallel
     {
-        // convertParticlesToAoS();
+        convertParticlesToAoS();
 
         #pragma omp master
         if (vct->getCartesian_rank() == 0) 
@@ -1097,7 +1097,7 @@ void Particles3D::RelSIM_velocity(Field *EMf)
 {
     #pragma omp parallel
     {
-        // convertParticlesToAoS();
+        convertParticlesToAoS();
 
         #pragma omp master
         if (vct->getCartesian_rank() == 0) 
@@ -1281,7 +1281,7 @@ void Particles3D::ECSIM_position(Field *EMf)
 {
     #pragma omp parallel
     {
-        // convertParticlesToAoS();
+        convertParticlesToAoS();
 
         #pragma omp master
         if (Relativistic)
@@ -1487,7 +1487,7 @@ void Particles3D::computeMoments(Field *EMf)
 
     #pragma omp parallel
     {
-        // convertParticlesToAoS();
+        convertParticlesToAoS();
 
         //TODO: External forces are to be implemented
         double Fxl = 0.0, Fyl = 0.0, Fzl = 0.0;
