@@ -2699,10 +2699,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
 
     //? --------------------------------------------------------- ?//
 
-    // communicateNodeBC(nxn, nyn, nzn, Jxh, 2, 2, 2, 2, 2, 2, vct, this);
-    // communicateNodeBC(nxn, nyn, nzn, Jyh, 2, 2, 2, 2, 2, 2, vct, this);
-    // communicateNodeBC(nxn, nyn, nzn, Jzh, 2, 2, 2, 2, 2, 2, vct, this);
-
     //* Energy-conserving smoothing (BC nodes are taken care of in the smoothing process)
     energy_conserve_smooth(Jxh, Jyh, Jzh, nxn, nyn, nzn);
 
@@ -2723,10 +2719,6 @@ void EMfields3D::MaxwellSource(double *bkrylov)
                 tempY.fetch(i, j, k) = th*dt*(c*temp2Y.get(i, j, k) - FourPI*Jy_tot*invVOL);
                 tempZ.fetch(i, j, k) = th*dt*(c*temp2Z.get(i, j, k) - FourPI*Jz_tot*invVOL);
             }
-
-    communicateNodeBC(nxn, nyn, nzn, temp3X, 2, 2, 2, 2, 2, 2, vct, this);
-    communicateNodeBC(nxn, nyn, nzn, temp3Y, 2, 2, 2, 2, 2, 2, vct, this);
-    communicateNodeBC(nxn, nyn, nzn, temp3Z, 2, 2, 2, 2, 2, 2, vct, this);
 
     //* temp(x,y,z) = temp(x,y,z) + 1.0*E(x,y,z)
     addscale(1.0, tempX, Ex, nxn, nyn, nzn);
@@ -2799,19 +2791,10 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
     const Grid *grid = &get_grid();
 
     eqValue(0.0, im, 3 * (nxn - 2) * (nyn - 2) * (nzn - 2));
-    // eqValue(0.0, tempX, nxn, nyn, nzn);
-    // eqValue(0.0, tempY, nxn, nyn, nzn);
-    // eqValue(0.0, tempZ, nxn, nyn, nzn);
 
     //? Move from Krylov space to physical space
     solver2phys(tempX, tempY, tempZ, vector, nxn, nyn, nzn);
 
-    //! Here is a major problem. Incorrect boundary data --> results in non-energy conservation
-	// communicateNodeBC(nxn, nyn, nzn, tempX, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
-	// communicateNodeBC(nxn, nyn, nzn, tempY, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
-	// communicateNodeBC(nxn, nyn, nzn, tempZ, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
-
-    //! Using new communication routines results in energy growth
     communicateNodeBC_old(nxn, nyn, nzn, tempX, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
 	communicateNodeBC_old(nxn, nyn, nzn, tempY, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
 	communicateNodeBC_old(nxn, nyn, nzn, tempZ, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
@@ -2825,15 +2808,7 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
 
     grid->curlC2N(imageX, imageY, imageZ, tempXC, tempYC, tempZC);
 
-    //* multiply by factor
-    // scale(imageX, c*th*dt*c*th*dt, nxn, nyn, nzn);
-    // scale(imageY, c*th*dt*c*th*dt, nxn, nyn, nzn);
-    // scale(imageZ, c*th*dt*c*th*dt, nxn, nyn, nzn);
-
-    // addscale(1, imageX, tempX, nxn, nyn, nzn);
-    // addscale(1, imageY, tempY, nxn, nyn, nzn);
-    // addscale(1, imageZ, tempZ, nxn, nyn, nzn);
-
+    //* Multiply by factor
     double factor = c*th*dt*c*th*dt;
     for (int i=1;i<nxn-1;i++)
         for (int j=1;j<nyn-1;j++)
@@ -2860,10 +2835,6 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
                 temp2Y[i][j][k] = dt*th*FourPI*MEy;
                 temp2Z[i][j][k] = dt*th*FourPI*MEz;
             }
-    
-    // communicateNodeBC(nxn, nyn, nzn, temp2X, 2, 2, 2, 2, 2, 2, vct, this);
-    // communicateNodeBC(nxn, nyn, nzn, temp2Y, 2, 2, 2, 2, 2, 2, vct, this);
-    // communicateNodeBC(nxn, nyn, nzn, temp2Z, 2, 2, 2, 2, 2, 2, vct, this);
 
     //* Energy-conserving smoothing (BC nodes are taken care of in the smoothing process)
     energy_conserve_smooth(temp2X, temp2Y, temp2Z, nxn, nyn, nzn);
@@ -2876,10 +2847,6 @@ void EMfields3D::MaxwellImage(double *im, double* vector)
                 temp2Y[i][j][k] *= invVOL;
                 temp2Z[i][j][k] *= invVOL;
             }
-
-    // addscale(1.0, imageX, temp2X, nxn, nyn, nzn);
-    // addscale(1.0, imageY, temp2Y, nxn, nyn, nzn);
-    // addscale(1.0, imageZ, temp2Z, nxn, nyn, nzn);
     
     for (int i=1;i<nxn-1;i++)
         for (int j=1;j<nyn-1;j++)
@@ -2953,10 +2920,6 @@ void EMfields3D::calculateB()
     //* Energy-conserving smoothing (BC nodes are taken care of in the smoothing process)
     energy_conserve_smooth(Exth, Eyth, Ezth, nxn, nyn, nzn);
 
-    communicateNodeBC(nxn, nyn, nzn, Exth, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Eyth, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
-    communicateNodeBC(nxn, nyn, nzn, Ezth, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
-
     //? Update magnetic field: Second order formulation
     addscale(-c * dt, 1, Bxc, tempXC, nxc, nyc, nzc);
     addscale(-c * dt, 1, Byc, tempYC, nxc, nyc, nzc);
@@ -2986,8 +2949,6 @@ void EMfields3D::energy_conserve_smooth_direction(double*** data, int nx, int ny
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
 
-    LeXInt::timer time_4, time_A, time_B, time_C;
-
     int bc[6];
     if (dir == 0)      for (int i=0; i<6; i++) bc[i] = col->bcEx[i];    //* BC along X
     else if (dir == 1) for (int i=0; i<6; i++) bc[i] = col->bcEy[i];    //* BC along Y
@@ -2999,13 +2960,10 @@ void EMfields3D::energy_conserve_smooth_direction(double*** data, int nx, int ny
     //! Using new communication routines results in energy growth
     communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
 
-    time_4.start();
     int k = 0;
 
     for (int icount = 0; icount < num_smoothings; icount++)
     {
-        time_A.start();
-
         for (int i = 1; i < nx - 1; i++)
             for (int j = 1; j < ny - 1; j++)
                 for (int k = 1; k < nz - 1; k++)
@@ -3017,29 +2975,16 @@ void EMfields3D::energy_conserve_smooth_direction(double*** data, int nx, int ny
                                               + 1.0 * (data[i-1][j-1][k-1] + data[i+1][j-1][k-1] + data[i-1][j+1][k-1] + data[i+1][j+1][k-1]                          //* Corners
                                                     +  data[i-1][j-1][k+1] + data[i+1][j-1][k+1] + data[i-1][j+1][k+1] + data[i+1][j+1][k+1]));                       //* Corners
 
-        time_A.stop();
-        time_B.start();
-
         for (int i = 1; i < nx - 1; i++)
             for (int j = 1; j < ny - 1; j++)
                 for (int k = 1; k < nz - 1; k++)
                     data[i][j][k] = temp[i][j][k];
 
-        time_B.stop();
-        time_C.start();
-
         //! Using new communication routines results in energy growth
         communicateNodeBC_old(nx, ny, nz, data, bc[0], bc[1], bc[2], bc[3], bc[4], bc[5], vct, this);
-
-        time_C.stop();
     }
 
     delArr3(temp, nxn, nyn);
-
-    time_4.stop();
-
-    // if(MPIdata::get_rank() == 0)
-    //     std::cout << "A : " << time_A.total() << " s" << "   B : " << time_B.total() << " s" << "   C : " << time_C.total() << " s" << std::endl << std::endl;
 }
 
 void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, arr3_double data_Z, int nx, int ny, int nz)
@@ -3880,14 +3825,14 @@ void EMfields3D::init()
             // grid->interpC2N(Bzn, Bzc);
 
             //* Communicate ghost data for B on nodes
-            communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
-            communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
-            communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+            communicateNodeBC_old(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+            communicateNodeBC_old(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+            communicateNodeBC_old(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
             //* Communicate ghost data for E on nodes
-            communicateNodeBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
-            communicateNodeBC(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
-            communicateNodeBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
+            communicateNodeBC_old(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
+            communicateNodeBC_old(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
+            communicateNodeBC_old(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
 
             //* Initialise rho at cell centers
             // for (int is = 0; is < ns; is++)
@@ -4282,7 +4227,7 @@ void EMfields3D::init_double_Harris()
                     Ez[i][j][k] =  0.0;
                     
                     //* Initialise B on nodes
-                    Bxn[i][j][k] = B0x * (-1.0 + tanh(yBd) - tanh(yTd));
+                    Bxn[i][j][k] = B0x * (-1.0 + tanh(yBd) + tanh(-yTd));
                     Byn[i][j][k] = B0y;
                     Bzn[i][j][k] = B0z;                             //* Guide field
                     
@@ -4293,7 +4238,7 @@ void EMfields3D::init_double_Harris()
                     if (xpert < Lx/2 and ypert < Ly/2) 
                     {
                         Bxn[i][j][k] += (B0x * perturbation) * (M_PI/(0.5*Ly))   * cos(2*M_PI*xpert/(0.5*Lx)) * sin(M_PI*ypert/(0.5*Ly));
-                        Byn[i][j][k] -= (B0x * perturbation) * (2*M_PI/(0.5*Lx)) * sin(2*M_PI*xpert/(0.5*Lx)) * cos(M_PI*ypert/(0.5*Ly));
+                        Byn[i][j][k] = B0y - (B0x * perturbation) * (2*M_PI/(0.5*Lx)) * sin(2*M_PI*xpert/(0.5*Lx)) * cos(M_PI*ypert/(0.5*Ly));
                     }
 
                     //* Add second initial GEM perturbation
@@ -4303,7 +4248,7 @@ void EMfields3D::init_double_Harris()
                     if (xpert > Lx/2 and ypert > Ly/2) 
                     {
                         Bxn[i][j][k] += (B0x * perturbation) * (M_PI/(0.5*Ly))   * cos(2*M_PI*xpert/(0.5*Lx)) * sin(M_PI*ypert/(0.5*Ly));
-                        Byn[i][j][k] -= (B0x * perturbation) * (2*M_PI/(0.5*Lx)) * sin(2*M_PI*xpert/(0.5*Lx)) * cos(M_PI*ypert/(0.5*Ly));
+                        Byn[i][j][k] = B0y - (B0x * perturbation) * (2*M_PI/(0.5*Lx)) * sin(2*M_PI*xpert/(0.5*Lx)) * cos(M_PI*ypert/(0.5*Ly));
                     }
 
                     //* Add first initial X perturbation
@@ -4425,9 +4370,9 @@ void EMfields3D::init_double_Harris_hump()
                 }
 
         //* Communicate ghost data on nodes
-        communicateNodeBC_old(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
-        communicateNodeBC_old(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
-        communicateNodeBC_old(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
         //* Initialise B on cell centres
         for (int i = 0; i < nxc; i++)
@@ -5251,9 +5196,9 @@ void EMfields3D::initShock1D()
         grid->interpC2N(Bzn,Bzc);
 
         //* Communicate ghost data on nodes
-        communicateNodeBC_old(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
-        communicateNodeBC_old(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
-        communicateNodeBC_old(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
   
         //* Initialise E on nodes
         for (int i = 1; i < nxn-1; i++) 
@@ -5268,9 +5213,9 @@ void EMfields3D::initShock1D()
                 }
 
         //* Communicate ghost data on nodes
-        communicateNodeBC_old(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcBx[4],col->bcEx[5], vct, this);
-        communicateNodeBC_old(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcBy[4],col->bcEy[5], vct, this);
-        communicateNodeBC_old(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcBz[4],col->bcEz[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcBx[4],col->bcEx[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcBy[4],col->bcEy[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcBz[4],col->bcEz[5], vct, this);
     }
     else
     {
@@ -5399,9 +5344,9 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
         grid->interpC2N(Bzn, Bzc);
        
         //* Communicate ghost data on nodes
-        communicateNodeBC_old(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
-        communicateNodeBC_old(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
-        communicateNodeBC_old(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
     }
     else
         init();  //! READ FROM RESTART
@@ -5532,9 +5477,9 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
         grid->interpC2N(Bzn, Bzc);
        
         //* Communicate ghost data on nodes
-        communicateNodeBC_old(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
-        communicateNodeBC_old(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
-        communicateNodeBC_old(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
     }
     else
         init();  //! READ FROM RESTART
