@@ -867,7 +867,7 @@ void c_Solver::WriteOutput(int cycle)
 			    if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
 			    {
 				    if(MPIdata::get_rank()==0)
-				    warning_printf("WriteParticlesParallel() is not yet implemented.");
+				        warning_printf("WriteParticlesParallel() is not yet implemented.");
 			    }
 			}
             else if (col->getWriteMethod() == "shdf5")
@@ -875,16 +875,16 @@ void c_Solver::WriteOutput(int cycle)
                 //! Serial HDF5
                 if (!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0  || cycle == col->getNcycles() + first_cycle))
                 {
-                    if (restart_status == 0 && cycle == first_cycle + 1)
+                    if (restart_status == 0)
                         WriteFields(cycle);
                     
-                        if ((restart_status == 1 || restart_status == 2) && cycle != first_cycle)
+                    if ((restart_status == 1 || restart_status == 2) && cycle != first_cycle)
                         WriteFields(cycle);
                 }
 
                 if (!col->particle_output_is_off() && (cycle%(col->getParticlesOutputCycle()) == 0 || cycle == col->getNcycles() + first_cycle))
                 {
-                    if (restart_status == 0 && cycle == first_cycle + 1)
+                    if (restart_status == 0)
                         WriteParticles(cycle);
                     
                     if ((restart_status == 1 || restart_status == 2) && cycle != first_cycle)
@@ -893,7 +893,7 @@ void c_Solver::WriteOutput(int cycle)
 
                 if (!col->DS_particle_output_is_off() && col->getParticlesDownsampleFactor() > 1 && (cycle%(col->getParticlesDownsampleOutputCycle()) == 0 || cycle == col->getNcycles() + first_cycle))
                 {
-                    if (restart_status == 0 && cycle == first_cycle + 1)
+                    if (restart_status == 0)
                         WriteDSParticles(cycle);
 
                     if ((restart_status == 1 || restart_status == 2) && cycle != first_cycle)
