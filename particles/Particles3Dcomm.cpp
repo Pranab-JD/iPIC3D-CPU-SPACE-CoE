@@ -1438,7 +1438,7 @@ double Particles3Dcomm::get_kinetic_energy()
         }
     }
     
-    MPI_Allreduce(&localKe, &totalKe, 1, MPI_DOUBLE, MPI_SUM, mpi_comm);
+    MPI_Allreduce(&localKe, &totalKe, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     return (totalKe);
 }
 

@@ -269,7 +269,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     num_smoothings = col->getNumSmoothings();
     SaveHeatFluxTensor = col->getSaveHeatFluxTensor();
     
-    rhoINIT = new double[ns];               //* Background density (GEM)
+    rhoINIT = new double[ns];               //* Background density
     DriftSpecies = new bool[ns];
     for (int i = 0; i < ns; i++) 
     {
@@ -4238,7 +4238,7 @@ void EMfields3D::init_double_Harris()
                     if (xpert < Lx/2 and ypert < Ly/2) 
                     {
                         Bxn[i][j][k] += (B0x * perturbation) * (M_PI/(0.5*Ly))   * cos(2*M_PI*xpert/(0.5*Lx)) * sin(M_PI*ypert/(0.5*Ly));
-                        Byn[i][j][k] = B0y - (B0x * perturbation) * (2*M_PI/(0.5*Lx)) * sin(2*M_PI*xpert/(0.5*Lx)) * cos(M_PI*ypert/(0.5*Ly));
+                        Byn[i][j][k] -= (B0x * perturbation) * (2*M_PI/(0.5*Lx)) * sin(2*M_PI*xpert/(0.5*Lx)) * cos(M_PI*ypert/(0.5*Ly));
                     }
 
                     //* Add second initial GEM perturbation
@@ -4248,7 +4248,7 @@ void EMfields3D::init_double_Harris()
                     if (xpert > Lx/2 and ypert > Ly/2) 
                     {
                         Bxn[i][j][k] += (B0x * perturbation) * (M_PI/(0.5*Ly))   * cos(2*M_PI*xpert/(0.5*Lx)) * sin(M_PI*ypert/(0.5*Ly));
-                        Byn[i][j][k] = B0y - (B0x * perturbation) * (2*M_PI/(0.5*Lx)) * sin(2*M_PI*xpert/(0.5*Lx)) * cos(M_PI*ypert/(0.5*Ly));
+                        Byn[i][j][k] -= (B0x * perturbation) * (2*M_PI/(0.5*Lx)) * sin(2*M_PI*xpert/(0.5*Lx)) * cos(M_PI*ypert/(0.5*Ly));
                     }
 
                     //* Add first initial X perturbation
