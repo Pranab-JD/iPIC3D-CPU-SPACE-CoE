@@ -1,13 +1,11 @@
 """
 Created on Thu Aug 10:48 2025
 
-@author: Pranab JD
+Description: This code deletes restart data for all time cycles other than the last one.
+             This works with (user-defined) "N" MPI tasks.
 
-Description: This code deletes restart data for all time cycles other than the last one
-             using MPI so that each file is handled by exactly one rank. This reduces 
-             the memory requirements of the restart files.
-
-Usage: mpirun python3 ../postprocessing_tools/python/erase_restart.py data/restart*.hdf
+Usage: 
+        srun python3 ../postprocessing_tools/python/erase_restart.py data/restart*.hdf
 """
 
 import argparse
