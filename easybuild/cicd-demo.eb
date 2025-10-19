@@ -1,0 +1,33 @@
+easyblock = 'CMakeMake'
+
+name = 'cicd-demo'
+version = 'devel'
+versionsuffix = '-%(software_commit)s'
+
+homepage = 'none'
+description = """
+ Simple project that writes in parallel via HDF5
+"""
+
+toolchain = {'name': 'gompi', 'version': '2023b'}
+
+github_account = 'EESSI'
+source_urls = ['https://github.com/%(github_account)s/%(name)s/archive/']
+
+sources = ['%(software_commit)s.tar.gz']
+
+builddependencies = [
+    ('CMake', '3.27.6'),
+]
+dependencies = [
+    ('HDF5', '1.14.3'),
+]
+
+runtest = True
+
+sanity_check_paths = {
+    'files': ['bin/hello_mpi_hdf5'],
+    'dirs': [],
+}
+
+moduleclass = 'devel'
