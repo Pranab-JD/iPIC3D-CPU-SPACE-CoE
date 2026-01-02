@@ -19,17 +19,12 @@ git clone https://github.com/Pranab-JD/iPIC3D-CPU-SPACE-CoE.git
 cd iPIC3D-CPU-SPACE-CoE && mkdir build && cd build
 ```
 
-3. Checkout to the ```ecsim_relsim``` branch
-``` shell
-git checkout ecsim_relsim
-```
-
-4. Compile the code (part 1)
+3. Compile the code (part 1)
 ``` shell
 cmake ..
 ```
 
-5. Compile the code (part 2)
+4. Compile the code (part 2)
 ``` shell
 make -j     # -j = build with max # of threads - fast, recommended
 ```
