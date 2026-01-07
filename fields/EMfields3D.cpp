@@ -4298,7 +4298,7 @@ void EMfields3D::init_double_Harris_hump()
     const Grid *grid = &get_grid();
 
     //* Custom input parameters
-    const double perturbation               = input_param[0];       //* Amplitude of initial perturbation (localised in X)
+    const double pertX               = input_param[0];       //* Amplitude of initial perturbation (localised in X)
     const double delta                      = input_param[1];       //* Half-thickness of current sheet
 
     double delta_x = 8.0 * delta;
@@ -4322,7 +4322,7 @@ void EMfields3D::init_double_Harris_hump()
             cout << " Initialising double Harris sheet with hump" << endl;
             cout << "-------------------------------------------" << endl;
             cout << "Initial magnetic field components (Bx, By, Bz) = " << "(" << B0x << ", " << B0y << ", " << B0z << ")" << endl;
-            cout << "Initial perturbation                           = " << perturbation << endl;
+            cout << "Initial perturbation                           = " << pertX << endl;
             cout << "Half-thickness of current sheet                = " << delta << endl;
             cout << "-------------------------------------------" << endl;
         }
