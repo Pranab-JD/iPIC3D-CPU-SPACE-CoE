@@ -3606,6 +3606,8 @@ void EMfields3D::setZeroDerivedMoments()
 
 void EMfields3D::setZeroTertiaryMoments()
 {
+    const Collective *col = &get_col();
+
     for (int is = 0; is < ns; is++) 
         for (int i = 0; i < nxn; i++)
             for (int j = 0; j < nyn; j++)
@@ -3622,16 +3624,19 @@ void EMfields3D::setZeroTertiaryMoments()
                     E_flux_ys[is][i][j][k] = 0.0;
                     E_flux_zs[is][i][j][k] = 0.0;
 
-                    Qxxxs[is][i][j][k] = 0.0;
-                    Qyyys[is][i][j][k] = 0.0;
-                    Qzzzs[is][i][j][k] = 0.0;
-                    Qxyzs[is][i][j][k] = 0.0;
-                    Qxxys[is][i][j][k] = 0.0;
-                    Qxxzs[is][i][j][k] = 0.0;
-                    Qxyys[is][i][j][k] = 0.0;
-                    Qxzzs[is][i][j][k] = 0.0;
-                    Qyzzs[is][i][j][k] = 0.0;
-                    Qyyzs[is][i][j][k] = 0.0;
+                    if (col->getSaveHeatFluxTensor()) 
+                    {
+                        Qxxxs[is][i][j][k] = 0.0;
+                        Qyyys[is][i][j][k] = 0.0;
+                        Qzzzs[is][i][j][k] = 0.0;
+                        Qxyzs[is][i][j][k] = 0.0;
+                        Qxxys[is][i][j][k] = 0.0;
+                        Qxxzs[is][i][j][k] = 0.0;
+                        Qxyys[is][i][j][k] = 0.0;
+                        Qxzzs[is][i][j][k] = 0.0;
+                        Qyzzs[is][i][j][k] = 0.0;
+                        Qyyzs[is][i][j][k] = 0.0;
+                    }
                 }
 }
 
