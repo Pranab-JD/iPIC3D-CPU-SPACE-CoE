@@ -3604,6 +3604,37 @@ void EMfields3D::setZeroDerivedMoments()
     eqValue(0.0, rhocs, ns, nxc, nyc, nzc);
 }
 
+void EMfields3D::setZeroTertiaryMoments()
+{
+    for (int is = 0; is < ns; is++) 
+        for (int i = 0; i < nxn; i++)
+            for (int j = 0; j < nyn; j++)
+                for (int k = 0; k < nzn; k++) 
+                {
+                    pXXsn[is][i][j][k] = 0.0;
+                    pXYsn[is][i][j][k] = 0.0;
+                    pXZsn[is][i][j][k] = 0.0;
+                    pYYsn[is][i][j][k] = 0.0;
+                    pYZsn[is][i][j][k] = 0.0;
+                    pZZsn[is][i][j][k] = 0.0;
+
+                    E_flux_xs[is][i][j][k] = 0.0;
+                    E_flux_ys[is][i][j][k] = 0.0;
+                    E_flux_zs[is][i][j][k] = 0.0;
+
+                    Qxxxs[is][i][j][k] = 0.0;
+                    Qyyys[is][i][j][k] = 0.0;
+                    Qzzzs[is][i][j][k] = 0.0;
+                    Qxyzs[is][i][j][k] = 0.0;
+                    Qxxys[is][i][j][k] = 0.0;
+                    Qxxzs[is][i][j][k] = 0.0;
+                    Qxyys[is][i][j][k] = 0.0;
+                    Qxzzs[is][i][j][k] = 0.0;
+                    Qyzzs[is][i][j][k] = 0.0;
+                    Qyyzs[is][i][j][k] = 0.0;
+                }
+}
+
 //? Set the primary moments to zero
 void EMfields3D::setZeroPrimaryMoments() 
 {
@@ -3628,6 +3659,7 @@ void EMfields3D::setZeroDensities()
     setZeroRho(); 
     setZeroDerivedMoments();
     setZeroPrimaryMoments();
+    setZeroTertiaryMoments();
     setZeroMassMatrix();
 }
 

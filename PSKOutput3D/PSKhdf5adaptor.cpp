@@ -648,130 +648,167 @@ void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, cons
   //}
 }
 
-void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, const std::vector < double >&d_array) {
-  //try {
+void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, const std::vector < double >&d_array) 
+{
     int n = dimens.nels();
     double *d_array_p = new double[n];
+    
     for (int i = 0; i < n; ++i)
-      d_array_p[i] = d_array[i];
+        d_array_p[i] = d_array[i];
+    
     write(tag, dimens, d_array_p);
     delete[]d_array_p;
-  //} catch(PSK::Exception & e) {
-  //  e.push("In HDF5OutputAdaptor::write(vector<double> array)");
-  //  throw e;
-  //}
 }
 
-void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, const_arr3_double d_array) {
-  if (dimens.size() != 3) {
-    eprintf("Dimens size not 3 for object %s", objname.c_str());
-    //PSK::OutputException e("Dimens size not 3 for object " + objname, "HDF5OutputAdaptor::write(const_arr3_double array)");
-    //throw e;
-  }
+void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, const_arr3_double d_array) 
+{
+    if (dimens.size() != 3)
+        eprintf("Dimens size not 3 for object %s", objname.c_str());
 
-  //try {
     int nels = dimens.nels();
     double *d_array_p = new double[nels];
     const int di = dimens[0];
     const int dj = dimens[1];
     const int dk = dimens[2];
     const int djk = dk * dj;
+    
     for (int i = 0; i < di; ++i)
-      for (int j = 0; j < dj; ++j)
-        for (int k = 0; k < dk; ++k) {
+        for (int j = 0; j < dj; ++j)
+            for (int k = 0; k < dk; ++k) 
+            {
+                if (dk != 1)
+                    d_array_p[i * djk + j * dk + k] = d_array[i + 1][j + 1][k + 1]; // I am not writing ghost cells
+                else if (dj != 1)
+                    d_array_p[i * djk + j * dk] = d_array[i + 1][j + 1][0];
+                else
+                    d_array_p[i * djk + j * dk] = d_array[i + 1][0][0];
+            }
 
-          if (dk != 1)
-            d_array_p[i * djk + j * dk + k] = d_array[i + 1][j + 1][k + 1]; // I am not writing ghost cells
-          else if (dj != 1)
-            d_array_p[i * djk + j * dk] = d_array[i + 1][j + 1][0];
-          else {
-            d_array_p[i * djk + j * dk] = d_array[i + 1][0][0];
-
-          }
-        }
     write(objname, dimens, d_array_p);
     delete[]d_array_p;
-  //}
-  //catch(PSK::Exception & e) {
-  //  e.push("In HDF5OutputAdaptor::write(const_arr3_double array)");
-  //  throw e;
-  //}
 }
 
-void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, const int ns, const_arr4_double d_array) {
-  if (dimens.size() != 3) {
-    eprintf("Dimens size not 3 for object %s", objname.c_str());
-    //PSK::OutputException e("Dimens size not 3 for object " + objname, "HDF5OutputAdaptor::write(const_arr4_double array)");
-    //throw e;
-  }
+void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, const int ns, const_arr4_double d_array) 
+{
+    if (dimens.size() != 3)
+        eprintf("Dimens size not 3 for object %s", objname.c_str());
 
-  //try {
     int nels = dimens.nels();
     double *d_array_p = new double[nels];
     const int di = dimens[0];
     const int dj = dimens[1];
-
-
     const int dk = dimens[2];
     const int djk = dk * dj;
+    
     for (int i = 0; i < di; ++i)
-      for (int j = 0; j < dj; ++j)
-        for (int k = 0; k < dk; ++k) {
-          if (dk != 1)
-            d_array_p[i * djk + j * dk + k] = d_array[ns][i + 1][j + 1][k + 1]; // I am not writing ghost cells
-          else if (dj != 1)
-            d_array_p[i * djk + j * dk] = d_array[ns][i + 1][j + 1][0];
-          else
-            d_array_p[i * djk + j * dk] = d_array[ns][i + 1][0][0];
+        for (int j = 0; j < dj; ++j)
+            for (int k = 0; k < dk; ++k) 
+            {
+                if (dk != 1)
+                    d_array_p[i * djk + j * dk + k] = d_array[ns][i + 1][j + 1][k + 1]; // I am not writing ghost cells
+                else if (dj != 1)
+                    d_array_p[i * djk + j * dk] = d_array[ns][i + 1][j + 1][0];
+                else
+                    d_array_p[i * djk + j * dk] = d_array[ns][i + 1][0][0];
+            }
+
+    for (int i = 0; i < di; i++)
+    for (int j = 0; j < dj; j++)
+    for (int k = 0; k < dk; k++) 
+    {
+        double v = d_array[ns][i][j][k];
+        if (fabs(v) > 1e10)
+            printf("BAD pYY ns=%d i=%d j=%d k=%d val=%e\n", ns,i,j,k,v);
+    }
+
+    write(objname, dimens, d_array_p);
+    delete[]d_array_p;
+}
+
+void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, double **d_array) 
+{
+    if (dimens.size() != 2)
+        eprintf("Dimens size not 2 for object %s", objname.c_str());
+
+    int nels = dimens.nels();
+    double *d_array_p = new double[nels];
+    const int di = dimens[0];
+    const int dj = dimens[1];
+    
+    for (int i = 0; i < di; ++i)
+        for (int j = 0; j < dj; ++j)
+            d_array_p[i * dj + j] = d_array[i + 1][j + 1];  // I am not writing ghost cells
+    
+            write(objname, dimens, d_array_p);
+    delete[]d_array_p;
+}
+
+void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, const int ns, const_arr3_double d_array) 
+{
+    if (dimens.size() != 2) 
+        eprintf("Dimens size not 2 for object %s", objname.c_str());
+
+    int nels = dimens.nels();
+    double *d_array_p = new double[nels];
+    const int di = dimens[0];
+    const int dj = dimens[1];
+    
+    for (int i = 0; i < di; ++i)
+        for (int j = 0; j < dj; ++j)
+            d_array_p[i * dj + j] = d_array[i + 1][j + 1][ns];  // I am not writing ghost cells
+    
+    write(objname, dimens, d_array_p);
+    delete[]d_array_p;
+}
+
+void HDF5OutputAdaptor::write_with_ghosts(const std::string & objname, const Dimens dimens, const int ns, const_arr4_double d_array) 
+{
+    if (dimens.size() != 3)
+        eprintf("Dimens size not 3 for object %s", objname.c_str());
+
+    int nels = dimens.nels();
+    double *d_array_p = new double[nels];
+
+    const int di = dimens[0];
+    const int dj = dimens[1];
+    const int dk = dimens[2];
+    const int djk = dk * dj;
+
+    for (int i = 0; i < di; ++i)
+        for (int j = 0; j < dj; ++j)
+            for (int k = 0; k < dk; ++k) 
+            {
+                if (dk != 1)
+                    d_array_p[i * djk + j * dk + k] = d_array[ns][i][j][k];
+                else if (dj != 1)
+                    d_array_p[i * djk + j * dk] = d_array[ns][i][j][0];
+                else
+                    d_array_p[i * djk + j * dk] = d_array[ns][i][0][0];
+            }
+
+    double maxv = -1e300;
+    int mi=-1, mj=-1, mk=-1;
+
+    for (int i = 0; i < di; i++)
+    for (int j = 0; j < dj; j++)
+    for (int k = 0; k < dk; k++) 
+    {
+        double v = d_array[ns][i][j][k];
+        if (!std::isfinite(v)) {
+            printf("NaN/Inf pYY ns=%d i=%d j=%d k=%d\n", ns, i, j, k);
         }
+        if (v > maxv) {
+            maxv = v; mi=i; mj=j; mk=k;
+        }
+
+        if (fabs(v) > 1e10)
+            printf("BAD pYY ns=%d i=%d j=%d k=%d val=%e\n", ns,i,j,k,v);
+    }
+
+    printf("pYY ns=%d max=%e at (%d,%d,%d)\n", ns, maxv, mi, mj, mk);
+
     write(objname, dimens, d_array_p);
-    delete[]d_array_p;
-  //}
-  //catch(PSK::Exception & e) {
-  //  e.push("In HDF5OutputAdaptor::write(const_arr4_double array)");
-  //  throw e;
-  //}
+    delete[] d_array_p;
 }
 
-void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, double **d_array) {
-  if (dimens.size() != 2) {
-    eprintf("Dimens size not 2 for object %s", objname.c_str());
-    //PSK::OutputException e("Dimens size not 2 for object " + objname, "HDF5OutputAdaptor::write(double** array)");
-    //throw e;
-  }
-
-  //try {
-    int nels = dimens.nels();
-    double *d_array_p = new double[nels];
-    const int di = dimens[0];
-    const int dj = dimens[1];
-    for (int i = 0; i < di; ++i)
-      for (int j = 0; j < dj; ++j)
-        d_array_p[i * dj + j] = d_array[i + 1][j + 1];  // I am not writing ghost cells
-    write(objname, dimens, d_array_p);
-    delete[]d_array_p;
-  //} catch(PSK::Exception & e) {
-  //  e.push("In HDF5OutputAdaptor::write(double** array)");
-  //  throw e;
-  //}
-}
-
-void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, const int ns, const_arr3_double d_array) {
-  if (dimens.size() != 2) {
-    eprintf("Dimens size not 2 for object %s", objname.c_str());
-    //PSK::OutputException e("Dimens size not 2 for object " + objname, "HDF5OutputAdaptor::write(const_arr3_double array)");
-    //throw e;
-  }
-
-  //try {
-    int nels = dimens.nels();
-    double *d_array_p = new double[nels];
-    const int di = dimens[0];
-    const int dj = dimens[1];
-    for (int i = 0; i < di; ++i)
-      for (int j = 0; j < dj; ++j)
-        d_array_p[i * dj + j] = d_array[i + 1][j + 1][ns];  // I am not writing ghost cells
-    write(objname, dimens, d_array_p);
-    delete[]d_array_p;
-}
 #endif

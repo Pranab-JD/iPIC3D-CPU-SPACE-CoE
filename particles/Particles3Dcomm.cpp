@@ -1517,9 +1517,9 @@ double *Particles3Dcomm::getVelocityDistribution(int nBins, double minVel, doubl
             bin = int (floor(Vel / dv));
             
             if (bin >= nBins)
-                f[nBins - 1] += 1;
+                f[nBins - 1] += fabs(q[i]);
             else
-                f[bin] += 1;
+                f[bin] += fabs(q[i]);
         }
 	}
 	else 
