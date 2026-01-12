@@ -172,12 +172,12 @@ public:
 
     /*! communicate ghost for densities and interp rho from node to center */
     void interpDensitiesN2C();
-    /*! set to 0 all the densities fields */
+
     void setZeroDensities();
-    /*! set to 0 primary moments */
     void setZeroPrimaryMoments();
-    /*! set to 0 all densities derived from primary moments */
     void setZeroDerivedMoments();
+    void setZeroTertiaryMoments();
+
     //! Set all elements of mass matrix to 0.0 !//
     void setZeroMassMatrix();
     /*! Sum rhon and J over species */
@@ -357,6 +357,13 @@ public:
     arr4_double getJxs() { return Jxs; }
     arr4_double getJys() { return Jys; }
     arr4_double getJzs() { return Jzs; }
+
+    double getJxhs(int X, int Y,int Z, int is) const { return Jxhs.get(is,X,Y,Z); }
+    double getJyhs(int X, int Y,int Z, int is) const { return Jyhs.get(is,X,Y,Z); }
+    double getJzhs(int X, int Y,int Z, int is) const { return Jzhs.get(is,X,Y,Z); }
+    arr4_double getJxhs() { return Jxhs; }
+    arr4_double getJyhs() { return Jyhs; }
+    arr4_double getJzhs() { return Jzhs; }
 
     //* Current (overall)
     arr3_double getJx() { return Jx; }
