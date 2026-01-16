@@ -326,9 +326,6 @@ void Particles3D::maxwellian_Double_Harris(Field * EMf)
                             const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
                             const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
                             
-                            if (fabs(q) < 1.e-8) 
-                                continue;                   //* skip this particle if weight is too small
-                            
                             double u, v, w;
                             sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0*shaper_z);
                             create_new_particle(u,v,w,q,x,y,z);
