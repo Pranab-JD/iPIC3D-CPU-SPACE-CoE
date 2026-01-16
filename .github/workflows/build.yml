@@ -1,0 +1,26 @@
+name: EESSI Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ubuntu-minimal:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-24.04-arm
+          - ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: eessi/github-action-eessi@v3
+      - name: Test EESSI
+        run: |
+          module load CMake OpenMPI HDF5/1.14.3-gompi-2023b buildenv
+          mkdir build
+          cd build
+          CC=mpicc CXX=mpicxx cmake ..
+          make
+        shell: bash
+

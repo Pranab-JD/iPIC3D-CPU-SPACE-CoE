@@ -1,0 +1,26 @@
+name: Build via EasyBuild on x86 and Arm
+on:
+  workflow_dispatch:  # Allows manual triggering
+  push:
+  pull_request:
+    branches:
+      - main
+# Declare default permissions as read only.
+permissions: read-all
+jobs:
+  minimal_usage:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-24.04-arm
+          - ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - uses: eessi/github-action-eessi@v3
+    - name: Test via EESSI-extend
+      run: |
+        module load EESSI-extend
+        unset EASYBUILD_DEBUG
+        eb --logtostdout --software-commit=$GITHUB_SHA easybuild/cicd-demo.eb
+      shell: bash
