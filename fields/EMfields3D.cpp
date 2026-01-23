@@ -4399,8 +4399,8 @@ void EMfields3D::init_double_Harris_hump()
 
                     //* Initialise B on nodes
                     Bxn[i][j][k] = B0x * (-1.0 + tanh(yBd) - tanh(yTd));
-                    Bxn[i][j][k] += - B0x * pertGEM * (Lx/(2*Ly)) * cos( 2 * M_PI * xM/ Lx ) * sin ( 1 * M_PI * yB/Ly );
-                    Byn[i][j][k] += B0x * pertGEM * sin( 2 * M_PI * xM / Lx ) * cos( 1 * M_PI * yB / Ly );
+                    Bxn[i][j][k] += - B0x * pertGEM * (Lx/(Ly)) * cos( 2 * M_PI * xM/ Lx ) * sin ( 2 * M_PI * yB/Ly );
+                    Byn[i][j][k] += B0x * pertGEM * sin( 2 * M_PI * xM / Lx ) * cos( 2 * M_PI * yB / Ly );
 
                     const double xMdx = xM / delta_x;
                     const double xMshiftdx = xMshift / delta_x;
