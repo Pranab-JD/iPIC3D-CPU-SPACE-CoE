@@ -120,7 +120,8 @@ int c_Solver::Init(int argc, char **argv)
         if (myrank == 0) 
         {
             cerr << "Error: " << nprocs << " processes cant be mapped as " << vct->getXLEN() << "x" << vct->getYLEN() << "x" << vct->getZLEN() << ". Change XLEN, YLEN, & ZLEN in input file. " << endl;
-            MPIdata::instance().finalize_mpi();
+            // MPIdata::instance().finalize_mpi();
+            MPI_Abort(MPI_COMM_WORLD, 1);
             return (1);
         }
 
