@@ -37,6 +37,12 @@ To run the code, please try
 mpirun -np no_of_proc ./iPIC3D  inputfilename.inp           # try 'srun', if mpirun does not work
 ```
 
+Development of hybrid OpenMP + MPI parallelisation is currently under progress for ECSIM/RelSIM. Kindly set the following in your job submission script
+
+```shell
+export OMP_NUM_THREADS=1
+```
+
 # Acknowledgements and Citations
 This version of iPIC3D (with the implicit moment method) has been developed by Prof Stefano Markidis and his team. The energy conserving semi-implicit method (ECSIM) and relativistic semi-implicit method (RelSIM) have been implemented by Dr Pranab J Deka and Prof Fabio Bacchini.
 
