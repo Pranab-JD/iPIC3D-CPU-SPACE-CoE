@@ -6,8 +6,8 @@
 
 Case                           = Double_Harris                                 # Case
 SimulationName                 = Double_Harris                                 # Simulation name for output
-SaveDirName                    = /scratch/project_465001279/PJD/data_D_R       # Output directory
-RestartDirName                 = /scratch/project_465001279/PJD/data_D_R       # Restart directory   
+SaveDirName                    = data_reconnection                             # Output directory
+RestartDirName                 = data_reconnection                             # Restart directory   
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                    OUTPUT                                  %
@@ -17,12 +17,12 @@ WriteMethod                    = shdf5                                         #
 output_data_precision          = DOUBLE                                        # Precision of output data [SINGLE | DOUBLE]
 
 #! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are
-restart_status                 = 2                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
+restart_status                 = 0                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
 
 DiagnosticsOutputCycle         = 5                                             # Diagnostics cycle
 RestartOutputCycle             = 0                                             # Restart cycle (final time cycle is automatically written to restart files)
 FieldOutputCycle               = 25                                            # Output for moments and fields (if <= 0, data is NOT saved)
-ParticlesOutputCycle           = 100                                           # Output for particles (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 40                                           # Output for particles (if <= 0, data is NOT saved)
 ParticlesDownsampleOutputCycle = 0                                             # Downsample output cycle (if <= 0, data is NOT saved)
 ParticlesDownsampleFactor      = 1                                             # Downsampling factor (must be >= 1; if = 1 NO downsampling)
 
@@ -61,7 +61,7 @@ ParticlesDownsampleOutputTag   = position_DS + velocity_DS + q_DS              #
 
 ###? Custom paramters (max. 10)
 nparam                         = 2
-custom_parameters              = 0.4        0.5
+custom_parameters              = 0.4        0.25
 
 #* custom_parameter 1 --> Amplitude of initial perturbation
 #* custom_parameter 2 --> Half-thickness of current sheet
@@ -70,16 +70,16 @@ custom_parameters              = 0.4        0.5
 # %                         ELECTRIC and MAGNETIC FIELD                        %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-B0x                            = 0.097                                         # Initial magnetic field strength along X
+B0x                            = 0.097                                          # Initial magnetic field strength along X
 B0y                            = 0.0                                            # Initial magnetic field strength along Y
-B0z                            = 0.0                                        # Initial magnetic field strength along Z
+B0z                            = 0.0                                            # Initial magnetic field strength along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                     TIME                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 dt                             = 0.125	                                       # Time-step size
-ncycles                        = 50                                           # Number of time steps
+ncycles                        = 200                                           # Number of time steps
 th                             = 0.5                                           # Decentering parameter
 c                              = 1.0                                           # Speed of light 
 GMREStol                       = 1E-15                                         # GMRES tolerance (must be <= 1e-15 for exact energy conservation)
@@ -108,9 +108,9 @@ nzc                            = 1                                              
 # %                                  MPI TOPOLOGY                              %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-XLEN                           = 5                                              # Number of MPI subdomains along X
-YLEN                           = 5                                              # Number of MPI subdomains along Y
-ZLEN                           = 1                                              # Number of MPI subdomains along Z
+XLEN                           = 10                                              # Number of MPI subdomains along X
+YLEN                           = 10                                              # Number of MPI subdomains along Y
+ZLEN                           = 1                                               # Number of MPI subdomains along Z
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                   PARTICLES                                %
