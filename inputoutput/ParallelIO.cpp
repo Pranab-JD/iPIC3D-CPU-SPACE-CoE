@@ -37,6 +37,7 @@
 #include <iomanip>
 #include "Collective.h"
 #include <filesystem>
+#include <vector>
 
 bool contains_tag(const std::string& taglist, const std::string& target) 
 {
