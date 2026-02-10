@@ -22,9 +22,9 @@
 #ifndef __WOPARALLEL_H__
 #define __WOPARALLEL_H__
 
-#include "ipicfwd.h"
-#include "phdf5.h"
+// #include "ipicfwd.h"
+// #include "phdf5.h"
 
-void WriteOutputParallel(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct, int cycle);
+// void WriteOutputParallel(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct, int cycle);
 
 #endif
