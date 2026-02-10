@@ -73,6 +73,13 @@ if (USE_HDF5)
 	endif()
 	find_package(HDF5 COMPONENTS C HL REQUIRED)
 
+    if (HDF5_IS_PARALLEL)
+        add_compile_definitions(PHDF5 USING_PARALLEL_HDF5)
+        message(STATUS "HDF5 is parallel: enabling PHDF5/USING_PARALLEL_HDF5")
+    else()
+        message(STATUS "HDF5 is NOT parallel: PHDF5 disabled")
+    endif()
+
 
 	if (NOT DEFINED HDF5_C_TARGET)
 		message(STATUS "Creating a proper target for HDF5")

@@ -36,6 +36,7 @@
 #include <sstream>
 #include <iomanip>
 #include "Collective.h"
+#include <filesystem>
 
 bool contains_tag(const std::string& taglist, const std::string& target) 
 {
@@ -51,83 +52,469 @@ bool contains_tag(const std::string& taglist, const std::string& target)
     return false;
 }
 
-/*! Function used to write the EM fields using the parallel HDF5 library */
-void WriteOutputParallel(Grid3DCU *grid, EMfields3D *EMf, Particles3Dcomm *part, CollectiveIO *col, VCtopology3D *vct, int cycle)
+static inline void block_dist_1d(hsize_t G, int P, int c, hsize_t &start, hsize_t &count)
 {
-    #ifdef PHDF5
-    timeTasks_set_task(TimeTasks::WRITE_FIELDS);
+    const hsize_t base = G / (hsize_t)P;
+    const hsize_t rem  = G % (hsize_t)P;
+    count = base + ((hsize_t)c < rem ? 1 : 0);
+    start = (hsize_t)c * base + (hsize_t)std::min<int>(c, (int)rem);
+}
 
-    stringstream filenmbr;
-    string       filename;
-    bool         bp;
+template <typename GetF, typename T>
+static inline void pack_sca_nodes(T* out, int lx, int ly, int lz, GetF getf)
+{
+    size_t p = 0;
+    for (int i = 1; i <= lx; ++i)
+        for (int j = 1; j <= ly; ++j)
+            for (int k = 1; k <= lz; ++k)
+                out[p++] = static_cast<T>(getf(i, j, k));
+}
 
-    /* ------------------- */
-    /* Setup the file name */
-    /* ------------------- */
-
-    filenmbr << setfill('0') << setw(5) << cycle;
-    filename = col->getSaveDirName() + "/" + col->getSimName() + "_" + filenmbr.str() + ".h5";
-
-    /* ---------------------------------------------------------------------------- */
-    /* Define the number of cells in the globa and local mesh and set the mesh size */
-    /* ---------------------------------------------------------------------------- */
-
-    int nxc = grid->getNXC();
-    int nyc = grid->getNYC();
-    int nzc = grid->getNZC();
-    int nxn = grid->getNXN();
-    int nyn = grid->getNYN();
-    int nzn = grid->getNZN();
-
-    int    dglob[3] = { col ->getNxc()  , col ->getNyc()  , col ->getNzc()   };
-    int    dlocl[3] = { nxc-2,            nyc-2,            nzc-2 };
-    double L    [3] = { col ->getLx ()  , col ->getLy ()  , col ->getLz ()   };
-
-    /* --------------------------------------- */
-    /* Declare and open the parallel HDF5 file */
-    /* --------------------------------------- */
-
-    PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
-
-    bp = false;
-    if (col->getParticlesOutputCycle() > 0) bp = true;
-
-    outputfile.CreatePHDF5file(L, dglob, dlocl, bp);
-
-    // write electromagnetic field
-    //
-    outputfile.WritePHDF5dataset("Fields", "Ex", EMf->getEx(), nxn-2, nyn-2, nzn-2);
-    outputfile.WritePHDF5dataset("Fields", "Ey", EMf->getEy(), nxn-2, nyn-2, nzn-2);
-    outputfile.WritePHDF5dataset("Fields", "Ez", EMf->getEz(), nxn-2, nyn-2, nzn-2);
-    outputfile.WritePHDF5dataset("Fields", "Bx", EMf->getBxc(), nxc-2, nyc-2, nzc-2);
-    outputfile.WritePHDF5dataset("Fields", "By", EMf->getByc(), nxc-2, nyc-2, nzc-2);
-    outputfile.WritePHDF5dataset("Fields", "Bz", EMf->getBzc(), nxc-2, nyc-2, nzc-2);
-
-    /* ---------------------------------------- */
-    /* Write the charge moments for each species */
-    /* ---------------------------------------- */
-
-    for (int is = 0; is < col->getNs(); is++)
+template <typename T>
+static inline void pack_xyz_from_aos(T* out, long long nop, const Particles3D& P)
+{
+    for (long long p = 0; p < nop; ++p)
     {
-        stringstream ss;
-        ss << is;
-        string s_is = ss.str();
+        out[3*p + 0] = (T)P.getX((int)p);
+        out[3*p + 1] = (T)P.getY((int)p);
+        out[3*p + 2] = (T)P.getZ((int)p);
+    }
+}
 
-        // charge density
-        // outputfile.WritePHDF5dataset("Fields", "rho_"+s_is, EMf->getRHOcs(is), nxc-2, nyc-2, nzc-2);
-        // current
-        //outputfile.WritePHDF5dataset("Fields", "Jx_"+s_is, EMf->getJxsc(is), nxc-2, nyc-2, nzc-2);
-        //outputfile.WritePHDF5dataset("Fields", "Jy_"+s_is, EMf->getJysc(is), nxc-2, nyc-2, nzc-2);
-        //outputfile.WritePHDF5dataset("Fields", "Jz_"+s_is, EMf->getJzsc(is), nxc-2, nyc-2, nzc-2);
+template <typename T>
+static inline void pack_uvw_from_aos(T* out, long long nop, const Particles3D& P)
+{
+    for (long long p = 0; p < nop; ++p)
+    {
+        out[3*p + 0] = (T)P.getU((int)p);
+        out[3*p + 1] = (T)P.getV((int)p);
+        out[3*p + 2] = (T)P.getW((int)p);
+    }
+}
+
+template <typename T>
+static inline void pack_q_from_aos(T* out, long long nop, const Particles3D& P)
+{
+    out[0] = (T)P.getQ((int)0);
+}
+
+//*! Function used to write the FIELDS and MOMENTS using the parallel HDF5 library
+void WriteFieldsParallel(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct, int cycle)
+{
+#ifdef PHDF5
+
+    if (vct->getCartesian_rank() == 0)
+        cout << endl << "Writing FIELD data at cycle " << cycle << endl;
+
+    std::stringstream filenmbr;
+    filenmbr << std::setfill('0') << std::setw(5) << cycle;
+    const std::string fields_folder = col->getSaveDirName() + "/Fields_" + filenmbr.str() + "/";
+    const std::string moments_folder = col->getSaveDirName() + "/Moments_" + filenmbr.str() + "/";
+
+    if (contains_tag(col->getFieldOutputTag(), "E") || contains_tag(col->getFieldOutputTag(), "B"))
+    {        
+        if (MPIdata::get_rank() == 0)
+            std::filesystem::create_directories(fields_folder);
+
+        MPI_Barrier(vct->getFieldComm());
     }
 
-    outputfile.ClosePHDF5file();
+    if (contains_tag(col->getFieldOutputTag(), "rho_s")     || contains_tag(col->getFieldOutputTag(), "J_s")    ||
+        contains_tag(col->getFieldOutputTag(), "pressure")  || contains_tag(col->getFieldOutputTag(), "H_Flux") ||
+        contains_tag(col->getFieldOutputTag(), "E_Flux"))
+    {
+        if (MPIdata::get_rank() == 0)
+            std::filesystem::create_directories(moments_folder);
 
-    #else  
-        eprintf(" The input file requests the use of the Parallel HDF5 functions, \n"
-                " but the code has been compiled using the sequential HDF5 library. \n"
-                " Recompile the code using the parallel HDF5 options or change 'WriteMethod'. ");
-    #endif
+        MPI_Barrier(vct->getFieldComm());
+    }
+
+    // Global NODE dims (no ghosts)
+    const hsize_t Gc[3] = { (hsize_t)col->getNxc(),
+                            (hsize_t)col->getNyc(),
+                            (hsize_t)col->getNzc() };
+
+    const hsize_t Gn[3] = { Gc[0] + 1, Gc[1] + 1, Gc[2] + 1 };
+
+    // cell distribution (non-overlapping)
+    hsize_t cstart[3], ccount[3];
+    block_dist_1d(Gc[0], vct->getXLEN(), vct->getCoordinates(0), cstart[0], ccount[0]);
+    block_dist_1d(Gc[1], vct->getYLEN(), vct->getCoordinates(1), cstart[1], ccount[1]);
+    block_dist_1d(Gc[2], vct->getZLEN(), vct->getCoordinates(2), cstart[2], ccount[2]);
+
+    // convert to node hyperslab (unique nodes)
+    hsize_t nstart[3] = { cstart[0], cstart[1], cstart[2] };
+    hsize_t ncount[3] = {ccount[0] + (vct->getCoordinates(0) == vct->getXLEN()-1 ? 1 : 0),
+                         ccount[1] + (vct->getCoordinates(1) == vct->getYLEN()-1 ? 1 : 0),
+                         ccount[2] + (vct->getCoordinates(2) == vct->getZLEN()-1 ? 1 : 0)};
+
+    const int lx = (int)ncount[0]; const int ly = (int)ncount[1]; const int lz = (int)ncount[2];
+    const hsize_t Gx = (hsize_t)(col->getNxc() + 1); const hsize_t Gy = (hsize_t)(col->getNyc() + 1); const hsize_t Gz = (hsize_t)(col->getNzc() + 1);
+
+    double L[3] = {col->getLx(), col->getLy(), col->getLz()};
+    int dglob_tmp[3] = {(int)Gx, (int)Gy, (int)Gz};
+    int dlocl_tmp[3] = {lx, ly, lz};
+
+    //? Buffer vector
+    const size_t nloc = (size_t)lx * (size_t)ly * (size_t)lz;
+    static std::vector<float> buf_f(nloc);
+    static std::vector<double> buf_d(nloc);
+    string precision = col->get_output_data_precision();
+
+    //* E field (defined at nodes)
+    if (contains_tag(col->getFieldOutputTag(), "E"))
+    {
+        //* Create a file to store E
+        const std::string filename = fields_folder + "E_" + filenmbr.str() + ".h5";
+        PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
+        outputfile.CreatePHDF5file(L, dglob_tmp, dlocl_tmp, "Fields");
+
+        //* Write data to file
+        if (precision == "SINGLE")
+        {
+            pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEx(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f32("Fields", "Ex", buf_f.data(), Gn, nstart, ncount);
+            pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEy(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f32("Fields", "Ey", buf_f.data(), Gn, nstart, ncount);
+            pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEz(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f32("Fields", "Ez", buf_f.data(), Gn, nstart, ncount);
+        }
+        else if (precision == "DOUBLE")
+        {
+            pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEx(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f64("Fields", "Ex", buf_d.data(), Gn, nstart, ncount);
+            pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEy(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f64("Fields", "Ey", buf_d.data(), Gn, nstart, ncount);
+            pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEz(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f64("Fields", "Ez", buf_d.data(), Gn, nstart, ncount);
+        }
+
+        //* Close file
+        outputfile.ClosePHDF5file();
+    }
+
+    //* B field (defined at nodes)
+    if (contains_tag(col->getFieldOutputTag(), "B"))
+    {
+        //* Create a file to store B
+        const std::string filename = fields_folder + "B_" + filenmbr.str() + ".h5";
+        PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
+        outputfile.CreatePHDF5file(L, dglob_tmp, dlocl_tmp, "Fields");
+
+        //* Write data to file
+        if (precision == "SINGLE")
+        {
+            pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getBx(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f32("Fields", "Bx", buf_f.data(), Gn, nstart, ncount);
+            pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getBy(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f32("Fields", "By", buf_f.data(), Gn, nstart, ncount);
+            pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getBz(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f32("Fields", "Bz", buf_f.data(), Gn, nstart, ncount);
+        }
+        else if (precision == "DOUBLE")
+        {
+            pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getBx(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f64("Fields", "Bx", buf_d.data(), Gn, nstart, ncount);
+            pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getBy(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f64("Fields", "By", buf_d.data(), Gn, nstart, ncount);
+            pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getBz(i,j,k); });
+            outputfile.WritePHDF5dataset_nodes_f64("Fields", "Bz", buf_d.data(), Gn, nstart, ncount);
+        }
+
+        //* Close file
+        outputfile.ClosePHDF5file();
+    }
+
+    //* Moments for each species (defined at nodes)
+    for (int is = 0; is < col->getNs(); ++is) 
+    {
+        stringstream ii;
+		ii << is;
+
+        //* rhos
+        if (contains_tag(col->getFieldOutputTag(), "rho_s"))
+        {
+            //* Create a file to store rho
+            const std::string filename = moments_folder + "rho_species_" + ii.str() + "_" + filenmbr.str() + ".h5";
+            PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
+            outputfile.CreatePHDF5file(L, dglob_tmp, dlocl_tmp, "/Moments");
+
+            //* Write data to file
+            if (precision == "SINGLE")
+            {
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getRHOns(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "rho" , buf_f.data(), Gn, nstart, ncount);
+            }
+            else if (precision == "DOUBLE")
+            {
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getRHOns(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "rho" , buf_d.data(), Gn, nstart, ncount);
+            }
+
+            //* Close file
+            outputfile.ClosePHDF5file();
+        }
+
+        //* Js
+        if (contains_tag(col->getFieldOutputTag(), "J_s"))
+        {
+            //* Create a file to store current
+            const std::string filename = moments_folder + "J_species_" + ii.str() + "_" + filenmbr.str() + ".h5";
+            PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
+            outputfile.CreatePHDF5file(L, dglob_tmp, dlocl_tmp, "Moments");
+
+            //* Write data to file
+            if (precision == "SINGLE")
+            {
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getJxs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Jx" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getJys(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Jy" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getJzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Jz" , buf_f.data(), Gn, nstart, ncount);
+            }
+            else if (precision == "DOUBLE")
+            {
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getJxs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Jx" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getJys(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Jy" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getJzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Jz" , buf_d.data(), Gn, nstart, ncount);
+            }
+
+            //* Close file
+            outputfile.ClosePHDF5file();
+        }
+
+        //* Pressure tensor
+        if (contains_tag(col->getFieldOutputTag(), "pressure"))
+        {
+            //* Create a file to store pressure tensor
+            const std::string filename = moments_folder + "Pressure_species_" + ii.str() + "_" + filenmbr.str() + ".h5";
+            PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
+            outputfile.CreatePHDF5file(L, dglob_tmp, dlocl_tmp, "Moments");
+
+            //* Write data to file
+            if (precision == "SINGLE")
+            {
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpXXsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "pXX" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpXYsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "pXY" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpXZsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "pXZ" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpYYsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "pYY" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpYZsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "pYZ" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpZZsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "pZZ" , buf_f.data(), Gn, nstart, ncount);
+            }
+            else if (precision == "DOUBLE")
+            {
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpXXsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "pXX" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpXYsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "pXY" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpXZsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "pXZ" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpYYsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "pYY" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpYZsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "pYZ" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getpZZsn(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "pZZ" , buf_d.data(), Gn, nstart, ncount);
+            }
+
+            //* Close file
+            outputfile.ClosePHDF5file();
+        }
+
+        //* Energy Flux
+        if (contains_tag(col->getFieldOutputTag(), "E_Flux"))
+        {
+            //* Create a file to store energy flux
+            const std::string filename = moments_folder + "E_Flux_species_" + ii.str() + "_" + filenmbr.str() + ".h5";
+            PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
+            outputfile.CreatePHDF5file(L, dglob_tmp, dlocl_tmp, "Moments");
+
+            //* Write data to file
+            if (precision == "SINGLE")
+            {
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEFxs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "EFx" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEFys(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "EFy" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEFzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "EFz" , buf_f.data(), Gn, nstart, ncount);
+            }
+            else if (precision == "DOUBLE")
+            {
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEFxs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "EFx" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEFys(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "EFy" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getEFzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "EFz" , buf_d.data(), Gn, nstart, ncount);
+            }
+
+            //* Close file
+            outputfile.ClosePHDF5file();
+        }
+
+        //* Heat Flux
+        if (contains_tag(col->getFieldOutputTag(), "H_Flux"))
+        {
+            //* Create a file to store energy flux
+            const std::string filename = moments_folder + "H_Flux_species_" + ii.str() + "_" + filenmbr.str() + ".h5";
+            PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
+            outputfile.CreatePHDF5file(L, dglob_tmp, dlocl_tmp, "Moments");
+
+            //* Write data to file
+            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxxs(i, j, k, is); });
+            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxxxs" , buf.data(), Gn, nstart, ncount);
+            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxys(i, j, k, is); });
+            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxxys" , buf.data(), Gn, nstart, ncount);
+            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxyys(i, j, k, is); });
+            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxyys" , buf.data(), Gn, nstart, ncount);
+            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxzzs(i, j, k, is); });
+            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxzzs" , buf.data(), Gn, nstart, ncount);
+            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyyys(i, j, k, is); });
+            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qyyys" , buf.data(), Gn, nstart, ncount);
+            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyzzs(i, j, k, is); });
+            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qyzzs" , buf.data(), Gn, nstart, ncount);
+            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQzzzs(i, j, k, is); });
+            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qzzzs" , buf.data(), Gn, nstart, ncount);
+            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxyzs(i, j, k, is); });
+            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxyzs" , buf.data(), Gn, nstart, ncount);
+            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxzs(i, j, k, is); });
+            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxxzs" , buf.data(), Gn, nstart, ncount);
+            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyyzs(i, j, k, is); });
+            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qyyzs" , buf.data(), Gn, nstart, ncount);
+
+            //* Close file
+            outputfile.ClosePHDF5file();
+        }
+    }
+#else
+    eprintf("Parallel HDF5 requested but iPIC3D has compiled without parallel HDF5 library.");
+#endif
+}
+
+void WriteParticlesParallel(Particles3D* particles, CollectiveIO *col, VCtopology3D *vct, int cycle)
+{
+#ifdef PHDF5
+
+    if (vct->getCartesian_rank() == 0)
+        cout << endl << "Writing PARTICLE data at cycle " << cycle << endl;
+
+    std::stringstream filenmbr;
+    filenmbr << std::setfill('0') << std::setw(5) << cycle;
+    const std::string particles_folder = col->getSaveDirName() + "/Particles_" + filenmbr.str() + "/";
+
+    if (contains_tag(col->getPclOutputTag(), "position") || contains_tag(col->getPclOutputTag(), "velocity")  || contains_tag(col->getPclOutputTag(), "q"))
+    {        
+        if (MPIdata::get_rank() == 0)
+            std::filesystem::create_directories(particles_folder);
+
+        // MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    //? Buffer vector
+    static std::vector<float> particle_single;
+    static std::vector<double> particle_double;
+    string precision = col->get_output_data_precision();
+
+    //* Particle data for each species
+    for (int is = 0; is < col->getNs(); ++is) 
+    {
+        size_t nop = particles[is].getNOP();
+        if (nop < 0) abort();
+
+        stringstream ii;
+		ii << is;
+
+        const hsize_t nlocal = static_cast<hsize_t>(nop);
+
+        //* Sizes of arrays where position, velocity, and q are to be written
+        hsize_t Nglobal = 0;
+        MPI_Allreduce(&nlocal, &Nglobal, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, vct->getFieldComm());
+
+        hsize_t offset = 0;
+        MPI_Exscan(&nlocal, &offset, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, vct->getFieldComm());
+
+        hsize_t gdim[2]  = { Nglobal, 3 }; hsize_t gdim_q[2]  = { 1, 1 };
+        hsize_t start[2] = { offset, 0 }; hsize_t start_q[2] = { 0, 0 }; 
+        const hsize_t one_or_zero = (MPIdata::get_rank() == 0) ? hsize_t(1) : hsize_t(0);
+        hsize_t count[2] = { nlocal, 3 }; hsize_t count_q[2] = { one_or_zero, 1 };
+
+        //* Create a file to store postions, velocities, and charges
+        const std::string filename = particles_folder + "species_" + ii.str() + "_" + filenmbr.str() + ".h5";
+        PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
+        outputfile.CreatePHDF5fileParticles("Particles");
+
+        //* position
+        if (contains_tag(col->getPclOutputTag(), "position"))
+        {
+            //* Write data to file
+            if (precision == "SINGLE")
+            {
+                particle_single.resize(3*nlocal);
+                pack_xyz_from_aos<float>(particle_single.data(), nop, particles[is]);
+                outputfile.WritePHDF5dataset_particles_f32("Particles/species_" + ii.str(), "position", particle_single.data(), gdim, start, count);
+            }
+            else if (precision == "DOUBLE")
+            {
+                particle_double.resize(3*nlocal);
+                pack_xyz_from_aos<double>(particle_double.data(), nop, particles[is]);
+                outputfile.WritePHDF5dataset_particles_f64("Particles/species_" + ii.str(), "position", particle_double.data(), gdim, start, count);
+            }
+        }
+
+        //* velocity
+        if (contains_tag(col->getPclOutputTag(), "velocity"))
+        {
+            //* Write data to file
+            if (precision == "SINGLE")
+            {
+                particle_single.resize(3*nlocal);
+                pack_uvw_from_aos<float>(particle_single.data(), nop, particles[is]);
+                outputfile.WritePHDF5dataset_particles_f32("Particles/species_" + ii.str(), "velocity", particle_single.data(), gdim, start, count);
+            }
+            else if (precision == "DOUBLE")
+            {
+                particle_double.resize(3*nlocal);
+                pack_uvw_from_aos<double>(particle_double.data(), nop, particles[is]);
+                outputfile.WritePHDF5dataset_particles_f64("Particles/species_" + ii.str(), "velocity", particle_double.data(), gdim, start, count);
+            }
+        }
+
+        //* charge
+        if (contains_tag(col->getPclOutputTag(), "q"))
+        {
+            //* Write data to file
+            if (precision == "SINGLE")
+            {
+                particle_single.resize(1);
+                pack_q_from_aos<float>(particle_single.data(), nop, particles[is]);
+                outputfile.WritePHDF5dataset_particles_f32("Particles/species_" + ii.str(), "q", particle_single.data(), gdim_q, start_q, count_q);
+            }
+            else if (precision == "DOUBLE")
+            {
+                particle_double.resize(1);
+                pack_q_from_aos<double>(particle_double.data(), nop, particles[is]);
+                outputfile.WritePHDF5dataset_particles_f64("Particles/species_" + ii.str(), "q", particle_double.data(), gdim_q, start_q, count_q);
+            }
+        }
+
+        //* Close file
+        outputfile.ClosePHDF5file();
+    }
+
+#else
+    eprintf("Parallel HDF5 requested but iPIC3D has compiled without parallel HDF5 library.");
+#endif
 }
 
 
@@ -137,8 +524,8 @@ void WriteOutputParallel(Grid3DCU *grid, EMfields3D *EMf, Particles3Dcomm *part,
 //    return sz;
 //}
 
-void WriteFieldsVTK(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct, const string & outputTag ,int cycle){
-
+void WriteFieldsVTK(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct, const string & outputTag ,int cycle)
+{
 	//All VTK output at grid cells excluding ghost cells
 	const int nxn  =grid->getNXN(),nyn  = grid->getNYN(),nzn =grid->getNZN();
 	const int dimX =col->getNxc() ,dimY = col->getNyc(), dimZ=col->getNzc();
@@ -823,7 +1210,8 @@ void WriteMomentsVTK(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopol
 
 
 int WriteFieldsVTKNonblk(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct,int cycle,
-		float**** fieldwritebuffer,MPI_Request requestArr[4],MPI_File fhArr[4]){
+		                float**** fieldwritebuffer,MPI_Request requestArr[4],MPI_File fhArr[4])
+{
 
 	//All VTK output at grid cells excluding ghost cells
 	const int nxn  =grid->getNXN(),nyn  = grid->getNYN(),nzn =grid->getNZN();
@@ -971,8 +1359,8 @@ int WriteFieldsVTKNonblk(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCt
 
 
 int  WriteMomentsVTKNonblk(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCtopology3D *vct,int cycle,
-		float*** momentswritebuffer,MPI_Request requestArr[14],MPI_File fhArr[14]){
-
+		float*** momentswritebuffer,MPI_Request requestArr[14],MPI_File fhArr[14])
+{
 	//All VTK output at grid cells excluding ghost cells
 	const int nxn  =grid->getNXN(),nyn  = grid->getNYN(),nzn =grid->getNZN();
 	const int dimX =col->getNxc() ,dimY = col->getNyc(), dimZ=col->getNzc();
@@ -1165,7 +1553,6 @@ int  WriteMomentsVTKNonblk(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, V
 }
 
 
-
 void ByteSwap(unsigned char * b, int n)
 {
    int i = 0;
@@ -1175,249 +1562,4 @@ void ByteSwap(unsigned char * b, int n)
       std::swap(b[i], b[j]);
       i++, j--;
    }
-}
-
-void WriteTestPclsVTK(int nspec, Grid3DCU *grid, Particles3D *testpart, EMfields3D *EMf,
-		CollectiveIO *col, VCtopology3D *vct, const string & tag, int cycle,MPI_Request *testpartMPIReq, MPI_File *fh){
-	/* the below is nonblocking collective IO
-	 * const int nop = testpart[0].getNOP();
-
-  	if(cycle>0){
-  		MPI_Wait(headerReq, status);
-  		MPI_Wait(dataReq, status);
-  		MPI_Wait(footReq, status);
-//  		MPI_File_close(&fh);
-//  		int error_code=status->MPI_ERROR;
-//  		if (error_code != MPI_SUCCESS) {
-//  			char error_string[100];
-//  			int length_of_error_string, error_class;
-//
-//  			MPI_Error_class(error_code, &error_class);
-//  			MPI_Error_string(error_class, error_string, &length_of_error_string);
-//  			dprintf("MPI_Wait error: %s\n", error_string);
-//  		}
-  	}else{
-  		pclbuffersize = nop*3*1.2;
-  		testpclPos = new float[pclbuffersize];
-  	}
-
-  	if(nop>pclbuffersize){
-  		pclbuffersize = nop*3*1.2;
-  		delete testpclPos;
-  		testpclPos = new float[pclbuffersize];
-  	}
-
-//  	for (int pidx = 0; pidx < nop; pidx++) {
-//  		testpclPos[pidx*3+0]=(float)(testpart[0]).getX(pidx);
-//  		testpclPos[pidx*3+1]=(float)(testpart[0]).getY(pidx);
-//  		testpclPos[pidx*3+2]=(float)(testpart[0]).getZ(pidx);
-//  	}
-
-  	//write to parallel vtk pvtu files
-  	int  is=0;
-	ostringstream filename;
-	filename << col->getSaveDirName() << "/" << col->getSimName() << "_testparticle"<< testpart[is].get_species_num() << "_cycle" << cycle << ".vtu";
-	MPI_File_open(vct->getComm(),filename.str().c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
-	MPI_File_set_view(fh, 0, MPI_BYTE, MPI_BYTE, "native", MPI_INFO_NULL);
-
-	  ofstream myfile;
-	  myfile.open ("example.vtu");
-	  myfile <<  "<?xml version=\"1.0\"?>\n"
-				"<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n"
-			    "  <UnstructuredGrid>\n"
-				"    <Piece NumberOfPoints=\"1\" NumberOfCells=\"1\">\n"
-				"		<Cells>\n"
-				"			<DataArray type=\"UInt8\" Name=\"connectivity\" format=\"ascii\">0 1</DataArray>\n"
-				"			<DataArray type=\"UInt8\" Name=\"offsets\" 		format=\"ascii\">1</DataArray>\n"
-				"			<DataArray type=\"UInt8\" Name=\"types\"    	format=\"ascii\">1</DataArray>\n"
-				"		</Cells>\n"
-				"		<Points>\n"
-				"        	<DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"acscii\">\n" <<
-				(testpart[0]).getX(100) << (testpart[0]).getY(100)  << (testpart[0]).getZ(100) <<
-				 "			</DataArray>\n"
-				  	  					"		</Points>\n"
-				  	  					"	</Piece>\n"
-				  	  					"	</UnstructuredGrid>\n"
-				  	  					"</VTKFile>";
-	  myfile.close();
-
-  	char header[8192];
-  	sprintf(header, "<?xml version=\"1.0\"?>\n"
-  					"<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"%s\">\n"
-  				    "  <UnstructuredGrid>\n"
-  					"    <Piece NumberOfPoints=\"%d\" NumberOfCells=\"1\">\n"
-  					"		<Cells>\n"
-  					"			<DataArray type=\"UInt8\" Name=\"connectivity\" format=\"ascii\">0 1</DataArray>\n"
-  					"			<DataArray type=\"UInt8\" Name=\"offsets\" 		format=\"ascii\">1</DataArray>\n"
-  					"			<DataArray type=\"UInt8\" Name=\"types\"    	format=\"ascii\">1</DataArray>\n"
-  					"		</Cells>\n"
-  					"		<Points>\n"
-  					"        	<DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"binary\">\n",
-  					(EMf->isLittleEndian() ?"LittleEndian":"BigEndian"),3);
-
-  	int nelem = strlen(header);
-  	int charsize=sizeof(char);
-  	MPI_Offset disp = nelem*charsize;
-
-  	//MPI_File_iwrite(fh, header, nelem, MPI_BYTE, headerReq);
-  	MPI_File_write(fh, header, nelem, MPI_BYTE, status);
-
-  	int err = MPI_File_set_view(fh, disp, MPI_FLOAT, MPI_FLOAT, "native", MPI_INFO_NULL);
-  	if(err){
-  		          dprintf("Error in MPI_File_set_view\n");
-  		      }
-
-	//dprintf("testpart[is].getNOP() = %d, sizeof(SpeciesParticle)=%d, u = %f, x = %f ",testpart[0].getNOP(), sizeof(SpeciesParticle), pcl.get_u(), pcl.get_x());
-	//const SpeciesParticle *pclptr = testpart[is].get_pclptr(0);
-	//const SpeciesParticle * pclptr = (SpeciesParticle * )temppcl;
-	//dprintf("temppcl u = %f, x= %f",pclptr->get_u() , pclptr->get_x());
-//	MPI_Datatype particleType;
-//	MPI_Type_vector (10,3,sizeof(SpeciesParticle),MPI_DOUBLE,&particleType);//testpart[0].getNOP()
-//	MPI_Type_commit(&particleType);
-
-  	//MPI_File_iwrite(fh, pclptr, 1, particleType, dataReq);
-  	testpclPos[0]=1.1;testpclPos[1]=2.1;testpclPos[2]=3.1;
-  	testpclPos[3]=1.1;testpclPos[4]=2.1;testpclPos[5]=3.1;
-  	testpclPos[6]=1.1;testpclPos[7]=2.1;testpclPos[8]=3.1;
-  	MPI_File_write_all(fh, testpclPos, 9, MPI_FLOAT, status);
-  	 int tcount=0;
-	  MPI_Get_count(status, MPI_FLOAT, &tcount);
-	  dprintf(" wrote %i MPI_FLOAT",  tcount);
-	int error_code=status->MPI_ERROR;
-	if (error_code != MPI_SUCCESS) {
-		char error_string[100];
-		int length_of_error_string, error_class;
-
-		MPI_Error_class(error_code, &error_class);
-		MPI_Error_string(error_class, error_string, &length_of_error_string);
-		dprintf("MPI_File_write error: %s\n", error_string);
-	}
-
-  	char foot[8192];
-  	sprintf(foot, "			</DataArray>\n"
-  	  					"		</Points>\n"
-  	  					"	</Piece>\n"
-  	  					"	</UnstructuredGrid>\n"
-  	  					"</VTKFile>");
-  	//nelem = strlen(foot);
-  	//MPI_File_set_view(fh, disp+9, MPI_BYTE, MPI_BYTE, "native", MPI_INFO_NULL);
-  	//MPI_File_iwrite(fh, foot, nelem, MPI_BYTE, footReq);
-  	//MPI_File_write(fh, foot, nelem, MPI_BYTE, status);
-
-  	if(cycle==LastCycle()){
-  		MPI_Wait(headerReq, status);
-  		MPI_Wait(dataReq, status);
-  		MPI_Wait(footReq, status);
-  	    MPI_File_close(&fh);
-  	}
-	 * */
-	MPI_Status  *status;
-	if(cycle>0){dprintf("Previous writing done");
-		MPI_Wait(testpartMPIReq, status);dprintf("Previous writing done");
-		int error_code=status->MPI_ERROR;
-		if (error_code != MPI_SUCCESS) {
-			char error_string[100];
-			int length_of_error_string, error_class;
-
-			MPI_Error_class(error_code, &error_class);
-			MPI_Error_string(error_class, error_string, &length_of_error_string);
-			dprintf("MPI_Wait error: %s\n", error_string);
-		}
-		else{
-			if (vct->getCartesian_rank()==0) MPI_File_close(fh);
-			dprintf("Previous writing done");
-		}
-	}
-
-	//buffering if no full
-	const int timesteps = 10;
-	int nopStep[timesteps];
-
-
-
-	//write to parallel vtk pvtu files
-
-	int 		 is=0;
-
-	char header[12048];
-	sprintf(header, "<?xml version=\"1.0\"?>\n"
-					"<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"%s\">\n"
-				    "  <UnstructuredGrid>\n"
-					"    <Piece NumberOfPoints=\"%d\" NumberOfCells=\"1\">\n"
-					"		<Cells>\n"
-					"			<DataArray type=\"UInt8\" Name=\"connectivity\" format=\"ascii\">0 1</DataArray>\n"
-					"			<DataArray type=\"UInt8\" Name=\"offsets\" 		format=\"ascii\">0</DataArray>\n"
-					"			<DataArray type=\"UInt8\" Name=\"types\"    	format=\"ascii\">11</DataArray>\n"
-					"		</Cells>\n"
-					"		<Points>\n"
-					"        	<DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">\n"
-					"			</DataArray>\n"
-					"		</Points>\n"
-					"	</Piece>\n"
-					"	</UnstructuredGrid>\n"
-					"</VTKFile>", (EMf->isLittleEndian() ?"LittleEndian":"BigEndian"),testpart[is].getNOP());
-
-	int nelem = strlen(header);
-	int charsize=sizeof(char);
-	MPI_Offset disp = nelem*charsize;
-
-	ostringstream filename;
-	filename << col->getSaveDirName() << "/" << col->getSimName() << "_testparticle"<< testpart[is].get_species_num() << "_cycle" << cycle << ".vtu";
-	MPI_File_open(vct->getFieldComm(),filename.str().c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY, MPI_INFO_NULL, fh);
-
-	MPI_File_set_view(*fh, 0, MPI_BYTE, MPI_BYTE, "native", MPI_INFO_NULL);
-	if (vct->getCartesian_rank()==0){
-
-		MPI_File_iwrite(*fh, header, nelem, MPI_BYTE, testpartMPIReq);
-
-	}
-
-	/*
-	 *
-<VTKFile type="UnstructuredGrid" version="0.1" byte_order="LittleEndian">
-  <UnstructuredGrid>
-    <Piece NumberOfPoints="9" NumberOfCells="1">
-        <Cells>
-        <DataArray type="Int32" Name="connectivity" format="ascii">
-          0 1 2 3 4 5 6 7 8
-        </DataArray>
-		<DataArray type="Int32" Name="offsets" format="ascii">
-		 0
-		</DataArray>
-
-		<DataArray type="UInt8" Name="types" format="ascii">
-			1
-		</DataArray>
-        </Cells>
-
-      <PointData Scalars="testpartID">
-        <DataArray type="UInt16" Name="testpartID" format="ascii">
-          0 1 2 3 4 5 6 7 8
-        </DataArray>
-
-        <DataArray type="Float32" Name="testpartVelocity" NumberOfComponents="3" format="ascii">
-          -1 -1 -1
-          -1 -1 -1
-          -1 -1 -1
-          -1 -1 -1
-          -1 -1 -1
-          -1 -1 -1
-          -1 -1 -1
-          -1 -1 -1
-          -1 -1 -1
-        </DataArray>
-      </PointData>
-
-      <Points>
-        <DataArray type="Float32" NumberOfComponents="3" format="ascii">
-          0 0 0 0 0 1 0 0 2
-          0 1 0 0 1 1 0 1 2
-          0 2 0 0 2 1 0 2 2
-        </DataArray>
-      </Points>
-    </Piece>
-  </UnstructuredGrid>
-</VTKFile>
-	 * */
-
 }

@@ -138,7 +138,13 @@ int c_Solver::Init(int argc, char **argv)
     if (myrank == 0) 
     {
         if (restart_status == 0)
-            checkOutputFolder(SaveDirName);     //* Create output directory
+        {
+            checkOutputFolder(SaveDirName);         //* Create output directory
+
+            if (SaveDirName != RestartDirName)
+                checkOutputFolder(RestartDirName);  //* Create restart directory
+                
+        }
 
         MPIdata::instance().Print();
         vct->Print();
@@ -857,19 +863,17 @@ void c_Solver::WriteOutput(int cycle)
         //! HDF-based
 		#ifdef NO_HDF5
             cout << "ERROR: shdf5 and phdf5 requires iPIC3D to be compiled with HDF5" << endl;
+            return 1;
 		#else
 
             if (col->getWriteMethod() == "phdf5")
             {
-                //! Parallel HDF5 (THIS DOES NOT WORK -- Maybe this could be debugged) - PJD
-			    if (!col->field_output_is_off() && cycle%(col->getFieldOutputCycle())==0)
-				    WriteOutputParallel(grid, EMf, particles, col, vct, cycle);
+                //! Parallel HDF5
+			    if (!col->field_output_is_off() && (!(col->getFieldOutputTag()).empty()) && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == col->getNcycles() + first_cycle))
+				    WriteFieldsParallel(grid, EMf, col, vct, cycle);
 
-			    if (!col->particle_output_is_off() && cycle%(col->getParticlesOutputCycle())==0)
-			    {
-				    if(MPIdata::get_rank()==0)
-				        warning_printf("WriteParticlesParallel() is not yet implemented.");
-			    }
+			    if (!col->particle_output_is_off() && (!(col->getPclOutputTag()).empty()) && cycle%(col->getParticlesOutputCycle()) == 0)
+				    WriteParticlesParallel(particles, col, vct, cycle);
 			}
             else if (col->getWriteMethod() == "shdf5")
             {
@@ -903,7 +907,7 @@ void c_Solver::WriteOutput(int cycle)
 			}
             else
             {
-			    cout << "ERROR: Invalid WriteMethod in input file. Available options: shdf5, pvtk, and nbcvtk." << endl;
+			    cout << "ERROR: Invalid WriteMethod in input file. Available options: shdf5, phdf5, pvtk, and nbcvtk." << endl;
 			    invalid_value_error(col->getWriteMethod().c_str());
                 abort();
 			}
@@ -1200,11 +1204,13 @@ void c_Solver::WriteRestart(int cycle)
 
 //* =============================================================================================== *//
 
-// This needs to be separated into methods that save particles and methods that save field data
 void c_Solver::Finalize() 
 {
     if (col->getCallFinalize() && Parameters::get_doWriteOutput())
     {
+        if (myrank == 0)
+            cout << endl << "Writing RESTART data at time cycle " << col->getNcycles() + first_cycle << endl;
+
         #ifndef NO_HDF5
             convertParticlesToSynched();
             fetch_outputWrapperFPP().append_restart((col->getNcycles() + first_cycle), "DOUBLE");

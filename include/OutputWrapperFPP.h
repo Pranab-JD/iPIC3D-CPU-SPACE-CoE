@@ -54,6 +54,10 @@ class OutputWrapperFPP
                             EMfields3D *EMf, Particles3D *part, int ns,
                             Particles3D *testpart, int nstestpart);
   
+    void init_output_files_single(Collective *col, VCtopology3D *vct, Grid3DCU *grid,
+                                  EMfields3D *EMf, Particles3D *part, int ns,
+                                  Particles3D *testpart, int nstestpart);
+
     void append_output_fields(const char* tag, int cycle, string precision);
     void append_output_particles(const char* tag, int cycle, string precision);
     void append_particles_DS(const char* tag, int cycle, int sample, string precision);

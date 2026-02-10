@@ -27,366 +27,538 @@
 #include "Alloc.h"
 #include "MPIdata.h"
 #include "Collective.h"
+#include <vector>
 
 #ifdef PHDF5
 
-PHDF5fileClass::PHDF5fileClass(string filestr, int nd, const int *coord, MPI_Comm mpicomm){
-
-  SetDefaultGroups();
-
-  filename    = filestr;
-  ndim        = nd;
-  comm        = mpicomm;
-  for (int i=0; i<ndim; i++)
-    mpicoord[i]  = coord[i];
-
-}
-
-PHDF5fileClass::PHDF5fileClass(string filestr){
-
-  SetDefaultGroups();
-
-  filename    = filestr;
-}
-
-void PHDF5fileClass::SetDefaultGroups(void){
-  grpnames[0] = "Fields";
-  grpnames[1] = "Particles";
-  grpnames[2] = "Parameters";
-}
-
-void PHDF5fileClass::OpenPHDF5file(){
-
-  file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-
-  ReadPHDF5param();
-
-}
-
-void PHDF5fileClass::CreatePHDF5file(double *L, int *dglob, int *dlocl, bool bp){
-
-  hid_t   acc_t;
-  hid_t   Ldataspace;
-  hid_t   Ldataset;
-  hid_t   ndataspace;
-  hid_t   ndataset;
-  herr_t  status;
-  hsize_t d[1];
-
-  /* ---------------------------------------------- */
-  /* 0- Initialize the some of the class parameters */
-  /* ---------------------------------------------- */
-
-  bparticles  = bp;
-  for (int i=0; i<ndim; i++){
-    LxLyLz[i]    = L[i];
-    dim[i]       = (hsize_t)dglob[i];
-    chdim[i]     = (hsize_t)dlocl[i];
-  }
-
-  /* ----------------------------------------------------- */
-  /* 1- Set the access template for the parallel HDF5 file */
-  /* ----------------------------------------------------- */
-
-  acc_t = H5Pcreate(H5P_FILE_ACCESS);
-
-  /* --------------------------------------- */
-  /* 2- Tell HDF5 that we want to use MPI-IO */
-  /* --------------------------------------- */
-
-  #ifdef USING_PARALLEL_HDF5
-  MPI_Info info;
-  MPI_Info_create(&info);
-  const int stripe_size = 1024*256;
-  const int cb_buffer_size = stripe_size*8;
-  const int stripe_count = 16;
-  // hint values must be ascii strings,
-  // so convert using sprintf
-  const int max_chars=32;
-  char str_cb_buffer_size[max_chars];
-  char str_stripe_size[max_chars];
-  char str_stripe_count[max_chars];
-  snprintf(str_cb_buffer_size,max_chars,"%d",cb_buffer_size);
-  snprintf(str_stripe_size,max_chars,"%d",stripe_size);
-  snprintf(str_stripe_count,max_chars,"%d",stripe_count);
-  //char* CB_BUFFER_SIZE="1048576"; // 1MB
-  //char* STRIPE_SIZE="131072"; // 128k
-  //char* STRIPE_COUNT="16"; /* must be an ascii string */
-  //char* CB_NODES="8"; /* number of aggregators */
-  if(!MPIdata::get_rank()) dprint(str_stripe_count);
-  if(!MPIdata::get_rank()) dprint(str_stripe_size);
-  if(!MPIdata::get_rank()) dprint(str_cb_buffer_size);
-  MPI_Info_set(info, (char*)"striping_factor", str_stripe_count);
-  MPI_Info_set(info, (char*)"striping_unit", str_stripe_size);
-  MPI_Info_set(info, (char*)"cb_buffer_size", str_cb_buffer_size);
-  MPI_Info_set(info, (char*)"romio_cb_write", (char*)"enable");
-  //MPI_Info_set(info, "cb_nodes", CB_NODES);
-  H5Pset_fapl_mpio(acc_t, comm, info);
-  //H5Pset_fapl_mpio(acc_t, comm, MPI_INFO_NULL);
-
-  #else
-  eprintf("WriteMethod==Parallel in input file "
-          "requires setting USING_PARALLEL_HDF5 in ipicdefs.h");
-  #endif
-
-  /* ------------------------------------------------------- */
-  /* 3- Load file identifier and release the access template */
-  /* ------------------------------------------------------- */
-
-  file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, acc_t);
-  H5Pclose(acc_t);
-
-  /* -------------------- */
-  /* 4- Set up the groups */
-  /* -------------------- */
-
-  for (int i=0; i<ngrp; i++){
-    if (!(grpnames[i].c_str()=="Particles"&&!bparticles)){
-      hid_t grp;
-      grp = H5Gcreate2(file_id, grpnames[i].c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-      H5Gclose(grp);
-    }
-  }
-
-  /* -------------------------------------- */
-  /* Create and fill the Parameters dataset */
-  /* -------------------------------------- */
-
-  d[0] = 3;
-
-  status = H5LTmake_dataset(file_id, "/Parameters/LxLyLz", 1, d, H5T_NATIVE_DOUBLE, LxLyLz);
-  status = H5LTmake_dataset(file_id, "/Parameters/ncell" , 1, d, H5T_NATIVE_INT   , dglob);
-
-}
-
-void PHDF5fileClass::ClosePHDF5file(){
-
-  H5Fclose(file_id);
-
-}
-
-int PHDF5fileClass::WritePHDF5dataset(string grpname, string datasetname, const_arr3_double data, int nx, int ny, int nz)
+PHDF5fileClass::PHDF5fileClass(string filestr, int nd, const int *coord, MPI_Comm mpicomm)
 {
+    // SetDefaultGroups();
+    filename = filestr;
+    ndim = nd;
+    comm = mpicomm;
+    
+    for (int i=0; i<ndim; i++) 
+        mpicoord[i] = coord[i];
 
-  /* -------------------------- */
-  /* Local variables and arrays */
-  /* -------------------------- */
+    // get cartesian dims from the communicator (works if comm is cartesian)
+    int periods[3];
+    MPI_Cart_get(comm, ndim, mpidims, periods, mpicoord);
+}
 
-  string dname;
-  double *buffer;
+PHDF5fileClass::PHDF5fileClass(string filestr)
+{
+    // SetDefaultGroups();
+    filename = filestr;
+}
 
-  hid_t const h5type = H5T_NATIVE_DOUBLE;
+// void PHDF5fileClass::SetDefaultGroups(void)
+// {
+//     grpnames[0] = "Fields";
+//     grpnames[1] = "Moments";
+//     grpnames[2] = "Parameters";
+// }
 
-  hid_t glob_dspace;
-  hid_t locl_dspace;
-  hid_t dataset_prop;
-  hid_t dataset;
-  hid_t dataspace;
-  hid_t dataset_xfer;
+void PHDF5fileClass::CreatePHDF5file(double *L, int *dglob, int *dlocl, const char* param)
+{
+    hid_t   acc_t;
+    hid_t   Ldataspace;
+    hid_t   Ldataset;
+    hid_t   ndataspace;
+    hid_t   ndataset;
+    herr_t  status;
+    hsize_t d[1];
 
-  /* --------------------------------- */
-  /* Check that dimensions are correct */
-  /* --------------------------------- */
-
-  if (bparticles && grpname.c_str()=="Particles"){
-    warning_printf("Particle data is not going to be written,"
-      " because the 'bparticles' flag is currently turn to FALSE");
-    return (2);
-  }
-
-  for (int i=0; i<ndim; i++){
-    if (dim[i]%chdim[i]!=0){
-      eprintf("Grid size is not a multiple of the chunk size in the %d dimension,"
-        "\tGlob: %d %d %d\n"
-        "\tLocl: %d %d %d\n",
-        i, dim[0],dim[1],dim[2],
-	chdim[0],chdim[1],chdim[2]);
-      return 1;
+    for (int i=0; i<ndim; i++)
+    {
+        LxLyLz[i] = L[i];
+        dim[i]    = (hsize_t)dglob[i];
+        chdim[i]  = (hsize_t)dlocl[i];
     }
-  }
 
-  /* ----------------------- */
-  /* Copy raw data to buffer */
-  /* ----------------------- */
+    acc_t = H5Pcreate(H5P_FILE_ACCESS);
+    const char* force_sec2 = getenv("IPIC_FORCE_HDF5_SEC2");
 
-  if (nx!=chdim[0] || ny!=chdim[1] || nz!=chdim[2]){
-    eprintf("data size is not equal to HDF5 chunk size ");
-    return 1;
-  }
-
-  buffer = new double[nx*ny*nz];
-  int l = 0;
-  for (int i = 0; i < nx; i++)
-    for (int j = 0; j < ny; j++)
-      for (int k = 0; k < nz; k++)
-        buffer[l++] = data[i][j][k];
-
-  /* -------------------------------------------------------- */
-  /* 5- Set the stride, count and block values for each chunk */
-  /*    And set the offset for each chunk                     */
-  /* -------------------------------------------------------- */
-
-  hsize_t *stride = new hsize_t[ndim];
-  hsize_t *count  = new hsize_t[ndim];
-  hsize_t *block  = new hsize_t[ndim];
-  hsize_t *offset = new hsize_t[ndim];
-
-  for (int i=0; i<ndim; i++){
-    stride[i] = 1;
-    count[i]  = 1;
-    block[i]  = chdim[i];
-    offset[i] = mpicoord[i]*chdim[i];
-  }
-
-  /* ---------------------------------- */
-  /* 6- Create data spaces for our data */
-  /* ---------------------------------- */
-
-  glob_dspace = H5Screate_simple(ndim, dim,   NULL);
-  locl_dspace = H5Screate_simple(ndim, chdim, NULL);
-
-  /* --------------------------------------- */
-  /* 7- Create the dataset for the HDF5 file */
-  /* --------------------------------------- */
-
-  dataset_prop = H5Pcreate(H5P_DATASET_CREATE);
-
-  H5Pset_chunk(dataset_prop, ndim, chdim);
-
-  dname   = "/"+grpname+"/"+datasetname;
-  dataset = H5Dcreate2(file_id, dname.c_str(), h5type, glob_dspace, H5P_DEFAULT, dataset_prop, H5P_DEFAULT);
-
-  H5Pclose(dataset_prop);
-
-  dataspace = H5Dget_space(dataset);
-  H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, offset, stride, count, block);
-
-  /* --------------------------------- */
-  /* 8- Set the parallel transfer mode */
-  /* --------------------------------- */
-
-  dataset_xfer = H5Pcreate(H5P_DATASET_XFER);
-  #ifdef USING_PARALLEL_HDF5
-  H5Pset_dxpl_mpio(dataset_xfer, H5FD_MPIO_COLLECTIVE);
-  #else
-  eprintf("WriteMethod==Parallel in input file "
-          "requires setting USING_PARALLEL_HDF5 in ipicdefs.h");
-  #endif
-
-  /* ---------------------------- */
-  /* 9- Write data to the dataset */
-  /* ---------------------------- */
-
-  H5Dwrite(dataset, h5type, locl_dspace, dataspace, dataset_xfer, buffer);
-  //
-  if(!MPIdata::get_rank())
-  {
-    // show the output mode that is actually being used
-    H5D_mpio_actual_io_mode_t actual_io_mode;
-    H5Pget_mpio_actual_io_mode(dataset_xfer, &actual_io_mode);
-    if(actual_io_mode == H5D_MPIO_NO_COLLECTIVE)
-      dprintf("H5D_MPIO_NO_COLLECTIVE");
-    else if(actual_io_mode == H5D_MPIO_CHUNK_INDEPENDENT)
-      dprintf("H5D_MPIO_CHUNK_INDEPENDENT");
-    else if(actual_io_mode == H5D_MPIO_CHUNK_COLLECTIVE)
-      dprintf("H5D_MPIO_CHUNK_COLLECTIVE");
-    else if(actual_io_mode == H5D_MPIO_CONTIGUOUS_COLLECTIVE)
-      dprintf("H5D_MPIO_CONTIGUOUS_COLLECTIVE");
+    if (force_sec2 && atoi(force_sec2) == 1)
+        H5Pset_fapl_sec2(acc_t);
     else
-      dprintf("unrecognized output method");
+    {
+        #ifdef USING_PARALLEL_HDF5
 
-    // show the chunking that is actually used
-    H5D_mpio_actual_chunk_opt_mode_t actual_chunk_opt_mode;
-    H5Pget_mpio_actual_chunk_opt_mode(dataset_xfer, &actual_chunk_opt_mode);
-    if(actual_chunk_opt_mode == H5D_MPIO_NO_CHUNK_OPTIMIZATION)
-      dprintf("H5D_MPIO_NO_CHUNK_OPTIMIZATION");
-    else if(actual_chunk_opt_mode == H5D_MPIO_MULTI_CHUNK)
-      dprintf("H5D_MPIO_MULTI_CHUNK");
-    //else if(actual_chunk_opt_mode == H5D_MPIO_MULTI_CHUNK_NO_OPT)
-    //  dprintf("H5D_MPIO_MULTI_CHUNK_NO_OPT");
-    else if(actual_chunk_opt_mode == H5D_MPIO_LINK_CHUNK)
-      dprintf("H5D_MPIO_LINK_CHUNK");
-    else
-      dprintf("unrecognized chunking method");
-  }
+            herr_t perr = H5Pset_fapl_mpio(acc_t, comm, MPI_INFO_NULL);
+            if (perr < 0) 
+            {
+                if (MPIdata::get_rank() == 0) std::cerr << "H5Pset_fapl_mpio failed\n";
+                MPI_Abort(comm, 911);
+            }
 
-  delete [] buffer;
+            herr_t lerr = H5Pset_file_locking(acc_t, 0 /*use_locking*/, 1 /*ignore_when_disabled*/);
+            if (lerr < 0) 
+            {
+                if (MPIdata::get_rank() == 0) std::cerr << "H5Pset_file_locking failed\n";
+                MPI_Abort(comm, 912);
+            }
 
-  /* ------------------------------------------------------ */
-  /* Close dataset related variables created with H5*create */
-  /* ------------------------------------------------------ */
+        #endif
+    }
 
-  H5Pclose(dataset_xfer);
-  H5Dclose(dataset);
-  H5Sclose(locl_dspace);
+    file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, acc_t);
+    H5Pclose(acc_t);
 
-  /* ---------------------------------------------------- */
-  /* Close the remaining variables created with H5*create */
-  /* ---------------------------------------------------- */
-
-  delete [] stride;
-  delete [] count;
-  delete [] block;
-  delete [] offset;
-
-  return 0;
+    hid_t gid = H5Gcreate2(file_id, param, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    if (gid >= 0) H5Gclose(gid);
 }
 
-void PHDF5fileClass::ReadPHDF5param(){
+int PHDF5fileClass::CreatePHDF5fileParticles(const std::string& root_group)
+{
+    // Create file access property list for MPI-IO
+    hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
+    
+    #ifdef USING_PARALLEL_HDF5
+        H5Pset_fapl_mpio(fapl, comm, MPI_INFO_NULL);
+    #endif
 
-  herr_t  status;
-  string  dname;
-  int     datadims[3];
-  double  L[3];
+    // Create file collectively
+    file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+    H5Pclose(fapl);
 
-  dname   = "/Parameters/ncell";
-  status = H5LTread_dataset_int(file_id, dname.c_str(), datadims);
+    if (file_id < 0) return 1;
 
-  dname   = "/Parameters/LxLyLz";
-  status = H5LTread_dataset_double(file_id, dname.c_str(), L);
+    // Normalize group path (ensure leading '/')
+    std::string g = root_group;
+    if (g.empty()) g = "/particles";
+    if (g[0] != '/') g = "/" + g;
 
-  ndim = 3;
-  if (datadims[0]<=1 || datadims[1]<=1 || datadims[2]<=1) ndim = 2;
+    // mkdir -p for the group path
+    {
+        H5E_auto2_t old_func = nullptr;
+        void* old_client_data = nullptr;
+        H5Eget_auto2(H5E_DEFAULT, &old_func, &old_client_data);
+        H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
 
-  for (int i=0; i<ndim; i++){
-    dim[i]    = datadims[i];
-    LxLyLz[i] = L[i];
-  }
+        size_t pos = 0;
+        while (true) 
+        {
+            pos = g.find('/', pos + 1);
+            std::string cur = (pos == std::string::npos) ? g : g.substr(0, pos);
 
+            hid_t gid = H5Gopen2(file_id, cur.c_str(), H5P_DEFAULT);
+            if (gid >= 0) 
+                H5Gclose(gid);
+            else 
+            {
+                gid = H5Gcreate2(file_id, cur.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                if (gid >= 0) H5Gclose(gid);
+            }
+
+            if (pos == std::string::npos) break;
+        }
+
+        H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
+    }
+
+    return 0;
 }
 
-void PHDF5fileClass::ReadPHDF5dataset_double(string datasetname, arr3_double data){
-
-  herr_t  status;
-  double *filedata;
-
-  filedata = new double[dim[0]*dim[1]*dim[2]];
-
-  status = H5LTread_dataset_double(file_id, datasetname.c_str(), filedata);
-
-  for (int i=0; i<dim[0]; i++)
-    for (int j=0; j<dim[1]; j++)
-      for (int k=0; k<dim[2]; k++)
-        data[i][j][k]=filedata[i+j*dim[2]+k*dim[1]*dim[0]];
-
+void PHDF5fileClass::ClosePHDF5file()
+{
+    H5Fclose(file_id);
 }
 
-int PHDF5fileClass::getPHDF5ncx(){
-  return (int)dim[0];
+int PHDF5fileClass::WritePHDF5dataset_particles_f32(const std::string& grp, const std::string& name, const float* buffer,
+                                                    const hsize_t gdim[2], const hsize_t start[2], const hsize_t count[2])
+{
+    const bool empty = (count[0] == 0 || count[1] == 0);
+
+    hid_t filespace = H5Screate_simple(2, gdim, NULL);
+    hid_t memspace  = empty ? H5Screate(H5S_NULL) : H5Screate_simple(2, count, NULL);
+
+    // --- normalize grp (strip leading '/', strip trailing '/') ---
+    std::string grp_norm = grp;
+    if (!grp_norm.empty() && grp_norm[0] == '/') grp_norm.erase(0, 1);
+    while (!grp_norm.empty() && grp_norm.back() == '/') grp_norm.pop_back();
+
+    std::string dname = "/" + grp_norm + "/" + name;
+
+    // --- ensure all intermediate groups exist (mkdir -p) INCLUDING leaf group ---
+    {
+        H5E_auto2_t old_func = nullptr;
+        void*       old_client_data = nullptr;
+        H5Eget_auto2(H5E_DEFAULT, &old_func, &old_client_data);
+        H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+
+        std::string gpath = "/" + grp_norm;
+
+        size_t pos = 0;
+        while (true) 
+        {
+            pos = gpath.find('/', pos + 1);
+            std::string cur = (pos == std::string::npos) ? gpath : gpath.substr(0, pos);
+
+            hid_t gid = H5Gopen2(file_id, cur.c_str(), H5P_DEFAULT);
+            if (gid >= 0)
+                H5Gclose(gid);
+            else 
+            {
+                gid = H5Gcreate2(file_id, cur.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                if (gid >= 0) H5Gclose(gid);
+            }
+
+            if (pos == std::string::npos) break;
+        }
+
+        H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
+    }
+
+    #ifdef USING_PARALLEL_HDF5
+        MPI_Barrier(comm);
+    #endif
+
+    // --- create collectively ---
+    hid_t dset = H5Dcreate2(file_id, dname.c_str(), H5T_NATIVE_FLOAT, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    if (dset < 0) 
+    {
+        if (memspace  >= 0) H5Sclose(memspace);
+        if (filespace >= 0) H5Sclose(filespace);
+        return 1;
+    }
+
+    // --- select hyperslab (or none for empty ranks) ---
+    if (empty) 
+    {
+        H5Sselect_none(filespace);
+        H5Sselect_none(memspace);
+    } 
+    else 
+    {
+        if (H5Sselect_hyperslab(filespace, H5S_SELECT_SET, start, NULL, count, NULL) < 0) 
+        {
+            H5Dclose(dset);
+            H5Sclose(memspace);
+            H5Sclose(filespace);
+            return 1;
+        }
+    }
+
+    hid_t xfer = H5Pcreate(H5P_DATASET_XFER);
+    #ifdef USING_PARALLEL_HDF5
+        if (using_mpio_vfd)
+            H5Pset_dxpl_mpio(xfer, H5FD_MPIO_COLLECTIVE);
+    #endif
+
+    herr_t err = H5Dwrite(dset, H5T_NATIVE_FLOAT, memspace, filespace, xfer, empty ? nullptr : buffer);
+
+    H5Pclose(xfer);
+    H5Dclose(dset);
+    H5Sclose(memspace);
+    H5Sclose(filespace);
+
+    return (err < 0) ? 1 : 0;
 }
 
-int PHDF5fileClass::getPHDF5ncy(){
-  if (ndim<2) return 1;
-  return (int)dim[1];
+int PHDF5fileClass::WritePHDF5dataset_particles_f64(const std::string& grp, const std::string& name, const double* buffer,
+                                                    const hsize_t gdim[2], const hsize_t start[2], const hsize_t count[2])
+{
+    const bool empty = (count[0] == 0 || count[1] == 0);
+
+    hid_t filespace = H5Screate_simple(2, gdim, NULL);
+    hid_t memspace  = empty ? H5Screate(H5S_NULL) : H5Screate_simple(2, count, NULL);
+
+    std::string grp_norm = grp;
+    if (!grp_norm.empty() && grp_norm[0] == '/') grp_norm.erase(0, 1);
+    while (!grp_norm.empty() && grp_norm.back() == '/') grp_norm.pop_back();
+
+    std::string dname = "/" + grp_norm + "/" + name;
+
+    {
+        H5E_auto2_t old_func = nullptr;
+        void*       old_client_data = nullptr;
+        H5Eget_auto2(H5E_DEFAULT, &old_func, &old_client_data);
+        H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+
+        std::string gpath = "/" + grp_norm;
+
+        size_t pos = 0;
+        while (true) 
+        {
+            pos = gpath.find('/', pos + 1);
+            std::string cur = (pos == std::string::npos) ? gpath : gpath.substr(0, pos);
+
+            hid_t gid = H5Gopen2(file_id, cur.c_str(), H5P_DEFAULT);
+            if (gid >= 0)
+                H5Gclose(gid);
+            else 
+            {
+                gid = H5Gcreate2(file_id, cur.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                if (gid >= 0) H5Gclose(gid);
+            }
+
+            if (pos == std::string::npos) break;
+        }
+
+        H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
+    }
+
+    #ifdef USING_PARALLEL_HDF5
+        MPI_Barrier(comm);
+    #endif
+
+    hid_t dset = H5Dcreate2(file_id, dname.c_str(), H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    if (dset < 0) 
+    {
+        if (memspace  >= 0) H5Sclose(memspace);
+        if (filespace >= 0) H5Sclose(filespace);
+        return 1;
+    }
+
+    if (empty) 
+    {
+        H5Sselect_none(filespace);
+        H5Sselect_none(memspace);
+    } 
+    else 
+    {
+        if (H5Sselect_hyperslab(filespace, H5S_SELECT_SET, start, NULL, count, NULL) < 0) 
+        {
+            H5Dclose(dset);
+            H5Sclose(memspace);
+            H5Sclose(filespace);
+            return 1;
+        }
+    }
+
+    hid_t xfer = H5Pcreate(H5P_DATASET_XFER);
+    #ifdef USING_PARALLEL_HDF5
+        if (using_mpio_vfd)
+            H5Pset_dxpl_mpio(xfer, H5FD_MPIO_COLLECTIVE);
+    #endif
+
+    herr_t err = H5Dwrite(dset, H5T_NATIVE_DOUBLE, memspace, filespace, xfer, empty ? nullptr : buffer);
+
+    H5Pclose(xfer);
+    H5Dclose(dset);
+    H5Sclose(memspace);
+    H5Sclose(filespace);
+
+    return (err < 0) ? 1 : 0;
 }
 
-int PHDF5fileClass::getPHDF5ncz(){
-  if (ndim<3) return 1;
-  return (int)dim[2];
+int PHDF5fileClass::WritePHDF5dataset_nodes_f32(const std::string& grp, const std::string& name, const float* buffer,
+                                                const hsize_t gdim[3], const hsize_t start[3], const hsize_t count[3])
+{
+    const bool empty = (count[0] == 0 || count[1] == 0 || count[2] == 0);
+
+    hid_t filespace = H5Screate_simple(3, gdim, NULL);
+    hid_t memspace  = empty ? H5Screate(H5S_NULL) : H5Screate_simple(3, count, NULL);
+
+    // --- normalize grp (strip leading '/', strip trailing '/') ---
+    std::string grp_norm = grp;
+    if (!grp_norm.empty() && grp_norm[0] == '/') grp_norm.erase(0, 1);
+    while (!grp_norm.empty() && grp_norm.back() == '/') grp_norm.pop_back();
+
+    std::string dname = "/" + grp_norm + "/" + name;
+
+    // --- ensure all intermediate groups exist (mkdir -p) INCLUDING leaf group ---
+    {
+        H5E_auto2_t old_func = nullptr;
+        void*       old_client_data = nullptr;
+        H5Eget_auto2(H5E_DEFAULT, &old_func, &old_client_data);
+        H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+
+        // Build "/Moments/species_0" etc.
+        std::string gpath = "/" + grp_norm;
+
+        // Create each prefix group: "/Moments", "/Moments/species_0"
+        size_t pos = 0;
+        while (true) {
+            pos = gpath.find('/', pos + 1);
+            std::string cur = (pos == std::string::npos) ? gpath : gpath.substr(0, pos);
+
+            hid_t gid = H5Gopen2(file_id, cur.c_str(), H5P_DEFAULT);
+            if (gid >= 0) {
+                H5Gclose(gid);
+            } else {
+                gid = H5Gcreate2(file_id, cur.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                if (gid >= 0) H5Gclose(gid);
+            }
+
+            if (pos == std::string::npos) break;
+        }
+
+        H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
+    }
+
+    #ifdef USING_PARALLEL_HDF5
+        MPI_Barrier(comm);
+    #endif
+
+    // --- dataset does not exist: create collectively on ALL ranks ---
+    hid_t dset = H5Dcreate2(file_id, dname.c_str(), H5T_NATIVE_FLOAT, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    
+    if (dset < 0) 
+    {
+        if (memspace  >= 0) H5Sclose(memspace);
+        if (filespace >= 0) H5Sclose(filespace);
+        return 1;
+    }
+
+    // --- select hyperslab (or none for empty ranks) ---
+    if (empty) 
+    {
+        H5Sselect_none(filespace);
+        H5Sselect_none(memspace);
+    } 
+    else 
+    {
+        if (H5Sselect_hyperslab(filespace, H5S_SELECT_SET, start, NULL, count, NULL) < 0) 
+        {
+            H5Dclose(dset);
+            H5Sclose(memspace);
+            H5Sclose(filespace);
+            return 1;
+        }
+    }
+
+    hid_t xfer = H5Pcreate(H5P_DATASET_XFER);
+    
+    #ifdef USING_PARALLEL_HDF5
+        if (using_mpio_vfd)
+            H5Pset_dxpl_mpio(xfer, H5FD_MPIO_COLLECTIVE);
+    #endif
+
+    herr_t err = H5Dwrite(dset, H5T_NATIVE_FLOAT, memspace, filespace, xfer, empty ? nullptr : buffer);
+
+    H5Pclose(xfer);
+    H5Dclose(dset);
+    H5Sclose(memspace);
+    H5Sclose(filespace);
+
+    return (err < 0) ? 1 : 0;
 }
 
-int PHDF5fileClass::getPHDF5ndim(){
-  return ndim;
+int PHDF5fileClass::WritePHDF5dataset_nodes_f64(const std::string& grp, const std::string& name, const double* buffer,
+                                                const hsize_t gdim[3], const hsize_t start[3], const hsize_t count[3])
+{
+    const bool empty = (count[0] == 0 || count[1] == 0 || count[2] == 0);
+
+    hid_t filespace = H5Screate_simple(3, gdim, NULL);
+    hid_t memspace  = empty ? H5Screate(H5S_NULL) : H5Screate_simple(3, count, NULL);
+
+    if (filespace < 0 || memspace < 0) {
+        if (memspace  >= 0) H5Sclose(memspace);
+        if (filespace >= 0) H5Sclose(filespace);
+        return 1;
+    }
+
+    // --- normalize grp (strip leading '/', strip trailing '/') ---
+    std::string grp_norm = grp;
+    if (!grp_norm.empty() && grp_norm[0] == '/') grp_norm.erase(0, 1);
+    while (!grp_norm.empty() && grp_norm.back() == '/') grp_norm.pop_back();
+
+    std::string dname = "/" + grp_norm + "/" + name;
+
+    // --- ensure all intermediate groups exist (mkdir -p) INCLUDING leaf group ---
+    {
+        H5E_auto2_t old_func = nullptr;
+        void*       old_client_data = nullptr;
+        H5Eget_auto2(H5E_DEFAULT, &old_func, &old_client_data);
+        H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+
+        std::string gpath = "/" + grp_norm;
+
+        // Create each prefix group: "/Moments", "/Moments/species_0", ...
+        size_t pos = 0;
+        while (true) {
+            pos = gpath.find('/', pos + 1);
+            std::string cur = (pos == std::string::npos) ? gpath : gpath.substr(0, pos);
+
+            hid_t gid = H5Gopen2(file_id, cur.c_str(), H5P_DEFAULT);
+            if (gid >= 0) {
+                H5Gclose(gid);
+            } else {
+                gid = H5Gcreate2(file_id, cur.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                if (gid >= 0) H5Gclose(gid);
+            }
+
+            if (pos == std::string::npos) break;
+        }
+
+        H5Eset_auto2(H5E_DEFAULT, old_func, old_client_data);
+    }
+
+    #ifdef USING_PARALLEL_HDF5
+        MPI_Barrier(comm);
+    #endif
+
+    // --- dataset does not exist: create collectively on ALL ranks ---
+    hid_t dset = H5Dcreate2(file_id, dname.c_str(), H5T_NATIVE_DOUBLE,
+                            filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    if (dset < 0) {
+        H5Sclose(memspace);
+        H5Sclose(filespace);
+        return 1;
+    }
+
+    // --- select hyperslab (or none for empty ranks) ---
+    if (empty) {
+        H5Sselect_none(filespace);
+        H5Sselect_none(memspace);
+    } else {
+        if (H5Sselect_hyperslab(filespace, H5S_SELECT_SET, start, NULL, count, NULL) < 0) {
+            H5Dclose(dset);
+            H5Sclose(memspace);
+            H5Sclose(filespace);
+            return 1;
+        }
+    }
+
+    hid_t xfer = H5Pcreate(H5P_DATASET_XFER);
+    if (xfer < 0) {
+        H5Dclose(dset);
+        H5Sclose(memspace);
+        H5Sclose(filespace);
+        return 1;
+    }
+
+    #ifdef USING_PARALLEL_HDF5
+        if (using_mpio_vfd)
+            H5Pset_dxpl_mpio(xfer, H5FD_MPIO_COLLECTIVE);
+    #endif
+
+    herr_t err = H5Dwrite(dset, H5T_NATIVE_DOUBLE, memspace, filespace, xfer,
+                          empty ? nullptr : buffer);
+
+    H5Pclose(xfer);
+    H5Dclose(dset);
+    H5Sclose(memspace);
+    H5Sclose(filespace);
+
+    return (err < 0) ? 1 : 0;
+}
+
+int PHDF5fileClass::getPHDF5ncx()
+{
+    return (int)dim[0];
+}
+
+int PHDF5fileClass::getPHDF5ncy()
+{
+    if (ndim<2) return 1;
+    return (int)dim[1];
+}
+
+int PHDF5fileClass::getPHDF5ncz()
+{
+    if (ndim<3) return 1;
+    return (int)dim[2];
+}
+
+int PHDF5fileClass::getPHDF5ndim()
+{
+    return ndim;
 }
 
 #endif
