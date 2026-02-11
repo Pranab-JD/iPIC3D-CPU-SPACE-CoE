@@ -323,6 +323,9 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
 
     if (col->getSaveHeatFluxTensor()) 
     {
+        if (vct->getCartesian_rank() == 0) 
+        cout << "Allocating Heat flux tensors" << endl;
+
         Qxxxs = newArr4(double, ns, nxn, nyn, nzn);
         Qxxys = newArr4(double, ns, nxn, nyn, nzn);
         Qxyys = newArr4(double, ns, nxn, nyn, nzn);
@@ -3607,6 +3610,7 @@ void EMfields3D::setZeroDerivedMoments()
 void EMfields3D::setZeroTertiaryMoments()
 {
     const Collective *col = &get_col();
+    const VirtualTopology3D * vct = &get_vct();
 
     for (int is = 0; is < ns; is++) 
         for (int i = 0; i < nxn; i++)
@@ -6259,5 +6263,18 @@ EMfields3D::~EMfields3D()
     delete [] rhoINIT;
     for(int i=0;i<sizeMomentsArray;i++) { delete moments10Array[i]; }
     delete [] moments10Array;
+    if (SaveHeatFluxTensor) 
+    {
+        delArr4(Qxxxs, nxn, nyn, nzn);
+        delArr4(Qxxys, nxn, nyn, nzn);
+        delArr4(Qxyys, nxn, nyn, nzn);
+        delArr4(Qxzzs, nxn, nyn, nzn);
+        delArr4(Qyyys, nxn, nyn, nzn);
+        delArr4(Qyzzs, nxn, nyn, nzn);
+        delArr4(Qzzzs, nxn, nyn, nzn);
+        delArr4(Qxyzs, nxn, nyn, nzn);
+        delArr4(Qxxzs, nxn, nyn, nzn);
+        delArr4(Qyyzs, nxn, nyn, nzn);
+    }
     freeDataType();
 }

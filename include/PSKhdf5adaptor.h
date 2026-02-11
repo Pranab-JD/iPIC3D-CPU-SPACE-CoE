@@ -71,6 +71,7 @@ namespace PSK
         void write(const std::string & objname, const Dimens dimens, const std::vector < double >&d_array);
         void write(const std::string & objname, const Dimens dimens, const_arr3_double d_array);
         void write(const std::string & objname, const Dimens dimens, const int i, const_arr4_double d_array);
+        void write(const std::string & objname, const Dimens dimens, const int i, double**** d_array);
 
         void write(const std::string & objname, const Dimens dimens, double **d_array);
 

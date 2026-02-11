@@ -121,8 +121,8 @@ void WriteFieldsParallel(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCt
     }
 
     if (contains_tag(col->getFieldOutputTag(), "rho_s")     || contains_tag(col->getFieldOutputTag(), "J_s")    ||
-        contains_tag(col->getFieldOutputTag(), "pressure")  || contains_tag(col->getFieldOutputTag(), "H_Flux") ||
-        contains_tag(col->getFieldOutputTag(), "E_Flux"))
+        contains_tag(col->getFieldOutputTag(), "pressure")  || contains_tag(col->getFieldOutputTag(), "H_flux") ||
+        contains_tag(col->getFieldOutputTag(), "E_flux"))
     {
         if (MPIdata::get_rank() == 0)
             std::filesystem::create_directories(moments_folder);
@@ -333,10 +333,10 @@ void WriteFieldsParallel(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCt
         }
 
         //* Energy Flux
-        if (contains_tag(col->getFieldOutputTag(), "E_Flux"))
+        if (contains_tag(col->getFieldOutputTag(), "E_flux"))
         {
             //* Create a file to store energy flux
-            const std::string filename = moments_folder + "E_Flux_species_" + ii.str() + "_" + filenmbr.str() + ".h5";
+            const std::string filename = moments_folder + "E_flux_species_" + ii.str() + "_" + filenmbr.str() + ".h5";
             PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
             outputfile.CreatePHDF5file(L, dglob_tmp, dlocl_tmp, "Moments");
 
@@ -365,34 +365,60 @@ void WriteFieldsParallel(Grid3DCU *grid, EMfields3D *EMf, CollectiveIO *col, VCt
         }
 
         //* Heat Flux
-        if (contains_tag(col->getFieldOutputTag(), "H_Flux"))
+        if (contains_tag(col->getFieldOutputTag(), "H_flux"))
         {
             //* Create a file to store energy flux
-            const std::string filename = moments_folder + "H_Flux_species_" + ii.str() + "_" + filenmbr.str() + ".h5";
+            const std::string filename = moments_folder + "H_flux_species_" + ii.str() + "_" + filenmbr.str() + ".h5";
             PHDF5fileClass outputfile(filename, 3, vct->getCoordinates(), vct->getFieldComm());
             outputfile.CreatePHDF5file(L, dglob_tmp, dlocl_tmp, "Moments");
 
             //* Write data to file
-            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxxs(i, j, k, is); });
-            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxxxs" , buf.data(), Gn, nstart, ncount);
-            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxys(i, j, k, is); });
-            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxxys" , buf.data(), Gn, nstart, ncount);
-            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxyys(i, j, k, is); });
-            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxyys" , buf.data(), Gn, nstart, ncount);
-            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxzzs(i, j, k, is); });
-            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxzzs" , buf.data(), Gn, nstart, ncount);
-            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyyys(i, j, k, is); });
-            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qyyys" , buf.data(), Gn, nstart, ncount);
-            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyzzs(i, j, k, is); });
-            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qyzzs" , buf.data(), Gn, nstart, ncount);
-            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQzzzs(i, j, k, is); });
-            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qzzzs" , buf.data(), Gn, nstart, ncount);
-            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxyzs(i, j, k, is); });
-            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxyzs" , buf.data(), Gn, nstart, ncount);
-            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxzs(i, j, k, is); });
-            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxxzs" , buf.data(), Gn, nstart, ncount);
-            // pack_sca_nodes(buf.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyyzs(i, j, k, is); });
-            // outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qyyzs" , buf.data(), Gn, nstart, ncount);
+            if (precision == "SINGLE")
+            {
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxxs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxxxs" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxys(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxxys" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxyys(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxyys" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxzzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxzzs" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyyys(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qyyys" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyzzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qyzzs" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQzzzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qzzzs" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxyzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxyzs" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qxxzs" , buf_f.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_f.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyyzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f32("Moments/species_" + ii.str(), "Qyyzs" , buf_f.data(), Gn, nstart, ncount);
+            }
+            else if (precision == "DOUBLE")
+            {
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxxs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Qxxxs" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxys(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Qxxys" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxyys(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Qxyys" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxzzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Qxzzs" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyyys(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Qyyys" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyzzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Qyzzs" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQzzzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Qzzzs" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxyzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Qxyzs" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQxxzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Qxxzs" , buf_d.data(), Gn, nstart, ncount);
+                pack_sca_nodes(buf_d.data(), lx, ly, lz, [&](int i,int j,int k){ return EMf->getQyyzs(i, j, k, is); });
+                outputfile.WritePHDF5dataset_nodes_f64("Moments/species_" + ii.str(), "Qyyzs" , buf_d.data(), Gn, nstart, ncount);
+            }
 
             //* Close file
             outputfile.ClosePHDF5file();

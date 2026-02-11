@@ -396,10 +396,6 @@ public:
     double getpYZsn(int X, int Y, int Z, int is) const { return pYZsn.get(is,X,Y,Z); }
     double getpZZsn(int X, int Y, int Z, int is) const { return pZZsn.get(is,X,Y,Z); }
 
-    // double getJx(int X, int Y, int Z) const { return Jx.get(X,Y,Z); }
-    // double getJy(int X, int Y, int Z) const { return Jy.get(X,Y,Z); }
-    // double getJz(int X, int Y, int Z) const { return Jz.get(X,Y,Z); }
-
     //* Energy Flux Density
     arr4_double getEFxs() { return E_flux_xs; }
     arr4_double getEFys() { return E_flux_ys; }
@@ -422,6 +418,16 @@ public:
     double ****getQyzzs() { return (Qyzzs); }
     double ****getQyyzs() { return (Qyyzs); }
 
+    double getQxxxs(int X, int Y, int Z, int is) const { return Qxxxs[is][X][Y][Z]; }
+    double getQyyys(int X, int Y, int Z, int is) const { return Qyyys[is][X][Y][Z]; }
+    double getQzzzs(int X, int Y, int Z, int is) const { return Qzzzs[is][X][Y][Z]; }
+    double getQxyzs(int X, int Y, int Z, int is) const { return Qxyzs[is][X][Y][Z]; }
+    double getQxxys(int X, int Y, int Z, int is) const { return Qxxys[is][X][Y][Z]; }
+    double getQxxzs(int X, int Y, int Z, int is) const { return Qxxzs[is][X][Y][Z]; }
+    double getQxyys(int X, int Y, int Z, int is) const { return Qxyys[is][X][Y][Z]; }
+    double getQxzzs(int X, int Y, int Z, int is) const { return Qxzzs[is][X][Y][Z]; }
+    double getQyzzs(int X, int Y, int Z, int is) const { return Qyzzs[is][X][Y][Z]; }
+    double getQyyzs(int X, int Y, int Z, int is) const { return Qyyzs[is][X][Y][Z]; }
 
     //* Divergences
     arr3_double getDivE() { return divE; }
@@ -445,7 +451,7 @@ public:
     double get_By_field_energy();       //* Magnetic (internal) field energy along Z
     double get_Bz_field_energy();       //* Magnetic (internal) field energy
     double get_Bext_energy();           //* External magnetic field energy
-    double get_bulk_energy(int is);       //* Bulk kinetic energy
+    double get_bulk_energy(int is);      //* Bulk kinetic energy
 
     void setZeroCurrent();
     void setZeroRho();
