@@ -774,7 +774,8 @@ void c_Solver::WriteOutput(int cycle)
     #endif
 
     //* Compute additional moments (to be written to files)
-    SupplementaryMoments();
+    if(!col->field_output_is_off() && (cycle%(col->getFieldOutputCycle()) == 0 || cycle == first_cycle) )
+        SupplementaryMoments();
 
     WriteConserved(cycle);
     WriteRestart(cycle);
