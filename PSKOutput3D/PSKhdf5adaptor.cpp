@@ -425,19 +425,11 @@ void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, 
   //}
 }
 
+//! Write FLOAT functions
 
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// WRITE float FUNCTIONS
-// -----------------------------------------------------------------------
-
-/* 
- * 
- * 
- */
-void HDF5OutputAdaptor::write(const std::string & tag, float f_value) {
-  //try {
+void HDF5OutputAdaptor::write(const std::string & tag, float f_value) 
+{
     std::string ptag = purify_object_name(tag);
-
     std::vector < hid_t > hid_array;
     std::string dataset_name;
 
@@ -446,38 +438,23 @@ void HDF5OutputAdaptor::write(const std::string & tag, float f_value) {
     hsize_t *hdf5dims = new hsize_t[1];
     hdf5dims[0] = 1;
 
-    herr_t hdf5err = H5LTmake_dataset_float(hid_array[hid_array.size() - 1],
-                                            dataset_name.c_str(),
-                                            1, hdf5dims, &f_value);
+    herr_t hdf5err = H5LTmake_dataset_float(hid_array[hid_array.size() - 1], dataset_name.c_str(), 1, hdf5dims, &f_value);
 
-    if (hdf5err < 0) {
-      eprintf("make_dataset fails for %s", tag.c_str());
-      //PSK::OutputException e("make_dataset fails for " + tag, "HDF5OutputAdaptor::write(float)");
-      //throw e;
-    }
+    if (hdf5err < 0)
+        eprintf("make_dataset fails for %s", tag.c_str());
 
-    // close groups, if any, but don't try to close the file id at [0]
     for (int i = hid_array.size() - 1; i > 0; --i)
-      hdf5err = H5Gclose(hid_array[i]);
+        hdf5err = H5Gclose(hid_array[i]);
 
     delete[]hdf5dims;
-
-  //} catch(PSK::Exception & e) {
-  //  e.push("In HDF5OutputAdaptor::write(float)");
-  //  throw e;
-  //}
 }
 
-void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, const float *f_array) {
-  //try {
-    if (dimens.size() == 0) {
-      eprintf("Zero Dimens size");
-      //PSK::OutputException e("Zero Dimens size", "HDF5OutputAdaptor::write(float* array)");
-      //throw e;
-    }
+void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, const float* f_array) 
+{
+    if (dimens.size() == 0)
+        eprintf("Dimension size is zero");
 
     std::string ptag = purify_object_name(tag);
-
     std::vector < hid_t > hid_array;
     std::string dataset_name;
 
@@ -485,81 +462,55 @@ void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, cons
 
     hsize_t *hdf5dims = new hsize_t[dimens.size()];
     for (int i = 0; i < dimens.size(); ++i)
-      hdf5dims[i] = dimens[i];
+        hdf5dims[i] = dimens[i];
 
-    herr_t hdf5err = H5LTmake_dataset_float(hid_array[hid_array.size() - 1],
-                                            dataset_name.c_str(),
-                                            dimens.size(), hdf5dims, f_array);
+    herr_t hdf5err = H5LTmake_dataset_float(hid_array[hid_array.size() - 1],dataset_name.c_str(), dimens.size(), hdf5dims, f_array);
 
-    if (hdf5err < 0) {
-      eprintf("make_dataset fails for %s", tag.c_str());
-      //PSK::OutputException e("make_dataset fails for " + tag, "HDF5OutputAdaptor::write(float* array)");
-      //throw e;
-    }
+    if (hdf5err < 0)
+        eprintf("make_dataset fails for %s", tag.c_str());
 
-    // close groups, if any, but don't try to close the file id at [0]
     for (int i = hid_array.size() - 1; i > 0; --i)
-      hdf5err = H5Gclose(hid_array[i]);
-
-  //} catch(PSK::Exception & e) {
-  //  e.push("In HDF5OutputAdaptor::write(float* array)");
-  //  throw e;
-  //}
+        hdf5err = H5Gclose(hid_array[i]);
 }
 
-void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, const std::vector < float >&f_array) {
-  //try {
+void HDF5OutputAdaptor::write(const std::string& tag, const Dimens dimens, const std::vector <float>& f_array) 
+{
     int n = dimens.nels();
     float *f_array_p = new float[n];
+    
     for (int i = 0; i < n; ++i)
-      f_array_p[i] = f_array[i];
+        f_array_p[i] = f_array[i];
+    
     write(tag, dimens, f_array_p);
     delete[]f_array_p;
-  //} catch(PSK::Exception & e) {
-  //  e.push("In HDF5OutputAdaptor::write(vector<float> array)");
-  //  throw e;
-  //}
 }
 
-void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, const float ***f_array) {
-  if (dimens.size() != 3) {
-    eprintf("Dimens size not 3 for object %s", objname.c_str());
-    //PSK::OutputException e("Dimens size not 3 for object " + objname, "HDF5OutputAdaptor::write(float*** array)");
-    //throw e;
-  }
+void HDF5OutputAdaptor::write(const std::string& objname, const Dimens dimens, const float*** f_array) 
+{
+    if (dimens.size() != 3)
+        eprintf("Dimens size not 3 for object %s", objname.c_str());
 
-  //try {
     int nels = dimens.nels();
     float *f_array_p = new float[nels];
     const int di = dimens[0];
     const int dj = dimens[1];
     const int dk = dimens[2];
     const int djk = dk * dj;
+
     for (int i = 0; i < di; ++i)
-      for (int j = 0; j < dj; ++j)
-        for (int k = 0; k < dk; ++k)
-          f_array_p[i * djk + j * dk + k] = f_array[i][j][k];
+        for (int j = 0; j < dj; ++j)
+            for (int k = 0; k < dk; ++k)
+                f_array_p[i * djk + j * dk + k] = f_array[i][j][k];
+    
     write(objname, dimens, f_array_p);
     delete[]f_array_p;
-  //} catch(PSK::Exception & e) {
-  //  e.push("In HDF5OutputAdaptor::write(float*** array)");
-  //  throw e;
-  //}
 }
 
+//! Write DOUBLE functions
 
-// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// WRITE double FUNCTIONS
-// -----------------------------------------------------------------------
-
-/* 
- * 
- * 
- */
-void HDF5OutputAdaptor::write(const std::string & tag, double d_value) {
-  //try {
+void HDF5OutputAdaptor::write(const std::string & tag, double d_value) 
+{
     std::string ptag = purify_object_name(tag);
-
     std::vector < hid_t > hid_array;
     std::string dataset_name;
 
@@ -568,47 +519,32 @@ void HDF5OutputAdaptor::write(const std::string & tag, double d_value) {
     hsize_t *hdf5dims = new hsize_t[1];
     hdf5dims[0] = 1;
 
-    herr_t hdf5err = H5LTfind_dataset(hid_array[hid_array.size() - 1],
-                                      dataset_name.c_str());
-    if (hdf5err < 1) {
-      herr_t hdf5err = H5LTmake_dataset_double(hid_array[hid_array.size() - 1],
-                                               dataset_name.c_str(),
-                                               1, hdf5dims, &d_value);
-    }
-    else {
-      hid_t dataset_id = H5Dopen2(hid_array[hid_array.size() - 1], dataset_name.c_str(), H5P_DEFAULT); // HDF 1.8
-      herr_t hdf5err = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &d_value);
-      hdf5err = H5Dclose(dataset_id);
+    herr_t hdf5err = H5LTfind_dataset(hid_array[hid_array.size() - 1], dataset_name.c_str());
+    
+    if (hdf5err < 1)
+      herr_t hdf5err = H5LTmake_dataset_double(hid_array[hid_array.size() - 1], dataset_name.c_str(), 1, hdf5dims, &d_value);
+    else 
+    {
+        hid_t dataset_id = H5Dopen2(hid_array[hid_array.size() - 1], dataset_name.c_str(), H5P_DEFAULT); // HDF 1.8
+        herr_t hdf5err = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &d_value);
+        hdf5err = H5Dclose(dataset_id);
     }
 
-    if (hdf5err < 0) {
-      eprintf("make_dataset fails for ", tag.c_str());
-      //PSK::OutputException e("make_dataset fails for " + tag, "HDF5OutputAdaptor::write(double)");
-      //throw e;
-    }
+    if (hdf5err < 0)
+        eprintf("make_dataset fails for ", tag.c_str());
 
-    // close groups, if any, but don't try to close the file id at [0]
     for (int i = hid_array.size() - 1; i > 0; --i)
-      hdf5err = H5Gclose(hid_array[i]);
+        hdf5err = H5Gclose(hid_array[i]);
 
     delete[]hdf5dims;
-
-  //} catch(PSK::Exception & e) {
-  //  e.push("In HDF5OutputAdaptor::write(double)");
-  //  throw e;
-  //}
 }
 
-void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, const double *d_array) {
-  //try {
-    if (dimens.size() == 0) {
-      eprintf("Zero Dimens size");
-      //PSK::OutputException e("Zero Dimens size", "HDF5OutputAdaptor::write(double* array)");
-      //throw e;
-    }
+void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, const double *d_array) 
+{
+    if (dimens.size() == 0)
+        eprintf("Dimension size is zero");
 
     std::string ptag = purify_object_name(tag);
-
     std::vector < hid_t > hid_array;
     std::string dataset_name;
 
@@ -616,36 +552,24 @@ void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, cons
 
     hsize_t *hdf5dims = new hsize_t[dimens.size()];
     for (int i = 0; i < dimens.size(); ++i)
-      hdf5dims[i] = dimens[i];
+        hdf5dims[i] = dimens[i];
 
-    herr_t hdf5err = H5LTfind_dataset(hid_array[hid_array.size() - 1],
-                                      dataset_name.c_str());
-    if (hdf5err < 1) {
-      herr_t hdf5err = H5LTmake_dataset_double(hid_array[hid_array.size() - 1],
-                                               dataset_name.c_str(),
-                                               dimens.size(), hdf5dims, d_array);
-    }
-    else {
-      hid_t dataset_id = H5Dopen2(hid_array[hid_array.size() - 1], dataset_name.c_str(), H5P_DEFAULT); // HDF 1.8
-      hdf5err = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, d_array);
-      hdf5err = H5Dclose(dataset_id);
+    herr_t hdf5err = H5LTfind_dataset(hid_array[hid_array.size() - 1], dataset_name.c_str());
+    
+    if (hdf5err < 1)
+        herr_t hdf5err = H5LTmake_dataset_double(hid_array[hid_array.size() - 1], dataset_name.c_str(), dimens.size(), hdf5dims, d_array);
+    else
+    {
+        hid_t dataset_id = H5Dopen2(hid_array[hid_array.size() - 1], dataset_name.c_str(), H5P_DEFAULT); // HDF 1.8
+        hdf5err = H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, d_array);
+        hdf5err = H5Dclose(dataset_id);
     }
 
+    if (hdf5err < 0) 
+        eprintf("make_dataset fails for %s", tag.c_str());
 
-    if (hdf5err < 0) {
-      eprintf("make_dataset fails for %s", tag.c_str());
-      //PSK::OutputException e("make_dataset fails for " + tag, "HDF5OutputAdaptor::write(double* array)");
-      //throw e;
-    }
-
-    // close groups, if any, but don't try to close the file id at [0]
     for (int i = hid_array.size() - 1; i > 0; --i)
-      hdf5err = H5Gclose(hid_array[i]);
-
-  //} catch(PSK::Exception & e) {
-  //  e.push("In HDF5OutputAdaptor::write(double* array)");
-  //  throw e;
-  //}
+        hdf5err = H5Gclose(hid_array[i]);
 }
 
 void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, const std::vector < double >&d_array) 
@@ -657,6 +581,42 @@ void HDF5OutputAdaptor::write(const std::string & tag, const Dimens dimens, cons
         d_array_p[i] = d_array[i];
     
     write(tag, dimens, d_array_p);
+    delete[]d_array_p;
+}
+
+void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, double **d_array) 
+{
+    if (dimens.size() != 2)
+        eprintf("Dimens size not 2 for object %s", objname.c_str());
+
+    int nels = dimens.nels();
+    double *d_array_p = new double[nels];
+    const int di = dimens[0];
+    const int dj = dimens[1];
+    
+    for (int i = 0; i < di; ++i)
+        for (int j = 0; j < dj; ++j)
+            d_array_p[i * dj + j] = d_array[i + 1][j + 1];  // I am not writing ghost cells
+    
+    write(objname, dimens, d_array_p);
+    delete[]d_array_p;
+}
+
+void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, const int ns, const_arr3_double d_array) 
+{
+    if (dimens.size() != 2) 
+        eprintf("Dimens size not 2 for object %s", objname.c_str());
+
+    int nels = dimens.nels();
+    double *d_array_p = new double[nels];
+    const int di = dimens[0];
+    const int dj = dimens[1];
+    
+    for (int i = 0; i < di; ++i)
+        for (int j = 0; j < dj; ++j)
+            d_array_p[i * dj + j] = d_array[i + 1][j + 1][ns];  // I am not writing ghost cells
+    
+    write(objname, dimens, d_array_p);
     delete[]d_array_p;
 }
 
@@ -713,50 +673,51 @@ void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, 
             }
 
     for (int i = 0; i < di; i++)
-    for (int j = 0; j < dj; j++)
-    for (int k = 0; k < dk; k++) 
-    {
-        double v = d_array[ns][i][j][k];
-        if (fabs(v) > 1e10)
-            printf("BAD pYY ns=%d i=%d j=%d k=%d val=%e\n", ns,i,j,k,v);
-    }
+        for (int j = 0; j < dj; j++)
+            for (int k = 0; k < dk; k++) 
+            {
+                double v = d_array[ns][i][j][k];
+                if (fabs(v) > 1e10)
+                    printf("BAD vales for pressure tensor or heat flux tensor: ns=%d i=%d j=%d k=%d val=%e\n", ns,i,j,k,v);
+            }
 
     write(objname, dimens, d_array_p);
     delete[]d_array_p;
 }
 
-void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, double **d_array) 
+void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, const int ns, double**** d_array) 
 {
-    if (dimens.size() != 2)
-        eprintf("Dimens size not 2 for object %s", objname.c_str());
+    if (dimens.size() != 3)
+        eprintf("Dimens size not 3 for object %s", objname.c_str());
 
     int nels = dimens.nels();
     double *d_array_p = new double[nels];
     const int di = dimens[0];
     const int dj = dimens[1];
+    const int dk = dimens[2];
+    const int djk = dk * dj;
     
     for (int i = 0; i < di; ++i)
         for (int j = 0; j < dj; ++j)
-            d_array_p[i * dj + j] = d_array[i + 1][j + 1];  // I am not writing ghost cells
-    
-            write(objname, dimens, d_array_p);
-    delete[]d_array_p;
-}
+            for (int k = 0; k < dk; ++k) 
+            {
+                if (dk != 1)
+                    d_array_p[i * djk + j * dk + k] = d_array[ns][i + 1][j + 1][k + 1]; // I am not writing ghost cells
+                else if (dj != 1)
+                    d_array_p[i * djk + j * dk] = d_array[ns][i + 1][j + 1][0];
+                else
+                    d_array_p[i * djk + j * dk] = d_array[ns][i + 1][0][0];
+            }
 
-void HDF5OutputAdaptor::write(const std::string & objname, const Dimens dimens, const int ns, const_arr3_double d_array) 
-{
-    if (dimens.size() != 2) 
-        eprintf("Dimens size not 2 for object %s", objname.c_str());
+    for (int i = 0; i < di; i++)
+        for (int j = 0; j < dj; j++)
+            for (int k = 0; k < dk; k++) 
+            {
+                double v = d_array[ns][i][j][k];
+                if (fabs(v) > 1e10)
+                    printf("BAD vales for pressure tensor or heat flux tensor: ns=%d i=%d j=%d k=%d val=%e\n", ns,i,j,k,v);
+            }
 
-    int nels = dimens.nels();
-    double *d_array_p = new double[nels];
-    const int di = dimens[0];
-    const int dj = dimens[1];
-    
-    for (int i = 0; i < di; ++i)
-        for (int j = 0; j < dj; ++j)
-            d_array_p[i * dj + j] = d_array[i + 1][j + 1][ns];  // I am not writing ghost cells
-    
     write(objname, dimens, d_array_p);
     delete[]d_array_p;
 }
