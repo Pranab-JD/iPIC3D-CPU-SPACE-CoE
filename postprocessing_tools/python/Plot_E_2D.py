@@ -1,7 +1,7 @@
 """
 Created on Wed Jun 17:00 2025
 
-@author: Pranab JD
+@author: Pranab JD, ChatGPT
 
 Description: Plot electric field (2D)
 """

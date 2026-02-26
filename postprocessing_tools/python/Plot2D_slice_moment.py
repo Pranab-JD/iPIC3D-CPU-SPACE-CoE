@@ -1,24 +1,10 @@
-#!/usr/bin/env python3
 """
-Developed using ChatGPT
+Created on Tue Feb 17 17:21 2026
 
-Assemble & plot a 2D slice of MOMENTS (rho or Jx/Jy/Jz) from per-proc iPIC3D HDF tiles.
+@author: Pranab JD, ChatGPT
 
-Data layout expected (per your h5dump):
-  /moments/species_<s>/<quantity>/cycle_<t>
+Description: Assemble & plot a 2D slice of MOMENTS (rho or Jx/Jy/Jz) from per-proc iPIC3D HDF tiles.
 
-Features:
-- Auto-detect procNNN.hdf -> (i,j,k) mapping from filenames/topology (XLEN,YLEN,ZLEN)
-- Slice selection: axis = x|y|z, index = global nodal index along that axis
-- Sum over species BEFORE plotting (user can select all or a subset)
-- Tick-label remap via --xmin/--xmax/--xticks, --ymin/--ymax/--yticks
-- Colorbar tick formatting (2 decimals)
-
-Assumptions:
-- Tile arrays are "nodal-like" with one shared boundary plane between neighbors:
-    nx_cell = nx_tile - 1, etc.
-  and we drop index 0 for tiles not on the global low edge in each direction.
-  (If your moments are cell-centered, see note at bottom.)
 """
 
 import os, glob, argparse, re

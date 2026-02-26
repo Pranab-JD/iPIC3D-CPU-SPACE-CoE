@@ -1,25 +1,23 @@
-#!/usr/bin/env python3
 """
-Delete user-specified HDF5 dataset subtrees/quantities from iPIC3D HDF output.
-Supports both proc*.hdf and restart*.hdf sets (no mixing).
+Created on Tue Feb 19:02 2026
 
-Examples
---------
-# Delete Ex for selected cycles in all proc*.hdf:
-srun -n 64 python3 erase_quantities.py /path/proc*.hdf \
-  --targets fields/Ex --cycles 0 500 1000-2000 --prune-empty
+@author: Pranab JD, ChatGPT
 
-# Delete Bz completely (all cycles) in restart*.hdf:
-srun -n 32 python3 erase_quantities.py /path/restart*.hdf \
-  --targets fields/Bz --all-cycles --prune-empty
+Description: This code deletes user-specified HDF5 dataset subtrees/quantities from iPIC3D HDF output.
 
-# Delete Jx for species_2 at cycles 11500 and 12000:
-srun -n 64 python3 erase_quantities.py /path/proc*.hdf \
-  --targets moments/species_2/Jx --cycles 11500 12000
+Usage: 
 
-# Delete one exact dataset path:
-srun -n 16 python3 erase_quantities.py /path/proc*.hdf \
-  --targets moments/species_1/rho/cycle_15000
+    1. Delete Ex for selected cycles in all proc*.hdf:
+        srun -n 64 python3 erase_quantities.py /path/proc*.hdf \
+        --targets fields/Ex --cycles 0 500 1000-2000 --prune-empty
+
+    2. Delete Jx for species_2 at cycles 11500 and 12000:
+        srun -n 64 python3 erase_quantities.py /path/proc*.hdf \
+        --targets moments/species_2/Jx --cycles 11500 12000
+
+    3. Delete one exact dataset path:
+        srun -n 16 python3 erase_quantities.py /path/proc*.hdf \
+        --targets moments/species_1/rho/cycle_15000
 """
 
 import argparse

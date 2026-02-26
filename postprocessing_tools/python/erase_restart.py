@@ -1,6 +1,8 @@
 """
 Created on Thu Aug 10:48 2025
 
+@author: Pranab JD, ChatGPT
+
 Description: This code deletes restart data for all time cycles other than the last one.
              This works with (user-defined) "N" MPI tasks.
 

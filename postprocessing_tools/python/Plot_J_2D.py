@@ -1,7 +1,7 @@
 """
 Created on Wed Jun 17:00 2025
 
-@author: Pranab JD
+@author: Pranab JD, ChatGPT
 
 Description: Plot total current density (summed over all species; 2D)
 """
