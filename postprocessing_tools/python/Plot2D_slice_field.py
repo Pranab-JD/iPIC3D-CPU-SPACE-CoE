@@ -1,30 +1,48 @@
-#!/usr/bin/env python3
 """
-Developed using ChatGPT
+Created on Tue Feb 17 17:21 2026
 
-Assemble & plot an arbitrary 2D slice (x=const, y=const, z=const) of FIELDS from per-proc iPIC3D HDF tiles.
+@author: Pranab JD, ChatGPT
 
-Data layout expected:
-  /fields/<quantity>/cycle_<t>
+Description: Assemble & plot an arbitrary 2D slice of FIELDS from per-proc iPIC3D HDF tiles.
 
-Features:
-- Auto-detect procNNN.hdf -> (i,j,k) mapping from filenames/topology (XLEN,YLEN,ZLEN)
-- Slice selection: axis = x|y|z, index = global nodal index along that axis
-- Tick-label remap via --xmin/--xmax/--xticks, --ymin/--ymax/--yticks
-- Symmetric color scale about 0 (vmin=-vmax)
-- Colorbar tick formatting (2 decimals) and matched height
+Usage:  # Directory where proc.hdf files are saved
+        folder=/scratch/project_465002078/pranab/RMR/sigma_1/domain_128_256_128/Bz_0
 
-Assumptions:
-- Tile arrays are "nodal-like" with one shared boundary plane between neighbors:
-    nx_cell = nx_tile - 1, etc.
-  and we drop index 0 for tiles not on the global low edge in each direction.
-  IMPORTANT: after dropping, the tile is placed at global_start + dropped_planes (gx0,gy0,gz0).
+        xlen=64; ylen=2; zlen=64
+
+        quantity=By
+        axis=y
+        index=192
+
+        xmin=0; xmax=128; xticks=5
+        ymin=0; ymax=256; yticks=5
+        zmin=0; zmax=128; zticks=5
+
+        # ------------------------------------------------------------
+        # Run MPI Python script
+        # ------------------------------------------------------------
+
+        for t in $(seq 0 500 20000)
+        do
+            time_cycle=cycle_${t}
+
+            srun python3 ../postprocessing_tools/python/Plot2D_slice_field.py \
+                "$folder" \
+                "$time_cycle" \
+                "$xlen" "$ylen" "$zlen" \
+                --quantity "$quantity" \
+                --axis "$axis" \
+                --index "$index" \
+                --xmin "$xmin" --xmax "$xmax" --xticks "$xticks" \
+                --ymin "$ymin" --ymax "$ymax" --yticks "$yticks" \
+                --zmin "$zmin" --zmax "$zmax" --zticks "$zticks"
+
 """
 
-import os, glob, argparse
-import numpy as np
 import h5py
+import numpy as np
 from mpi4py import MPI
+import os, glob, argparse
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -33,7 +51,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-# ----------------------------- Helpers -----------------------------
+###! ----------------------------- Helpers -----------------------------
 def proc_id_from_filename(fp: str) -> int:
     base = os.path.basename(fp)
     return int(base.replace("proc", "").replace(".hdf", ""))
@@ -105,8 +123,8 @@ def cycle_to_number(cycle: str) -> str:
     except Exception:
         return cycle
 
-# ----------------------------- Args -----------------------------
-parser = argparse.ArgumentParser(description="Plot 2D slice of iPIC3D fields (summed tiles) from proc*.hdf")
+###! ----------------------------- Args -----------------------------
+parser = argparse.ArgumentParser(description="Plot 2D slice of iPIC3D fields from proc*.hdf")
 
 parser.add_argument("dir_data",   type=str, help="Directory containing proc*.hdf")
 parser.add_argument("time_cycle", type=str, help="Cycle group name, e.g. cycle_19500")
@@ -128,6 +146,10 @@ parser.add_argument("--ymin", type=float, required=True)
 parser.add_argument("--ymax", type=float, required=True)
 parser.add_argument("--yticks", type=int, required=True)
 
+parser.add_argument("--zmin", type=float, default=None)
+parser.add_argument("--zmax", type=float, default=None)
+parser.add_argument("--zticks", type=int, default=None)
+
 parser.add_argument("--cmap", type=str, default="seismic")
 parser.add_argument("--out", type=str, default="", help="Output PNG (default auto)")
 parser.add_argument("--cb_decimals", type=int, default=2, help="Colorbar decimals")
@@ -144,8 +166,9 @@ quantity = args.quantity
 
 xmin, xmax, nxt = args.xmin, args.xmax, args.xticks
 ymin, ymax, nyt = args.ymin, args.ymax, args.yticks
+zmin, zmax, nzt = args.zmin, args.zmax, args.zticks
 
-# ----------------------------- Discover files -----------------------------
+###! ----------------------------- Discover files -----------------------------
 if rank == 0:
     all_files = sorted(glob.glob(os.path.join(dir_data, "proc*.hdf")))
     if not all_files:
@@ -156,7 +179,7 @@ else:
 all_files = comm.bcast(all_files, root=0)
 local_files = all_files[rank::size]
 
-# ----------------------------- Probe tile shape -----------------------------
+###! ----------------------------- Probe tile shape -----------------------------
 tile_shape = None
 if local_files:
     with h5py.File(local_files[0], "r") as f:
@@ -168,14 +191,13 @@ tile_shape_all = comm.gather(tile_shape, root=0)
 
 if rank == 0:
     tile_shape = next(s for s in tile_shape_all if s is not None)
-    print("Detected tile shape:", tile_shape)
 else:
     tile_shape = None
 
 tile_shape = comm.bcast(tile_shape, root=0)
 nx_tile, ny_tile, nz_tile = tile_shape
 
-# ----------------------------- Global sizing (nodal-like shared boundaries) -----------------------------
+###! ----------------------------- Global sizing (nodal-like shared boundaries) -----------------------------
 nx_cell = nx_tile - 1
 ny_cell = ny_tile - 1
 nz_cell = nz_tile - 1
@@ -195,7 +217,7 @@ elif axis == "y":
 else:
     plane_shape = (ny_global, nz_global)
 
-# ----------------------------- Infer proc->(i,j,k) mapping -----------------------------
+###! ----------------------------- Infer proc->(i,j,k) mapping -----------------------------
 best_name = None
 if rank == 0:
     proc_ids = [proc_id_from_filename(fp) for fp in all_files]
@@ -250,13 +272,12 @@ if rank == 0:
 
     if best_name is None:
         raise RuntimeError("Could not infer proc->(i,j,k) mapping from filenames.")
-    print(f"Selected mapping {best_name} (score={best_stats[0]}, gaps={best_stats[1]}, overlaps={best_stats[2]}, Occ.max={best_stats[3]})")
 
 best_name = comm.bcast(best_name, root=0)
 maps = {n: fn for n, fn in mapping_candidates(XLEN, YLEN, ZLEN)}
 pid_to_ijk = maps[best_name]
 
-# ----------------------------- Assemble requested plane -----------------------------
+###! ----------------------------- Assemble requested plane -----------------------------
 local_plane = np.zeros(plane_shape, dtype=np.float64)
 local_occ   = np.zeros(plane_shape, dtype=np.int32)
 
@@ -319,7 +340,7 @@ for fp in local_files:
         local_plane[gy0:gy0+ny_use, gz0:gz0+nz_use] += slab
         local_occ[gy0:gy0+ny_use, gz0:gz0+nz_use]   += 1
 
-# ----------------------------- Reduce to root -----------------------------
+###! ----------------------------- Reduce to root -----------------------------
 plane = None
 occ = None
 if rank == 0:
@@ -329,10 +350,9 @@ if rank == 0:
 comm.Reduce(local_plane, plane, op=MPI.SUM, root=0)
 comm.Reduce(local_occ,   occ,   op=MPI.SUM, root=0)
 
-# ----------------------------- Plot on root -----------------------------
+###! ----------------------------- Plot on root -----------------------------
 if rank == 0:
     omin, omax = int(occ.min()), int(occ.max())
-    print(f"Occupancy min/max: {omin}/{omax}")
     if omin == 0:
         print("WARNING: gaps remain (occ==0). Check slice index, mapping, or ghost-layer assumptions.")
     if omax > 1:
@@ -342,25 +362,50 @@ if rank == 0:
     mask = (occ > 0)
     out_plane[mask] = plane[mask] / occ[mask]
 
-    # Symmetric color limits about 0
     vmax = max(float(np.max(np.abs(out_plane[mask]))), 1e-12)
     vmin = -vmax
 
     nx, ny = out_plane.shape
 
-    # tick positions (index space)
-    x_pos = np.linspace(0, nx-1, nxt)
-    y_pos = np.linspace(0, ny-1, nyt)
+    def require(v, name):
+        if v is None:
+            raise ValueError(f"Missing required argument --{name} for selected plane/axis.")
+        return v
 
-    # tick labels (physical space)
-    x_lab = np.linspace(xmin, xmax, nxt)
-    y_lab = np.linspace(ymin, ymax, nyt)
+    if axis == "z":
+        xmin_ = require(xmin, "xmin"); xmax_ = require(xmax, "xmax"); nxt_ = require(nxt, "xticks")
+        ymin_ = require(ymin, "ymin"); ymax_ = require(ymax, "ymax"); nyt_ = require(nyt, "yticks")
 
-    # Title: keep your omega^-1 conversion logic
+        x_pos = np.linspace(0, nx-1, nxt_)
+        y_pos = np.linspace(0, ny-1, nyt_)
+        x_lab = np.linspace(xmin_, xmax_, nxt_)
+        y_lab = np.linspace(ymin_, ymax_, nyt_)
+        xlabel, ylabel = "X", "Y"
+
+    elif axis == "y":
+        xmin_ = require(xmin, "xmin"); xmax_ = require(xmax, "xmax"); nxt_ = require(nxt, "xticks")
+        zmin_ = require(zmin, "zmin"); zmax_ = require(zmax, "zmax"); nzt_ = require(nzt, "zticks")
+
+        x_pos = np.linspace(0, nx-1, nxt_)
+        y_pos = np.linspace(0, ny-1, nzt_)
+        x_lab = np.linspace(xmin_, xmax_, nxt_)
+        y_lab = np.linspace(zmin_, zmax_, nzt_)
+        xlabel, ylabel = "X", "Z"
+
+    else:  # axis == "x"
+        ymin_ = require(ymin, "ymin"); ymax_ = require(ymax, "ymax"); nyt_ = require(nyt, "yticks")
+        zmin_ = require(zmin, "zmin"); zmax_ = require(zmax, "zmax"); nzt_ = require(nzt, "zticks")
+
+        x_pos = np.linspace(0, nx-1, nyt_)
+        y_pos = np.linspace(0, ny-1, nzt_)
+        x_lab = np.linspace(ymin_, ymax_, nyt_)
+        y_lab = np.linspace(zmin_, zmax_, nzt_)
+        xlabel, ylabel = "Y", "Z"
+
     cyc = cycle_to_number(time_cycle)
-    cycle_number = int(int(cyc)/10)
+    cycle_number = int(int(cyc) / 10)
 
-    fig, ax = plt.subplots(figsize=(6.5, 8.0), dpi=250)
+    fig, ax = plt.subplots(figsize=(8.0, 8.0), dpi=250)
 
     im = ax.imshow(out_plane.T, origin="lower", aspect="auto",
                    cmap=args.cmap, vmin=vmin, vmax=vmax)
@@ -370,15 +415,11 @@ if rank == 0:
     ax.set_yticks(y_pos)
     ax.set_yticklabels([f"{v:.0f}" for v in y_lab])
 
+    ax.set_xlabel(xlabel, fontsize=16)
+    ax.set_ylabel(ylabel, fontsize=16)
+
     ax.tick_params(axis='x', which='major', labelsize=14, length=8)
     ax.tick_params(axis='y', which='major', labelsize=14, length=8)
-
-    if axis == "z":
-        ax.set_xlabel("X", fontsize=16); ax.set_ylabel("Y", fontsize=16)
-    elif axis == "y":
-        ax.set_xlabel("X", fontsize=16); ax.set_ylabel("Z", fontsize=16)
-    else:
-        ax.set_xlabel("Y", fontsize=16); ax.set_ylabel("Z", fontsize=16)
 
     ax.set_title(f"{cycle_number} $\\omega^{{-1}}$", fontsize=18)
 
@@ -399,5 +440,4 @@ if rank == 0:
 
     plt.savefig(out_png)
     plt.close()
-    print("Wrote:", out_png)
-    print()
+    print("Completed ", out_png)
