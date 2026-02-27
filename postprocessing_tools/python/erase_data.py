@@ -280,7 +280,7 @@ def process_file(path: Path,
                  dry_run=False,
                  prune=False,
                  verbose=False) -> Dict[str, int]:
-    stats = {"files_processed": 0, "nodes_deleted": 0, "groups_pruned": 0}
+    stats = {"files_processed": 0, "nodes_deleted": 0, "groups_pruned": 0, "did_delete": 0}
 
     try:
         with h5py.File(path, "r+") as h5:
@@ -305,6 +305,8 @@ def process_file(path: Path,
 
     except (OSError, IOError) as e:
         print(f"  ERROR opening {path}: {e}", file=sys.stderr, flush=True)
+
+    stats["did_delete"] = 1 if (did_delete and not dry_run) else 0
 
     return stats
 
@@ -331,7 +333,8 @@ def main():
 
     ap.add_argument("--dry-run", action="store_true", help="Show actions without modifying files")
     ap.add_argument("--prune-empty", action="store_true", help="Remove now-empty groups")
-    ap.add_argument("--repack", action="store_true", help="Repack files after deletions (shrinks file size)")
+    ap.add_argument("--repack", dest="repack", action="store_true", default=True, help="Repack files after deletions (default: ON)")
+    ap.add_argument("--no-repack", dest="repack", action="store_false", help="Disable repack (faster, but file size won't shrink)")
     ap.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
     ap.add_argument("--progress-percent", type=float, default=10.0, help="Print global progress every X percent (0 disables)")
 
@@ -412,7 +415,7 @@ def main():
         my_tot["nodes_deleted"]   += stats["nodes_deleted"]
         my_tot["groups_pruned"]   += stats["groups_pruned"]
 
-        did_delete = (stats["nodes_deleted"] > 0) and (not args.dry_run)
+        did_delete = (stats.get("did_delete", 0) == 1)
         if args.repack:
             repack_file(p, did_delete=did_delete, verbose=args.verbose, dry_run=args.dry_run)
 
