@@ -40,9 +40,42 @@ def proc_id_from_filename(fp: str) -> int:
     base = os.path.basename(fp)
     return int(base.replace("proc", "").replace(".hdf", ""))
 
-def dset_path(quantity: str, cycle: str) -> str:
-    # DO NOT change this: fields/<quantity>/<cycle>
-    return f"fields/{quantity}/{cycle}"
+def dset_path(quantity: str, cycle: str, species: int | None = None) -> str:
+    if kind == "fields":
+        return f"fields/{quantity}/{cycle}"
+    else:
+        if species is None:
+            raise ValueError("species required for moments")
+        return f"moments/species_{species}/{quantity}/{cycle}"
+
+def read_slab_2d(f: h5py.File, quantity: str, cycle: str, axis: str,
+                loc_i: int | None = None, loc_j: int | None = None, loc_k: int | None = None,
+                species_sel=None) -> np.ndarray:
+    """
+    Return a 2D slab (float64) for either fields or moments (summed over species_sel).
+    axis selects which index is fixed.
+    """
+    if kind == "fields":
+        d = f[dset_path(quantity, cycle)]
+        if axis == "z":
+            return np.array(d[:, :, loc_k], dtype=np.float64)
+        elif axis == "y":
+            return np.array(d[:, loc_j, :], dtype=np.float64)
+        else:  # axis == "x"
+            return np.array(d[loc_i, :, :], dtype=np.float64)
+
+    else:  # moments
+        slab_sum = None
+        for s in species_sel:
+            d = f[dset_path(quantity, cycle, species=s)]
+            if axis == "z":
+                arr = np.array(d[:, :, loc_k], dtype=np.float64)
+            elif axis == "y":
+                arr = np.array(d[:, loc_j, :], dtype=np.float64)
+            else:
+                arr = np.array(d[loc_i, :, :], dtype=np.float64)
+            slab_sum = arr if slab_sum is None else slab_sum + arr
+        return slab_sum
 
 def mapping_candidates(XLEN, YLEN, ZLEN):
     def A(pid):  # id = (i*YLEN + j)*ZLEN + k
@@ -99,6 +132,9 @@ def score_occupancy(Occ: np.ndarray):
 # ----------------------------- Args -----------------------------
 parser = argparse.ArgumentParser(description="Save 2D slice of iPIC3D fields from proc*.hdf as .txt")
 
+FIELD_Q = {"Ex","Ey","Ez","Bx","By","Bz"}
+MOMENT_Q = {"rho","Jx","Jy","Jz"}
+
 parser.add_argument("dir_data",   type=str, help="Directory containing proc*.hdf")
 parser.add_argument("time_cycle", type=str, help="Cycle group name, e.g. cycle_19500")
 
@@ -107,16 +143,28 @@ parser.add_argument("ylen", type=int, help="Simulation YLEN")
 parser.add_argument("zlen", type=int, help="Simulation ZLEN")
 
 parser.add_argument("quantity", type=str, help="Field quantity, e.g. Ex, Ey, Ez, Bx, By, Bz")
+parser.add_argument("--species", default="all", help="For moments only: 'all' or comma list like '0,1,3'")
 parser.add_argument("axis", type=str, choices=["x","y","z"], help="Slice axis")
 parser.add_argument("index", type=int, help="Global nodal index along axis")
 
-parser.add_argument("out_dir", type=str, default=".", help="Output directory for .txt files")
+parser.add_argument("out_dir", type=str, help="Output directory for .txt files")
 
 parser.add_argument("--floatfmt", type=str, default="%.8e", help="np.savetxt float format")
 parser.add_argument("--transpose", action="store_true",
                     help="Write transposed array (matches your imshow(out_plane.T) convention).")
 
 args = parser.parse_args()
+
+quantity = args.quantity
+
+if quantity in FIELD_Q:
+    kind = "fields"
+elif quantity in MOMENT_Q:
+    kind = "moments"
+else:
+    raise ValueError(
+        f"Unknown quantity '{quantity}'. "
+        f"Fields: {sorted(FIELD_Q)} | Moments: {sorted(MOMENT_Q)}")
 
 dir_data   = args.dir_data
 time_cycle = args.time_cycle
@@ -140,9 +188,38 @@ local_files = all_files[rank::size]
 tile_shape = None
 if local_files:
     with h5py.File(local_files[0], "r") as f:
-        if dset_path(quantity, time_cycle) not in f:
-            raise RuntimeError(f"Dataset not found: /{dset_path(quantity, time_cycle)}")
-        tile_shape = tuple(f[dset_path(quantity, time_cycle)].shape)
+
+        if kind == "fields":
+            path = dset_path(quantity, time_cycle)
+            if path not in f:
+                raise RuntimeError(f"Dataset not found: /{path}")
+            tile_shape = tuple(f[path].shape)
+            species_sel = None
+
+        else:  # moments
+            # discover available species
+            species_avail = []
+            for k in f["moments"].keys():
+                if k.startswith("species_"):
+                    species_avail.append(int(k.split("_")[1]))
+            species_avail = sorted(species_avail)
+
+            if not species_avail:
+                raise RuntimeError("No species found under /moments")
+
+            if args.species.strip().lower() == "all":
+                species_sel = species_avail
+            else:
+                species_sel = [int(x) for x in args.species.split(",") if x.strip() != ""]
+                missing = sorted(set(species_sel) - set(species_avail))
+                if missing:
+                    raise RuntimeError(f"Requested species not present: {missing}. Available: {species_avail}")
+
+            s0 = species_sel[0]
+            path = dset_path(quantity, time_cycle, species=s0)
+            if path not in f:
+                raise RuntimeError(f"Dataset not found: /{path}")
+            tile_shape = tuple(f[path].shape)
 
 tile_shape_all = comm.gather(tile_shape, root=0)
 
@@ -152,6 +229,7 @@ else:
     tile_shape = None
 
 tile_shape = comm.bcast(tile_shape, root=0)
+species_sel = comm.bcast(species_sel if rank == 0 else None, root=0)
 nx_tile, ny_tile, nz_tile = tile_shape
 
 # ----------------------------- Global sizing -----------------------------
@@ -262,10 +340,12 @@ for fp in local_files:
         if not (gz0 <= slice_g < gz0 + nz_use):
             continue
         loc_k_orig = (slice_g - gz0) + zs
+
         with h5py.File(fp, "r") as f:
-            d = f[dset_path(quantity, time_cycle)]
-            slab = np.array(d[:, :, loc_k_orig], dtype=np.float64)
-        slab = slab[xs:, ys:]
+            slab = read_slab_2d(f, quantity, time_cycle, axis="z",
+                                loc_k=loc_k_orig, species_sel=species_sel)
+
+        slab = slab[xs:, ys:]  # -> (nx_use, ny_use)
         local_plane[gx0:gx0+nx_use, gy0:gy0+ny_use] += slab
         local_occ[gx0:gx0+nx_use, gy0:gy0+ny_use]   += 1
 
@@ -273,10 +353,12 @@ for fp in local_files:
         if not (gy0 <= slice_g < gy0 + ny_use):
             continue
         loc_j_orig = (slice_g - gy0) + ys
+
         with h5py.File(fp, "r") as f:
-            d = f[dset_path(quantity, time_cycle)]
-            slab = np.array(d[:, loc_j_orig, :], dtype=np.float64)
-        slab = slab[xs:, zs:]
+            slab = read_slab_2d(f, quantity, time_cycle, axis="y",
+                                loc_j=loc_j_orig, species_sel=species_sel)
+
+        slab = slab[xs:, zs:]  # -> (nx_use, nz_use)
         local_plane[gx0:gx0+nx_use, gz0:gz0+nz_use] += slab
         local_occ[gx0:gx0+nx_use, gz0:gz0+nz_use]   += 1
 
@@ -284,10 +366,12 @@ for fp in local_files:
         if not (gx0 <= slice_g < gx0 + nx_use):
             continue
         loc_i_orig = (slice_g - gx0) + xs
+
         with h5py.File(fp, "r") as f:
-            d = f[dset_path(quantity, time_cycle)]
-            slab = np.array(d[loc_i_orig, :, :], dtype=np.float64)
-        slab = slab[ys:, zs:]
+            slab = read_slab_2d(f, quantity, time_cycle, axis="x",
+                                loc_i=loc_i_orig, species_sel=species_sel)
+
+        slab = slab[ys:, zs:]  # -> (ny_use, nz_use)
         local_plane[gy0:gy0+ny_use, gz0:gz0+nz_use] += slab
         local_occ[gy0:gy0+ny_use, gz0:gz0+nz_use]   += 1
 
