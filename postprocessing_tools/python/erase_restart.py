@@ -3,11 +3,16 @@ Created on Thu Aug 10:48 2025
 
 @author: Pranab JD, ChatGPT
 
-Description: This code deletes restart data for all time cycles other than the last one.
+Description: This code deletes restart data for all time cycles other than the last one or selected cycles.
              This works with (user-defined) "N" MPI tasks.
 
 Usage: 
+    1. To delete all restart data apart from the last one, use
         srun python3 ../postprocessing_tools/python/erase_restart.py data/restart*.hdf
+    
+    2. To delete all restart data apart from the time step "cycle", use
+        srun python3 ../postprocessing_tools/python/erase_restart.py data/restart*.hdf --cycle
+
 """
 
 import argparse
@@ -79,7 +84,7 @@ def prune_empty_groups(h5: h5py.File, verbose=False) -> int:
             pass  # might already be gone
     return removed
 
-def process_file(path: Path, dry_run=False, prune=False, verbose=False) -> Dict[str, int]:
+def process_file(path: Path, dry_run=False, prune=False, verbose=False, keep_cycle: Optional[int] = None) -> Dict[str, int]:
     """
     Process a single HDF5 file. Returns stats dict.
     """
@@ -98,11 +103,24 @@ def process_file(path: Path, dry_run=False, prune=False, verbose=False) -> Dict[
 
             inferred_latest = max(c for _, c in all_cycles)
             latest = last_cycle if last_cycle is not None else inferred_latest
-            if verbose:
-                src = "/last_cycle" if last_cycle is not None else "inferred"
-                print(f"  Latest cycle = {latest} ({src})", flush=True)
 
-            to_delete = [(p, c) for (p, c) in all_cycles if c < latest]
+            if keep_cycle is None:
+                cycle_to_keep = latest
+                if verbose:
+                    src = "/last_cycle" if last_cycle is not None else "inferred"
+                    print(f"  Keeping latest cycle = {cycle_to_keep} ({src})", flush=True)
+            else:
+                cycle_to_keep = keep_cycle
+                if verbose:
+                    print(f"  Keeping user-requested cycle = {cycle_to_keep}", flush=True)
+
+            present_cycles = sorted(set(c for _, c in all_cycles))
+            if cycle_to_keep not in present_cycles:
+                print(f"  WARNING: requested keep-cycle {cycle_to_keep} not found in {path}. "
+                      f"Available cycles: {present_cycles}", flush=True)
+
+            to_delete = [(p, c) for (p, c) in all_cycles if c != cycle_to_keep]
+            
             # Delete deepest paths first
             to_delete.sort(key=lambda t: t[0].count("/"), reverse=True)
 
@@ -236,6 +254,7 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="Show actions without modifying files")
     ap.add_argument("--prune-empty", action="store_true", help="Remove now-empty groups")
     ap.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
+    ap.add_argument("--keep-cycle", type=int, default=None, help="Cycle number to keep. If not given, keep only the latest cycle.")
     args = ap.parse_args()
 
     # Rank 0 prepares the canonical file list
@@ -263,6 +282,8 @@ def main():
 
     for f in my_files:
         p = Path(f)
+        stats = {"files_processed": 0, "datasets_deleted": 0, "groups_pruned": 0}
+
         if args.verbose:
             print(f"[rank {rank}] ==> {p}", flush=True)
 
@@ -272,13 +293,29 @@ def main():
         except FileNotFoundError:
             size_before = 0
 
-        stats = process_file(p, dry_run=args.dry_run, prune=args.prune_empty, verbose=args.verbose)
+        try:
+            stats = process_file(
+                p,
+                dry_run=args.dry_run,
+                prune=args.prune_empty,
+                verbose=args.verbose,
+                keep_cycle=args.keep_cycle,
+            )
+
+            repack_file(
+                p,
+                deleted_count=stats.get("datasets_deleted", 0),
+                verbose=args.verbose,
+                dry_run=args.dry_run,
+            )
+
+        except Exception as e:
+            print(f"[rank {rank}] ERROR processing {p}: {e}", file=sys.stderr, flush=True)
+
         for k in ("files_processed", "datasets_deleted", "groups_pruned"):
             my_totals[k] += stats.get(k, 0)
 
-        repack_file(p, deleted_count=stats.get("datasets_deleted", 0), verbose=args.verbose, dry_run=args.dry_run)
-
-        # Size after (post-cleanup/repack or as-is in dry-run)
+        # Size after
         try:
             size_after = p.stat().st_size
         except FileNotFoundError:
