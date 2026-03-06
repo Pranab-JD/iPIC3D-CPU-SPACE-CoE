@@ -8,15 +8,15 @@ Description: This code deletes user-specified HDF5 dataset subtrees/quantities f
 Usage: 
 
     1. Delete Ex for selected cycles in all proc*.hdf:
-        srun -n 64 python3 erase_quantities.py /path/proc*.hdf \
-        --targets fields/Ex --cycles 0 500 1000-2000 --prune-empty
+        srun -n 64 python3 erase_data.py /path/proc*.hdf \
+        --targets fields/Ex --cycles 0 500 1000-2000
 
     2. Delete Jx for species_2 at cycles 11500 and 12000:
-        srun -n 64 python3 erase_quantities.py /path/proc*.hdf \
+        srun -n 64 python3 erase_data.py /path/proc*.hdf \
         --targets moments/species_2/Jx --cycles 11500 12000
 
     3. Delete one exact dataset path:
-        srun -n 16 python3 erase_quantities.py /path/proc*.hdf \
+        srun -n 16 python3 erase_data.py /path/proc*.hdf \
         --targets moments/species_1/rho/cycle_15000
 """
 
