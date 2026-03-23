@@ -8,7 +8,9 @@ Description: Define CS width as 0.5 times the maximum of Jz (for each sheet indi
              "CS_bounds.txt". These indices can be used to extract data along the CSs.
 
 Usage:  srun python3 Extract_3D_CS.py \
-            <dir_data> <outdir> <quantity> <time_cycle> <xlen> <ylen> <zlen> \
+            <dir_data> <outdir> <quantity> \
+            <t_start> <t_end> <t_step> \
+            <xlen> <ylen> <zlen> \
             [--species all] [--cs_threshold 0.5] [--dtype float32]
 """
 
@@ -130,10 +132,14 @@ def contiguous_block_containing(indices: np.ndarray, peak_idx: int):
 parser = argparse.ArgumentParser(description="Extract global current-sheet bounds from iPIC3D proc*.hdf tiles")
 
 parser.add_argument("dir_data", type=str, help="Directory containing proc*.hdf")
-parser.add_argument("outdir", type=str, help="Output directory")
+parser.add_argument("outdir",   type=str, help="Output directory")
 parser.add_argument("quantity", type=str, choices=["rho", "Jx", "Jy", "Jz"],
                     help="Moments quantity to use")
-parser.add_argument("time_cycle", type=str, help="Cycle group name, e.g. cycle_19500")
+
+parser.add_argument("t_start", type=int)
+parser.add_argument("t_end",   type=int)
+parser.add_argument("t_step",  type=int)
+
 parser.add_argument("xlen", type=int, help="Simulation XLEN")
 parser.add_argument("ylen", type=int, help="Simulation YLEN")
 parser.add_argument("zlen", type=int, help="Simulation ZLEN")
@@ -150,7 +156,6 @@ args = parser.parse_args()
 dir_data = args.dir_data
 outdir = args.outdir
 quantity = args.quantity
-time_cycle = args.time_cycle
 XLEN, YLEN, ZLEN = args.xlen, args.ylen, args.zlen
 cs_threshold = args.cs_threshold
 
@@ -189,9 +194,16 @@ if local_files:
                     continue
 
                 s0 = species_try[0]
-                p0 = dset_path(s0, quantity, time_cycle)
-                if p0 not in f:
+                qpath = f"moments/species_{s0}/{quantity}"
+                if qpath not in f:
                     continue
+
+                cycles = list(f[qpath].keys())
+                if not cycles:
+                    continue
+
+                first_cycle = cycles[0]
+                p0 = f"{qpath}/{first_cycle}"
 
                 tile_shape = tuple(f[p0].shape)
                 species_avail = species_try
@@ -207,7 +219,7 @@ if rank == 0:
     valid_species = [s for s in species_all if s is not None]
 
     if not valid_shapes:
-        raise RuntimeError(f"No valid dataset found for quantity='{quantity}' and time_cycle='{time_cycle}' "
+        raise RuntimeError(f"No valid dataset found for quantity='{quantity}' "
                             f"in any proc*.hdf under {dir_data}")
 
     tile_shape = valid_shapes[0]
@@ -307,11 +319,8 @@ pid_to_ijk = maps[best_name]
 ###! ============================================================
 
 def assemble_Jyz_for_cycle(cycle_name: str):
-    """
-    Build the global reduced diagnostic J_yz(y,z) = sum_x |J(x,y,z)|
-    using one pass over local HDF5 tiles per rank.
-    """
     local_Jyz = np.zeros((ny_global, nz_global), dtype=work_dtype)
+    found_any = False
 
     for fp in local_files:
         pid = proc_id_from_filename(fp)
@@ -331,24 +340,34 @@ def assemble_Jyz_for_cycle(cycle_name: str):
         ny_use = ny_tile - ys
         nz_use = nz_tile - zs
 
-        with h5py.File(fp, "r") as f:
-            tile_sum = None
-            for s in species_sel:
-                path = dset_path(s, quantity, cycle_name)
-                if path not in f:
-                    raise RuntimeError(f"Missing dataset '{path}' in file '{fp}'")
+        try:
+            with h5py.File(fp, "r") as f:
+                tile_sum = None
+                for s in species_sel:
+                    path = dset_path(s, quantity, cycle_name)
+                    if path not in f:
+                        tile_sum = None
+                        break
 
-                arr = np.asarray(f[path][...], dtype=work_dtype)
-                tile_sum = arr if tile_sum is None else (tile_sum + arr)
+                    arr = np.asarray(f[path][...], dtype=work_dtype)
+                    tile_sum = arr if tile_sum is None else (tile_sum + arr)
 
-        # Remove duplicated nodal boundaries
-        tile_sum = tile_sum[xs:, ys:, zs:]  # -> shape (nx_use, ny_use, nz_use)
+                if tile_sum is None:
+                    continue
 
-        # Sum over x
-        tile_yz = np.sum(np.abs(tile_sum), axis=0)  # -> shape (ny_use, nz_use)
+                found_any = True
 
-        # Accumulate into local global YZ array
-        local_Jyz[gy0:gy0+ny_use, gz0:gz0+nz_use] += tile_yz
+                tile_sum = tile_sum[xs:, ys:, zs:]
+                tile_yz = np.sum(np.abs(tile_sum), axis=0)
+                local_Jyz[gy0:gy0+ny_use, gz0:gz0+nz_use] += tile_yz
+
+        except Exception:
+            continue
+
+    found_any_global = comm.allreduce(found_any, op=MPI.LOR)
+
+    if not found_any_global:
+        return None
 
     Jyz_global = np.zeros((ny_global, nz_global), dtype=work_dtype) if rank == 0 else None
     comm.Reduce([local_Jyz, mpi_dtype], [Jyz_global, mpi_dtype], op=MPI.SUM, root=0)
@@ -360,70 +379,74 @@ def assemble_Jyz_for_cycle(cycle_name: str):
 ###! Main extraction
 ###! ============================================================
 
-Jyz_global = assemble_Jyz_for_cycle(time_cycle)
+t_start = args.t_start
+t_end   = args.t_end
+t_step  = args.t_step
 
-if rank == 0:
-    yL1_global = float("inf")
-    yL2_global = -float("inf")
-    yU1_global = float("inf")
-    yU2_global = -float("inf")
+for t in range(t_start, t_end + 1, t_step):
 
-    mid = ny_global // 2
+    time_cycle = f"cycle_{t}"
 
-    if mid == 0 or mid == ny_global:
-        raise RuntimeError(f"Invalid ny_global={ny_global}; cannot split into lower/upper halves.")
+    if rank == 0:
+        print(f"\nProcessing {time_cycle}", flush=True)
 
-    for z_idx in range(nz_global):
-        J_list = Jyz_global[:, z_idx]
+    Jyz_global = assemble_Jyz_for_cycle(time_cycle)
 
-        # Skip empty slices
-        if np.all(J_list == 0):
+    if rank == 0:
+
+        yL1_global = float("inf")
+        yL2_global = -float("inf")
+        yU1_global = float("inf")
+        yU2_global = -float("inf")
+
+        mid = ny_global // 2
+
+        for z_idx in range(nz_global):
+            J_list = Jyz_global[:, z_idx]
+
+            if np.all(J_list == 0):
+                continue
+
+            lower = J_list[:mid]
+            if np.all(lower == 0):
+                continue
+            idx_lower = int(np.argmax(lower))
+            J_max_lower = lower[idx_lower]
+
+            upper = J_list[mid:]
+            if upper.size == 0 or np.all(upper == 0):
+                continue
+            idx_upper_local = int(np.argmax(upper))
+            idx_upper = idx_upper_local + mid
+            J_max_upper = J_list[idx_upper]
+
+            mask_lower = lower >= cs_threshold * J_max_lower
+            indices_lower = np.where(mask_lower)[0]
+            yL1, yL2 = contiguous_block_containing(indices_lower, idx_lower)
+
+            mask_upper = upper >= cs_threshold * J_max_upper
+            indices_upper = np.where(mask_upper)[0] + mid
+            yU1, yU2 = contiguous_block_containing(indices_upper, idx_upper)
+
+            yL1_global = min(yL1_global, yL1)
+            yL2_global = max(yL2_global, yL2)
+            yU1_global = min(yU1_global, yU1)
+            yU2_global = max(yU2_global, yU2)
+
+        if not np.isfinite(yL1_global) or not np.isfinite(yU1_global):
+            print(f"Skipping {time_cycle}: no valid CS found", flush=True)
             continue
 
-        # Lower half
-        lower = J_list[:mid]
-        if np.all(lower == 0):
-            continue
-        idx_lower = int(np.argmax(lower))
-        J_max_lower = lower[idx_lower]
+        os.makedirs(outdir, exist_ok=True)
+        outfile = os.path.join(outdir, "CS_bounds.txt")
 
-        # Upper half
-        upper = J_list[mid:]
-        if upper.size == 0 or np.all(upper == 0):
-            continue
-        idx_upper_local = int(np.argmax(upper))
-        idx_upper = idx_upper_local + mid
-        J_max_upper = J_list[idx_upper]
+        mode = "a"
+        write_header = not os.path.exists(outfile)
 
-        # Thresholded connected block around lower peak
-        mask_lower = lower >= cs_threshold * J_max_lower
-        indices_lower = np.where(mask_lower)[0]
-        yL1, yL2 = contiguous_block_containing(indices_lower, idx_lower)
+        with open(outfile, mode) as f:
+            if write_header:
+                f.write("Cycle Y_lower_min Y_lower_max Y_upper_min Y_upper_max\n")
 
-        # Thresholded connected block around upper peak
-        mask_upper = upper >= cs_threshold * J_max_upper
-        indices_upper = np.where(mask_upper)[0] + mid
-        yU1, yU2 = contiguous_block_containing(indices_upper, idx_upper)
+            f.write(f"{t} {yL1_global} {yL2_global} {yU1_global} {yU2_global}\n")
 
-        yL1_global = min(yL1_global, yL1)
-        yL2_global = max(yL2_global, yL2)
-        yU1_global = min(yU1_global, yU1)
-        yU2_global = max(yU2_global, yU2)
-
-    if not np.isfinite(yL1_global) or not np.isfinite(yU1_global):
-        raise RuntimeError(f"Could not determine current-sheet bounds for time_cycle={time_cycle}. "
-                            f"All slices may be empty or below threshold.")
-
-    os.makedirs(outdir, exist_ok=True)
-    outfile = os.path.join(outdir, "CS_bounds.txt")
-    cyc = cycle_to_number(time_cycle)
-
-    mode = "a"
-    write_header = not os.path.exists(outfile)
-
-    with open(outfile, mode) as f:
-        if write_header:
-            f.write("Cycle Y_lower_min Y_lower_max Y_upper_min Y_upper_max\n")
-        f.write(f"{cyc} {yL1_global} {yL2_global} {yU1_global} {yU2_global}\n")
-
-    print(f"Wrote CS bounds at {time_cycle} to: {outfile}")
+        print(f"Wrote CS bounds for {time_cycle}", flush=True)
