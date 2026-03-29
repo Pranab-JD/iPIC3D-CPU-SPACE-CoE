@@ -1432,34 +1432,67 @@ void Collective::save()
     temp = SaveDirName + "/SimulationData.txt";
     ofstream my_file(temp.c_str());
 
-    my_file << "-----------------------------------------------------------"   << endl;
-    my_file << "                  Simulation Parameters"                        << endl;
-    my_file << "-----------------------------------------------------------"   << endl << endl; 
-
-    my_file << "Initial magnetic field components      = " << B0x << ", " << B0y << ", " << B0z << endl << endl;
+    my_file << "============================================================"   << endl;
+    my_file << "                    Physics and Geometry"                       << endl;
+    my_file << "============================================================"   << endl << endl; 
     
+    my_file << "Initial magnetic field components      = " << B0x << " x " << B0y << " x " << B0z << endl << endl;
+
+    if (nparam > 0) 
+    {
+        my_file << nparam << " custom parameters have been defined" << endl;
+        
+        for (int ii = 0; ii < nparam; ii++)
+        {
+            my_file << "    Custom parameter  " << ii << " = " << input_param[ii] << endl; 
+        }
+    }
+
+    my_file << endl << endl; 
+
+    my_file << "============================================================"   << endl;
+    my_file << "                          Grid"                                 << endl;
+    my_file << "============================================================"   << endl << endl; 
+
     my_file << "Simulation domain                      = " << Lx << " x " << Ly << " x " << Lz << endl;
     my_file << "Grid resolution                        = " << nxc << " x " << nyc << " x " << nzc << endl;
+    my_file << "MPI topology                           = " << XLEN << " x " << YLEN << " x " << ZLEN << endl << endl;
+
     my_file << "Number of time steps                   = " << getNcycles() << endl;
     my_file << "Time step size (dt)                    = " << dt << endl;
     my_file << "Tolerance of the field (GMRes) solver  = " << getGMREStol() << endl << endl;
     if (Smooth == 1)
         my_file << "Smoothing is enabled; data is smoothed " <<  num_smoothings << " times every " << SmoothCycle << " time cycle(s)" << endl<< endl;
     else
-        my_file << "Smoothing is disabled" << endl << endl;
+        my_file << "Smoothing is disabled" << endl;
+
+    my_file << endl; 
     
+    my_file << "============================================================"   << endl;
+    my_file << "                         Particles"                             << endl;
+    my_file << "============================================================"   << endl << endl; 
+
     my_file << "Number of species of particles = " << ns << endl;
     for (int is = 0; is < ns; is++)
     {
         my_file << endl << "Species: " << is << endl;
         my_file << "   Initial density         "  << "   = " << rhoINIT[is] << endl;
-        my_file << "   Particles per cell      "  << "   = " << getNpcelx(is) << " x " << getNpcely(is) << " x " << getNpcelz(is) << endl;
         my_file << "   Charge-to-mass ratio    "  << "   = " << getQOM(is) << endl;
+        my_file << "   Particles per cell      "  << "   = " << getNpcelx(is) << " x " << getNpcely(is) << " x " << getNpcelz(is) << endl;
+        my_file << "   Drift/bulk velocity     "  << "   = " << u0[is] << " x " << v0[is] << " x " << w0[is] << endl;
+        my_file << "   Thermal velocity        "  << "   = " << uth[is] << " x " << vth[is] << " x " << wth[is] << endl;
     }
 
-    my_file << endl << endl << "Output data is saved in " << SaveDirName << endl;
+    my_file << endl << endl; 
+
+    my_file << "============================================================"   << endl;
+    my_file << "                        Output Data"                            << endl;
+    my_file << "============================================================"   << endl << endl; 
+
+    my_file << "Output data is saved in " << SaveDirName << endl;
     my_file << "Restart data is saved in " << RestartDirName << endl;
-    my_file << "Output and restart data are written in " << output_data_precision << " precision" << endl;
+    my_file << "Output data is written in " << output_data_precision << " precision" << endl;
+    my_file << "Restart data is written in DOUBLE precision" << endl;
 
     my_file.close();
 }

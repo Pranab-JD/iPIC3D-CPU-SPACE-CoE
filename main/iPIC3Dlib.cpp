@@ -143,7 +143,6 @@ int c_Solver::Init(int argc, char **argv)
 
             if (SaveDirName != RestartDirName)
                 checkOutputFolder(RestartDirName);  //* Create restart directory
-                
         }
 
         MPIdata::instance().Print();
