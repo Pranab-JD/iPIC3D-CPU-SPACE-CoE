@@ -225,7 +225,10 @@ public:
     void add_Jyh(double weight[8], int X, int Y, int Z, int is);
     void add_Jzh(double weight[8], int X, int Y, int Z, int is);
 
-    void add_Mass(double value[3][3], int X, int Y, int Z, int ind);
+    void add_Mass(double v00, double v01, double v02,
+                double v10, double v11, double v12,
+                double v20, double v21, double v22,
+                int X, int Y, int Z, int ind);
 
     //* ECSIM/RelSIM supplementary moments
     void add_Jx(double weight[8], int X, int Y, int Z, int is);
@@ -955,17 +958,20 @@ inline void EMfields3D::add_Qyyz(double weight[8], int X, int Y, int Z, int is)
 }
 
 //* Add an amount of current density to mass matrix field at node X,Y *//
-inline void EMfields3D::add_Mass(double value[3][3], int X, int Y, int Z, int ind) 
+inline void EMfields3D::add_Mass(double v00, double v01, double v02,
+                                 double v10, double v11, double v12,
+                                 double v20, double v21, double v22,
+                                 int X, int Y, int Z, int ind)
 {
-    Mxx[ind][X][Y][Z] += value[0][0];
-    Mxy[ind][X][Y][Z] += value[0][1];
-    Mxz[ind][X][Y][Z] += value[0][2];
-    Myx[ind][X][Y][Z] += value[1][0];
-    Myy[ind][X][Y][Z] += value[1][1];
-    Myz[ind][X][Y][Z] += value[1][2];
-    Mzx[ind][X][Y][Z] += value[2][0];
-    Mzy[ind][X][Y][Z] += value[2][1];
-    Mzz[ind][X][Y][Z] += value[2][2];
+    Mxx[ind][X][Y][Z] += v00;
+    Mxy[ind][X][Y][Z] += v01;
+    Mxz[ind][X][Y][Z] += v02;
+    Myx[ind][X][Y][Z] += v10;
+    Myy[ind][X][Y][Z] += v11;
+    Myz[ind][X][Y][Z] += v12;
+    Mzx[ind][X][Y][Z] += v20;
+    Mzy[ind][X][Y][Z] += v21;
+    Mzz[ind][X][Y][Z] += v22;
 }
 
 inline void get_field_components_for_cell(const double* field_components[8], const_arr4_double fieldForPcls, int cx, int cy, int cz)
