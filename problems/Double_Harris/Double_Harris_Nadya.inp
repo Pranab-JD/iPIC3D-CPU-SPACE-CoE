@@ -1,0 +1,148 @@
+###! Input file for double Harris sheet
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                TEST CASE                                   %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Case                           = Double_Harris                                 # Case
+SimulationName                 = Double_Harris                                 # Simulation name for output
+SaveDirName                    = /scratch/project_465002078/data_DH_Nadja      # Output directory
+RestartDirName                 = /scratch/project_465002078/data_DH_Nadja      # Restart directory   
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                    OUTPUT                                  %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+WriteMethod                    = shdf5                                         # Output method [ shdf5 | pvtk | nbcvtk ]
+output_data_precision          = DOUBLE                                        # Precision of output data [SINGLE | DOUBLE]
+
+#! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are
+restart_status                 = 0                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
+
+DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
+RestartOutputCycle             = 0                                             # Restart cycle (suggest to set this to a factor of ncycles)
+FieldOutputCycle               = 0                                             # Output for moments and fields (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
+ParticlesDownsampleOutputCycle = 0                                             # Downsample output cycle (if <= 0, data is NOT saved)
+ParticlesDownsampleFactor      = 1                                             # Downsampling factor (must be >= 1; if = 1 NO downsampling)
+
+FieldOutputTag                 = E + B + J + rho + rho_s + J_s                 # Select quantites to be written to files
+ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
+ParticlesDownsampleOutputTag   = position_DS + velocity_DS + q_DS              # Select quantites to be written to files
+
+###? Options for output tags
+###! NOTE: If you DO NOT set the desired tags, NO DATA will be written to files!
+##* Fields
+    # B                 --> Bx, By, and Bz
+    # E                 --> Ex, Ey, and Ez
+
+##* Moments
+    # J                 --> Jxh, Jyh, and Jzh: overall current density (all species combined)
+    # rho               --> rho: overall charge density (all species combined)
+    # J_s               --> current densities for each species
+    # rho_s             --> charge densities for each species
+    # pressure          --> pressure tensor for each species
+    # E_flux            --> energy flux for each species
+    # H_flux            --> heat flux tensor for each species
+
+##* Particles
+    # position          --> Positions of all particles
+    # velocity          --> Velocities of all particles
+    # q                 --> Charge of all particles
+
+##* Downsampled Particles
+    # position_DS       --> Positions of downsampled particles
+    # velocity_DS       --> Velocities of downsampled particles
+    # q_DS              --> Charge of downsampled particles
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                             PHYSICS and GEOMETRY                           %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+###? Custom paramters (max. 10)
+nparam                         = 2
+custom_parameters              = 0.1        0.35
+
+#* custom_parameter 1 --> Amplitude of initial perturbation
+#* custom_parameter 2 --> Half-thickness of current sheet
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                         ELECTRIC and MAGNETIC FIELD                        %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+B0x                            = 0.005                                          # Initial magnetic field strength along X
+B0y                            = 0.0                                            # Initial magnetic field strength along Y
+B0z                            = 0.0                                            # Initial magnetic field strength along Z
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                     TIME                                   %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dt                             = 0.03	                                       # Time-step size
+ncycles                        = 1000                                          # Number of time steps
+th                             = 1.0                                           # Decentering parameter
+c                              = 1.0                                           # Speed of light 
+GMREStol                       = 1E-12                                         # GMRES tolerance (must be <= 1e-15 for exact energy conservation)
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                   SMOOTHING                                %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ 
+Smooth                         = 1                                             # If Smooth = false (1 = true OR 0 = false), the following 2 parameters will be ignored 
+num_smoothings                 = 8	                                           # Number of smoothings
+SmoothCycle                    = 1	                                           # After how many time cycles is the data smoothed
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                    BOX SIZE                                %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Lx                             = 23.0                                          # Simulation box length along X
+Ly                             = 69.0                                          # Simulation box length along Y
+Lz                             = 1.0                                           # Simulation box length along Z
+
+nxc                            = 192                                           # Number of cells along X
+nyc                            = 576                                           # Number of cells along Y
+nzc                            = 1                                             # Number of cells along Z
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                  MPI TOPOLOGY                              %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+XLEN                           = 16                                            # Number of MPI subdomains along X
+YLEN                           = 48                                            # Number of MPI subdomains along Y
+ZLEN                           = 1                                             # Number of MPI subdomains along Z
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                                   PARTICLES                                %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#*    ns = number of species
+#*    0 = electrons; 1 = protons/positrons; 2,3,4,5,... = electrons/positrons/ions
+
+ns                  = 4                                                         # Number of species of particles
+
+rhoINIT             = 1.0           1.0             3.0             3.0         # Initial density
+rhoINJECT           = 0.0           0.0             0.0             0.0         # Injection density
+
+npcelx              = 8             8	            8	            8           # Particles per cell along X
+npcely              = 8             8               8	            8           # Particles per cell along Y
+npcelz              = 1	            1	            1	            1           # Particles per cell along Z
+NpMaxNpRatio        = 6.0                                                       # Maximum number of particles allocated
+
+qom                 = -64.0         1.0            -64.0            1.0         # Charge/mass ratio
+
+uth                 = 0.006         0.0012          0.008           0.002       # Thermal velocity along X
+vth                 = 0.006         0.0012          0.008           0.002       # Thermal velocity along Y
+wth                 = 0.006         0.0012          0.008           0.002       # Thermal velocity along Z
+
+u0                  = 0.0           0.0             0.0             0.0         # Drift/bulk velocity along X
+v0                  = 0.0           0.0             0.0             0.0         # Drift/bulk velocity along Y
+w0                  = 0.0           0.0             0.002	       -0.002       # Drift/bulk velocity along Z
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %                               BOUNDARY CONDITION                           %
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+PERIODICX                      = 1                                              # Along X (1 = true OR 0 = false) 
+PERIODICY                      = 1                                              # Along Y (1 = true OR 0 = false) 
+PERIODICZ                      = 1                                              # Along Z (1 = true OR 0 = false)
