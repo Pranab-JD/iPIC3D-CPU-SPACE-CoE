@@ -38,6 +38,9 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <regex>
+
+using namespace std;
 
 // order must agree with Enum in Collective.h
 static const char *enumNames[] =
@@ -52,6 +55,102 @@ static const char *enumNames[] =
     "NUMBER_OF_ENUMS",
     "INVALID_ENUM"
 };
+
+static bool dataset_exists(hid_t file_id, const std::string& path)
+{
+    return H5Lexists(file_id, path.c_str(), H5P_DEFAULT) > 0;
+}
+
+static int read_last_cycle_if_present(hid_t file_id)
+{
+    if (!dataset_exists(file_id, "/last_cycle"))
+        return -1;
+
+    hid_t dataset_id = H5Dopen2(file_id, "/last_cycle", H5P_DEFAULT);
+    if (dataset_id < 0)
+        return -1;
+
+    int lastcycle = -1;
+    herr_t status = H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &lastcycle);
+    H5Dclose(dataset_id);
+
+    if (status < 0)
+        return -1;
+
+    return lastcycle;
+}
+
+static int find_latest_cycle_in_group(hid_t file_id, const std::string& group_path)
+{
+    hid_t group_id = H5Gopen2(file_id, group_path.c_str(), H5P_DEFAULT);
+    if (group_id < 0)
+        return -1;
+
+    H5G_info_t group_info;
+    if (H5Gget_info(group_id, &group_info) < 0)
+    {
+        H5Gclose(group_id);
+        return -1;
+    }
+
+    std::regex rx("^cycle_([0-9]+)$");
+    int max_cycle = -1;
+
+    for (hsize_t i = 0; i < group_info.nlinks; ++i)
+    {
+        ssize_t name_len = H5Lget_name_by_idx(group_id, ".", H5_INDEX_NAME, H5_ITER_INC, i, nullptr, 0, H5P_DEFAULT);
+        if (name_len < 0)
+            continue;
+
+        std::vector<char> name_buf(static_cast<size_t>(name_len) + 1);
+        if (H5Lget_name_by_idx(group_id, ".", H5_INDEX_NAME, H5_ITER_INC, i, name_buf.data(), name_buf.size(), H5P_DEFAULT) < 0)
+            continue;
+
+        std::string name(name_buf.data());
+        std::smatch m;
+        if (std::regex_match(name, m, rx))
+        {
+            int cyc = std::stoi(m[1].str());
+            if (cyc > max_cycle)
+                max_cycle = cyc;
+        }
+    }
+
+    H5Gclose(group_id);
+    return max_cycle;
+}
+
+static int get_restart_cycle_fields(hid_t file_id)
+{
+    int lastcycle = read_last_cycle_if_present(file_id);
+
+    if (lastcycle >= 0)
+    {
+        std::stringstream ss;
+        ss << "/fields/Bxc/cycle_" << lastcycle;
+        if (dataset_exists(file_id, ss.str()))
+            return lastcycle;
+    }
+
+    return find_latest_cycle_in_group(file_id, "/fields/Bx");
+}
+
+static int get_restart_cycle_particles(hid_t file_id, int species_number)
+{
+    int lastcycle = read_last_cycle_if_present(file_id);
+
+    if (lastcycle >= 0)
+    {
+        std::stringstream ss;
+        ss << "/particles/species_" << species_number << "/x/cycle_" << lastcycle;
+        if (dataset_exists(file_id, ss.str()))
+            return lastcycle;
+    }
+
+    std::stringstream group_path;
+    group_path << "/particles/species_" << species_number << "/x";
+    return find_latest_cycle_in_group(file_id, group_path.str());
+}
 
 int Collective::read_enum_parameter(const char* option_name, const char* default_value, const ConfigFile& config)
 {
@@ -536,26 +635,96 @@ void Collective::ReadInput(string inputfile)
     bcPfaceZleft  = config.read < int >("bcPfaceZleft",  1);
 
     //! Restarting simulations
-    int last_cycle_local = 0;
+    int last_cycle_local = -1;
     if (RESTART1) 
     {   
-        RestartDirName = config.read < string > ("RestartDirName", "data");
+        RestartDirName = config.read<string>("RestartDirName", "data");
         //ReadRestart(RestartDirName);
         restart_status = 2;
         
-        if(MPIdata::get_rank() == 0)
+        if (MPIdata::get_rank() == 0)
         {
-            hid_t file_id = H5Fopen((RestartDirName + "/restart0.hdf").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-            if (file_id < 0) 
+            std::string restart_file = RestartDirName + "/restart0.hdf";
+            hid_t file_id = H5Fopen(restart_file.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+
+            if (file_id < 0)
             {
-                cout << "Could not open file: " << inputfile << endl;
-                return;
+                cout << "Could not open file: " << restart_file << endl;
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
 
-            hid_t dataset_id = H5Dopen2(file_id, "/last_cycle", H5P_DEFAULT);  // HDF 1.8.8
-            herr_t status = H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &last_cycle_local);
-            status = H5Dclose(dataset_id);
-            status = H5Fclose(file_id);
+            //* Try reading /last_cycle first
+            if (H5Lexists(file_id, "/last_cycle", H5P_DEFAULT) > 0)
+            {
+                hid_t dataset_id = H5Dopen2(file_id, "/last_cycle", H5P_DEFAULT);
+                if (dataset_id >= 0)
+                {
+                    herr_t status = H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &last_cycle_local);
+                    H5Dclose(dataset_id);
+
+                    //* Validate that this cycle actually exists
+                    if (status >= 0)
+                    {
+                        std::stringstream ss;
+                        ss << "/fields/Bx/cycle_" << last_cycle_local;
+                        if (H5Lexists(file_id, ss.str().c_str(), H5P_DEFAULT) <= 0)
+                            last_cycle_local = -1;
+                    }
+                }
+            }
+
+            //* Fallback: find largest available cycle in /fields/Bx
+            if (last_cycle_local < 0)
+            {
+                hid_t group_id = H5Gopen2(file_id, "/fields/Bx", H5P_DEFAULT);
+                if (group_id < 0)
+                {
+                    cout << "Could not open group /fields/Bx in " << restart_file << endl;
+                    H5Fclose(file_id);
+                    MPI_Abort(MPI_COMM_WORLD, 1);
+                }
+
+                H5G_info_t group_info;
+                if (H5Gget_info(group_id, &group_info) < 0)
+                {
+                    cout << "Could not get info for group /fields/Bx in " << restart_file << endl;
+                    H5Gclose(group_id);
+                    H5Fclose(file_id);
+                    MPI_Abort(MPI_COMM_WORLD, 1);
+                }
+
+                int max_cycle = -1;
+
+                for (hsize_t i = 0; i < group_info.nlinks; ++i)
+                {
+                    ssize_t name_len = H5Lget_name_by_idx(group_id, ".", H5_INDEX_NAME, H5_ITER_INC, i, nullptr, 0, H5P_DEFAULT);
+                    if (name_len < 0)
+                        continue;
+
+                    std::vector<char> name_buf(static_cast<size_t>(name_len) + 1);
+                    if (H5Lget_name_by_idx(group_id, ".", H5_INDEX_NAME, H5_ITER_INC, i, name_buf.data(), name_buf.size(), H5P_DEFAULT) < 0)
+                        continue;
+
+                    std::string name(name_buf.data());
+                    if (name.find("cycle_") == 0)
+                    {
+                        int cyc = atoi(name.substr(6).c_str());
+                        if (cyc > max_cycle)
+                            max_cycle = cyc;
+                    }
+                }
+
+                H5Gclose(group_id);
+                last_cycle_local = max_cycle;
+            }
+
+            H5Fclose(file_id);
+
+            if (last_cycle_local < 0)
+            {
+                cout << "Could not determine a valid restart cycle from " << restart_file << endl;
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
         }
 
         MPI_Bcast(&last_cycle_local, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -578,6 +747,53 @@ void Collective::ReadInput(string inputfile)
   if (ns > 5)
     TrackParticleID[5] = TrackParticleID0.f;
     */
+}
+
+int Collective::read_last_cycle_from_restart() const
+{
+    #ifdef NO_HDF5
+        eprintf("Require HDF5 to read restart file.");
+        return -1;
+    #else
+        std::string name_file = getRestartDirName() + "/restart0.hdf";
+
+        hid_t file_id = H5Fopen(name_file.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+        if (file_id < 0)
+        {
+            std::cout << "Failed to open file " << name_file << std::endl;
+            return -1;
+        }
+
+        hid_t group_id = H5Gopen2(file_id, "/fields/Bxc", H5P_DEFAULT);
+
+        H5G_info_t group_info;
+        H5Gget_info(group_id, &group_info);
+
+        int max_cycle = -1;
+
+        for (hsize_t i = 0; i < group_info.nlinks; ++i)
+        {
+            ssize_t name_len = H5Lget_name_by_idx(group_id, ".", H5_INDEX_NAME, H5_ITER_INC, i, nullptr, 0, H5P_DEFAULT);
+            if (name_len < 0) continue;
+
+            std::vector<char> name_buf(static_cast<size_t>(name_len) + 1);
+            H5Lget_name_by_idx(group_id, ".", H5_INDEX_NAME, H5_ITER_INC, i, name_buf.data(), name_buf.size(), H5P_DEFAULT);
+
+            std::string name(name_buf.data());
+
+            if (name.rfind("cycle_", 0) == 0)
+            {
+                int cyc = std::atoi(name.c_str() + 6);
+                if (cyc > max_cycle)
+                    max_cycle = cyc;
+            }
+        }
+
+        H5Gclose(group_id);
+        H5Fclose(file_id);
+
+        return max_cycle;
+    #endif
 }
 
 bool Collective::field_output_is_off()const
@@ -972,11 +1188,14 @@ void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
             abort();
         }
 
-        //* find the last cycle
-        int lastcycle = 0;
-        dataset_id = H5Dopen2(file_id, "/last_cycle", H5P_DEFAULT); // HDF 1.8.8
-        status = H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &lastcycle);
-        status = H5Dclose(dataset_id);
+        //* find the last restart cycle
+        int lastcycle = get_restart_cycle_fields(file_id);
+
+        if (lastcycle < 0)
+        {
+            cout << "Failed to find any valid restart cycle in file " << name_file << endl;
+            abort();
+        }
 
         //* Bxc
         ss.str("");ss << "/fields/Bxc/cycle_" << lastcycle;
@@ -1126,7 +1345,6 @@ void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
 }
 
 // extracted from Particles3Dcomm.cpp
-//
 void Collective::read_particles_restart(const VCtopology3D* vct, int species_number,
                                         vector_double& u, vector_double& v, vector_double& w,
                                         vector_double& q, 
@@ -1150,8 +1368,6 @@ void Collective::read_particles_restart(const VCtopology3D* vct, int species_num
         int status_n;
 
         //TODO: Do we need to open and close files for each species? Can we do it in 1 go? - PJD
-
-        // open the hdf file
         file_id = H5Fopen(name_file.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
         if (file_id < 0) 
         {
@@ -1159,16 +1375,18 @@ void Collective::read_particles_restart(const VCtopology3D* vct, int species_num
             abort();
         }
 
-        //* find the last cycle
-        int lastcycle = 0;
-        dataset_id = H5Dopen2(file_id, "/last_cycle", H5P_DEFAULT); // HDF 1.8.8
-        status = H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &lastcycle);
-        status = H5Dclose(dataset_id);
+        //* find the last available cycle
+        int lastcycle = get_restart_cycle_particles(file_id, species_number);
+        if (lastcycle < 0)
+        {
+            cout << "Failed to find any valid particle restart cycle for species " << species_number << " in file " << name_file << endl;
+            abort();
+        }
 
         stringstream species_name;
         species_name << species_number;
 
-        ss.str("");ss << "/particles/species_" << species_number << "/x/cycle_" << lastcycle;
+        ss.str(""); ss << "/particles/species_" << species_number << "/x/cycle_" << lastcycle;
         dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
         datatype = H5Dget_type(dataset_id);
         size = H5Tget_size(datatype);
@@ -1176,12 +1394,10 @@ void Collective::read_particles_restart(const VCtopology3D* vct, int species_num
         status_n = H5Sget_simple_extent_dims(dataspace, dims_out, NULL);
 
         // get how many particles there are on this processor for this species
-        // status_n = H5Sget_simple_extent_dims(dataspace, dims_out, NULL);
         const int nop = dims_out[0]; // number of particles in this process
-        //Particles3Dcomm::resize_SoA(nop);
         {
             // allocate space for particles including padding
-            const int padded_nop = roundup_to_multiple(nop,DVECWIDTH);
+            const int padded_nop = roundup_to_multiple(nop, DVECWIDTH);
             u.reserve(padded_nop);
             v.reserve(padded_nop);
             w.reserve(padded_nop);
@@ -1207,37 +1423,37 @@ void Collective::read_particles_restart(const VCtopology3D* vct, int species_num
         status = H5Dclose(dataset_id);
 
         //* get y
-        ss.str("");ss << "/particles/species_" << species_number << "/y/cycle_" << lastcycle;
+        ss.str(""); ss << "/particles/species_" << species_number << "/y/cycle_" << lastcycle;
         dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
         status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &y[0]);
         status = H5Dclose(dataset_id);
 
         //* get z
-        ss.str("");ss << "/particles/species_" << species_number << "/z/cycle_" << lastcycle;
+        ss.str(""); ss << "/particles/species_" << species_number << "/z/cycle_" << lastcycle;
         dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
         status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &z[0]);
         status = H5Dclose(dataset_id);
 
         //* get u
-        ss.str("");ss << "/particles/species_" << species_number << "/u/cycle_" << lastcycle;
+        ss.str(""); ss << "/particles/species_" << species_number << "/u/cycle_" << lastcycle;
         dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
         status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &u[0]);
         status = H5Dclose(dataset_id);
 
         //* get v
-        ss.str("");ss << "/particles/species_" << species_number << "/v/cycle_" << lastcycle;
+        ss.str(""); ss << "/particles/species_" << species_number << "/v/cycle_" << lastcycle;
         dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
         status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &v[0]);
         status = H5Dclose(dataset_id);
 
         //* get w
-        ss.str("");ss << "/particles/species_" << species_number << "/w/cycle_" << lastcycle;
+        ss.str(""); ss << "/particles/species_" << species_number << "/w/cycle_" << lastcycle;
         dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
         status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &w[0]);
         status = H5Dclose(dataset_id);
 
         //* get q
-        ss.str("");ss << "/particles/species_" << species_number << "/q/cycle_" << lastcycle;
+        ss.str(""); ss << "/particles/species_" << species_number << "/q/cycle_" << lastcycle;
         dataset_id = H5Dopen2(file_id, ss.str().c_str(), H5P_DEFAULT); // HDF 1.8.8
         status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &q[0]);
         status = H5Dclose(dataset_id);

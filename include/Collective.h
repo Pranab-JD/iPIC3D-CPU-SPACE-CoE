@@ -178,7 +178,6 @@ class Collective
 
     double getVinj()                    const{ return (Vinj); }
     double getGMREStol()                const{ return (GMREStol); }
-    int getLast_cycle()                 const{ return (last_cycle); }
     int getNiterMover()                 const{ return (NiterMover); }
     int getFieldOutputCycle()           const{ return (FieldOutputCycle); }
     int getParticlesOutputCycle()       const{ return (ParticlesOutputCycle); }
@@ -187,6 +186,8 @@ class Collective
     int getDiagnosticsOutputCycle()     const{ return (DiagnosticsOutputCycle); }
     int getParticlesDownsampleOutputCycle()    const{ return (ParticlesDownsampleOutputCycle); }
     int getParticlesDownsampleFactor()  const{ return (ParticlesDownsampleFactor); }
+    int read_last_cycle_from_restart()  const;
+    int getLast_cycle()                 const{ return read_last_cycle_from_restart(); }
     
     bool getCallFinalize()              const{ return (CallFinalize); }
     bool particle_output_is_off()       const;
@@ -225,6 +226,8 @@ class Collective
     /*! Boundary condition selection for BCFace for the magnetic field components */
     int bcBx[6], bcBy[6], bcBz[6];
     string getParaviewScriptPath()      const { return ParaviewScriptPath; }
+
+    
 
   private:
     /*! inputfile */

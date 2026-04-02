@@ -41,6 +41,7 @@ developers: D. Burgess, June/July 2006
 #include "VCtopology3D.h"
 #include "MPIdata.h"
 #include "ipicdefs.h"
+#include "hdf5.h"
 
 using std::string;
 using std::stringstream;
@@ -356,6 +357,11 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         _part.push_back(part);
     }
 
+    void delete_if_exists(hid_t file_id, const std::string& path)
+    {
+        H5Ldelete(file_id, path.c_str(), H5P_DEFAULT);
+    }
+
     void write_single_node(const std::string& path, const double* d_array) 
     {
         const int nx = _grid->getNXN() - 2;
@@ -430,10 +436,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         else
             std::cout << "Total mismatches: " << error_count << "\n";
     }
-
-    //  void set_simulation_pointers_testpart(Particles * part) {
-    //    _testpart.push_back(part);
-    //  }
 
     //! ============================================================================================================ !//
 
@@ -579,7 +581,6 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 			this->output_adaptor.write("/last_cycle", cycle);
 
 		//! ************************* Fields ************************* !//
-
         //TODO: Atm, writing in single precision involves writing the desired data to an array in double, converting that array to single, and writing this data
         //TODO: This may be further optimised - PJD
 
@@ -590,11 +591,22 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 		//* B field (defined at nodes) is written without ghost cells
         if (contains_tag(tag, "B"))
 		{
+            const PSK::Dimens b_dims(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2);
+            const std::string bx_path = "/fields/Bx/cycle_" + cc.str();
+            const std::string by_path = "/fields/By/cycle_" + cc.str();
+            const std::string bz_path = "/fields/Bz/cycle_" + cc.str();
+            hid_t fid = this->output_adaptor.get_file_id();
+
             if (precision == "DOUBLE")
             {
-                this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx());
-                this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy());
-                this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBz());
+                delete_if_exists(fid, bx_path);
+                this->output_adaptor.write(bx_path, b_dims, _field->getBx());
+
+                delete_if_exists(fid, by_path);
+                this->output_adaptor.write(by_path, b_dims, _field->getBy());
+
+                delete_if_exists(fid, bz_path);
+                this->output_adaptor.write(bz_path, b_dims, _field->getBz());
             }
             else if (precision == "SINGLE")
             {
@@ -604,7 +616,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                             temp_double.set(i, j, k, _field->getBx(i, j, k));
 
                 convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/fields/Bx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                delete_if_exists(fid, bx_path);
+                this->output_adaptor.write(bx_path, b_dims, field_single);
 
                 for (int i = 0; i < _grid->getNXN(); i++)
                     for (int j = 0; j < _grid->getNYN(); j++)
@@ -612,7 +625,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                             temp_double.set(i, j, k, _field->getBy(i, j, k));
                         
                 convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/fields/By/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                delete_if_exists(fid, by_path);
+                this->output_adaptor.write(by_path, b_dims, field_single);
                 
                 for (int i = 0; i < _grid->getNXN(); i++)
                     for (int j = 0; j < _grid->getNYN(); j++)
@@ -620,41 +634,81 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                             temp_double.set(i, j, k, _field->getBz(i, j, k));
                         
                 convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
+                delete_if_exists(fid, bz_path);
                 this->output_adaptor.write("/fields/Bz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
             }
 		}
 
         //* B field (defined at cell centres) is written without ghost cells
         if (contains_tag(tag, "B_c"))
-		{
-            //! B, at cell centres, is always written in DOUBLE precision
-			this->output_adaptor.write("/fields/Bxc/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getBxc());
-			this->output_adaptor.write("/fields/Byc/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getByc());
-			this->output_adaptor.write("/fields/Bzc/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getBzc());
-		}
+        {
+            const PSK::Dimens bc_dims(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2);
+            const std::string bxc_path = "/fields/Bxc/cycle_" + cc.str();
+            const std::string byc_path = "/fields/Byc/cycle_" + cc.str();
+            const std::string bzc_path = "/fields/Bzc/cycle_" + cc.str();
+            hid_t fid = this->output_adaptor.get_file_id();
+
+            delete_if_exists(fid, bxc_path);
+            this->output_adaptor.write(bxc_path, bc_dims, _field->getBxc());
+
+            delete_if_exists(fid, byc_path);
+            this->output_adaptor.write(byc_path, bc_dims, _field->getByc());
+
+            delete_if_exists(fid, bzc_path);
+            this->output_adaptor.write(bzc_path, bc_dims, _field->getBzc());
+        }
 
         if (contains_tag(tag, "divergence"))
-		{
-			this->output_adaptor.write("/moments/rhoc_avg/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getRHOc_avg());
-			this->output_adaptor.write("/moments/div_E_avg/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getDivAverage());
+        {
+            const PSK::Dimens div_dims(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2);
+            const std::string rhoc_path = "/moments/rhoc_avg/cycle_" + cc.str();
+            const std::string dive_path = "/moments/div_E_avg/cycle_" + cc.str();
+            hid_t fid = this->output_adaptor.get_file_id();
+
+            delete_if_exists(fid, rhoc_path);
+            this->output_adaptor.write(rhoc_path, div_dims, _field->getRHOc_avg());
+
+            delete_if_exists(fid, dive_path);
+            this->output_adaptor.write(dive_path, div_dims, _field->getDivAverage());
         }
 
         if (contains_tag(tag, "B_ext"))
         {
-            this->output_adaptor.write("/fields/Bx_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBx_ext());
-            this->output_adaptor.write("/fields/By_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBy_ext());
-            this->output_adaptor.write("/fields/Bz_ext/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getBz_ext());
+            const PSK::Dimens bext_dims(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2);
+            const std::string bxext_path = "/fields/Bx_ext/cycle_" + cc.str();
+            const std::string byext_path = "/fields/By_ext/cycle_" + cc.str();
+            const std::string bzext_path = "/fields/Bz_ext/cycle_" + cc.str();
+            hid_t fid = this->output_adaptor.get_file_id();
+
+            delete_if_exists(fid, bxext_path);
+            this->output_adaptor.write(bxext_path, bext_dims, _field->getBx_ext());
+
+            delete_if_exists(fid, byext_path);
+            this->output_adaptor.write(byext_path, bext_dims, _field->getBy_ext());
+
+            delete_if_exists(fid, bzext_path);
+            this->output_adaptor.write(bzext_path, bext_dims, _field->getBz_ext());
         }
 
     	//* E field (defined at nodes) is written without ghost cells
-		if (contains_tag(tag, "E"))
-		{
+        if (contains_tag(tag, "E"))
+        {
+            const PSK::Dimens e_dims(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2);
+            const std::string ex_path = "/fields/Ex/cycle_" + cc.str();
+            const std::string ey_path = "/fields/Ey/cycle_" + cc.str();
+            const std::string ez_path = "/fields/Ez/cycle_" + cc.str();
+            hid_t fid = this->output_adaptor.get_file_id();
+
             if (precision == "DOUBLE")
             {
-                //* Double precision
-                this->output_adaptor.write("/fields/Ex/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEx());
-                this->output_adaptor.write("/fields/Ey/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEy());
-                this->output_adaptor.write("/fields/Ez/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getEz());
+                delete_if_exists(fid, ex_path);
+                this->output_adaptor.write(ex_path, e_dims, _field->getEx());
+
+                delete_if_exists(fid, ey_path);
+                this->output_adaptor.write(ey_path, e_dims, _field->getEy());
+
+                delete_if_exists(fid, ez_path);
+                this->output_adaptor.write(ez_path, e_dims, _field->getEz());
             }
             else if (precision == "SINGLE")
             {
@@ -664,41 +718,50 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                             temp_double.set(i, j, k, _field->getEx(i, j, k));
 
                 convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/fields/Ex/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                delete_if_exists(fid, ex_path);
+                this->output_adaptor.write(ex_path, e_dims, field_single);
 
                 for (int i = 1; i < _grid->getNXN() - 1; i++)
                     for (int j = 1; j < _grid->getNYN() - 1; j++)
                         for (int k = 1; k < _grid->getNZN() - 1; k++)
                             temp_double.set(i, j, k, _field->getEy(i, j, k));
-                        
+
                 convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/fields/Ey/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                delete_if_exists(fid, ey_path);
+                this->output_adaptor.write(ey_path, e_dims, field_single);
 
                 for (int i = 1; i < _grid->getNXN() - 1; i++)
                     for (int j = 1; j < _grid->getNYN() - 1; j++)
                         for (int k = 1; k < _grid->getNZN() - 1; k++)
                             temp_double.set(i, j, k, _field->getEz(i, j, k));
-                        
+
                 convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/fields/Ez/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                delete_if_exists(fid, ez_path);
+                this->output_adaptor.write(ez_path, e_dims, field_single);
             }
-		}
-
-		//* PHI (defined at cell centres) is written without ghost cells 
-		if (tag.find("phi", 0) != string::npos)
-			this->output_adaptor.write("/potentials/phi/cycle_" + cc.str(), PSK::Dimens(_grid->getNXC() - 2, _grid->getNYC() - 2, _grid->getNZC() - 2), _field->getPHI());
-
+        }
 
 		//! ************************* Moments ************************* !//
 
 		//* J (total current, defined at nodes) is written without ghost cells
-		if (contains_tag(tag, "J"))
-		{
+        if (contains_tag(tag, "J"))
+        {
+            const PSK::Dimens j_dims(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2);
+            const std::string jx_path = "/moments/Jx/cycle_" + cc.str();
+            const std::string jy_path = "/moments/Jy/cycle_" + cc.str();
+            const std::string jz_path = "/moments/Jz/cycle_" + cc.str();
+            hid_t fid = this->output_adaptor.get_file_id();
+
             if (precision == "DOUBLE")
             {
-                this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJx());
-                this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJy());
-                this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getJz());
+                delete_if_exists(fid, jx_path);
+                this->output_adaptor.write(jx_path, j_dims, _field->getJx());
+
+                delete_if_exists(fid, jy_path);
+                this->output_adaptor.write(jy_path, j_dims, _field->getJy());
+
+                delete_if_exists(fid, jz_path);
+                this->output_adaptor.write(jz_path, j_dims, _field->getJz());
             }
             else if (precision == "SINGLE")
             {
@@ -708,39 +771,55 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                             temp_double.set(i, j, k, _field->getJx(i, j, k));
 
                 convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/moments/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                delete_if_exists(fid, jx_path);
+                this->output_adaptor.write(jx_path, j_dims, field_single);
 
                 for (int i = 1; i < _grid->getNXN() - 1; i++)
                     for (int j = 1; j < _grid->getNYN() - 1; j++)
                         for (int k = 1; k < _grid->getNZN() - 1; k++)
                             temp_double.set(i, j, k, _field->getJy(i, j, k));
-                        
+
                 convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/moments/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                delete_if_exists(fid, jy_path);
+                this->output_adaptor.write(jy_path, j_dims, field_single);
 
                 for (int i = 1; i < _grid->getNXN() - 1; i++)
                     for (int j = 1; j < _grid->getNYN() - 1; j++)
                         for (int k = 1; k < _grid->getNZN() - 1; k++)
                             temp_double.set(i, j, k, _field->getJz(i, j, k));
-                        
+
                 convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/moments/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                delete_if_exists(fid, jz_path);
+                this->output_adaptor.write(jz_path, j_dims, field_single);
             }
-		}
+        }
 
 		//* Js (current for each species, defined at nodes) is written without ghost cells
-		if (contains_tag(tag, "J_s"))
-		{
-			for (int is = 0; is < ns; ++is)
-			{
-				stringstream ii;
-				ii << is;
+        if (contains_tag(tag, "J_s"))
+        {
+            //* rhos (charge density for each species, defined at nodes) is written without ghost cells
+            const PSK::Dimens js_dims(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2);
+            hid_t fid = this->output_adaptor.get_file_id();
+
+            for (int is = 0; is < ns; ++is)
+            {
+                stringstream ii;
+                ii << is;
+
+                const std::string jxs_path = "/moments/species_" + ii.str() + "/Jx/cycle_" + cc.str();
+                const std::string jys_path = "/moments/species_" + ii.str() + "/Jy/cycle_" + cc.str();
+                const std::string jzs_path = "/moments/species_" + ii.str() + "/Jz/cycle_" + cc.str();
 
                 if (precision == "DOUBLE")
                 {
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getJxs());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getJys());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getJzs());
+                    delete_if_exists(fid, jxs_path);
+                    this->output_adaptor.write(jxs_path, js_dims, is, _field->getJxs());
+
+                    delete_if_exists(fid, jys_path);
+                    this->output_adaptor.write(jys_path, js_dims, is, _field->getJys());
+
+                    delete_if_exists(fid, jzs_path);
+                    this->output_adaptor.write(jzs_path, js_dims, is, _field->getJzs());
                 }
                 else if (precision == "SINGLE")
                 {
@@ -750,7 +829,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getJxs(i, j, k, is));
 
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, jxs_path);
+                    this->output_adaptor.write(jxs_path, js_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -758,7 +838,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getJys(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, jys_path);
+                    this->output_adaptor.write(jys_path, js_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -766,22 +847,30 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getJzs(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Jz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, jzs_path);
+                    this->output_adaptor.write(jzs_path, js_dims, field_single);
                 }
-			}
-		}
+            }
+        }
 
-		//* rhos (charge density for each species, defined at nodes) is written without ghost cells
-		if (contains_tag(tag, "rho_s"))
+        //* rhos (charge density for each species, defined at nodes) is written without ghost cells
+        if (contains_tag(tag, "rho_s"))
         {
-			for (int is = 0; is < ns; ++is)
-			{
-				stringstream ii;
-				ii << is;
+            const PSK::Dimens rhos_dims(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2);
+            hid_t fid = this->output_adaptor.get_file_id();
+
+            for (int is = 0; is < ns; ++is)
+            {
+                stringstream ii;
+                ii << is;
+
+                const std::string rho_path = "/moments/species_" + ii.str() + "/rho/cycle_" + cc.str();
 
                 if (precision == "DOUBLE")
-				    this->output_adaptor.write("/moments/species_" + ii.str() + "/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getRHOns());
-                
+                {
+                    delete_if_exists(fid, rho_path);
+                    this->output_adaptor.write(rho_path, rhos_dims, is, _field->getRHOns());
+                }
                 else if (precision == "SINGLE")
                 {
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
@@ -790,17 +879,24 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getRHOns(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, rho_path);
+                    this->output_adaptor.write(rho_path, rhos_dims, field_single);
                 }
-			}
+            }
         }
 
         //* rhos (overall charge density) is written without ghost cells
         if (contains_tag(tag, "rho"))
         {
-            if (precision == "DOUBLE")
-                this->output_adaptor.write("/moments/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), _field->getRHOn());
+            const PSK::Dimens rho_dims(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2);
+            const std::string rho_path = "/moments/rho/cycle_" + cc.str();
+            hid_t fid = this->output_adaptor.get_file_id();
 
+            if (precision == "DOUBLE")
+            {
+                delete_if_exists(fid, rho_path);
+                this->output_adaptor.write(rho_path, rho_dims, _field->getRHOn());
+            }
             else if (precision == "SINGLE")
             {
                 for (int i = 1; i < _grid->getNXN() - 1; i++)
@@ -809,26 +905,48 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                             temp_double.set(i, j, k, _field->getRHOn(i, j, k));
                         
                 convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                this->output_adaptor.write("/moments/rho/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                delete_if_exists(fid, rho_path);
+                this->output_adaptor.write(rho_path, rho_dims, field_single);
             }
         }
 
 		//* Pressure tensor (for each species, defined at nodes) is written without ghost cells
 		if (contains_tag(tag, "pressure"))
-		{
-			for (int is = 0; is < ns; ++is) 
-			{
-				stringstream ii;
-				ii << is;
+        {
+            const PSK::Dimens p_dims(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2);
+            hid_t fid = this->output_adaptor.get_file_id();
+
+            for (int is = 0; is < ns; ++is) 
+            {
+                stringstream ii;
+                ii << is;
+
+                const std::string pxx_path = "/moments/species_" + ii.str() + "/pXX/cycle_" + cc.str();
+                const std::string pxy_path = "/moments/species_" + ii.str() + "/pXY/cycle_" + cc.str();
+                const std::string pxz_path = "/moments/species_" + ii.str() + "/pXZ/cycle_" + cc.str();
+                const std::string pyy_path = "/moments/species_" + ii.str() + "/pYY/cycle_" + cc.str();
+                const std::string pyz_path = "/moments/species_" + ii.str() + "/pYZ/cycle_" + cc.str();
+                const std::string pzz_path = "/moments/species_" + ii.str() + "/pZZ/cycle_" + cc.str();
 
                 if (precision == "DOUBLE")
                 {
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXX/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getpXXsn());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXY/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getpXYsn());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getpXZsn());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pYY/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getpYYsn());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pYZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getpYZsn());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pZZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getpZZsn());
+                    delete_if_exists(fid, pxx_path);
+                    this->output_adaptor.write(pxx_path, p_dims, is, _field->getpXXsn());
+
+                    delete_if_exists(fid, pxy_path);
+                    this->output_adaptor.write(pxy_path, p_dims, is, _field->getpXYsn());
+
+                    delete_if_exists(fid, pxz_path);
+                    this->output_adaptor.write(pxz_path, p_dims, is, _field->getpXZsn());
+
+                    delete_if_exists(fid, pyy_path);
+                    this->output_adaptor.write(pyy_path, p_dims, is, _field->getpYYsn());
+
+                    delete_if_exists(fid, pyz_path);
+                    this->output_adaptor.write(pyz_path, p_dims, is, _field->getpYZsn());
+
+                    delete_if_exists(fid, pzz_path);
+                    this->output_adaptor.write(pzz_path, p_dims, is, _field->getpZZsn());
                 }
                 else if (precision == "SINGLE")
                 {
@@ -838,7 +956,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getpXXsn(i, j, k, is));
 
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXX/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, pxx_path);
+                    this->output_adaptor.write(pxx_path, p_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -846,7 +965,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getpXYsn(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXY/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, pxy_path);
+                    this->output_adaptor.write(pxy_path, p_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -854,7 +974,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getpXZsn(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pXZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, pxz_path);
+                    this->output_adaptor.write(pxz_path, p_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -862,7 +983,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getpYYsn(i, j, k, is));
 
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pYY/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, pyy_path);
+                    this->output_adaptor.write(pyy_path, p_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -870,7 +992,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getpYZsn(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pYZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, pyz_path);
+                    this->output_adaptor.write(pyz_path, p_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -878,24 +1001,37 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getpZZsn(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/pZZ/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, pzz_path);
+                    this->output_adaptor.write(pzz_path, p_dims, field_single);
                 }
-			}
-		}
+            }
+        }
 
         //* Energy flux density (for each species, defined at nodes) is written without ghost cells
-		if (contains_tag(tag, "E_flux"))
-		{
-			for (int is = 0; is < ns; ++is) 
-			{
-				stringstream ii;
-				ii << is;
+        if (contains_tag(tag, "E_flux"))
+        {
+            const PSK::Dimens ef_dims(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2);
+            hid_t fid = this->output_adaptor.get_file_id();
+
+            for (int is = 0; is < ns; ++is) 
+            {
+                stringstream ii;
+                ii << is;
+
+                const std::string efx_path = "/moments/species_" + ii.str() + "/EFx/cycle_" + cc.str();
+                const std::string efy_path = "/moments/species_" + ii.str() + "/EFy/cycle_" + cc.str();
+                const std::string efz_path = "/moments/species_" + ii.str() + "/EFz/cycle_" + cc.str();
 
                 if (precision == "DOUBLE")
                 {
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getEFxs());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getEFys());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getEFzs());
+                    delete_if_exists(fid, efx_path);
+                    this->output_adaptor.write(efx_path, ef_dims, is, _field->getEFxs());
+
+                    delete_if_exists(fid, efy_path);
+                    this->output_adaptor.write(efy_path, ef_dims, is, _field->getEFys());
+
+                    delete_if_exists(fid, efz_path);
+                    this->output_adaptor.write(efz_path, ef_dims, is, _field->getEFzs());
                 }
                 else if (precision == "SINGLE")
                 {
@@ -905,7 +1041,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getEFxs(i, j, k, is));
 
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, efx_path);
+                    this->output_adaptor.write(efx_path, ef_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -913,7 +1050,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getEFys(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, efy_path);
+                    this->output_adaptor.write(efy_path, ef_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -921,32 +1059,65 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getEFzs(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/EFz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, efz_path);
+                    this->output_adaptor.write(efz_path, ef_dims, field_single);
                 }
             }
         }
 
         //* Heat flux tensor (for each species, defined at nodes) is written without ghost cells
-		if (contains_tag(tag, "H_flux"))
-		{
-			for (int is = 0; is < ns; ++is) 
-			{
-				stringstream ii;
-				ii << is;
+        if (contains_tag(tag, "H_flux"))
+        {
+            const PSK::Dimens q_dims(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2);
+            hid_t fid = this->output_adaptor.get_file_id();
+
+            for (int is = 0; is < ns; ++is) 
+            {
+                stringstream ii;
+                ii << is;
+
+                const std::string qxxx_path = "/moments/species_" + ii.str() + "/Qxxx/cycle_" + cc.str();
+                const std::string qxxy_path = "/moments/species_" + ii.str() + "/Qxxy/cycle_" + cc.str();
+                const std::string qxyy_path = "/moments/species_" + ii.str() + "/Qxyy/cycle_" + cc.str();
+                const std::string qxzz_path = "/moments/species_" + ii.str() + "/Qxzz/cycle_" + cc.str();
+                const std::string qyyy_path = "/moments/species_" + ii.str() + "/Qyyy/cycle_" + cc.str();
+                const std::string qyzz_path = "/moments/species_" + ii.str() + "/Qyzz/cycle_" + cc.str();
+                const std::string qzzz_path = "/moments/species_" + ii.str() + "/Qzzz/cycle_" + cc.str();
+                const std::string qxyz_path = "/moments/species_" + ii.str() + "/Qxyz/cycle_" + cc.str();
+                const std::string qxxz_path = "/moments/species_" + ii.str() + "/Qxxz/cycle_" + cc.str();
+                const std::string qyyz_path = "/moments/species_" + ii.str() + "/Qyyz/cycle_" + cc.str();
 
                 if (precision == "DOUBLE")
                 {
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxxx/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getQxxxs());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxxy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getQxxys());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxyy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getQxyys());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxzz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getQxzzs());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qyyy/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getQyyys());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qyzz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getQyzzs());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qzzz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getQzzzs());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxyz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getQxyzs());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxxz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getQxxzs());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qyyz/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), is, _field->getQyyzs());
-            
+                    delete_if_exists(fid, qxxx_path);
+                    this->output_adaptor.write(qxxx_path, q_dims, is, _field->getQxxxs());
+
+                    delete_if_exists(fid, qxxy_path);
+                    this->output_adaptor.write(qxxy_path, q_dims, is, _field->getQxxys());
+
+                    delete_if_exists(fid, qxyy_path);
+                    this->output_adaptor.write(qxyy_path, q_dims, is, _field->getQxyys());
+
+                    delete_if_exists(fid, qxzz_path);
+                    this->output_adaptor.write(qxzz_path, q_dims, is, _field->getQxzzs());
+
+                    delete_if_exists(fid, qyyy_path);
+                    this->output_adaptor.write(qyyy_path, q_dims, is, _field->getQyyys());
+
+                    delete_if_exists(fid, qyzz_path);
+                    this->output_adaptor.write(qyzz_path, q_dims, is, _field->getQyzzs());
+
+                    delete_if_exists(fid, qzzz_path);
+                    this->output_adaptor.write(qzzz_path, q_dims, is, _field->getQzzzs());
+
+                    delete_if_exists(fid, qxyz_path);
+                    this->output_adaptor.write(qxyz_path, q_dims, is, _field->getQxyzs());
+
+                    delete_if_exists(fid, qxxz_path);
+                    this->output_adaptor.write(qxxz_path, q_dims, is, _field->getQxxzs());
+
+                    delete_if_exists(fid, qyyz_path);
+                    this->output_adaptor.write(qyyz_path, q_dims, is, _field->getQyyzs());
                 }
                 else if (precision == "SINGLE")
                 {
@@ -956,7 +1127,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getQxxxs(i, j, k, is));
 
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxxxs/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, qxxx_path);
+                    this->output_adaptor.write(qxxx_path, q_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -964,7 +1136,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getQxxys(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxxys/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, qxxy_path);
+                    this->output_adaptor.write(qxxy_path, q_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -972,7 +1145,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getQxyys(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxyys/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, qxyy_path);
+                    this->output_adaptor.write(qxyy_path, q_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -980,7 +1154,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getQxzzs(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxzzs/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, qxzz_path);
+                    this->output_adaptor.write(qxzz_path, q_dims, field_single);
                                     
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -988,7 +1163,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getQyyys(i, j, k, is));
 
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qyyys/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, qyyy_path);
+                    this->output_adaptor.write(qyyy_path, q_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -996,7 +1172,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getQyzzs(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qyzzs/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, qyzz_path);
+                    this->output_adaptor.write(qyzz_path, q_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -1004,7 +1181,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getQzzzs(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qzzzs/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, qzzz_path);
+                    this->output_adaptor.write(qzzz_path, q_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -1012,7 +1190,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getQxyzs(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxyzs/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, qxyz_path);
+                    this->output_adaptor.write(qxyz_path, q_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -1020,7 +1199,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getQxxzs(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qxxzs/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, qxxz_path);
+                    this->output_adaptor.write(qxxz_path, q_dims, field_single);
 
                     for (int i = 1; i < _grid->getNXN() - 1; i++)
                         for (int j = 1; j < _grid->getNYN() - 1; j++)
@@ -1028,64 +1208,13 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                                 temp_double.set(i, j, k, _field->getQyyzs(i, j, k, is));
                             
                     convert_to_single_precision(temp_double, field_single, _grid->getNXN(), _grid->getNYN(), _grid->getNZN());
-                    this->output_adaptor.write("/moments/species_" + ii.str() + "/Qyyzs/cycle_" + cc.str(), PSK::Dimens(_grid->getNXN() - 2, _grid->getNYN() - 2, _grid->getNZN() - 2), field_single);
+                    delete_if_exists(fid, qyyz_path);
+                    this->output_adaptor.write(qyyz_path, q_dims, field_single);
                 }
             }
-		}
-
-        //! ************************* Energies ************************* !//
-
-		//* Kinetic energy for species s (normalized to q)
-		if (tag.find("K_energy", 0) != string::npos) 
-		{
-			double K_en;
-			for (int i = 0; i < ns; ++i) 
-			{
-				K_en = 0;
-				stringstream ii;
-				ii << i;
-				double qom = fabs(_col->getQOM(i));
-				
-				for (int n = 0; n < _part[i]->getNOP(); n++) 
-				{
-					K_en += fabs(_part[i]->getQ(n)) * _part[i]->getU(n) * _part[i]->getU(n);
-					K_en += fabs(_part[i]->getQ(n)) * _part[i]->getV(n) * _part[i]->getV(n);
-					K_en += fabs(_part[i]->getQ(n)) * _part[i]->getW(n) * _part[i]->getW(n);
-				}
-				K_en *= 0.5 / qom;
-				
-				this->output_adaptor.write("/energy/kinetic/species_" + ii.str() + "/cycle_" + cc.str(), K_en);
-			}
-		}
-
-		//* Magnetic field energy (nodes) is computed without ghost cells
-		if (tag.find("B_energy", 0) != string::npos) 
-		{
-			double B_en = 0.0;
-			for (int i = 1; i < _grid->getNXN(); i++)
-				for (int j = 1; j < _grid->getNYN(); j++)
-					for (int k = 1; k < _grid->getNYN(); k++)
-						B_en += _field->getBx(i, j, k) * _field->getBx(i, j, k) + _field->getBy(i, j, k) * _field->getBy(i, j, k) + _field->getBz(i, j, k) * _field->getBz(i, j, k);
-			B_en = B_en / 32 / atan(1.0); //! here there should be a getfourPI for the right value of pi 
-			
-			this->output_adaptor.write("/energy/magnetic/cycle_" + cc.str(), B_en);
-		}
-
-		//* Electric field energy (nodes) is computed without ghost cells
-		if (tag.find("E_energy", 0) != string::npos) 
-		{
-            double E_en = 0.0;
-            for (int i = 1; i < _grid->getNXN(); i++)
-                for (int j = 1; j < _grid->getNYN(); j++)
-                    for (int k = 1; k < _grid->getNYN(); k++)
-                        E_en += _field->getEx(i, j, k) * _field->getEx(i, j, k) + _field->getEy(i, j, k) * _field->getEy(i, j, k) + _field->getEz(i, j, k) * _field->getEz(i, j, k);
-            E_en = E_en / 32 / atan(1.0); //! here there should be a getfourPI for the right value of pi 
-            
-            this->output_adaptor.write("/energy/electric/cycle_" + cc.str(), E_en);
-		}
+        }
     }
 
-  	//! ============================================================================================================ !//
 
     //! ************************* Particles ************************* !//
 
@@ -1098,6 +1227,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
 
         //* Temporary arrays to store particle data in single & double precision, respectively
         std::vector<float> particle_single; const double* particle_double = nullptr;      
+        hid_t fid = this->output_adaptor.get_file_id();
 
         if (contains_tag(tag, "position"))
         {
@@ -1108,11 +1238,20 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 stringstream ii;
                 ii << is;
 
+                const std::string x_path = "/particles/species_" + ii.str() + "/x/cycle_" + cc.str();
+                const std::string y_path = "/particles/species_" + ii.str() + "/y/cycle_" + cc.str();
+                const std::string z_path = "/particles/species_" + ii.str() + "/z/cycle_" + cc.str();
+
                 if (precision == "DOUBLE")
                 {
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getXall());
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getYall());
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getZall());
+                    delete_if_exists(fid, x_path);
+                    this->output_adaptor.write(x_path, PSK::Dimens(nop), _part[is]->getXall());
+
+                    delete_if_exists(fid, y_path);
+                    this->output_adaptor.write(y_path, PSK::Dimens(nop), _part[is]->getYall());
+
+                    delete_if_exists(fid, z_path);
+                    this->output_adaptor.write(z_path, PSK::Dimens(nop), _part[is]->getZall());
                 }
                 else if (precision == "SINGLE")
                 {
@@ -1122,19 +1261,22 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                     for (int i = 0; i < nop; i++)
                         particle_single[i] = static_cast<float>(particle_double[i]);
 
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+                    delete_if_exists(fid, x_path);
+                    this->output_adaptor.write(x_path, PSK::Dimens(nop), particle_single);
 
                     particle_double = _part[is]->getYall();
                     for (int i = 0; i < nop; i++)
                         particle_single[i] = static_cast<float>(particle_double[i]);
 
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+                    delete_if_exists(fid, y_path);
+                    this->output_adaptor.write(y_path, PSK::Dimens(nop), particle_single);
 
                     particle_double = _part[is]->getZall();
                     for (int i = 0; i < nop; i++)
                         particle_single[i] = static_cast<float>(particle_double[i]);
 
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+                    delete_if_exists(fid, z_path);
+                    this->output_adaptor.write(z_path, PSK::Dimens(nop), particle_single);
                 }
             }
         }
@@ -1147,11 +1289,20 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 stringstream ii;
                 ii << is;
 
+                const std::string u_path = "/particles/species_" + ii.str() + "/u/cycle_" + cc.str();
+                const std::string v_path = "/particles/species_" + ii.str() + "/v/cycle_" + cc.str();
+                const std::string w_path = "/particles/species_" + ii.str() + "/w/cycle_" + cc.str();
+
                 if (precision == "DOUBLE")
                 {
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getUall());
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getVall());
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getWall());
+                    delete_if_exists(fid, u_path);
+                    this->output_adaptor.write(u_path, PSK::Dimens(nop), _part[is]->getUall());
+
+                    delete_if_exists(fid, v_path);
+                    this->output_adaptor.write(v_path, PSK::Dimens(nop), _part[is]->getVall());
+
+                    delete_if_exists(fid, w_path);
+                    this->output_adaptor.write(w_path, PSK::Dimens(nop), _part[is]->getWall());
                 }
                 else if (precision == "SINGLE")
                 {
@@ -1161,19 +1312,22 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                     for (int i = 0; i < nop; i++)
                         particle_single[i] = static_cast<float>(particle_double[i]);
 
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+                    delete_if_exists(fid, u_path);
+                    this->output_adaptor.write(u_path, PSK::Dimens(nop), particle_single);
 
                     particle_double = _part[is]->getVall();
                     for (int i = 0; i < nop; i++)
                         particle_single[i] = static_cast<float>(particle_double[i]);
 
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+                    delete_if_exists(fid, v_path);
+                    this->output_adaptor.write(v_path, PSK::Dimens(nop), particle_single);
 
                     particle_double = _part[is]->getWall();
                     for (int i = 0; i < nop; i++)
                         particle_single[i] = static_cast<float>(particle_double[i]);
 
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+                    delete_if_exists(fid, w_path);
+                    this->output_adaptor.write(w_path, PSK::Dimens(nop), particle_single);
                 }
             }
         }
@@ -1186,9 +1340,13 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 stringstream ii;
                 ii << is;
 
+                const std::string q_path = "/particles/species_" + ii.str() + "/q/cycle_" + cc.str();
+
                 if (precision == "DOUBLE")
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getQall());
-                
+                {
+                    delete_if_exists(fid, q_path);
+                    this->output_adaptor.write(q_path, PSK::Dimens(nop), _part[is]->getQall());
+                }
                 else if (precision == "SINGLE")
                 {
                     particle_single.resize(nop);
@@ -1197,7 +1355,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                     for (int i = 0; i < nop; i++)
                         particle_single[i] = static_cast<float>(particle_double[i]);
 
-                    this->output_adaptor.write("/particles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(nop), particle_single);
+                    delete_if_exists(fid, q_path);
+                    this->output_adaptor.write(q_path, PSK::Dimens(nop), particle_single);
                 }
             }
         }
@@ -1209,59 +1368,15 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 long long nop = _part[is]->getNOP();
                 stringstream ii;
                 ii << is;
-                this->output_adaptor.write("/particles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(nop), _part[is]->getParticleIDall());
-            }
-        }
+                const std::string id_path = "/particles/species_" + ii.str() + "/ID/cycle_" + cc.str();
 
-        //! ************************* Test Particles ************************* !//
-
-        if (tag.find("testpartpos", 0) != string::npos) 
-        {
-            for (int i = 0; i < nstestpart; ++i) 
-            {
-                stringstream ii;
-                ii << (_part[i+ns]->get_species_num());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getXall());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getYall());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getZall());
-            }
-        }
-
-        if (tag.find("testpartvel", 0) != string::npos) 
-        {
-            for (int i = 0; i < nstestpart; ++i) 
-            {
-                stringstream ii;
-                ii << (_part[i+ns]->get_species_num());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getUall());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getVall());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getWall());
-            }
-        }
-
-        if (tag.find("testpartcharge", 0) != string::npos) 
-        {
-            for (int i = 0; i < nstestpart; ++i)
-            {
-                stringstream ii;
-                ii <<  (_part[i+ns]->get_species_num());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getQall());
-            }
-        }
-
-        if (tag.find("testparttag", 0) != string::npos) 
-        {
-            for (int i = 0; i < nstestpart; ++i) 
-            {
-                stringstream ii;
-                ii <<  (_part[i+ns]->get_species_num());
-                this->output_adaptor.write("/testparticles/species_" + ii.str() + "/ID/cycle_" + cc.str(), PSK::Dimens(_part[i+ns]->getNOP()), _part[i+ns]->getParticleIDall());
+                delete_if_exists(fid, id_path);
+                this->output_adaptor.write(id_path, PSK::Dimens(nop), _part[is]->getParticleIDall());
             }
         }
     }
 
-    //! ============================================================================================================ !//
-
+    
     //! ************************* Downsampled Particles ************************* !//
 
     void output_particles_DS(const string & tag, int cycle, int sample, string precision) 
@@ -1274,6 +1389,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
         stringstream cc;
         cc << cycle;
         const int ns = _col->getNs();
+        hid_t fid = this->output_adaptor.get_file_id();
 
         if (contains_tag(tag, "position_DS"))
         {
@@ -1283,6 +1399,9 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 stringstream ii;
                 ii << is;
                 const int num_samples = nop/sample;
+                const std::string x_path = "/particles_DS/species_" + ii.str() + "/x/cycle_" + cc.str();
+                const std::string y_path = "/particles_DS/species_" + ii.str() + "/y/cycle_" + cc.str();
+                const std::string z_path = "/particles_DS/species_" + ii.str() + "/z/cycle_" + cc.str();
 
                 if (precision == "DOUBLE")
                 {
@@ -1297,9 +1416,14 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                         Z.push_back(_part[is]->getZ(n));
                     }
 
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(X.size()), X);
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(Y.size()), Y);
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(Z.size()), Z);
+                    delete_if_exists(fid, x_path);
+                    this->output_adaptor.write(x_path, PSK::Dimens(X.size()), X);
+
+                    delete_if_exists(fid, y_path);
+                    this->output_adaptor.write(y_path, PSK::Dimens(Y.size()), Y);
+
+                    delete_if_exists(fid, z_path);
+                    this->output_adaptor.write(z_path, PSK::Dimens(Z.size()), Z);
                 }
                 else if (precision == "SINGLE")
                 {
@@ -1314,9 +1438,14 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                         Z_single.push_back(_part[is]->getZ(n));
                     }
 
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/x/cycle_" + cc.str(), PSK::Dimens(X_single.size()), X_single);
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/y/cycle_" + cc.str(), PSK::Dimens(Y_single.size()), Y_single);
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/z/cycle_" + cc.str(), PSK::Dimens(Z_single.size()), Z_single);
+                    delete_if_exists(fid, x_path);
+                    this->output_adaptor.write(x_path, PSK::Dimens(X_single.size()), X_single);
+
+                    delete_if_exists(fid, y_path);
+                    this->output_adaptor.write(y_path, PSK::Dimens(Y_single.size()), Y_single);
+
+                    delete_if_exists(fid, z_path);
+                    this->output_adaptor.write(z_path, PSK::Dimens(Z_single.size()), Z_single);
                 }
             }
         }
@@ -1329,6 +1458,9 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 stringstream ii;
                 ii << is;
                 const int num_samples = nop/sample;
+                const std::string u_path = "/particles_DS/species_" + ii.str() + "/u/cycle_" + cc.str();
+                const std::string v_path = "/particles_DS/species_" + ii.str() + "/v/cycle_" + cc.str();
+                const std::string w_path = "/particles_DS/species_" + ii.str() + "/w/cycle_" + cc.str();
 
                 if (precision == "DOUBLE")
                 {
@@ -1343,9 +1475,14 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                         W.push_back(_part[is]->getW(n));
                     }
                     
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(U.size()), U);
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(V.size()), V);
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(W.size()), W);
+                    delete_if_exists(fid, u_path);
+                    this->output_adaptor.write(u_path, PSK::Dimens(U.size()), U);
+
+                    delete_if_exists(fid, v_path);
+                    this->output_adaptor.write(v_path, PSK::Dimens(V.size()), V);
+
+                    delete_if_exists(fid, w_path);
+                    this->output_adaptor.write(w_path, PSK::Dimens(W.size()), W);
                 }
                 else if (precision == "SINGLE")
                 {
@@ -1360,9 +1497,14 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                         W_single.push_back(_part[is]->getW(n));
                     }
                     
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/u/cycle_" + cc.str(), PSK::Dimens(U_single.size()), U_single);
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/v/cycle_" + cc.str(), PSK::Dimens(V_single.size()), V_single);
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/w/cycle_" + cc.str(), PSK::Dimens(W_single.size()), W_single);
+                    delete_if_exists(fid, u_path);
+                    this->output_adaptor.write(u_path, PSK::Dimens(U_single.size()), U_single);
+
+                    delete_if_exists(fid, v_path);
+                    this->output_adaptor.write(v_path, PSK::Dimens(V_single.size()), V_single);
+
+                    delete_if_exists(fid, w_path);
+                    this->output_adaptor.write(w_path, PSK::Dimens(W_single.size()), W_single);
                 }
             }
         }
@@ -1375,6 +1517,7 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                 stringstream ii;
                 ii << is;
                 const int num_samples = nop/sample;
+                const std::string q_path = "/particles_DS/species_" + ii.str() + "/q/cycle_" + cc.str();
 
                 if (precision == "DOUBLE")
                 {
@@ -1383,7 +1526,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                     for (int n = 0; n < nop; n += sample)
                         Q.push_back(_part[is]->getQ(n));
                     
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(Q.size()), Q);
+                    delete_if_exists(fid, q_path);
+                    this->output_adaptor.write(q_path, PSK::Dimens(Q.size()), Q);
                 }
                 else if (precision == "SINGLE")
                 {
@@ -1392,7 +1536,8 @@ template < class Toa > class myOutputAgent:public PSK::OutputAgent < Toa >
                     for (int n = 0; n < nop; n += sample)
                         Q_single.push_back(static_cast<float>(_part[is]->getQ(n)));
                     
-                    this->output_adaptor.write("/particles_DS/species_" + ii.str() + "/q/cycle_" + cc.str(), PSK::Dimens(Q_single.size()), Q_single);
+                    delete_if_exists(fid, q_path);
+                    this->output_adaptor.write(q_path, PSK::Dimens(Q_single.size()), Q_single);
                 }
             }
         }

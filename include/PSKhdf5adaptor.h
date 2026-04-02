@@ -44,6 +44,7 @@ namespace PSK
 
     public:
         HDF5OutputAdaptor(void) {}
+        hid_t get_file_id() const { return _hdf5_file_id; }
         void open(const std::string & name);
         void open_append(const std::string & name);
         void close(void);
