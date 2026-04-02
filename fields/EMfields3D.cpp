@@ -3838,21 +3838,6 @@ void EMfields3D::init()
             
             col->read_field_restart(vct, grid, Bxn, Byn, Bzn, Bxc, Byc, Bzc, Ex, Ey, Ez, rhoc_avg, divE_average, ns);
 
-            //* Communicate ghost data for rho on nodes
-            // for (int is = 0; is < ns; is++) 
-            // {
-            //     double ***moment0 = convert_to_arr3(rhons[is]);
-            //     communicateNode_P(nxn, nyn, nzn, moment0, vct, this);
-            // }
-
-            if (col->getCase()=="Dipole") 
-                ConstantChargePlanet(col->getL_square(),col->getx_center(),col->gety_center(),col->getz_center());
-            else if (col->getCase()=="Dipole2D") 
-                ConstantChargePlanet2DPlaneXZ(col->getL_square(),col->getx_center(),col->getz_center());
-            // I am not sure what this open BC does, but perhaps it is responsible for energy losses in the restart? Jan 2017, Slavik.
-            else if ((col->getCase().find("TaylorGreen") != std::string::npos) && (col->getCase() != "NullPoints"))
-                ConstantChargeOpenBC();
-
             //* Communicate ghost data for B at cell centres
             communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct,this);
             communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct,this);
@@ -3860,10 +3845,6 @@ void EMfields3D::init()
 
             //* Communicate ghost data for rhoc_avg at cell centres
             communicateCenterBC(nxc, nyc, nzc, rhoc_avg, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct,this);
-
-            // grid->interpC2N(Bxn, Bxc);
-            // grid->interpC2N(Byn, Byc);
-            // grid->interpC2N(Bzn, Bzc);
 
             //* Communicate ghost data for B on nodes
             communicateNodeBC_old(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
@@ -3874,10 +3855,6 @@ void EMfields3D::init()
             communicateNodeBC_old(nxn, nyn, nzn, Ex, col->bcEx[0],col->bcEx[1],col->bcEx[2],col->bcEx[3],col->bcEx[4],col->bcEx[5], vct, this);
             communicateNodeBC_old(nxn, nyn, nzn, Ey, col->bcEy[0],col->bcEy[1],col->bcEy[2],col->bcEy[3],col->bcEy[4],col->bcEy[5], vct, this);
             communicateNodeBC_old(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcEz[4],col->bcEz[5], vct, this);
-
-            //* Initialise rho at cell centers
-            // for (int is = 0; is < ns; is++)
-            //     grid->interpN2C(rhocs, is, rhons);
 
             if (vct->getCartesian_rank() == 0)
             {
