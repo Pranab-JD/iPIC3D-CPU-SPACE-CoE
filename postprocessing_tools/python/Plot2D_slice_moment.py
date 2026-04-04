@@ -1,10 +1,11 @@
+#!/usr/bin/env python3
 """
 Created on Tue Feb 17 17:21 2026
-
 @author: Pranab JD, ChatGPT
 
 Description: Assemble & plot a 2D slice of MOMENTS (rho or Jx/Jy/Jz) from per-proc iPIC3D HDF tiles.
-
+             Plots XY (axis=z), XZ (axis=y), YZ (axis=x) with proper axis-dependent physical ticks,
+             matching the fields plotting script style.
 """
 
 import os, glob, argparse, re
@@ -26,42 +27,42 @@ def proc_id_from_filename(fp: str) -> int:
     return int(base.replace("proc", "").replace(".hdf", ""))
 
 def mapping_candidates(XLEN, YLEN, ZLEN):
-    def A(pid):
+    def A(pid):  # id = (i*YLEN + j)*ZLEN + k
         k = pid % ZLEN
         t = pid // ZLEN
         j = t % YLEN
         i = t // YLEN
         return i, j, k
 
-    def B(pid):
+    def B(pid):  # id = (i*ZLEN + k)*YLEN + j
         j = pid % YLEN
         t = pid // YLEN
         k = t % ZLEN
         i = t // ZLEN
         return i, j, k
 
-    def C(pid):
+    def C(pid):  # swap i/j vs A
         k = pid % ZLEN
         t = pid // ZLEN
         i = t % XLEN
         j = t // XLEN
         return i, j, k
 
-    def D(pid):
+    def D(pid):  # id = (k*YLEN + j)*XLEN + i
         i = pid % XLEN
         t = pid // XLEN
         j = t % YLEN
         k = t // YLEN
         return i, j, k
 
-    def E(pid):
+    def E(pid):  # id = (k*XLEN + i)*YLEN + j
         j = pid % YLEN
         t = pid // YLEN
         i = t % XLEN
         k = t // XLEN
         return i, j, k
 
-    def F(pid):
+    def F(pid):  # id = (j*ZLEN + k)*XLEN + i
         i = pid % XLEN
         t = pid // XLEN
         k = t % ZLEN
@@ -92,13 +93,14 @@ def dset_path(species: int, quantity: str, cycle: str) -> str:
     return f"moments/species_{species}/{quantity}/{cycle}"
 
 def cycle_to_number(cycle: str) -> str:
-    # "cycle_19500" -> "19500"
     m = re.search(r"(\d+)$", cycle)
     return m.group(1) if m else cycle
 
 
 # ----------------------------- Args -----------------------------
-parser = argparse.ArgumentParser(description="Plot 2D slice of summed moments (rho/Jx/Jy/Jz) from iPIC3D proc*.hdf tiles")
+parser = argparse.ArgumentParser(
+    description="Plot 2D slice of summed moments (rho/Jx/Jy/Jz) from iPIC3D proc*.hdf tiles"
+)
 
 parser.add_argument("dir_data",   type=str, help="Directory containing proc*.hdf")
 parser.add_argument("time_cycle", type=str, help="Cycle group name, e.g. cycle_19500")
@@ -115,16 +117,23 @@ parser.add_argument("--index", type=int, default=0, help="Global nodal index alo
 parser.add_argument("--species", type=str, default="all",
                     help="Species selection: 'all' or comma list like '0,1,3'")
 
-parser.add_argument("--xmin", type=float, default=None)
-parser.add_argument("--xmax", type=float, default=None)
-parser.add_argument("--xticks", type=int, default=6)
-parser.add_argument("--ymin", type=float, default=None)
-parser.add_argument("--ymax", type=float, default=None)
-parser.add_argument("--yticks", type=int, default=6)
+# Match fields script: all three coordinate ranges available
+parser.add_argument("--xmin", type=float, required=True)
+parser.add_argument("--xmax", type=float, required=True)
+parser.add_argument("--xticks", type=int, required=True)
+
+parser.add_argument("--ymin", type=float, required=True)
+parser.add_argument("--ymax", type=float, required=True)
+parser.add_argument("--yticks", type=int, required=True)
+
+parser.add_argument("--zmin", type=float, default=None)
+parser.add_argument("--zmax", type=float, default=None)
+parser.add_argument("--zticks", type=int, default=None)
 
 parser.add_argument("--cmap", type=str, default="seismic")
 parser.add_argument("--out", type=str, default="", help="Output PNG (default auto)")
 parser.add_argument("--cb_decimals", type=int, default=2, help="Colorbar decimals")
+
 args = parser.parse_args()
 
 dir_data   = args.dir_data
@@ -133,6 +142,10 @@ XLEN, YLEN, ZLEN = args.xlen, args.ylen, args.zlen
 axis = args.axis.lower()
 slice_g = args.index
 quantity = args.quantity
+
+xmin, xmax, nxt = args.xmin, args.xmax, args.xticks
+ymin, ymax, nyt = args.ymin, args.ymax, args.yticks
+zmin, zmax, nzt = args.zmin, args.zmax, args.zticks
 
 
 # ----------------------------- Discover files -----------------------------
@@ -153,12 +166,10 @@ species_avail = None
 
 if local_files:
     with h5py.File(local_files[0], "r") as f:
-        # determine species list from file
         species_avail = discover_species(f)
         if not species_avail:
             raise RuntimeError("No /moments/species_* groups found in file.")
 
-        # choose one species just to probe shape
         s0 = species_avail[0]
         if dset_path(s0, quantity, time_cycle) not in f:
             raise RuntimeError(f"Dataset not found: /{dset_path(s0, quantity, time_cycle)}")
@@ -170,11 +181,8 @@ species_all    = comm.gather(species_avail, root=0)
 
 if rank == 0:
     tile_shape = next(s for s in tile_shape_all if s is not None)
-    # intersect species lists across ranks (should be identical; this is just safe)
     sp_lists = [set(s) for s in species_all if s is not None]
     species_avail = sorted(set.intersection(*sp_lists)) if sp_lists else []
-    print("Detected tile shape:", tile_shape)
-    print("Available species:", species_avail)
 else:
     species_avail = None
 
@@ -206,11 +214,11 @@ if not (0 <= slice_g < global_len):
     raise ValueError(f"slice index {slice_g} out of range for axis {axis} (0..{global_len-1})")
 
 # plane shape in INDEX space
-if axis == "z":
+if axis == "z":      # XY
     plane_shape = (nx_global, ny_global)
-elif axis == "y":
+elif axis == "y":    # XZ
     plane_shape = (nx_global, nz_global)
-else:
+else:                # axis == "x" -> YZ
     plane_shape = (ny_global, nz_global)
 
 
@@ -266,7 +274,6 @@ if rank == 0:
 
     if best_name is None:
         raise RuntimeError("Could not infer proc->(i,j,k) mapping from filenames.")
-    print(f"Selected mapping {best_name} (score={best_stats[0]}, gaps={best_stats[1]}, overlaps={best_stats[2]}, Occ.max={best_stats[3]})")
 
 best_name = comm.bcast(best_name, root=0)
 maps = {n: fn for n, fn in mapping_candidates(XLEN, YLEN, ZLEN)}
@@ -297,42 +304,50 @@ for fp in local_files:
     ny_use = ny_tile - ys
     nz_use = nz_tile - zs
 
-    # does this tile intersect the requested slice?
-    if axis == "z":
-        if not (gz0 <= slice_g < gz0 + nz_use): continue
+    if axis == "z":  # XY
+        if not (gz0 <= slice_g < gz0 + nz_use): 
+            continue
         loc_k_orig = (slice_g - gz0) + zs
+
         with h5py.File(fp, "r") as f:
             slab_sum = None
             for s in species_sel:
                 path = dset_path(s, quantity, time_cycle)
                 arr = np.array(f[path][:, :, loc_k_orig], dtype=np.float64)
                 slab_sum = arr if slab_sum is None else (slab_sum + arr)
+
         slab_sum = slab_sum[xs:, ys:]
         local_plane[gx0:gx0+nx_use, gy0:gy0+ny_use] += slab_sum
         local_occ[gx0:gx0+nx_use, gy0:gy0+ny_use]   += 1
 
-    elif axis == "y":
-        if not (gy0 <= slice_g < gy0 + ny_use): continue
+    elif axis == "y":  # XZ
+        if not (gy0 <= slice_g < gy0 + ny_use):
+            continue
         loc_j_orig = (slice_g - gy0) + ys
+
         with h5py.File(fp, "r") as f:
             slab_sum = None
             for s in species_sel:
                 path = dset_path(s, quantity, time_cycle)
                 arr = np.array(f[path][:, loc_j_orig, :], dtype=np.float64)
                 slab_sum = arr if slab_sum is None else (slab_sum + arr)
+
         slab_sum = slab_sum[xs:, zs:]
         local_plane[gx0:gx0+nx_use, gz0:gz0+nz_use] += slab_sum
         local_occ[gx0:gx0+nx_use, gz0:gz0+nz_use]   += 1
 
-    else:  # axis == "x"
-        if not (gx0 <= slice_g < gx0 + nx_use): continue
+    else:  # axis == "x" -> YZ
+        if not (gx0 <= slice_g < gx0 + nx_use):
+            continue
         loc_i_orig = (slice_g - gx0) + xs
+
         with h5py.File(fp, "r") as f:
             slab_sum = None
             for s in species_sel:
                 path = dset_path(s, quantity, time_cycle)
                 arr = np.array(f[path][loc_i_orig, :, :], dtype=np.float64)
                 slab_sum = arr if slab_sum is None else (slab_sum + arr)
+
         slab_sum = slab_sum[ys:, zs:]
         local_plane[gy0:gy0+ny_use, gz0:gz0+nz_use] += slab_sum
         local_occ[gy0:gy0+ny_use, gz0:gz0+nz_use]   += 1
@@ -348,10 +363,10 @@ if rank == 0:
 comm.Reduce(local_plane, plane, op=MPI.SUM, root=0)
 comm.Reduce(local_occ,   occ,   op=MPI.SUM, root=0)
 
-# ----------------------------- Plot on root -----------------------------
+
+# ----------------------------- Plot on root (match fields script) -----------------------------
 if rank == 0:
     omin, omax = int(occ.min()), int(occ.max())
-    print(f"Occupancy min/max: {omin}/{omax}")
     if omin == 0:
         print("WARNING: gaps remain (occ==0). Check slice index, mapping, or ghost-layer assumptions.")
     if omax > 1:
@@ -361,51 +376,73 @@ if rank == 0:
     mask = (occ > 0)
     out_plane[mask] = plane[mask] / occ[mask]
 
-    # ticks: positions in index space, labels in physical space
-    nx, ny = out_plane.shape
-
-    # defaults: if xmin/xmax not passed, use index range
-    xmin = 0.0 if args.xmin is None else args.xmin
-    xmax = float(nx-1) if args.xmax is None else args.xmax
-    ymin = 0.0 if args.ymin is None else args.ymin
-    ymax = float(ny-1) if args.ymax is None else args.ymax
-
-    # Limits for color bar
-    vmax = max(np.max(np.abs(out_plane)), 1e-6)
+    vmax = max(float(np.max(np.abs(out_plane[mask]))), 1e-12)
     vmin = -vmax
 
-    x_pos = np.linspace(0, nx-1, args.xticks)
-    y_pos = np.linspace(0, ny-1, args.yticks)
-    x_lab = np.linspace(xmin, xmax, args.xticks)
-    y_lab = np.linspace(ymin, ymax, args.yticks)
+    nx, ny = out_plane.shape
+
+    def require(v, name):
+        if v is None:
+            raise ValueError(f"Missing required argument --{name} for selected plane/axis.")
+        return v
+
+    # Axis-dependent tick labels + axis names (IDENTICAL logic to fields code)
+    if axis == "z":  # XY
+        xmin_ = require(xmin, "xmin"); xmax_ = require(xmax, "xmax"); nxt_ = require(nxt, "xticks")
+        ymin_ = require(ymin, "ymin"); ymax_ = require(ymax, "ymax"); nyt_ = require(nyt, "yticks")
+
+        x_pos = np.linspace(0, nx-1, nxt_)
+        y_pos = np.linspace(0, ny-1, nyt_)
+        x_lab = np.linspace(xmin_, xmax_, nxt_)
+        y_lab = np.linspace(ymin_, ymax_, nyt_)
+        xlabel, ylabel = "X", "Y"
+
+    elif axis == "y":  # XZ
+        xmin_ = require(xmin, "xmin"); xmax_ = require(xmax, "xmax"); nxt_ = require(nxt, "xticks")
+        zmin_ = require(zmin, "zmin"); zmax_ = require(zmax, "zmax"); nzt_ = require(nzt, "zticks")
+
+        x_pos = np.linspace(0, nx-1, nxt_)
+        y_pos = np.linspace(0, ny-1, nzt_)
+        x_lab = np.linspace(xmin_, xmax_, nxt_)
+        y_lab = np.linspace(zmin_, zmax_, nzt_)
+        xlabel, ylabel = "X", "Z"
+
+    else:  # axis == "x" -> YZ
+        ymin_ = require(ymin, "ymin"); ymax_ = require(ymax, "ymax"); nyt_ = require(nyt, "yticks")
+        zmin_ = require(zmin, "zmin"); zmax_ = require(zmax, "zmax"); nzt_ = require(nzt, "zticks")
+
+        x_pos = np.linspace(0, nx-1, nyt_)
+        y_pos = np.linspace(0, ny-1, nzt_)
+        x_lab = np.linspace(ymin_, ymax_, nyt_)
+        y_lab = np.linspace(zmin_, zmax_, nzt_)
+        xlabel, ylabel = "Y", "Z"
 
     cyc = cycle_to_number(time_cycle)
-    cycle_number = int(int(cyc)/10)
+    cycle_number = int(int(cyc) / 10)
 
-    fig, ax = plt.subplots(figsize=(6.5, 8.0), dpi=250)
+    fig, ax = plt.subplots(figsize=(8.0, 8.0), dpi=250)
 
-    im = ax.imshow(out_plane.T, origin="lower", aspect="auto", cmap=args.cmap, vmin=vmin, vmax=vmax)
+    im = ax.imshow(out_plane.T, origin="lower", aspect="auto",
+                   cmap=args.cmap, vmin=vmin, vmax=vmax)
 
     ax.set_xticks(x_pos)
     ax.set_xticklabels([f"{v:.0f}" for v in x_lab])
     ax.set_yticks(y_pos)
     ax.set_yticklabels([f"{v:.0f}" for v in y_lab])
 
-    ax.tick_params(axis='x', which='major', labelsize=16, length=8)
-    ax.tick_params(axis='y', which='major', labelsize=16, length=8)
+    ax.set_xlabel(xlabel, fontsize=16)
+    ax.set_ylabel(ylabel, fontsize=16)
 
-    ax.set_xlabel("X", fontsize=16)
-    ax.set_ylabel("Y", fontsize=16)
+    ax.tick_params(axis='x', which='major', labelsize=14, length=8)
+    ax.tick_params(axis='y', which='major', labelsize=14, length=8)
 
-    # Title
     ax.set_title(f"{cycle_number} $\\omega^{{-1}}$", fontsize=18)
 
-    # Colorbar matched to image height
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.10)
     cbar = fig.colorbar(im, cax=cax)
     cbar.set_label(f"{quantity}  ({axis}={slice_g})", fontsize=18)
-    cbar.ax.tick_params(labelsize=16)
+    cbar.ax.tick_params(labelsize=14)
     cbar.ax.yaxis.set_major_formatter(mticker.FormatStrFormatter(f"%.{args.cb_decimals}f"))
 
     plt.tight_layout()
@@ -417,5 +454,4 @@ if rank == 0:
 
     plt.savefig(out_png)
     plt.close()
-    print("Wrote:", out_png)
-    print()
+    print("Completed", out_png)

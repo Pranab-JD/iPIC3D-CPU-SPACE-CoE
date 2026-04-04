@@ -10,8 +10,8 @@ Usage:
     1. To delete all restart data apart from the last one, use
         srun python3 ../postprocessing_tools/python/erase_restart.py data/restart*.hdf
     
-    2. To delete all restart data apart from the time step "cycle", use
-        srun python3 ../postprocessing_tools/python/erase_restart.py data/restart*.hdf --cycle
+    2. To delete all restart data apart from the time step "3500", use
+        srun python3 ../postprocessing_tools/python/erase_restart.py data/restart*.hdf --keep-cycle=3500
 
 """
 
