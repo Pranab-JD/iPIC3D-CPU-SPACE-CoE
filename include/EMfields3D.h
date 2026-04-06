@@ -58,8 +58,9 @@ public:
 
     //? ---------- Initial field distributions (Non Relativistic) ---------- ?//
 
-    void init();
+    void init_Uniform();
     void init_KHI_FLR(); 
+    void init_Maxwellian();
     void init_Double_Harris();
     void init_Double_Harris_Hump();
 
@@ -71,7 +72,6 @@ public:
     void init_Relativistic_Double_Harris_ion_electron();
 
     
-
     //? ============================================================================ ? //
 
     /*! Calculate Electric field using the implicit Maxwell solver */

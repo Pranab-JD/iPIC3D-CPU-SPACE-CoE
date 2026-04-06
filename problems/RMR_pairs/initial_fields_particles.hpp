@@ -1,4 +1,9 @@
 //* This file needs to be included in main/iPIC3Dlib.cpp
+//*
+//* The functions used to define initial particles and field config need to be 
+//* included in 'include/Particles3D.h' and 'include/EMfields3D.h', respectively.
+
+#pragma once
 
 #include "../include.hpp"
 
@@ -9,98 +14,105 @@ using std::cout;
 using std::endl;
 using namespace iPic3D;
 
+
 //? ========================================================================== ?//
 
 //? Relativistic double Harris for pair plasma: Maxwellian background, drifting particles in the sheets
 void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf) 
 {
-	//* Initialise random generator with different seed on different processor
-	long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
-    srand(seed);
-    srand48(seed);
+    //! New initial setup
+    if (col->getRestart_status() == 0)
+    {
+        //* Initialise random generator with different seed on different processor
+        long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
+        srand(seed);
+        srand48(seed);
 
-    assert_eq(_pcls.size(), 0);    
+        assert_eq(_pcls.size(), 0);    
 
-    //* Custom input parameters for relativistic reconnection
-    const double sigma                  = input_param[0];       //* Magnetisation parameter
-    const double eta                    = input_param[1];       //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
-    const double delta_CS               = input_param[2];       //* Half-thickness of current sheet (free parameter)
-    const double perturbation           = input_param[3];       //* Amplitude of initial perturbation
-    const double guide_field_ratio      = input_param[4];       //* Ratio of guide field to in-plane magnetic field
+        //* Custom input parameters for relativistic reconnection
+        const double sigma                  = input_param[0];       //* Magnetisation parameter
+        const double eta                    = input_param[1];       //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
+        const double delta_CS               = input_param[2];       //* Half-thickness of current sheet (free parameter)
+        const double perturbation           = input_param[3];       //* Amplitude of initial perturbation
+        const double guide_field_ratio      = input_param[4];       //* Ratio of guide field to in-plane magnetic field
+        
+        //* Background (BG) or upstream particles
+        double thermal_spread_BG            = col->getUth(0);                           //* Thermal spread
+        double rho_BG                       = col->getRHOinit(ns)/(4.0*M_PI);           //* Density (rho_BG = n * mc^2)
+        double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
+
+        //* Current sheet (CS) particles
+        double rho_CS                       = eta*rho_BG;                                            //* Density (rho_CS = eta * n * mc^2)
+        double drift_velocity               = B_BG/(8.0*M_PI*rho_CS*delta_CS/c);                     //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
+        double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
+        double thermal_spread_CS            = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     
-    //* Background (BG) or upstream particles
-    double thermal_spread_BG            = col->getUth(0);                           //* Thermal spread
-    double rho_BG                       = col->getRHOinit(ns)/(4.0*M_PI);           //* Density (rho_BG = n * mc^2)
-    double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
+        //* Additional params needed for setting up a current sheet
+        double y_half           = Ly/2.0;
+        double y_quarter        = Ly/4.0;
+        double y_three_quarters = 3.0*y_quarter;
 
-    //* Current sheet (CS) particles
-    double rho_CS                       = eta*rho_BG;                                            //* Density (rho_CS = eta * n * mc^2)
-    double drift_velocity               = B_BG/(8.0*M_PI*rho_CS*delta_CS/c);                     //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
-    double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
-    double thermal_spread_CS            = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
-  
-    //* Additional params needed for setting up a current sheet
-    double y_half           = Ly/2.0;
-    double y_quarter        = Ly/4.0;
-    double y_three_quarters = 3.0*y_quarter;
+        const double q_factor = (qom / fabs(qom)) * grid->getVOL()/npcel;
 
-    const double q_factor = (qom / fabs(qom)) * grid->getVOL()/npcel;
-
-	for (int i = 1; i < grid->getNXC() - 1; i++)
-        for (int j = 1; j < grid->getNYC() - 1; j++)
-            for (int k = 1; k < grid->getNZC() - 1; k++)
-                for (int ii = 0; ii < npcelx; ii++)
-                    for (int jj = 0; jj < npcely; jj++)
-                        for (int kk = 0; kk < npcelz; kk++) 
-                        {
-                            double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-
-                            //* Velocities and charges of particles
-                            double u, v, w, q, fs;
-                        
-                            //* Distinguish between background and drifting species
-                            if (ns < 2) 
+        for (int i = 1; i < grid->getNXC() - 1; i++)
+            for (int j = 1; j < grid->getNYC() - 1; j++)
+                for (int k = 1; k < grid->getNZC() - 1; k++)
+                    for (int ii = 0; ii < npcelx; ii++)
+                        for (int jj = 0; jj < npcely; jj++)
+                            for (int kk = 0; kk < npcelz; kk++) 
                             {
-                                //? Background species (these are the particles that get accelerated)
-                                q = q_factor * rho_BG;
+                                double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                                double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                                double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
 
-                                //* Velocity of relativistic nondrifting Maxwellian
-                                sample_Maxwell_Juttner(u, v, w, thermal_spread_BG, 1.0, 0);
-                            }
-                            else 
-                            {
-                                //? Current sheet species (necessary to initialise a current sheet)
-                                if (y < y_half)
-                                    fs = sech_square((y - y_quarter)/delta_CS);
-                                else              
-                                    fs = sech_square((y - y_three_quarters)/delta_CS);
-                        
-                                //* Skip the particle if its weight is too small
-                                if (fabs(fs) < 1.e-8) continue;
-
-                                q = q_factor * rho_CS * fs;
-
-                                //* Velocity of relativistic drifting (along the Z-axis) Maxwellian
-                                if (qom < 0.0) 
-                                    sample_Maxwell_Juttner(u, v, w, thermal_spread_CS, lorentz_factor_CS, -3);  //* Negative charges (e.g., electrons)
-                                else
-                                    sample_Maxwell_Juttner(u, v, w, thermal_spread_CS, lorentz_factor_CS, 3);   //* Positive charges (e.g., positrons)
-                                
-                                //* Flip sign of drift velocity for particles in the second layer
-                                if (y > y_half)
+                                //* Velocities and charges of particles
+                                double u, v, w, q, fs;
+                            
+                                //* Distinguish between background and drifting species
+                                if (ns < 2) 
                                 {
-                                    u = -u; 
-                                    v = -v; 
-                                    w = -w;
-                                }
-                            }
+                                    //? Background species (these are the particles that get accelerated)
+                                    q = q_factor * rho_BG;
 
-                            create_new_particle(u, v, w, q, x, y, z);
-                        }
-                        
-	fixPosition();
+                                    //* Velocity of relativistic nondrifting Maxwellian
+                                    sample_Maxwell_Juttner(u, v, w, thermal_spread_BG, 1.0, 0);
+                                }
+                                else 
+                                {
+                                    //? Current sheet species (necessary to initialise a current sheet)
+                                    if (y < y_half)
+                                        fs = sech_square((y - y_quarter)/delta_CS);
+                                    else              
+                                        fs = sech_square((y - y_three_quarters)/delta_CS);
+                            
+                                    //* Skip the particle if its weight is too small
+                                    if (fabs(fs) < 1.e-8) continue;
+
+                                    q = q_factor * rho_CS * fs;
+
+                                    //* Velocity of relativistic drifting (along the Z-axis) Maxwellian
+                                    if (qom < 0.0) 
+                                        sample_Maxwell_Juttner(u, v, w, thermal_spread_CS, lorentz_factor_CS, -3);  //* Negative charges (e.g., electrons)
+                                    else
+                                        sample_Maxwell_Juttner(u, v, w, thermal_spread_CS, lorentz_factor_CS, 3);   //* Positive charges (e.g., positrons)
+                                    
+                                    //* Flip sign of drift velocity for particles in the second layer
+                                    if (y > y_half)
+                                    {
+                                        u = -u; 
+                                        v = -v; 
+                                        w = -w;
+                                    }
+                                }
+
+                                create_new_particle(u, v, w, q, x, y, z);
+                            }
+                            
+        fixPosition();
+    }
+
+    //! If col->getRestart_status() == 0 or 1, particle restart data is automatically read from the restart#.hdf files
 }
 
 //? ========================================================================== ?//
@@ -130,6 +142,7 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
     double lorentz_factor_CS   = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS   = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     
+    //! New initial setup
     if (restart_status == 0) 
     {
         if (vct->getCartesian_rank() == 0) 
@@ -230,8 +243,23 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
         communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
     }
 
-    else
+    else if (restart_status == 1 || restart_status == 2)
+    {
+        //! Read data from restart files
         init_fields_restart();
+    }
+
+    else
+    {
+        if (vct->getCartesian_rank() == 0)
+        {
+            cout << "Incorrect restart status!" << endl;
+            cout << "restart_status = 0 ---> NO RESTART!" << endl;
+            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are different" << endl;
+            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are the same" << endl;
+        }
+        abort();
+    }
 }
 
 //? ========================================================================== ?//

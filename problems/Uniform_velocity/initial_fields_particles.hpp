@@ -1,4 +1,9 @@
 //* This file needs to be included in main/iPIC3Dlib.cpp
+//*
+//* The functions used to define initial particles and field config need to be 
+//* included in 'include/Particles3D.h' and 'include/EMfields3D.h', respectively.
+
+#pragma once
 
 #include "../include.hpp"
 
@@ -9,46 +14,52 @@ using std::cout;
 using std::endl;
 using namespace iPic3D;
 
+
 //? ========================================================================== ?//
 
 //? Particles are uniformly distributed with a constant velocity
 void Particles3D::uniform_background(Field * EMf)
 {
-    for (int i = 1; i < grid->getNXC() - 1; i++)
-        for (int j = 1; j < grid->getNYC() - 1; j++)
-            for (int k = 1; k < grid->getNZC() - 1; k++)
-                for (int ii = 0; ii < npcelx; ii++)
-                    for (int jj = 0; jj < npcely; jj++)
-                        for (int kk = 0; kk < npcelz; kk++)
-                        {
-                            double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-                            double u = uth + u0;
-                            double v = vth + v0;
-                            double w = wth + w0;
-                            double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / grid->getInvVOL());
-                            _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,0));
-                        }
+    //! New initial setup
+    if (col->getRestart_status() == 0)
+    {
+        for (int i = 1; i < grid->getNXC() - 1; i++)
+            for (int j = 1; j < grid->getNYC() - 1; j++)
+                for (int k = 1; k < grid->getNZC() - 1; k++)
+                    for (int ii = 0; ii < npcelx; ii++)
+                        for (int jj = 0; jj < npcely; jj++)
+                            for (int kk = 0; kk < npcelz; kk++)
+                            {
+                                double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                                double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                                double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+                                double u = uth + u0;
+                                double v = vth + v0;
+                                double w = wth + w0;
+                                double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / grid->getInvVOL());
+                                _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,0));
+                            }
 
-    fixPosition();
+        fixPosition();
+    }
+
+    //! If col->getRestart_status() == 0 or 1, particle restart data is automatically read from the restart#.hdf files
 }
 
 //? ========================================================================== ?//
 
 //* Default electric and magnetic field configurations
-void EMfields3D::init_uniform()
+void EMfields3D::init_Uniform()
 {
+    const Grid *grid = &get_grid();
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
-    const Grid *grid = &get_grid();
 
+    //! New initial setup
     if (restart_status == 0)
     {
         if (vct->getCartesian_rank() == 0) 
             cout << "Default field initialisation; initial magnetic field components (Bx, By, Bz) = " << "(" << B0x << ", " << B0y << ", " << B0z << ")" << endl;
-
-        //! Initial setup (NOT RESTART)
 
         for (int i = 0; i < nxn; i++)
             for (int j = 0; j < nyn; j++)
@@ -83,8 +94,23 @@ void EMfields3D::init_uniform()
             grid->interpN2C(rhocs, is, rhons);
     }
 
-    else
+    else if (restart_status == 1 || restart_status == 2)
+    {
+        //! Read data from restart files
         init_fields_restart();
+    }
+
+    else
+    {
+        if (vct->getCartesian_rank() == 0)
+        {
+            cout << "Incorrect restart status!" << endl;
+            cout << "restart_status = 0 ---> NO RESTART!" << endl;
+            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are different" << endl;
+            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are the same" << endl;
+        }
+        abort();
+    }
 }
 
 //? ========================================================================== ?//

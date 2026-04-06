@@ -17,44 +17,61 @@ using namespace iPic3D;
 
 //? ========================================================================== ?//
 
-//? Initialise uniform distribution of particles with a Maxellian velocity distribution
-void Particles3D::maxwellian(Field * EMf)
+//? Initialise unifrom distribution of particles with relativistic Maxellian random velocity
+void Particles3D::Maxwell_Juttner(Field * EMf) 
 {
     //! New initial setup
     if (col->getRestart_status() == 0)
     {
         //* Initialise random generator with different seed on different processor
-        long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
-        srand(seed);
-        srand48(seed);
+        srand(vct->getCartesian_rank() + 2 + ns);
 
-        assert_eq(_pcls.size(), 0);
+        assert_eq(_pcls.size(), 0);    
 
-        const double q_sgn = (qom / fabs(qom));
-        const double q_factor =  q_sgn * grid->getVOL() / npcel;
+        double thermal_spread = uth;                                //* Thermal spread (isotropic along X, Y, Z)
+        double lorentz_factor_x = u0;                               //* Lorentz factor (X)
+        double lorentz_factor_y = v0;                               //* Lorentz factor (Y)
+        double lorentz_factor_z = w0;                               //* Lorentz factor (Z)
+        double lorentz_factor; int drift_direction;
+        
+        if (fabs(lorentz_factor_x) > 1.0) 
+        {
+            drift_direction = int(fabs(lorentz_factor_x)/lorentz_factor_x) * 1;
+            lorentz_factor = fabs(lorentz_factor_x);
+        }
+        else if (fabs(lorentz_factor_y) > 1.0) 
+        {
+            drift_direction = int(fabs(lorentz_factor_y)/lorentz_factor_y) * 2;
+            lorentz_factor = fabs(lorentz_factor_y);
+        }
+        else if (fabs(lorentz_factor_z) > 1.0) 
+        {
+            drift_direction = int(fabs(lorentz_factor_z)/lorentz_factor_z) * 3;
+            lorentz_factor = fabs(lorentz_factor_z);
+        }
+        else
+        {
+            drift_direction = 0;
+            lorentz_factor = 1.0;
+        }
 
-        long long counter = 0;
+        const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns)/(4.0*M_PI);
+
         for (int i = 1; i < grid->getNXC() - 1; i++)
             for (int j = 1; j < grid->getNYC() - 1; j++)
                 for (int k = 1; k < grid->getNZC() - 1; k++)
-                {
-                    const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
-                    
                     for (int ii = 0; ii < npcelx; ii++)
                         for (int jj = 0; jj < npcely; jj++)
-                            for (int kk = 0; kk < npcelz; kk++)
+                            for (int kk = 0; kk < npcelz; kk++) 
                             {
                                 const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
                                 const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
                                 const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
 
                                 double u, v, w;
-                                sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
-                            
+                                sample_Maxwell_Juttner(u, v, w, thermal_spread, lorentz_factor, drift_direction);                            
                                 create_new_particle(u, v, w, q, x, y, z);
-                                counter++;
                             }
-                }
 
         fixPosition();
     }
@@ -65,7 +82,7 @@ void Particles3D::maxwellian(Field * EMf)
 //? ========================================================================== ?//
 
 //* Default electric and magnetic field configurations
-void EMfields3D::init_Maxwellian()
+void EMfields3D::init_Maxwell_Juttner()
 {
     const Grid *grid = &get_grid();
     const Collective *col = &get_col();
