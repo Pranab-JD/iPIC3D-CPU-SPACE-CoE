@@ -22,7 +22,9 @@ Usage:
         64 2 64 \
         --cs1 40 52 \
         --cs2 74 86 \
-        --dtype float32
+        --dtype float32 \
+        --stride 3 1 3 \        ## Every 3 points along X and Z, every point along Y
+        --write B               ## choices=["all", "B", "E", "rho", "J", "pressure"]
 
 Output:
     outdir/
@@ -154,6 +156,19 @@ def vtk_dtype_string(arr: np.ndarray) -> str:
     raise ValueError(f"Unsupported dtype {arr.dtype}")
 
 
+def stride_array(arr, sx, sy, sz):
+    return arr[::sx, ::sy, ::sz]
+
+
+def is_pressure_name(name: str) -> bool:
+    lname = name.lower()
+    if lname == "pressure":
+        return True
+    if lname.startswith("p"):
+        return True
+    return False
+
+
 #! ============================================================
 #! Dataset discovery
 #! ============================================================
@@ -173,15 +188,23 @@ def inspect_available_quantities(f: h5py.File, cyc: str):
         if get_field_path(f, q, cyc) is not None:
             available_fields.add(q)
 
-    for q in MOMENT_COMPONENTS:
-        if get_moment_path(f, q, cyc, species=None) is not None:
-            available_flat_moments.add(q)
+    if "moments" in f:
+        for q in f["moments"].keys():
+            if re.match(r"species_\d+$", q):
+                continue
+            p = get_moment_path(f, q, cyc, species=None)
+            if p is not None:
+                available_flat_moments.add(q)
 
     species = discover_species(f)
     for s in species:
         qset = set()
-        for q in MOMENT_COMPONENTS:
-            if get_moment_path(f, q, cyc, species=s) is not None:
+        grp = f.get(f"moments/species_{s}", None)
+        if grp is None:
+            continue
+        for q in grp.keys():
+            p = get_moment_path(f, q, cyc, species=s)
+            if p is not None:
                 qset.add(q)
         if qset:
             available_species_moments[s] = qset
@@ -253,7 +276,6 @@ def write_legacy_vtk_structured_points(filename, arrays, origin=(0.0, 0.0, 0.0),
         f.write(f"SPACING {spacing[0]} {spacing[1]} {spacing[2]}\n")
         f.write(f"POINT_DATA {npts}\n")
 
-        # vectors first
         for vec_name in ["E", "B", "J"]:
             if vec_name in arrays:
                 ax, ay, az = arrays[vec_name]
@@ -262,7 +284,6 @@ def write_legacy_vtk_structured_points(filename, arrays, origin=(0.0, 0.0, 0.0),
                 for a, b, c in zip(axf, ayf, azf):
                     f.write(f"{a:.8e} {b:.8e} {c:.8e}\n")
 
-        # scalars
         for key, val in arrays.items():
             if isinstance(val, tuple):
                 continue
@@ -320,6 +341,8 @@ parser.add_argument("--cs2", nargs=2, type=int, required=True, metavar=("YMIN", 
 parser.add_argument("--dtype", type=str, default="float32", choices=["float32", "float64"])
 parser.add_argument("--origin", nargs=3, type=float, default=[0.0, 0.0, 0.0])
 parser.add_argument("--spacing", nargs=3, type=float, default=[1.0, 1.0, 1.0])
+parser.add_argument("--stride", nargs=3, type=int, default=[1, 1, 1], metavar=("SX", "SY", "SZ"))
+parser.add_argument("--write", nargs="+", default=["all"], choices=["all", "B", "E", "rho", "J", "pressure"])
 args = parser.parse_args()
 
 work_dtype = np.float32 if args.dtype == "float32" else np.float64
@@ -330,6 +353,17 @@ cs1_ymin, cs1_ymax = args.cs1
 cs2_ymin, cs2_ymax = args.cs2
 origin_global = tuple(args.origin)
 spacing = tuple(args.spacing)
+sx, sy, sz = args.stride
+
+if sx <= 0 or sy <= 0 or sz <= 0:
+    raise ValueError("Stride factors must be positive integers.")
+
+write_all = "all" in args.write
+want_B = write_all or ("B" in args.write)
+want_E = write_all or ("E" in args.write)
+want_J = write_all or ("J" in args.write)
+want_rho = write_all or ("rho" in args.write)
+want_pressure = write_all or ("pressure" in args.write)
 
 
 #! ============================================================
@@ -366,7 +400,6 @@ for fp in local_files:
             local_flat_sets.append(amf)
             local_species_dicts.append(ams)
 
-            # first available shape from either a field or a moment
             if tile_shape is None:
                 found_shape = False
                 for q in FIELD_COMPONENTS:
@@ -377,7 +410,7 @@ for fp in local_files:
                         break
 
                 if not found_shape:
-                    for q in MOMENT_COMPONENTS:
+                    for q in amf:
                         p = get_moment_path(f, q, probe_cycle, species=None)
                         if p is not None:
                             tile_shape = tuple(f[p].shape)
@@ -387,7 +420,10 @@ for fp in local_files:
                 if not found_shape:
                     species = discover_species(f)
                     for s in species:
-                        for q in MOMENT_COMPONENTS:
+                        grp = f.get(f"moments/species_{s}", None)
+                        if grp is None:
+                            continue
+                        for q in grp.keys():
                             p = get_moment_path(f, q, probe_cycle, species=s)
                             if p is not None:
                                 tile_shape = tuple(f[p].shape)
@@ -426,32 +462,37 @@ if rank == 0:
         gathered_flat_sets,
         gathered_species_dicts)
 
-    # Which complete vectors are available?
-    has_B = all(q in available_fields for q in ["Bx", "By", "Bz"])
-    has_E = all(q in available_fields for q in ["Ex", "Ey", "Ez"])
-
     moment_union = set(available_flat_moments)
     for s, qlist in available_species_moments.items():
         moment_union.update(qlist)
 
-    has_J = all(q in moment_union for q in ["Jx", "Jy", "Jz"])
-    has_rho = "rho" in moment_union
+    pressure_names = sorted([q for q in moment_union if is_pressure_name(q) and q not in ["Jx", "Jy", "Jz", "rho"]])
+
+    has_B = want_B and all(q in available_fields for q in ["Bx", "By", "Bz"])
+    has_E = want_E and all(q in available_fields for q in ["Ex", "Ey", "Ez"])
+    has_J = want_J and all(q in moment_union for q in ["Jx", "Jy", "Jz"])
+    has_rho = want_rho and ("rho" in moment_union)
+    has_pressure = want_pressure and (len(pressure_names) > 0)
 
     availability = {"fields": available_fields,
                     "flat_moments": available_flat_moments,
                     "species_moments": available_species_moments,
+                    "pressure_names": pressure_names,
                     "write_B": has_B,
                     "write_E": has_E,
                     "write_J": has_J,
-                    "write_rho": has_rho}
+                    "write_rho": has_rho,
+                    "write_pressure": has_pressure}
 
     print("\nAvailable fields:", available_fields, flush=True)
     print("Available flat moments:", available_flat_moments, flush=True)
     print("Available per-species moments:", available_species_moments, flush=True)
-    print(f"Will write B   : {has_B}", flush=True)
-    print(f"Will write E   : {has_E}", flush=True)
-    print(f"Will write J   : {has_J}", flush=True)
-    print(f"Will write rho : {has_rho}", flush=True)
+    print("Available pressure-like moments:", pressure_names, flush=True)
+    print(f"Will write B        : {has_B}", flush=True)
+    print(f"Will write E        : {has_E}", flush=True)
+    print(f"Will write J        : {has_J}", flush=True)
+    print(f"Will write rho      : {has_rho}", flush=True)
+    print(f"Will write pressure : {has_pressure}", flush=True)
 else:
     tile_shape = None
     availability = None
@@ -549,6 +590,10 @@ def allocate_local_cs_buffers(ny_cs, availability):
     if availability["write_rho"]:
         out["rho"] = np.zeros(shape, dtype=work_dtype)
 
+    if availability["write_pressure"]:
+        for q in availability["pressure_names"]:
+            out[q] = np.zeros(shape, dtype=work_dtype)
+
     return out
 
 
@@ -619,6 +664,12 @@ def assemble_one_cs_for_cycle(cyc, y_min_cs, y_max_cs, availability):
                     if arr is not None:
                         tmp["rho"] = np.asarray(arr, dtype=work_dtype)[xs:, ys:, zs:]
 
+                if availability["write_pressure"]:
+                    for q in availability["pressure_names"]:
+                        arr = read_total_moment_if_available(f, q, cyc, list(availability["species_moments"].keys()))
+                        if arr is not None:
+                            tmp[q] = np.asarray(arr, dtype=work_dtype)[xs:, ys:, zs:]
+
                 if not tmp:
                     continue
 
@@ -670,6 +721,10 @@ if rank == 0:
             for q in qlist:
                 f.write(f"    {q}\n")
 
+        f.write("\nAvailable pressure-like moments:\n")
+        for q in availability["pressure_names"]:
+            f.write(f"  {q}\n")
+
         f.write("\nWill be written to VTK:\n")
         if availability["write_B"]:
             f.write("  B = (Bx, By, Bz)\n")
@@ -679,6 +734,9 @@ if rank == 0:
             f.write("  J = (Jx, Jy, Jz)\n")
         if availability["write_rho"]:
             f.write("  rho\n")
+        if availability["write_pressure"]:
+            for q in availability["pressure_names"]:
+                f.write(f"  {q}\n")
 
 
 #! ============================================================
@@ -698,16 +756,33 @@ for t in range(args.t_start, args.t_end + 1, args.t_step):
             arrays_to_write = {}
 
             if availability["write_E"] and all(q in slab for q in ["Ex", "Ey", "Ez"]):
-                arrays_to_write["E"] = (slab["Ex"], slab["Ey"], slab["Ez"])
+                arrays_to_write["E"] = (
+                    stride_array(slab["Ex"], sx, sy, sz),
+                    stride_array(slab["Ey"], sx, sy, sz),
+                    stride_array(slab["Ez"], sx, sy, sz)
+                )
 
             if availability["write_B"] and all(q in slab for q in ["Bx", "By", "Bz"]):
-                arrays_to_write["B"] = (slab["Bx"], slab["By"], slab["Bz"])
+                arrays_to_write["B"] = (
+                    stride_array(slab["Bx"], sx, sy, sz),
+                    stride_array(slab["By"], sx, sy, sz),
+                    stride_array(slab["Bz"], sx, sy, sz)
+                )
 
             if availability["write_J"] and all(q in slab for q in ["Jx", "Jy", "Jz"]):
-                arrays_to_write["J"] = (slab["Jx"], slab["Jy"], slab["Jz"])
+                arrays_to_write["J"] = (
+                    stride_array(slab["Jx"], sx, sy, sz),
+                    stride_array(slab["Jy"], sx, sy, sz),
+                    stride_array(slab["Jz"], sx, sy, sz)
+                )
 
             if availability["write_rho"] and "rho" in slab:
-                arrays_to_write["rho"] = slab["rho"]
+                arrays_to_write["rho"] = stride_array(slab["rho"], sx, sy, sz)
+
+            if availability["write_pressure"]:
+                for q in availability["pressure_names"]:
+                    if q in slab:
+                        arrays_to_write[q] = stride_array(slab[q], sx, sy, sz)
 
             if not arrays_to_write:
                 print(f"Skipping {cs_name} {cyc}: no datasets available to write.", flush=True)
@@ -716,7 +791,12 @@ for t in range(args.t_start, args.t_end + 1, args.t_step):
             y0_phys = origin_global[1] + ymin * spacing[1]
             vtkfile = os.path.join(args.outdir, cs_name, f"{cs_name}_{cyc}.vtk")
 
-            write_legacy_vtk_structured_points(vtkfile, arrays_to_write, origin=(origin_global[0], y0_phys, origin_global[2]), spacing=spacing)
+            write_legacy_vtk_structured_points(
+                vtkfile,
+                arrays_to_write,
+                origin=(origin_global[0], y0_phys, origin_global[2]),
+                spacing=(spacing[0] * sx, spacing[1] * sy, spacing[2] * sz)
+            )
             print(f"Wrote {vtkfile}", flush=True)
 
 comm.Barrier()
