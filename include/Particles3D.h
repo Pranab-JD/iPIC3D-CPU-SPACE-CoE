@@ -68,6 +68,13 @@ class Particles3D:public Particles3Dcomm
     //* Maxwellian velocity from currents and uniform spatial distribution for a double Harris sheet
     void maxwellian_Double_Harris(Field * EMf);
 
+    //* Double Harris with optional currentFromAmpere / spatiallyVaryingThermal:
+    //  drift velocity is taken cell-by-cell from Jxs/RHOns when ampere is on,
+    //  and thermal velocity from sqrt((pXXsn/rho - u0^2)) etc. when SVT is on.
+    //  Falls back to maxwellian_Double_Harris semantics when both flags are off.
+    //  Flags are read from col->getInputParam(8) and col->getInputParam(9).
+    void maxwellian_Double_Harris_Ampere(Field * EMf, Collective * col);
+
     //* Kelvin--Helmholtz Instability (Finite Larmor Radius; Cerri 2013, https://doi.org/10.1063/1.4828981)
     void maxwellian_KHI_FLR(Field* EMf);
 

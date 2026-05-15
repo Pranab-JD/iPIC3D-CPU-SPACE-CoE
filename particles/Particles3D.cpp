@@ -335,6 +335,121 @@ void Particles3D::maxwellian_Double_Harris(Field * EMf)
     fixPosition();
 }
 
+//? Double Harris with optional currentFromAmpere / spatiallyVaryingThermal.
+//  Mirrors GPU initGEMHarris/maxwellian path:
+//    * if currentFromAmpere (input_param[8]!=0): per-cell drift  u0 = Jxs/RHOns
+//      (and v0,w0 analogues), no upper-sheet w0 sign flip (already encoded in J).
+//    * if spatiallyVaryingThermal (input_param[9]!=0): per-cell thermal
+//      uth_local = sqrt(max(pXXsn/rho - u0^2, uth_floor^2)) etc.
+//    * if both flags are 0, behaviour matches maxwellian_Double_Harris (with
+//      the upper-sheet w0 shaper).
+void Particles3D::maxwellian_Double_Harris_Ampere(Field * EMf, Collective * col)
+{
+    //* Initialise random generator with different seed on different processor
+    long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
+    srand(seed);
+    srand48(seed);
+
+    assert_eq(_pcls.size(), 0);
+
+    const double q_factor =  (qom / fabs(qom)) * grid->getVOL() / npcel;
+
+    //* Read flags from custom_parameters (slots [8] and [9]); default off.
+    const int nparam = col->getNparam();
+    const int ampere = (nparam > 8 && col->getInputParam(8) != 0.0) ? 1 : 0;
+    const int svt    = (nparam > 9 && col->getInputParam(9) != 0.0) ? 1 : 0;
+
+    //* Floor on local thermal velocity (avoids sqrt of small negative values
+    //  from pXXsn - u0^2*rho when the construction rho ~ const fails).
+    const double uth_floor = 1.0e-6 * uth;
+    const double vth_floor = 1.0e-6 * vth;
+    const double wth_floor = 1.0e-6 * wth;
+
+    if (vct->getCartesian_rank() == 0)
+    {
+        cout << "[maxwellian_Double_Harris_Ampere] species " << ns
+             << "  currentFromAmpere=" << ampere
+             << "  spatiallyVaryingThermal=" << svt << endl;
+    }
+
+    for (int i = 1; i < grid->getNXC() - 1; i++)
+        for (int j = 1; j < grid->getNYC() - 1; j++)
+            for (int k = 1; k < grid->getNZC() - 1; k++)
+            {
+                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
+
+                //* Per-cell drift
+                double u0_loc, v0_loc, w0_loc;
+                if (ampere)
+                {
+                    const double rho = EMf->getRHOns(i, j, k, ns);
+                    if (rho != 0.0)
+                    {
+                        u0_loc = EMf->getJxs(i, j, k, ns) / rho;
+                        v0_loc = EMf->getJys(i, j, k, ns) / rho;
+                        w0_loc = EMf->getJzs(i, j, k, ns) / rho;
+                    }
+                    else
+                    {
+                        u0_loc = u0; v0_loc = v0; w0_loc = w0;
+                    }
+                    if (fabs(u0_loc) > c || fabs(v0_loc) > c || fabs(w0_loc) > c)
+                    {
+                        cout << "DRIFT VELOCITY > c at (" << i << "," << j << "," << k
+                             << "), species " << ns << " : B init field too high!" << endl;
+                        MPI_Abort(MPI_COMM_WORLD, 2);
+                    }
+                }
+                else
+                {
+                    //* Match maxwellian_Double_Harris: flip w0 in upper sheet
+                    const double global_y = grid->getYN(i, j, k) + grid->getDY();
+                    const double shaper_z = -tanh((global_y - Ly/2)/0.0001);
+                    u0_loc = u0;
+                    v0_loc = v0;
+                    w0_loc = w0 * shaper_z;
+                }
+
+                //* Per-cell thermal
+                double uth_loc = uth, vth_loc = vth, wth_loc = wth;
+                if (svt && ampere)
+                {
+                    const double rho = EMf->getRHOns(i, j, k, ns);
+                    if (rho > 0.0)
+                    {
+                        const double pxx = EMf->getpXXsn(i, j, k, ns);
+                        const double pyy = EMf->getpYYsn(i, j, k, ns);
+                        const double pzz = EMf->getpZZsn(i, j, k, ns);
+                        //  pXXsn = Jx^2/rho + uth^2 * rho   (built in field init)
+                        //  -> uth_local = sqrt(pxx/rho - u0_loc^2)
+                        const double vxx = pxx / rho - u0_loc * u0_loc;
+                        const double vyy = pyy / rho - v0_loc * v0_loc;
+                        const double vzz = pzz / rho - w0_loc * w0_loc;
+                        uth_loc = (vxx > uth_floor*uth_floor) ? sqrt(vxx) : uth_floor;
+                        vth_loc = (vyy > vth_floor*vth_floor) ? sqrt(vyy) : vth_floor;
+                        wth_loc = (vzz > wth_floor*wth_floor) ? sqrt(vzz) : wth_floor;
+                    }
+                }
+
+                for (int ii = 0; ii < npcelx; ii++)
+                    for (int jj = 0; jj < npcely; jj++)
+                        for (int kk = 0; kk < npcelz; kk++)
+                        {
+                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+
+                            double u, v, w;
+                            sample_maxwellian(u, v, w,
+                                              uth_loc, vth_loc, wth_loc,
+                                              u0_loc,  v0_loc,  w0_loc);
+                            create_new_particle(u, v, w, q, x, y, z);
+                        }
+            }
+
+    fixPosition();
+}
+
 //? Kelvin--Helmholtz Instability (Finite Larmor Radius (FLR); Cerri 2013, https://doi.org/10.1063/1.4828981)
 void Particles3D::maxwellian_KHI_FLR(Field* EMf)
 {

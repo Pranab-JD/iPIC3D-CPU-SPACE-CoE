@@ -4447,48 +4447,103 @@ void EMfields3D::init_double_Harris_hump()
         init();  //! READ FROM RESTART
 }
 
-//* Double Harris sheets with a pure Gaussian flux-bubble hump (curl of a
-//  scalar Gaussian potential A = pertX * B0x * delta_x * exp(-(x/dx)^2 - (y/dy)^2)).
-//  This reproduces the GPU reference initDoublePeriodicHarrisWithGaussianHumpPerturbation
-//  spatial structure, while preserving the existing CPU input_param interface
-//  (and the existing top/bottom hump x-placement at 0.25*Lx and 0.75*Lx).
+//* Double Harris sheets with a Gaussian-localised tearing-mode hump that
+//  reproduces, locally at each sheet, the GPU initGEMHarris() pertHump form:
+//      A_z(x,y) = A0 * exp(-x^2/dx^2 - y^2/dy^2) * cos(kx*x) * cos(ky*y)
+//      A0       = pertHump * B0x / ky
+//      dx       = deltaxHump * delta
+//      dy       = deltayHump * delta
+//  with B = curl(A z_hat) ->  Bx = +dA/dy,  By = -dA/dx.
+//  Applied at each of the two Harris sheets (centres y = 0.25*Ly, 0.75*Ly),
+//  with A0 sign-flipped at the top sheet so the perturbation is oriented the
+//  same way relative to the local Bx reversal as in the single-sheet GPU run.
+//
+//  Custom input parameter layout (input_param[]):
+//    [0] pertHump        - hump amplitude (matches GPU pertHump)
+//    [1] delta           - half-thickness of bottom current sheet
+//    [2] deltaxHump      - hump x envelope width, in units of delta (matches GPU)
+//    [3] deltayHump      - hump y envelope width, in units of delta (matches GPU)
+//    [4] kxHump          - hump x wavenumber  (set <0 to use 2*PI/Lx)
+//    [5] kyHump          - hump y wavenumber  (set <0 to use   PI/Ly)
+//    [6] pertGEM            - (optional, default 0) long-wavelength tearing-mode amp.
+//    [7] delta2             - (optional, default 1) top-sheet thickness multiplier.
+//    [8] currentFromAmpere  - (optional, default 0) if !=0, initialise per-species
+//                              currents Jxs from J = (c/4*pi)*curl(B), distributed
+//                              across species by charge-weighted u0/v0/w0 (matches
+//                              GPU initGEMHarris). Picked up by
+//                              Particles3D::maxwellian_Double_Harris_Ampere.
+//    [9] spatiallyVaryingThermal - (optional, default 0) if !=0 and ampere is on,
+//                              build reference pressure pXXsn = Jx^2/rho + uth^2*rho
+//                              (and YY,ZZ analogues) so that particle init can
+//                              draw a spatially varying thermal velocity.
 void EMfields3D::init_double_Harris_hump_gaussian()
 {
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
     const Grid *grid = &get_grid();
 
-    //* Custom input parameters (same layout as init_double_Harris_hump)
-    const double pertX = input_param[0];   //* Amplitude of initial perturbation (localised in X)
-    const double delta = input_param[1];   //* Half-thickness of current sheet
+    //* Custom input parameters (mirrors GPU initGEMHarris naming)
+    const double pertHump   = input_param[0];
+    const double delta      = input_param[1];
 
-    double delta_x = 8.0 * delta;
-    double delta_y = 4.0 * delta;
-    double delta2  = 1.0;
-    double pertGEM = 0.0;
+    double deltaxHump = 1.0;
+    double deltayHump = 1.0;
+    double kxIn       = -1.0;
+    double kyIn       = -1.0;
+    double pertGEM    = 0.0;
+    double delta2     = 1.0;
+    int    ampere     = 0;
+    int    svt        = 0;
 
-    if (nparam > 2)
-    {
-        delta_x = input_param[2];
-        delta_y = input_param[3];
-        delta2  = input_param[4];
-        pertGEM = input_param[5];
-    }
+    if (nparam > 2) deltaxHump = input_param[2];
+    if (nparam > 3) deltayHump = input_param[3];
+    if (nparam > 4) kxIn       = input_param[4];
+    if (nparam > 5) kyIn       = input_param[5];
+    if (nparam > 6) pertGEM    = input_param[6];
+    if (nparam > 7) delta2     = input_param[7];
+    if (nparam > 8) ampere     = (input_param[8] != 0.0) ? 1 : 0;
+    if (nparam > 9) svt        = (input_param[9] != 0.0) ? 1 : 0;
+
+    //* Physical envelope widths (GPU convention: in units of delta)
+    const double dxH = deltaxHump * delta;
+    const double dyH = deltayHump * delta;
+
+    //* Wavenumbers: same sentinel convention as GPU (<0 -> auto)
+    const double kxH = (kxIn < 0.0) ? 2.0 * M_PI / Lx : kxIn;
+    const double kyH = (kyIn < 0.0) ?       M_PI / Ly : kyIn;
+
+    //* Hump amplitude pre-factor (same closed form as GPU)
+    const double A0  = (pertHump != 0.0) ? pertHump * B0x / kyH : 0.0;
+
+    //* GEM tearing-mode wavenumbers (long wavelength)
+    const double kxG = 2.0 * M_PI / Lx;
+    const double kyG = 2.0 * M_PI / Ly;
 
     if (restart_status == 0)
     {
         if (vct->getCartesian_rank() == 0)
         {
             cout << "-------------------------------------------------" << endl;
-            cout << " Initialising double Harris sheet with Gaussian  " << endl;
-            cout << " flux-bubble hump (curl of scalar Gaussian)      " << endl;
+            cout << " Initialising double Harris sheets with GPU-style" << endl;
+            cout << " (initGEMHarris) Gaussian tearing-mode hump      " << endl;
             cout << "-------------------------------------------------" << endl;
             cout << "Initial magnetic field components (Bx, By, Bz) = (" << B0x << ", " << B0y << ", " << B0z << ")" << endl;
-            cout << "Initial perturbation pertX                     = " << pertX << endl;
-            cout << "Half-thickness of current sheet delta          = " << delta << endl;
-            cout << "Hump widths (delta_x, delta_y)                 = (" << delta_x << ", " << delta_y << ")" << endl;
-            cout << "delta2 (top-sheet thickness multiplier)        = " << delta2  << endl;
-            cout << "pertGEM (long-wavelength GEM perturbation)     = " << pertGEM << endl;
+            cout << "delta                                          = " << delta  << endl;
+            cout << "delta2 (top-sheet thickness multiplier)        = " << delta2 << endl;
+            cout << "pertHump                                       = " << pertHump << endl;
+            if (pertHump != 0.0)
+            {
+                cout << "deltaxHump (units of delta)                    = " << deltaxHump
+                     << "  (physical " << dxH << ")" << endl;
+                cout << "deltayHump (units of delta)                    = " << deltayHump
+                     << "  (physical " << dyH << ")" << endl;
+                cout << "kxHump                                         = " << kxH << endl;
+                cout << "kyHump                                         = " << kyH << endl;
+                cout << "A0 = pertHump * B0x / kyHump                   = " << A0  << endl;
+            }
+            cout << "pertGEM (long-wavelength tearing amplitude)    = " << pertGEM << endl;
+            cout << "currentFromAmpere                              = " << ampere << endl;
+            cout << "spatiallyVaryingThermal                        = " << svt << endl;
             cout << "-------------------------------------------------" << endl;
         }
 
@@ -4499,14 +4554,18 @@ void EMfields3D::init_double_Harris_hump_gaussian()
                 {
                     double global_x = grid->getXN(i, j, k) + grid->getDX();
                     double global_y = grid->getYN(i, j, k) + grid->getDY();
-                    const double xM      = global_x - 0.25 * Lx;   // bottom-hump centre in x
-                    const double xMshift = global_x - 0.75 * Lx;   // top-hump centre in x
-                    const double yB      = global_y - 0.25 * Ly;
-                    const double yT      = global_y - 0.75 * Ly;
-                    const double yBd     = yB / delta;
-                    const double yTd     = yT / (delta * delta2);
 
-                    //* rho on nodes
+                    //* Bottom-sheet local coords (centre at y = 0.25*Ly, x = 0.25*Lx)
+                    const double xB  = global_x - 0.25 * Lx;
+                    const double yB  = global_y - 0.25 * Ly;
+                    const double yBd = yB / delta;
+
+                    //* Top-sheet local coords (centre at y = 0.75*Ly, x = 0.75*Lx)
+                    const double xT  = global_x - 0.75 * Lx;
+                    const double yT  = global_y - 0.75 * Ly;
+                    const double yTd = yT / (delta * delta2);
+
+                    //* rho on nodes (double Harris)
                     for (int is = 0; is < ns; is++)
                     {
                         if (DriftSpecies[is])
@@ -4525,32 +4584,56 @@ void EMfields3D::init_double_Harris_hump_gaussian()
                     Ey[i][j][k] = 0.0;
                     Ez[i][j][k] = 0.0;
 
-                    //* B on nodes: double Harris background
-                    Bxn[i][j][k]  = B0x * (-1.0 + tanh(yBd) - tanh(yTd));
-
-                    //* Optional long-wavelength GEM perturbation (kept for parity)
-                    Bxn[i][j][k] += -B0x * pertGEM * (Lx / Ly) * cos(2 * M_PI * xM / Lx) * sin(2 * M_PI * yB / Ly);
-                    Byn[i][j][k] +=  B0x * pertGEM            * sin(2 * M_PI * xM / Lx) * cos(2 * M_PI * yB / Ly);
-
-                    //* Pure Gaussian flux-bubble hump = curl(A z_hat),
-                    //  A_bottom =  pertX*B0x * (delta_x/2) * humpB
-                    //  A_top    = -pertX*B0x * (delta_x/2) * humpT
-                    //  ->  Bx =  dA/dy,   By = -dA/dx
-                    const double xMdx      = xM      / delta_x;
-                    const double xMshiftdx = xMshift / delta_x;
-                    const double yBdy      = yB / delta_y;
-                    const double yTdy      = yT / delta_y;
-
-                    const double humpB = exp(-xMdx      * xMdx      - yBdy * yBdy);
-                    Bxn[i][j][k] -= (B0x * pertX) * humpB * (2.0 * yBdy);
-                    Byn[i][j][k] += (B0x * pertX) * humpB * (2.0 * xMdx);
-
-                    const double humpT = exp(-xMshiftdx * xMshiftdx - yTdy * yTdy);
-                    Bxn[i][j][k] += (B0x * pertX) * humpT * (2.0 * yTdy);
-                    Byn[i][j][k] -= (B0x * pertX) * humpT * (2.0 * xMshiftdx);
-
-                    //* Guide field
+                    //* B on nodes: double Harris background + guide
+                    Bxn[i][j][k] = B0x * (-1.0 + tanh(yBd) - tanh(yTd));
+                    Byn[i][j][k] = B0y;
                     Bzn[i][j][k] = B0z;
+
+                    //* Optional long-wavelength GEM tearing perturbation,
+                    //  applied at each sheet (sign flip at top to match local Bx reversal).
+                    if (pertGEM != 0.0)
+                    {
+                        // bottom sheet
+                        Bxn[i][j][k] += -pertGEM * B0x * (Lx / Ly) * cos(kxG * xB) * sin(kyG * yB);
+                        Byn[i][j][k] +=  pertGEM * B0x             * sin(kxG * xB) * cos(kyG * yB);
+                        // top sheet (flip)
+                        Bxn[i][j][k] -= -pertGEM * B0x * (Lx / Ly) * cos(kxG * xT) * sin(kyG * yT);
+                        Byn[i][j][k] -=  pertGEM * B0x             * sin(kxG * xT) * cos(kyG * yT);
+                    }
+
+                    //* Gaussian-localised tearing-mode hump = curl(A z_hat),
+                    //  with A_z(x,y) = A0 * exp(-x^2/dx^2 - y^2/dy^2) * cos(kx*x)*cos(ky*y).
+                    //  Same closed form as GPU initGEMHarris pertHump term, applied per sheet.
+                    if (pertHump != 0.0)
+                    {
+                        // ---- bottom sheet ----
+                        {
+                            const double gB  = exp(-xB * xB / (dxH * dxH) - yB * yB / (dyH * dyH));
+                            const double Cx  = cos(kxH * xB);
+                            const double Sx  = sin(kxH * xB);
+                            const double Cy  = cos(kyH * yB);
+                            const double Sy  = sin(kyH * yB);
+                            // Bx +=  dA/dy
+                            Bxn[i][j][k] += A0 * gB * Cx
+                                          * (-2.0 * yB / (dyH * dyH) * Cy - kyH * Sy);
+                            // By += -dA/dx
+                            Byn[i][j][k] += A0 * gB * Cy
+                                          * ( 2.0 * xB / (dxH * dxH) * Cx + kxH * Sx);
+                        }
+                        // ---- top sheet (flip A0 sign) ----
+                        {
+                            const double A0t = -A0;
+                            const double gT  = exp(-xT * xT / (dxH * dxH) - yT * yT / (dyH * dyH));
+                            const double Cx  = cos(kxH * xT);
+                            const double Sx  = sin(kxH * xT);
+                            const double Cy  = cos(kyH * yT);
+                            const double Sy  = sin(kyH * yT);
+                            Bxn[i][j][k] += A0t * gT * Cx
+                                          * (-2.0 * yT / (dyH * dyH) * Cy - kyH * Sy);
+                            Byn[i][j][k] += A0t * gT * Cy
+                                          * ( 2.0 * xT / (dxH * dxH) * Cx + kxH * Sx);
+                        }
+                    }
                 }
 
         //* Communicate ghost data on nodes
@@ -4569,6 +4652,104 @@ void EMfields3D::init_double_Harris_hump_gaussian()
 
         for (int is = 0; is < ns; is++)
             grid->interpN2C(rhocs, is, rhons);
+
+        //* ----------------------------------------------------------------
+        //  currentFromAmpere / spatiallyVaryingThermal initialisation
+        //  (mirrors GPU EMfields3D::initGEMHarris ampere/svt blocks)
+        //  ----------------------------------------------------------------
+        //  Zero per-species moment arrays first so that particle init never
+        //  reads uninitialised Jxs/pXXsn even when ampere is off.
+        for (int is = 0; is < ns; is++)
+            for (int i = 0; i < nxn; i++)
+                for (int j = 0; j < nyn; j++)
+                    for (int k = 0; k < nzn; k++)
+                    {
+                        Jxs  [is][i][j][k] = 0.0;
+                        Jys  [is][i][j][k] = 0.0;
+                        Jzs  [is][i][j][k] = 0.0;
+                        pXXsn[is][i][j][k] = 0.0;
+                        pXYsn[is][i][j][k] = 0.0;
+                        pXZsn[is][i][j][k] = 0.0;
+                        pYYsn[is][i][j][k] = 0.0;
+                        pYZsn[is][i][j][k] = 0.0;
+                        pZZsn[is][i][j][k] = 0.0;
+                    }
+
+        if (ampere)
+        {
+            //* J = (c/4*pi) * curl(B) on nodes (B from cell centres)
+            for (int i = 0; i < nxn; i++)
+                for (int j = 0; j < nyn; j++)
+                    for (int k = 0; k < nzn; k++)
+                    {
+                        tempXN[i][j][k] = 0.0;
+                        tempYN[i][j][k] = 0.0;
+                        tempZN[i][j][k] = 0.0;
+                    }
+            grid->curlC2N(tempXN, tempYN, tempZN, Bxc, Byc, Bzc);
+
+            //* Charge-weighted normalisation: sign(q_s)*u0_s sums to N_u, so
+            //  weight f_s = sign(q_s)*u0_s / N_u ensures sum(f_s) = 1 and the
+            //  recovered drift sign matches sign(u0). Same as GPU.
+            double sumU = 0.0, sumV = 0.0, sumW = 0.0;
+            for (int is = 0; is < ns; is++)
+            {
+                const double qs = (col->getQOM(is) > 0.0) ? 1.0 : -1.0;
+                sumU += qs * col->getU0(is);
+                sumV += qs * col->getV0(is);
+                sumW += qs * col->getW0(is);
+            }
+            if (vct->getCartesian_rank() == 0)
+            {
+                cout << "currentFromAmpere charge-weighted sums: "
+                     << "N_u=" << sumU << "  N_v=" << sumV << "  N_w=" << sumW << endl;
+                if (svt)
+                    cout << "Building reference pressure state (spatiallyVaryingThermal=1)" << endl;
+            }
+
+            for (int is = 0; is < ns; is++)
+            {
+                const double qs    = (col->getQOM(is) > 0.0) ? 1.0 : -1.0;
+                const double wU    = (sumU != 0.0) ? qs * col->getU0(is) / sumU : 0.0;
+                const double wV    = (sumV != 0.0) ? qs * col->getV0(is) / sumV : 0.0;
+                const double wW    = (sumW != 0.0) ? qs * col->getW0(is) / sumW : 0.0;
+                const double factU = wU * c / FourPI;
+                const double factV = wV * c / FourPI;
+                const double factW = wW * c / FourPI;
+                const double uthS2 = col->getUth(is) * col->getUth(is);
+                const double vthS2 = col->getVth(is) * col->getVth(is);
+                const double wthS2 = col->getWth(is) * col->getWth(is);
+
+                for (int i = 0; i < nxn; i++)
+                    for (int j = 0; j < nyn; j++)
+                        for (int k = 0; k < nzn; k++)
+                        {
+                            Jxs[is][i][j][k] = factU * tempXN[i][j][k];
+                            Jys[is][i][j][k] = factV * tempYN[i][j][k];
+                            Jzs[is][i][j][k] = factW * tempZN[i][j][k];
+                        }
+
+                if (svt)
+                {
+                    for (int i = 0; i < nxn; i++)
+                        for (int j = 0; j < nyn; j++)
+                            for (int k = 0; k < nzn; k++)
+                            {
+                                const double rho = rhons[is][i][j][k];
+                                if (rho == 0.0) continue;
+                                const double Jx  = Jxs[is][i][j][k];
+                                const double Jy  = Jys[is][i][j][k];
+                                const double Jz  = Jzs[is][i][j][k];
+                                pXXsn[is][i][j][k] = Jx * Jx / rho + uthS2 * rho;
+                                pYYsn[is][i][j][k] = Jy * Jy / rho + vthS2 * rho;
+                                pZZsn[is][i][j][k] = Jz * Jz / rho + wthS2 * rho;
+                            }
+                }
+            }
+        }
+        //* else: Jxs/Jys/Jzs stay at zero; particle init falls back to global
+        //  u0/v0/w0 (with the usual upper-sheet shaper_z flip) as in
+        //  Particles3D::maxwellian_Double_Harris.
     }
     else
         init();  //! READ FROM RESTART
