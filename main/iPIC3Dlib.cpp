@@ -195,6 +195,7 @@ int c_Solver::Init(int argc, char **argv)
             else if (col->getCase()=="GEM")       		        EMf->initGEM();
             else if (col->getCase()=="Double_Harris")           EMf->init_double_Harris();
             else if (col->getCase()=="Double_Harris_Hump")      EMf->init_double_Harris_hump();
+            else if (col->getCase()=="Double_Harris_Hump_Gaussian") EMf->init_double_Harris_hump_gaussian();
             else if (col->getCase()=="Dipole")    		        EMf->initDipole();
             else if (col->getCase()=="Dipole2D")  		        EMf->initDipole2D();
             else if (col->getCase()=="NullPoints")              EMf->initNullPoints();

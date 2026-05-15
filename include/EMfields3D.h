@@ -71,7 +71,12 @@ public:
     void init_double_Harris();
 
     void init_double_Harris_hump();
-    
+
+    //* Initialise double Harris sheets with a pure Gaussian flux-bubble hump
+    //  (curl of a scalar Gaussian potential, matching the GPU
+    //  initDoublePeriodicHarrisWithGaussianHumpPerturbation reference).
+    void init_double_Harris_hump_gaussian();
+
     //* Initialise GEM challenge with dipole-like tail without perturbation
     void initGEMDipoleLikeTailNoPert();
     

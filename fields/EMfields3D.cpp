@@ -4447,6 +4447,133 @@ void EMfields3D::init_double_Harris_hump()
         init();  //! READ FROM RESTART
 }
 
+//* Double Harris sheets with a pure Gaussian flux-bubble hump (curl of a
+//  scalar Gaussian potential A = pertX * B0x * delta_x * exp(-(x/dx)^2 - (y/dy)^2)).
+//  This reproduces the GPU reference initDoublePeriodicHarrisWithGaussianHumpPerturbation
+//  spatial structure, while preserving the existing CPU input_param interface
+//  (and the existing top/bottom hump x-placement at 0.25*Lx and 0.75*Lx).
+void EMfields3D::init_double_Harris_hump_gaussian()
+{
+    const Collective *col = &get_col();
+    const VirtualTopology3D *vct = &get_vct();
+    const Grid *grid = &get_grid();
+
+    //* Custom input parameters (same layout as init_double_Harris_hump)
+    const double pertX = input_param[0];   //* Amplitude of initial perturbation (localised in X)
+    const double delta = input_param[1];   //* Half-thickness of current sheet
+
+    double delta_x = 8.0 * delta;
+    double delta_y = 4.0 * delta;
+    double delta2  = 1.0;
+    double pertGEM = 0.0;
+
+    if (nparam > 2)
+    {
+        delta_x = input_param[2];
+        delta_y = input_param[3];
+        delta2  = input_param[4];
+        pertGEM = input_param[5];
+    }
+
+    if (restart_status == 0)
+    {
+        if (vct->getCartesian_rank() == 0)
+        {
+            cout << "-------------------------------------------------" << endl;
+            cout << " Initialising double Harris sheet with Gaussian  " << endl;
+            cout << " flux-bubble hump (curl of scalar Gaussian)      " << endl;
+            cout << "-------------------------------------------------" << endl;
+            cout << "Initial magnetic field components (Bx, By, Bz) = (" << B0x << ", " << B0y << ", " << B0z << ")" << endl;
+            cout << "Initial perturbation pertX                     = " << pertX << endl;
+            cout << "Half-thickness of current sheet delta          = " << delta << endl;
+            cout << "Hump widths (delta_x, delta_y)                 = (" << delta_x << ", " << delta_y << ")" << endl;
+            cout << "delta2 (top-sheet thickness multiplier)        = " << delta2  << endl;
+            cout << "pertGEM (long-wavelength GEM perturbation)     = " << pertGEM << endl;
+            cout << "-------------------------------------------------" << endl;
+        }
+
+        //* Initialise E, B, and rho on nodes
+        for (int i = 0; i < nxn; i++)
+            for (int j = 0; j < nyn; j++)
+                for (int k = 0; k < nzn; k++)
+                {
+                    double global_x = grid->getXN(i, j, k) + grid->getDX();
+                    double global_y = grid->getYN(i, j, k) + grid->getDY();
+                    const double xM      = global_x - 0.25 * Lx;   // bottom-hump centre in x
+                    const double xMshift = global_x - 0.75 * Lx;   // top-hump centre in x
+                    const double yB      = global_y - 0.25 * Ly;
+                    const double yT      = global_y - 0.75 * Ly;
+                    const double yBd     = yB / delta;
+                    const double yTd     = yT / (delta * delta2);
+
+                    //* rho on nodes
+                    for (int is = 0; is < ns; is++)
+                    {
+                        if (DriftSpecies[is])
+                        {
+                            const double sech_yBd = 1. / cosh(yBd);
+                            const double sech_yTd = 1. / cosh(yTd);
+                            rhons[is][i][j][k]  = qom[is] / fabs(qom[is]) * rhoINIT[is] * sech_yBd * sech_yBd / FourPI;
+                            rhons[is][i][j][k] += qom[is] / fabs(qom[is]) * rhoINIT[is] * sech_yTd * sech_yTd / FourPI;
+                        }
+                        else
+                            rhons[is][i][j][k] = qom[is] / fabs(qom[is]) * rhoINIT[is] / FourPI;
+                    }
+
+                    //* E on nodes
+                    Ex[i][j][k] = 0.0;
+                    Ey[i][j][k] = 0.0;
+                    Ez[i][j][k] = 0.0;
+
+                    //* B on nodes: double Harris background
+                    Bxn[i][j][k]  = B0x * (-1.0 + tanh(yBd) - tanh(yTd));
+
+                    //* Optional long-wavelength GEM perturbation (kept for parity)
+                    Bxn[i][j][k] += -B0x * pertGEM * (Lx / Ly) * cos(2 * M_PI * xM / Lx) * sin(2 * M_PI * yB / Ly);
+                    Byn[i][j][k] +=  B0x * pertGEM            * sin(2 * M_PI * xM / Lx) * cos(2 * M_PI * yB / Ly);
+
+                    //* Pure Gaussian flux-bubble hump = curl(A z_hat),
+                    //  A_bottom =  pertX*B0x * (delta_x/2) * humpB
+                    //  A_top    = -pertX*B0x * (delta_x/2) * humpT
+                    //  ->  Bx =  dA/dy,   By = -dA/dx
+                    const double xMdx      = xM      / delta_x;
+                    const double xMshiftdx = xMshift / delta_x;
+                    const double yBdy      = yB / delta_y;
+                    const double yTdy      = yT / delta_y;
+
+                    const double humpB = exp(-xMdx      * xMdx      - yBdy * yBdy);
+                    Bxn[i][j][k] -= (B0x * pertX) * humpB * (2.0 * yBdy);
+                    Byn[i][j][k] += (B0x * pertX) * humpB * (2.0 * xMdx);
+
+                    const double humpT = exp(-xMshiftdx * xMshiftdx - yTdy * yTdy);
+                    Bxn[i][j][k] += (B0x * pertX) * humpT * (2.0 * yTdy);
+                    Byn[i][j][k] -= (B0x * pertX) * humpT * (2.0 * xMshiftdx);
+
+                    //* Guide field
+                    Bzn[i][j][k] = B0z;
+                }
+
+        //* Communicate ghost data on nodes
+        communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0], col->bcBx[1], col->bcBx[2], col->bcBx[3], col->bcBx[4], col->bcBx[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Byn, col->bcBy[0], col->bcBy[1], col->bcBy[2], col->bcBy[3], col->bcBy[4], col->bcBy[5], vct, this);
+        communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0], col->bcBz[1], col->bcBz[2], col->bcBz[3], col->bcBz[4], col->bcBz[5], vct, this);
+
+        //* B on cell centres
+        grid->interpN2C(Bxc, Bxn);
+        grid->interpN2C(Byc, Byn);
+        grid->interpN2C(Bzc, Bzn);
+
+        communicateCenterBC(nxc, nyc, nzc, Bxc, col->bcBx[0], col->bcBx[1], col->bcBx[2], col->bcBx[3], col->bcBx[4], col->bcBx[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0], col->bcBy[1], col->bcBy[2], col->bcBy[3], col->bcBy[4], col->bcBy[5], vct, this);
+        communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0], col->bcBz[1], col->bcBz[2], col->bcBz[3], col->bcBz[4], col->bcBz[5], vct, this);
+
+        for (int is = 0; is < ns; is++)
+            grid->interpN2C(rhocs, is, rhons);
+    }
+    else
+        init();  //! READ FROM RESTART
+}
+
 //* initialize GEM challenge with no Perturbation with dipole-like tail topology
 void EMfields3D::initGEMDipoleLikeTailNoPert()
 {

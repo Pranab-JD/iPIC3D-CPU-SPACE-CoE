@@ -3,3 +3,11 @@ build*/
 .project
 .settings
 Debug*
+**/build/**
+**/old.build/**
+**/build.Feb16/**
+**/build.Jan27/**
+**/Jan23.build/**
+**/old.old.build/**
+**/old.old.old.build/**
+**/old.old.old.old.build/** 
