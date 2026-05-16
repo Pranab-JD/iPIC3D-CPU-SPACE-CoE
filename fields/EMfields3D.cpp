@@ -45,6 +45,8 @@
 #include "../LeXInt_Timer.hpp"
 #include <filesystem>
 #include <cstring>
+#include <vector>
+#include <random>
 
 #ifndef NO_HDF5
 #endif
@@ -5373,16 +5375,24 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
 //? Relativistic double Harris for ion-electron plasma: Maxwellian background, drifting particles in the sheets
 void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
 {
+    const Grid *grid = &get_grid();
     const Collective *col = &get_col();
     const VirtualTopology3D *vct = &get_vct();
-    const Grid *grid = &get_grid();
 
     //* Custom input parameters for relativistic reconnection
-    const double sigma                  = input_param[0];       //* Magnetisation parameter
-    const double eta                    = input_param[1];       //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
-    const double delta_CS               = input_param[2];       //* Half-thickness of current sheet (free parameter)
-    const double perturbation           = input_param[3];       //* Amplitude of initial perturbation
-    const double guide_field_ratio      = input_param[4];       //* Ratio of guide field to in-plane magnetic field
+    const double sigma                  = input_param[0];               //* Magnetisation parameter
+    const double eta                    = input_param[1];               //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
+    const double delta_CS               = input_param[2];               //* Half-thickness of current sheet (free parameter)
+    const double guide_field_ratio      = input_param[3];               //* Ratio of guide field to in-plane magnetic field
+    const double turb_amp               = input_param[4];               //* RMS amplitude of turbulent magnetic perturbation, normalised to B0
+    const int nmodes                    = int(input_param[5]);          //* Number of turbulent Fourier modes
+    const int kmin                      = int(input_param[6]);          //* Minimum integer turbulent mode number
+    const int kmax                      = int(input_param[7]);          //* Maximum integer turbulent mode number
+    const int use_kx                    = int(input_param[8]);          //* 0 -> kx = 0, 1 -> kx sampled normally
+    const int use_ky                    = int(input_param[9]);          //* 0 -> ky = 0, 1 -> ky sampled normally
+    const int use_kz                    = int(input_param[10]);         //* 0 -> kz = 0, 1 -> kz sampled normally
+
+    const long long turb_seed = 12345LL;
 
     //* Background (BG) or upstream particles
     double thermal_spread_BG_electrons  = col->getUth(0);                           //* Thermal spread of electrons
@@ -5396,83 +5406,193 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
     double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
     double thermal_spread_CS_ions       = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread of ions (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     double thermal_spread_CS_electrons  = thermal_spread_CS_ions * fabs(col->getQOM(0));         //* Thermal spread of electrons (Ratio of thermal spread = mass ratio)
-    
+
+    struct TurbMode {double kx; double ky; double kz; double phase; double amp;};
+
+    std::vector<TurbMode> modes;
+
+    if (turb_amp > 0.0 && nmodes > 0 && kmax >= kmin) 
+    {
+        std::mt19937_64 rng(turb_seed);
+        std::uniform_int_distribution<int> mode_dist(kmin, kmax);
+        std::uniform_int_distribution<int> sign_dist(0, 1);
+        std::uniform_real_distribution<double> phase_dist(0.0, 2.0 * M_PI);
+        std::normal_distribution<double> amp_dist(0.0, 1.0);
+
+        for (int m = 0; m < nmodes; m++) 
+        {
+            double kx = 0.0;
+            double ky = 0.0;
+            double kz = 0.0;
+
+            if (use_kx != 0) 
+            {
+                int nx = mode_dist(rng);
+                double sx = sign_dist(rng) == 0 ? -1.0 : 1.0;
+                kx = sx * 2.0 * M_PI * double(nx) / Lx;
+            }
+
+            if (use_ky != 0) 
+            {
+                int ny = mode_dist(rng);
+                double sy = sign_dist(rng) == 0 ? -1.0 : 1.0;
+                ky = sy * 2.0 * M_PI * double(ny) / Ly;
+            }
+
+            if (use_kz != 0) 
+            {
+                int nz = mode_dist(rng);
+                double sz = sign_dist(rng) == 0 ? -1.0 : 1.0;
+                kz = sz * 2.0 * M_PI * double(nz) / Lz;
+            }
+
+            if (kx == 0.0 && ky == 0.0)
+                continue;
+
+            TurbMode mode;
+            mode.kx = kx;
+            mode.ky = ky;
+            mode.kz = kz;
+            mode.phase = phase_dist(rng);
+            mode.amp = amp_dist(rng);
+            modes.push_back(mode);
+        }
+    }
+
+    auto turbulent_Bx = [&](double x, double y, double z) 
+    {
+        double dBx = 0.0;
+
+        for (const auto& mode : modes) 
+        {
+            double arg = mode.kx * x + mode.ky * y + mode.kz * z + mode.phase;
+            dBx += -mode.amp * mode.ky * sin(arg);
+        }
+
+        return dBx;
+    };
+
+    auto turbulent_By = [&](double x, double y, double z) 
+    {
+        double dBy = 0.0;
+
+        for (const auto& mode : modes) 
+        {
+            double arg = mode.kx * x + mode.ky * y + mode.kz * z + mode.phase;
+            dBy += mode.amp * mode.kx * sin(arg);
+        }
+
+        return dBy;
+    };
+
     if (restart_status == 0) 
     {
         if (vct->getCartesian_rank() == 0) 
         {
-            cout << "-----------------------------------------------------------"   << endl;
-            cout << "Relativistic double Harris sheet for ion-electron plasma"      << endl;
-            cout << "-----------------------------------------------------------"   << endl << endl; 
-            
-            cout << "Ratio of CS density to upstream density            = " << eta                      << endl;
-            cout << "Perturbation amplitude                             = " << perturbation             << endl; 
-            cout << "Ratio of guide magnetic field to background field  = " << guide_field_ratio        << endl << endl; 
-            
-            cout << "BACKGROUND/UPSTREAM:"                                                              << endl;
-            cout << "   Magnetisation parameter (ions)          = " << sigma                            << endl; 
-            cout << "   Plasma beta                             = " << 2.0*rho_BG*thermal_spread_BG_ions/(B_BG*B_BG/2.0/FourPI)  << endl;
-            cout << "   Thermal spread of ions                  = " << thermal_spread_BG_ions           << endl; 
-            cout << "   Thermal spread of electrons             = " << thermal_spread_BG_electrons      << endl; 
-            cout << "   Lorentz factor of electrons            ~= " << 3*thermal_spread_BG_electrons    << endl << endl;
+            cout << "-----------------------------------------------------------" << endl;
+            cout << "Relativistic double Harris sheet for ion-electron plasma" << endl;
+            cout << "-----------------------------------------------------------" << endl << endl;
 
-            cout << "CURRENT SHEET:"                                                                    << endl;
-            cout << "   Thermal spread of drifting ions         = " << thermal_spread_CS_ions           << endl; 
-            cout << "   Thermal spread of drifting electrons    = " << thermal_spread_CS_electrons      << endl; 
-            cout << "   Lorentz factor of drifting particles    = " << lorentz_factor_CS                << endl; 
+            cout << "Ratio of CS density to upstream density            = " << eta << endl;
+            cout << "Ratio of guide magnetic field to background field  = " << guide_field_ratio << endl;
+            cout << "Turbulent perturbation amplitude dB/B0             = " << turb_amp << endl;
+            cout << "Number of turbulent modes                          = " << modes.size() << endl;
+            cout << "Turbulent mode range                               = " << kmin << " to " << kmax << endl;
+            cout << "Turbulent seed                                     = " << turb_seed << endl;
+            cout << "Use turbulent kx, ky, kz modes                     = " << use_kx << " " << use_ky << " " << use_kz << endl;
+            cout << "   0 means component is forced to zero; 1 means sampled normally" << endl << endl;
 
-            cout << "-----------------------------------------------------------"   << endl;
+            cout << "BACKGROUND/UPSTREAM:" << endl;
+            cout << "   Magnetisation parameter (ions)                  = " << sigma << endl;
+            cout << "   Plasma beta                                     = " << 2.0 * rho_BG * thermal_spread_BG_ions / (B_BG * B_BG / 2.0 / FourPI) << endl;
+            cout << "   Thermal spread of ions                          = " << thermal_spread_BG_ions << endl;
+            cout << "   Thermal spread of electrons                     = " << thermal_spread_BG_electrons << endl;
+            cout << "   Lorentz factor of electrons                    ~= " << 3 * thermal_spread_BG_electrons << endl << endl;
+
+            cout << "CURRENT SHEET:" << endl;
+            cout << "   Thermal spread of drifting ions                 = " << thermal_spread_CS_ions << endl;
+            cout << "   Thermal spread of drifting electrons            = " << thermal_spread_CS_electrons << endl;
+            cout << "   Lorentz factor of drifting particles            = " << lorentz_factor_CS << endl;
+
+            cout << "-----------------------------------------------------------" << endl;
         }
-  
-        //* Params for setting up current sheet
-        double x14=Lx/4.0;
-        double x34=3.0*Lx/4.0;
-        double y12=Ly/2.0;
-        double y14=Ly/4.0;
-        double y34=3.0*Ly/4.0;
-        double ym=Ly;           // 4 times the perturbation height
-        double xm=Lx;           // perturbation wavelength
 
-        double xN, yN, yh, xh, cosyh, cosxh, sinyh, sinxh;
-        double fBx, fBy;
-        
-        for (int i = 1; i < nxc-1; i++)
-            for (int j = 1; j < nyc-1; j++)
-                for (int k = 1; k < nzc-1; k++) 
+        double local_turb_sum = 0.0;
+        double local_turb_count = 0.0;
+
+        for (int i = 1; i < nxc - 1; i++)
+            for (int j = 1; j < nyc - 1; j++)
+                for (int k = 1; k < nzc - 1; k++) 
                 {
                     double xN = grid->getXC(i, j, k);
                     double yN = grid->getYC(i, j, k);
+                    double zN = grid->getZC(i, j, k);
+
+                    double dBx = turbulent_Bx(xN, yN, zN);
+                    double dBy = turbulent_By(xN, yN, zN);
+
+                    local_turb_sum += dBx * dBx + dBy * dBy;
+                    local_turb_count += 1.0;
+                }
+
+
+        double global_turb_sum = 0.0;
+        double global_turb_count = 0.0;
+
+        MPI_Allreduce(&local_turb_sum, &global_turb_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&local_turb_count, &global_turb_count, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        double turb_scale = 0.0;
+
+        if (turb_amp > 0.0 && global_turb_sum > 0.0 && global_turb_count > 0.0) 
+        {
+            double turb_rms = sqrt(global_turb_sum / global_turb_count);
+            turb_scale = turb_amp * B_BG / turb_rms;
+        }
+
+        double y12 = Ly / 2.0;
+        double y14 = Ly / 4.0;
+        double y34 = 3.0 * Ly / 4.0;
+
+        for (int i = 1; i < nxc - 1; i++)
+            for (int j = 1; j < nyc - 1; j++)
+                for (int k = 1; k < nzc - 1; k++) 
+                {
+                    double xN = grid->getXC(i, j, k);
+                    double yN = grid->getYC(i, j, k);
+                    double zN = grid->getZC(i, j, k);
+
+                    double yh;
+                    double fBx;
+
                     if (yN <= y12) 
                     {
-                        yh = yN-y14;
-                        xh = xN-x14;
+                        yh = yN - y14;
                         fBx = -1.0;
-                        fBy = 1.0;
-                    }
+                    } 
                     else 
                     {
-                        yh = yN-y34;
-                        xh = xN-x34;
+                        yh = yN - y34;
                         fBx = 1.0;
-                        fBy = -1.0;
                     }
-                    
-                    cosyh = cos(2.0*M_PI*yh/ym);
-                    cosxh = cos(2.0*M_PI*xh/xm);
-                    sinyh = sin(2.0*M_PI*yh/ym);
-                    sinxh = sin(2.0*M_PI*xh/xm);
-        
-                    Bxc[i][j][k] = fBx * B_BG * tanh(yh/delta_CS);
 
-                    //* Add perturbation
-                    Bxc[i][j][k] = Bxc[i][j][k] * (1.0+perturbation*cosxh*cosyh*cosyh) + fBx*2.0*perturbation*cosxh*2.0*M_PI/ym*cosyh*sinyh 
-                                                * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-B_BG*delta_CS*LOG_COSH(yh/delta_CS));
-        
-                    Byc[i][j][k] = fBy*2.0*perturbation*M_PI/xm*sinxh*cosyh*cosyh * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-delta_CS*B_BG*LOG_COSH(yh/delta_CS));
-        
-                    //* Guide field
-                    Bzc[i][j][k] = B_BG*guide_field_ratio;
+                    //* Reconnecting/reversing field
+                    Bxc[i][j][k] = fBx * B_BG * tanh(yh / delta_CS);
+                    
+                    //* Normal-to-current-sheet field
+                    Byc[i][j][k] = 0.0;
+
+                    //* Add turbulence to Bx and By
+                    if (turb_scale > 0.0) 
+                    {
+                        Bxc[i][j][k] += turb_scale * turbulent_Bx(xN, yN, zN);
+                        Byc[i][j][k] += turb_scale * turbulent_By(xN, yN, zN);
+                    }
+
+                    //* Guide field (out-of-plane)
+                    Bzc[i][j][k] = B_BG * guide_field_ratio;
                 }
+
 
         for (int i = 0; i < nxn; i++)
             for (int j = 0; j < nyn; j++)

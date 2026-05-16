@@ -69,30 +69,49 @@ inline std::istream & operator>>(std::istream & is, array_int & t) {
 
 
 struct array_double {
-  double a, b, c, d, e, f,g,h,i,j,k,l;
+    double a, b, c, d, e, f, g, h, i, j, k, l;
+    double m, n, o, p, q, r, s, t, u, v, w, x, y, z;
 
-  array_double() {}
+    array_double() {}
 
-  array_double(int u1, int u2, int u3, int u4, int u5, int u6, int u7, int u8, int u9, int u10, int u11, int u12):
-	               a(u1), b(u2), c(u3), d(u4), e(u5), f(u6), g(u7), h(u8), i(u9), j(u10), k(u11), l(u12){}
+    array_double(double u1, double u2, double u3, double u4, double u5, double u6, double u7, double u8, double u9, double u10, double u11, double u12,
+                 double u13, double u14, double u15, double u16, double u17, double u18, double u19, double u20, double u21, double u22, double u23, double u24, double u25, double u26) :
+        a(u1), b(u2), c(u3), d(u4), e(u5), f(u6), g(u7), h(u8), i(u9), j(u10), k(u11), l(u12),
+        m(u13), n(u14), o(u15), p(u16), q(u17), r(u18), s(u19), t(u20), u(u21), v(u22), w(u23), x(u24), y(u25), z(u26) {}
 
-  array_double(const array_double & orig):a(orig.a), b(orig.b), c(orig.c), d(orig.d), e(orig.e), f(orig.f), g(orig.g), h(orig.h), i(orig.i), j(orig.j), k(orig.k), l(orig.l){}
+    array_double(const array_double &orig) :
+        a(orig.a), b(orig.b), c(orig.c), d(orig.d), e(orig.e), f(orig.f), g(orig.g), h(orig.h), i(orig.i), j(orig.j), k(orig.k), l(orig.l),
+        m(orig.m), n(orig.n), o(orig.o), p(orig.p), q(orig.q), r(orig.r), s(orig.s), t(orig.t), u(orig.u), v(orig.v), w(orig.w), x(orig.x), y(orig.y), z(orig.z) {}
 
-  array_double & operator=(const array_double & orig) {
-    a = orig.a;
-    b = orig.b;
-    c = orig.c;
-    d = orig.d;
-    e = orig.e;
-    f = orig.f;
-    g = orig.g;
-    h = orig.h;
-    i = orig.i;
-    j = orig.j;
-    k = orig.k;
-    l = orig.l;
-    return *this;
-  }
+    array_double &operator=(const array_double &orig) {
+        a = orig.a;
+        b = orig.b;
+        c = orig.c;
+        d = orig.d;
+        e = orig.e;
+        f = orig.f;
+        g = orig.g;
+        h = orig.h;
+        i = orig.i;
+        j = orig.j;
+        k = orig.k;
+        l = orig.l;
+        m = orig.m;
+        n = orig.n;
+        o = orig.o;
+        p = orig.p;
+        q = orig.q;
+        r = orig.r;
+        s = orig.s;
+        t = orig.t;
+        u = orig.u;
+        v = orig.v;
+        w = orig.w;
+        x = orig.x;
+        y = orig.y;
+        z = orig.z;
+        return *this;
+    }
 };
 
 

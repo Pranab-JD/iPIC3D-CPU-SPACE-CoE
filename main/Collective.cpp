@@ -440,22 +440,39 @@ void Collective::ReadInput(string inputfile)
         w0[5] = w00.f;
     }
 
-    //* Custom input parameters (up to 10)
+    //* Custom input parameters (up to 26)
     nparam = config.read <int> ("nparam", 0);
     if (nparam > 0) 
     {
         input_param = new double[nparam];
         array_double input_param0 = config.read <array_double> ("custom_parameters");
-                      input_param[0] = input_param0.a;
-        if (nparam>1) input_param[1] = input_param0.b;
-        if (nparam>2) input_param[2] = input_param0.c;
-        if (nparam>3) input_param[3] = input_param0.d;
-        if (nparam>4) input_param[4] = input_param0.e;
-        if (nparam>5) input_param[5] = input_param0.f;
-        if (nparam>6) input_param[6] = input_param0.g;
-        if (nparam>7) input_param[7] = input_param0.h;
-        if (nparam>8) input_param[8] = input_param0.i;
-        if (nparam>9) input_param[9] = input_param0.j;
+        
+                        input_param[0]  = input_param0.a;
+        if (nparam>1)   input_param[1]  = input_param0.b;
+        if (nparam>2)   input_param[2]  = input_param0.c;
+        if (nparam>3)   input_param[3]  = input_param0.d;
+        if (nparam>4)   input_param[4]  = input_param0.e;
+        if (nparam>5)   input_param[5]  = input_param0.f;
+        if (nparam>6)   input_param[6]  = input_param0.g;
+        if (nparam>7)   input_param[7]  = input_param0.h;
+        if (nparam>8)   input_param[8]  = input_param0.i;
+        if (nparam>9)   input_param[9]  = input_param0.j;
+        if (nparam>10)  input_param[10] = input_param0.k;
+        if (nparam>11)  input_param[11] = input_param0.l;
+        if (nparam>12)  input_param[12] = input_param0.m;
+        if (nparam>13)  input_param[13] = input_param0.n;
+        if (nparam>14)  input_param[14] = input_param0.o;
+        if (nparam>15)  input_param[15] = input_param0.p;
+        if (nparam>16)  input_param[16] = input_param0.q;
+        if (nparam>17)  input_param[17] = input_param0.r;
+        if (nparam>18)  input_param[18] = input_param0.s;
+        if (nparam>19)  input_param[19] = input_param0.t;
+        if (nparam>20)  input_param[20] = input_param0.u;
+        if (nparam>21)  input_param[21] = input_param0.v;
+        if (nparam>22)  input_param[22] = input_param0.w;
+        if (nparam>23)  input_param[23] = input_param0.x;
+        if (nparam>24)  input_param[24] = input_param0.y;
+        if (nparam>25)  input_param[25] = input_param0.z;
     }
 
     if (nstestpart > 0) 

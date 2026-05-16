@@ -67,15 +67,22 @@ ParticleDistMaxVelocity        = 1e3                                           #
 # %                             PHYSICS and GEOMETRY                           %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-###? Custom paramters (max. 10)
-nparam                         = 5
-custom_parameters              = 10.0        5.0        1.0        0.0        0.0
+###? Custom parameters
+nparam                         = 11
+custom_parameters              = 10.0        5.0        1.0        0.0        0.05        
+                                50        1        10        1        0        1
 
-#* custom_parameter 1 --> Magnetisation parameter
-#* custom_parameter 2 --> Ratio of current sheet density to upstream density
-#* custom_parameter 3 --> Half-thickness of current sheet (free parameter)
-#* custom_parameter 4 --> Amplitude of initial perturbation
-#* custom_parameter 5 --> Ratio of guide field to in-plane magnetic field
+#* custom_parameter 1  --> Magnetisation parameter
+#* custom_parameter 2  --> Ratio of current sheet density to upstream density
+#* custom_parameter 3  --> Half-thickness of current sheet
+#* custom_parameter 4  --> Ratio of guide field to in-plane magnetic field
+#* custom_parameter 5  --> RMS amplitude of turbulent magnetic perturbation, normalised to B0
+#* custom_parameter 6  --> Number of turbulent Fourier modes
+#* custom_parameter 7  --> Minimum integer turbulent mode number
+#* custom_parameter 8  --> Maximum integer turbulent mode number
+#* custom_parameter 9  --> Use turbulent kx modes: 0 = kx forced to 0, 1 = kx sampled
+#* custom_parameter 10 --> Use turbulent ky modes: 0 = ky forced to 0, 1 = ky sampled
+#* custom_parameter 11 --> Use turbulent kz modes: 0 = kz forced to 0, 1 = kz sampled
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # %                                     TIME                                   %
