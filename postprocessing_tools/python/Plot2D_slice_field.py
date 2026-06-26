@@ -408,7 +408,7 @@ if rank == 0:
     fig, ax = plt.subplots(figsize=(8.0, 8.0), dpi=250)
 
     im = ax.imshow(out_plane.T, origin="lower", aspect="auto",
-                   cmap=args.cmap, vmin=vmin, vmax=vmax)
+                   cmap=args.cmap, vmin=-2.25, vmax=2.25)
 
     ax.set_xticks(x_pos)
     ax.set_xticklabels([f"{v:.0f}" for v in x_lab])
