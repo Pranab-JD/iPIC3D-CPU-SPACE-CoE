@@ -52,77 +52,27 @@ public:
 
     void setAllzero();
 
-    //! ======================================================================================================= !//
+    //? ============================================================================ ? //
+
+    void init_fields_restart();
 
     //? ---------- Initial field distributions (Non Relativistic) ---------- ?//
 
-    //* Initialise electromagnetic fields with constant values
-    void init();
-
-    //* Initialise beam
-    void initBEAM(double x_center, double y_center, double z_center, double radius);
-    
-    //* Initialise GEM challenge 
-    void initGEM();
-
-    void initOriginalGEM();
-    
-    //* Initialise double Harris sheets for magnetic reconnection
-    void init_double_Harris();
-
-    void init_double_Harris_hump();
-    
-    //* Initialise GEM challenge with dipole-like tail without perturbation
-    void initGEMDipoleLikeTailNoPert();
-    
-    //* Initialise GEM challenge with no Perturbation
-    void initGEMnoPert();
-
-    //* Initialise from BATSRUS
-    #ifdef BATSRUS
-        void initBATSRUS();
-    #endif
-
-    //* Random initial fields
-    void initRandomField();
-    
-    //* Initialise force free field (JxB=0)
-    void initForceFree();
-    
-    //* Initialise rotated magnetic field
-    void initEM_rotate(double B, double theta);
-    
-    //* Add a perturbation to charge density
-    void AddPerturbationRho(double deltaBoB, double kx, double ky, double Bx_mod, double By_mod, double Bz_mod, double ne_mod, double ne_phase, double ni_mod, double ni_phase, double B0, Grid * grid);
-    
-    //* Add perturbation to the EM field
-    void AddPerturbation(double deltaBoB, double kx, double ky, double Ex_mod, double Ex_phase, double Ey_mod, double Ey_phase, double Ez_mod, double Ez_phase, double Bx_mod, double Bx_phase, double By_mod, double By_phase, double Bz_mod, double Bz_phase, double B0, Grid * grid);
-    
-    //* Initialise a combination of magnetic dipoles
-    void initDipole();
-    void initDipole2D();
-    
-    //* Initialise magnetic nulls
-    void initNullPoints();
-    
-    //* Initialise Taylor-Green flow
-    void initTaylorGreen();
-
-    //* Initialise fields for shear velocity in fluid finite Larmor radius (FLR) equilibrium (Cerri et al. 2013)
+    void init_Uniform();
     void init_KHI_FLR(); 
+    void init_Maxwellian();
+    void init_Double_Harris();
+    void init_Double_Harris_Hump();
 
-    //? ---------- Initial particle distributions (Relativistic) ---------- ?//
+    //? ---------- Initial field distributions (Relativistic) ---------- ?//
 
-    //? Quasi-1D ion-electron shock (Relativistic and Non relativistic)
     void initShock1D();
-
-    //? Relativistic double Harris for pair plasma: Maxwellian background, drifting particles in the sheets
+    void init_Maxwell_Juttner();
     void init_Relativistic_Double_Harris_pairs();
-
-    //? Relativistic double Harris for ion-electron plasma: Maxwellian background, drifting particles in the sheets
     void init_Relativistic_Double_Harris_ion_electron();
 
-    //! ======================================================================================================= !//
+    
+    //? ============================================================================ ? //
 
     /*! Calculate Electric field using the implicit Maxwell solver */
     void calculateE();
@@ -225,7 +175,10 @@ public:
     void add_Jyh(double weight[8], int X, int Y, int Z, int is);
     void add_Jzh(double weight[8], int X, int Y, int Z, int is);
 
-    void add_Mass(double value[3][3], int X, int Y, int Z, int ind);
+    void add_Mass(double v00, double v01, double v02,
+                double v10, double v11, double v12,
+                double v20, double v21, double v22,
+                int X, int Y, int Z, int ind);
 
     //* ECSIM/RelSIM supplementary moments
     void add_Jx(double weight[8], int X, int Y, int Z, int is);
@@ -955,17 +908,20 @@ inline void EMfields3D::add_Qyyz(double weight[8], int X, int Y, int Z, int is)
 }
 
 //* Add an amount of current density to mass matrix field at node X,Y *//
-inline void EMfields3D::add_Mass(double value[3][3], int X, int Y, int Z, int ind) 
+inline void EMfields3D::add_Mass(double v00, double v01, double v02,
+                                 double v10, double v11, double v12,
+                                 double v20, double v21, double v22,
+                                 int X, int Y, int Z, int ind)
 {
-    Mxx[ind][X][Y][Z] += value[0][0];
-    Mxy[ind][X][Y][Z] += value[0][1];
-    Mxz[ind][X][Y][Z] += value[0][2];
-    Myx[ind][X][Y][Z] += value[1][0];
-    Myy[ind][X][Y][Z] += value[1][1];
-    Myz[ind][X][Y][Z] += value[1][2];
-    Mzx[ind][X][Y][Z] += value[2][0];
-    Mzy[ind][X][Y][Z] += value[2][1];
-    Mzz[ind][X][Y][Z] += value[2][2];
+    Mxx[ind][X][Y][Z] += v00;
+    Mxy[ind][X][Y][Z] += v01;
+    Mxz[ind][X][Y][Z] += v02;
+    Myx[ind][X][Y][Z] += v10;
+    Myy[ind][X][Y][Z] += v11;
+    Myz[ind][X][Y][Z] += v12;
+    Mzx[ind][X][Y][Z] += v20;
+    Mzy[ind][X][Y][Z] += v21;
+    Mzz[ind][X][Y][Z] += v22;
 }
 
 inline void get_field_components_for_cell(const double* field_components[8], const_arr4_double fieldForPcls, int cx, int cy, int cz)

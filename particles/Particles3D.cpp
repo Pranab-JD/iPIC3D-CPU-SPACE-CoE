@@ -48,6 +48,9 @@ developers: Stefano Markidis, Giovanni Lapenta
 #include <fstream>
 #include "../LeXInt_Timer.hpp"
 #include <cstdlib>
+#include <array>
+#include <cstdint>
+#include <cassert>
 
 using std::cout;
 using std::cerr;
@@ -65,7 +68,7 @@ using std::endl;
 static bool cap_velocity(){return false;}
 
 //* sech^2(x) up to arbitrary precision
-double sech_square(double x) 
+double sech_square_(double x) 
 {
     double y, res;
   
@@ -79,6 +82,84 @@ double sech_square(double x)
     return res;
 }
 
+//? Used in computing mass matrix
+namespace 
+{
+
+    static constexpr uint8_t idx[2][2][2] = {{{0,1}, {2,3}}, 
+                                                {{4,5}, {6,7}}};
+
+    static constexpr int dx_MM[14] = { 0,
+                                        1, 0, 0,
+                                        1, 1, 1, 1, 0, 0,
+                                        1, 1, -1,
+                                        1 };
+
+    static constexpr int dy_MM[14] = { 0,
+                                        0, 1, 0,
+                                        1, -1, 0, 0, 1, 1,
+                                        -1, 1, 1,
+                                        1 };
+
+    static constexpr int dz_MM[14] = { 0,
+                                        0, 0, 1,
+                                        0, 0, 1, -1, 1, -1,
+                                        1, -1, 1,
+                                        1 };
+
+    struct MassInteraction 
+    {
+        uint8_t n_node;
+        uint8_t index2;
+    };
+
+    struct MassStencil 
+    {
+        uint8_t count;
+        MassInteraction list[8];
+    };
+
+    static std::array<MassStencil, 8> build_mass_stencil()
+    {
+        std::array<MassStencil, 8> table{};
+
+        for (int i = 0; i < 2; ++i)
+            for (int j = 0; j < 2; ++j)
+                for (int k = 0; k < 2; ++k)
+                {
+                    const int index1 = idx[i][j][k];
+                    auto& entry = table[index1];
+                    entry.count = 0;
+
+                    for (int n_node = 0; n_node < 14; ++n_node)
+                    {
+                        const int i2 = i - dx_MM[n_node];
+                        const int j2 = j - dy_MM[n_node];
+                        const int k2 = k - dz_MM[n_node];
+
+                        if (i2 >= 0 && i2 < 2 &&
+                            j2 >= 0 && j2 < 2 &&
+                            k2 >= 0 && k2 < 2)
+                        {
+                            assert(entry.count < 8);
+                            entry.list[entry.count++] = {
+                                static_cast<uint8_t>(n_node),
+                                idx[i2][j2][k2]
+                            };
+                        }
+                    }
+                }
+
+        return table;
+    }
+
+    static const auto mass_stencil = build_mass_stencil();
+}
+
+static constexpr uint8_t di_MM[8] = {0,0,0,0,1,1,1,1};
+static constexpr uint8_t dj_MM[8] = {0,0,1,1,0,0,1,1};
+static constexpr uint8_t dk_MM[8] = {0,1,0,1,0,1,0,1};
+
 /**
  * 
  * Class for particles of the same species
@@ -89,905 +170,6 @@ double sech_square(double x)
  */
 
 //! ============================================================================= !//
-
-//! Initial particle distributions (Non Relativistic) !//
-
-//? Particles are uniformly distributed with zero velocity
-void Particles3D::uniform_background(Field * EMf)
-{
-    for (int i = 1; i < grid->getNXC() - 1; i++)
-        for (int j = 1; j < grid->getNYC() - 1; j++)
-            for (int k = 1; k < grid->getNZC() - 1; k++)
-                for (int ii = 0; ii < npcelx; ii++)
-                    for (int jj = 0; jj < npcely; jj++)
-                        for (int kk = 0; kk < npcelz; kk++)
-                        {
-                            double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-                            double u = uth + u0;
-                            double v = vth + v0;
-                            double w = wth + w0;
-                            double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / grid->getInvVOL());
-                            _pcls.push_back(SpeciesParticle(u,v,w,q,x,y,z,0));
-                        }
-
-    fixPosition();
-    
-}
-
-//? Initialize particles with a constant velocity along "dim" direction
-void Particles3D::constantVelocity(double vel, int dim, Field * EMf) 
-{
-    switch (dim) 
-    {
-        case 0:
-        for (int i = 0; i < getNOP(); i++)
-        {
-            setU(i,vel);
-            setV(i,0.);
-            setW(i,0.);
-        }
-        break;
-        case 1:
-        for (int i = 0; i < getNOP(); i++)
-        {
-            setU(i,0.);
-            setV(i,vel);
-            setW(i,0.);
-        }
-        break;
-        case 2:
-        for (int i = 0; i < getNOP(); i++)
-        {
-            setU(i,0.);
-            setV(i,0.);
-            setW(i,vel);
-        }
-        break;
-
-    }
-}
-
-#ifdef BATSRUS
-/** Maxellian random velocity and uniform spatial distribution */
-void Particles3D::MaxwellianFromFluid(Field* EMf,Collective *col, int is)
-{
-    //* Constuctiong the distribution function from a Fluid model
-
-    // loop over grid cells and set position, velociy and charge of all particles indexed by counter
-    // there are multiple (27 or so) particles per grid cell.
-    int i,j,k,counter=0;
-    for (i=1; i< grid->getNXC()-1;i++)
-        for (j=1; j< grid->getNYC()-1;j++)
-            for (k=1; k< grid->getNZC()-1;k++)
-                MaxwellianFromFluidCell(col,is, i,j,k,counter,x,y,z,q,u,v,w,ParticleID);
-}
-
-void Particles3D::MaxwellianFromFluidCell(Collective *col, int is, int i, int j, int k, int &ip, double *x, double *y, double *z, double *q, double *vx, double *vy, double *vz, longid* ParticleID)
-{
-    /*
-    * grid           : local grid object (in)
-    * col            : collective (global) object (in)
-    * is             : species index (in)
-    * i,j,k          : grid cell index on proc (in)
-    * ip             : particle number counter (inout)
-    * x,y,z          : particle position (out)
-    * q              : particle charge (out)
-    * vx,vy,vz       : particle velocity (out)
-    * ParticleID     : particle tracking ID (out)
-    */
-
-    // loop over particles inside grid cell i,j,k
-    for (int ii=0; ii < npcelx; ii++)
-        for (int jj=0; jj < npcely; jj++)
-            for (int kk=0; kk < npcelz; kk++){
-                // Assign particle positions: uniformly spaced. x_cellnode + dx_particle*(0.5+index_particle)
-                fetchX(ip) = (ii + .5)*(dx/npcelx) + grid->getXN(i,j,k);
-                fetchY(ip) = (jj + .5)*(dy/npcely) + grid->getYN(i,j,k);
-                fetchZ(ip) = (kk + .5)*(dz/npcelz) + grid->getZN(i,j,k);
-                // q = charge
-                fetchQ(ip) =  (qom/fabs(qom))*(col->getFluidRhoCenter(i,j,k,is)/npcel)*(1.0/grid->getInvVOL());
-                // u = X velocity
-                sample_maxwellian(
-                fetchU(ip),fetchV(ip),fetchW(ip),
-                col->getFluidUthx(i,j,k,is),
-                col->getFluidVthx(i,j,k,is),
-                col->getFluidWthx(i,j,k,is),
-                col->getFluidUx(i,j,k,is),
-                col->getFluidVx(i,j,k,is),
-                col->getFluidWx(i,j,k,is));
-                ip++ ;
-        }
-}
-#endif
-
-//? Initialise unifrom distribution of particles with a Maxellian velocity distribution
-void Particles3D::maxwellian(Field * EMf)
-{
-    //* Initialise random generator with different seed on different processor
-    long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
-    srand(seed);
-    srand48(seed);
-
-    assert_eq(_pcls.size(), 0);
-
-    const double q_sgn = (qom / fabs(qom));
-    const double q_factor =  q_sgn * grid->getVOL() / npcel;
-
-    long long counter = 0;
-    for (int i = 1; i < grid->getNXC() - 1; i++)
-        for (int j = 1; j < grid->getNYC() - 1; j++)
-            for (int k = 1; k < grid->getNZC() - 1; k++)
-            {
-                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
-                
-                for (int ii = 0; ii < npcelx; ii++)
-                    for (int jj = 0; jj < npcely; jj++)
-                        for (int kk = 0; kk < npcelz; kk++)
-                        {
-                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-
-                            double u, v, w;
-                            sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
-                        
-                            create_new_particle(u, v, w, q, x, y, z);
-                            counter++;
-                        }
-            }
-
-    fixPosition();
-
-    if(0)
-    {
-        dprintf("number of particles of species %d: %d", ns, getNOP());
-        const int num_ids = 1;
-        longid id_list[num_ids] = {0};
-        print_pcls(_pcls,ns,id_list, num_ids);
-    }
-}
-
-/** Maxellian velocity from currents and uniform spatial distribution */
-void Particles3D::maxwellianNullPoints(Field * EMf)
-{
-	//* Initialise random generator with different seed on different processor
-	srand(vct->getCartesian_rank()+2);
-
-	const double q_sgn = (qom / fabs(qom));
-	const double q_factor =  q_sgn * grid->getVOL() / npcel;
-
-	for (int i=1; i< grid->getNXC()-1;i++)
-	for (int j=1; j< grid->getNYC()-1;j++)
-	for (int k=1; k< grid->getNZC()-1;k++){
-		const double q = q_factor * EMf->getRHOcs(i, j, k, ns);
-
-		// determine the drift velocity from current X
-		u0 = EMf->getJxs(i,j,k,ns)/EMf->getRHOns(i,j,k,ns);
-		if (u0 > c){
-			cout << "DRIFT VELOCITY x > c : B init field too high!" << endl;
-			MPI_Abort(MPI_COMM_WORLD,2);
-		}
-		// determine the drift velocity from current Y
-		v0 = EMf->getJys(i,j,k,ns)/EMf->getRHOns(i,j,k,ns);
-		if (v0 > c){
-			cout << "DRIFT VELOCITY y > c : B init field too high!" << endl;
-			MPI_Abort(MPI_COMM_WORLD,2);
-		}
-		// determine the drift velocity from current Z
-		w0 = EMf->getJzs(i,j,k,ns)/EMf->getRHOns(i,j,k,ns);
-		if (w0 > c){
-			cout << "DRIFT VELOCITY z > c : B init field too high!" << endl;
-			MPI_Abort(MPI_COMM_WORLD,2);
-		}
-		for (int ii=0; ii < npcelx; ii++)
-		for (int jj=0; jj < npcely; jj++)
-		for (int kk=0; kk < npcelz; kk++){
-			double u,v,w;
-			sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
-
-			const double x = (ii + .5)*(dx/npcelx) + grid->getXN(i,j,k);
-			const double y = (jj + .5)*(dy/npcely) + grid->getYN(i,j,k);
-			const double z = (kk + .5)*(dz/npcelz) + grid->getZN(i,j,k);
-
-			create_new_particle(u,v,w,q,x,y,z);
-		}
-	}
-}
-
-/** Maxellian random velocity and uniform spatial distribution - invert w0 for the upper current sheet */
-void Particles3D::maxwellian_Double_Harris(Field * EMf)
-{
-    //* Initialise random generator with different seed on different processor
-    long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
-    srand(seed);
-    srand48(seed);
-
-    assert_eq(_pcls.size(), 0);
-    double prob, theta;
-
-    const double q_factor =  (qom / fabs(qom)) * grid->getVOL() / npcel;
-
-    for (int i = 1; i < grid->getNXC() - 1; i++)
-        for (int j = 1; j < grid->getNYC() - 1; j++)
-            for (int k = 1; k < grid->getNZC() - 1; k++)
-            {
-                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
-                
-                for (int ii = 0; ii < npcelx; ii++)
-                    for (int jj = 0; jj < npcely; jj++)
-                        for (int kk = 0; kk < npcelz; kk++)
-                        {
-                            double global_y = grid->getYN(i, j, k) + grid->getDY();
-                            double shaper_z = -tanh((global_y - Ly/2)/0.0001);
-
-                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-                            
-                            double u, v, w;
-                            sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0*shaper_z);
-                            create_new_particle(u,v,w,q,x,y,z);
-                        }
-            }
-    
-    fixPosition();
-}
-
-//? Kelvin--Helmholtz Instability (Finite Larmor Radius (FLR); Cerri 2013, https://doi.org/10.1063/1.4828981)
-void Particles3D::maxwellian_KHI_FLR(Field* EMf)
-{
-    //* Custom input parameters
-    const double velocity_shear         = input_param[0];       //* Initial velocity shear
-    const double perturbation           = input_param[1];       //* Amplitude of initial perturbation
-    const double gamma_electrons        = input_param[2];       //* Gamma for isothermal electrons (FLR corrections)
-    const double gamma_ions_perp        = input_param[3];       //* Gamma (perpendicular) for ions (FLR corrections)
-    const double gamma_ions_parallel    = input_param[4];       //* Gamma (parallel) for ions (FLR corrections)
-    const double s3                     = input_param[5];       //* +/-1 (Here -1 : Ux(y) or 1 : Uy(x)) (FLR corrections)
-    const double delta                  = input_param[6];       //* Thickness of shear layer (FLR corrections)
-
-    //* Initial incompressible velocity perturbation on the first modes
-    double TwoPI = 8*atan(1.0);
-    double kx_pert = TwoPI/Lx;
-    int nbpert = 5;                                             //* Number of initial perturbation modes
-    array2_double phase(nbpert, 2);
-
-    double Vthi = col->getUth(1);                               //* Ion thermal velocity (supposed isotropic far from velocity shear layer)
-    double qomi = col->getQOM(1);                               //* Ion charge to mass ratio
-    double Vthe = col->getUth(0);                               //* Electron thermal velocity (supposed isotropic far from velocity shear layer)
-    double qome = col->getQOM(0);                               //* Electron charge to mass ratio
-    double TeTi = -qomi/qome * (Vthe/Vthi) * (Vthe/Vthi);       //* Electron to ion temperature ratio (computed from input file parameters)
-  
-    //* For FLR corrections
-    double B0x = col->getB0x(); double B0y = col->getB0y(); double B0z = col->getB0z();
-    double B0              = sqrt(B0x*B0x+B0y*B0y+B0z*B0z);     //* Magnetic field amplitude
-    double beta            = 2.0*(Vthi/B0)*(Vthi/B0);           //* Ion plasma beta from input file parameters; NOTE: beta = beta_i
-    const double Omega_ci  = B0;                                //* Cf. normalisation qom = 1 for ions
-    double gammabar        = gamma_electrons/gamma_ions_perp - 1.0;
-    double betaiperp0      = beta;
-    double betae0          = TeTi*betaiperp0;
-    double betae0bar       = betae0 / (1.0 + betae0 + betaiperp0);
-    double betaiperp0bar   = betaiperp0 / (1.0 + betae0 + betaiperp0);
-    double C0              = 0.5*s3*betaiperp0bar*velocity_shear/(Omega_ci*delta);
-    double Cinf            = C0/(1.0 + gammabar*betae0bar);
-
-    //* Initialise random generator with different seed on different processor
-    srand (vct->getCartesian_rank()+1+ns);
-
-    //* Initialise phase for initial random noise
-    for (int iipert=0; iipert < 2; iipert++)
-        for (int ipert=0; ipert < nbpert; ipert++)
-            phase[ipert][iipert] = 2.0*M_PI*(0.5*ipert/nbpert+0.5*iipert);
-
-    //* Constant factor (to be multiplied to charge)
-    const double q_factor = (qom / fabs(qom)) * grid->getVOL() / npcel;
-
-    for (int i = 1; i < grid->getNXC() - 1; i++)
-        for (int j = 1; j < grid->getNYC() - 1; j++)
-            for (int k = 1; k < grid->getNZC() - 1; k++)
-            {
-                const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
-
-                for (int ii = 0; ii < npcelx; ii++)
-                    for (int jj = 0; jj < npcely; jj++)
-                        for (int kk = 0; kk < npcelz; kk++)
-                        {
-                            //* For ion FLR corrections
-                            double ay  = 1.0/pow((cosh((grid->getYC(i,j,k)-0.25*Ly)/delta)), 2.0) - 1.0/pow((cosh((grid->getYC(i,j,k)-0.75*Ly)/delta)), 2.0);
-                            double finf = 1.0/(1.0 - Cinf*ay);
-
-                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-
-                            //* Thermal velocities
-                            double vthperp, vthpar, vthx, vthy, power;
-                            
-                            //? Thermal velocity (assumed isotropic in input - only uth is used!!!)
-                            if (qom < 0.0) 
-                            {   
-                                //! Electrons
-                                vthx = uth; vthy = uth; vthpar = uth;
-                            }
-                            else 
-                            { 
-                                //! Ions
-                                power   = (gamma_ions_perp-1.0)/(2.0*gamma_ions_perp);
-                                vthperp = uth * pow(finf, power);
-                                vthx    = vthperp * sqrt(1.0+s3*0.5*velocity_shear/(Omega_ci*delta)*ay);        // ion FLR along x
-                                vthy    = vthperp * sqrt(1.0-s3*0.5*velocity_shear/(Omega_ci*delta)*ay);        // ion FLR along y
-                                power   = (gamma_ions_parallel-1.0)/(2.0*gamma_ions_perp); 
-                                vthpar  = uth * pow(finf, power);                                               // ion FLR along z
-                            }
-                            
-                            double u = c, v = c, w = c;
-
-                            while ((fabs(u)>=c) | (fabs(v)>=c) | (fabs(w)>=c))
-                                sample_maxwellian(u, v, w, vthx, vthy, vthpar, 0, 0, 0);
-              
-                            //* Add drift velocity
-                            double udrift = velocity_shear * (tanh((y-0.25*Ly)/delta) - tanh((y-0.75*Ly)/delta)-1.0);   //* X velocity drift (identical for electrons and ions)
-                            u += udrift;
-
-                            //* Add initial velocity perturbation at y = Ly/4
-                            double u_pert = 0.0, v_pert = 0.0;
-                            for (int ipert = 1; ipert < (nbpert+1); ipert++)
-                            {
-                                u_pert += cos(ipert*kx_pert*x+phase[ipert-1][0]);
-                                v_pert += (ipert*kx_pert)*sin(ipert*kx_pert*x+phase[ipert-1][0]);
-                            }
-                            
-                            double fy_pert = perturbation * exp( - (y-0.25*Ly)*(y-0.25*Ly) / (delta*delta) );
-                            double dyfy_pert = -2.0*(y-0.25*Ly)/(delta*delta)*fy_pert;
-                            u += dyfy_pert*u_pert;
-                            v += fy_pert*v_pert;
-                            
-                            //* Add initial velocity perturbation at y = 3*Ly/4
-                            u_pert = 0.0; v_pert = 0.0;
-                            for (int ipert = 1; ipert < (nbpert+1); ipert++)
-                            {
-                                u_pert += cos(ipert*kx_pert*x+phase[ipert-1][1]);
-                                v_pert += (ipert*kx_pert)*sin(ipert*kx_pert*x+phase[ipert-1][1]);
-                            }
-                            
-                            fy_pert = perturbation * exp( - (y-0.75*Ly)*(y-0.75*Ly) / (delta*delta) );
-                            dyfy_pert = -2.0*(y-0.75*Ly)/(delta*delta)*fy_pert;
-                            u += dyfy_pert*u_pert;
-                            v += fy_pert*v_pert;
-
-                            if (u != u) 
-                                MPI_Abort(MPI_COMM_WORLD, -1); 
-
-                            create_new_particle(u, v, w, q, x, y, z);
-                        }
-            }
-
-    fixPosition();
-}
-
-/** pitch_angle_energy initialization (Assume B on z only) for test particles */
-void Particles3D::pitch_angle_energy(Field * EMf) 
-{
-    //* Initialise random generator with different seed on different processor
-    srand(vct->getCartesian_rank() + 3 + ns);
-    assert_eq(_pcls.size(),0);
-
-    double p0, pperp0, gyro_phase;
-
-    const double q_factor =  (qom / fabs(qom)) * grid->getVOL() / npcel;
-
-    long long counter=0;
-
-    for (int i=1; i< grid->getNXC()-1;i++)
-        for (int j=1; j< grid->getNYC()-1;j++)
-            for (int k=1; k< grid->getNZC()-1;k++){
-
-            	// q = charge following electron (species 0)
-            	const double q = q_factor * EMf->getRHOcs(i, j, k, 0);
-
-                for (int ii=0; ii < npcelx; ii++)
-                    for (int jj=0; jj < npcely; jj++)
-                        for (int kk=0; kk < npcelz; kk++){
-                        	const double x= (ii + .5)*(dx/npcelx) + grid->getXN(i,j,k);
-                        	const double y= (jj + .5)*(dy/npcely) + grid->getYN(i,j,k);
-                        	const double z= (kk + .5)*(dz/npcelz) + grid->getZN(i,j,k);
-
-                            // velocity - assumes B is along z
-                            p0=sqrt((energy+1)*(energy+1)-1);
-                            const double w =p0*cos(pitch_angle);
-                            pperp0=p0*sin(pitch_angle);
-                            gyro_phase = 2*M_PI* rand()/(double)RAND_MAX;
-                            const double u=pperp0*cos(gyro_phase);
-                            const double v=pperp0*sin(gyro_phase);
-                            counter++ ;
-
-                            create_new_particle(u,v,w,q,x,y,z);
-                        }
-            }
-    const int num_ids = 1;
-    longid id_list[num_ids] = {0};
-    if (vct->getCartesian_rank() == 0){
-    	cout << "------------------------------------------" << endl;
-        cout << "Initialize Test Particle "<< ns << " with pitch angle "<< pitch_angle << ", energy " << energy << ", qom " << qom << ", npcel "<< counter<< endl;
-        cout << "------------------------------------------" << endl;
-    }
-}
-
-/** Force Free initialization (JxB=0) for particles */
-void Particles3D::force_free(Field * EMf)
-{
-    eprintf("this function was not properly implemented and needs to be revised.");
-
-    #if 0
-    /* initialize random generator */
-    srand(vct->getCartesian_rank() + 1 + ns);
-    
-    for (int i = 1; i < grid->getNXC() - 1; i++)
-        for (int j = 1; j < grid->getNYC() - 1; j++)
-            for (int k = 1; k < grid->getNZC() - 1; k++)
-                for (int ii = 0; ii < npcelx; ii++)
-                    for (int jj = 0; jj < npcely; jj++)
-                        for (int kk = 0; kk < npcelz; kk++)
-                        {
-                        double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                        double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                        double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-                        // q = charge
-                        double q = (qom / fabs(qom)) * (EMf->getRHOcs(i, j, k, ns) / npcel) * (1.0 / invVOL);
-                        double shaperx = tanh((y - Ly / 2) / delta) / cosh((y - Ly / 2) / delta) / delta;
-                        double shaperz = 1.0 / (cosh((y - Ly / 2) / delta) * cosh((y - Ly / 2) / delta)) / delta;
-                        eprintf("shapery needs to be initialized.");
-                        eprintf("flvx etc. need to be initialized.");
-                        double shapery;
-                        // new drift velocity to satisfy JxB=0
-                        const double flvx = u0 * flvx * shaperx;
-                        const double flvz = w0 * flvz * shaperz;
-                        const double flvy = v0 * flvy * shapery;
-                        double u = c;
-                        double v = c;
-                        double w = c;
-                        while ((fabs(u) >= c) || (fabs(v) >= c) || (fabs(w) >= c))
-                        {
-                            sample_maxwellian(
-                            u, v, w,
-                            uth, vth, wth,
-                            flvx, flvy, flvz);
-                        }
-                        create_new_particle(u,v,w,q,x,y,z);
-                        }
-    #endif
-}
-
-/**Add a periodic perturbation in J exp i(kx - \omega t); deltaBoB is the ratio (Delta B / B0) **/
-void Particles3D::AddPerturbationJ(double deltaBoB, double kx, double ky, double Bx_mod, double By_mod, double Bz_mod, double jx_mod, double jx_phase, double jy_mod, double jy_phase, double jz_mod, double jz_phase, double B0) {
-
-  // rescaling of amplitudes according to deltaBoB //
-  double alpha;
-  alpha = deltaBoB * B0 / sqrt(Bx_mod * Bx_mod + By_mod * By_mod + Bz_mod * Bz_mod);
-  jx_mod *= alpha;
-  jy_mod *= alpha;
-  jz_mod *= alpha;
-  for (int i = 0; i < getNOP(); i++) {
-    fetchU(i) += jx_mod / q[i] / npcel / invVOL * cos(kx * x[i] + ky * y[i] + jx_phase);
-    fetchV(i) += jy_mod / q[i] / npcel / invVOL * cos(kx * x[i] + ky * y[i] + jy_phase);
-    fetchW(i) += jz_mod / q[i] / npcel / invVOL * cos(kx * x[i] + ky * y[i] + jz_phase);
-  }
-}
-
-
-//! Initial particle distributions (Relativistic) !//
-
-//? Initialise unifrom distribution of particles with relativistic Maxellian random velocity
-void Particles3D::Maxwell_Juttner(Field * EMf) 
-{
-	//* Initialise random generator with different seed on different processor
-	srand(vct->getCartesian_rank() + 2 + ns);
-
-    assert_eq(_pcls.size(), 0);    
-
-    double thermal_spread = uth;                                //* Thermal spread (isotropic along X, Y, Z)
-	double lorentz_factor_x = u0;                               //* Lorentz factor (X)
-	double lorentz_factor_y = v0;                               //* Lorentz factor (Y)
-	double lorentz_factor_z = w0;                               //* Lorentz factor (Z)
-	double lorentz_factor; int drift_direction;
-	
-    if (fabs(lorentz_factor_x) > 1.0) 
-    {
-		drift_direction = int(fabs(lorentz_factor_x)/lorentz_factor_x) * 1;
-		lorentz_factor = fabs(lorentz_factor_x);
-	}
-	else if (fabs(lorentz_factor_y) > 1.0) 
-    {
-		drift_direction = int(fabs(lorentz_factor_y)/lorentz_factor_y) * 2;
-		lorentz_factor = fabs(lorentz_factor_y);
-	}
-	else if (fabs(lorentz_factor_z) > 1.0) 
-    {
-		drift_direction = int(fabs(lorentz_factor_z)/lorentz_factor_z) * 3;
-		lorentz_factor = fabs(lorentz_factor_z);
-	}
-	else 
-    {
-        drift_direction = 0;
-		lorentz_factor = 1.0;
-	}
-
-    const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns)/(4.0*M_PI);
-
-	for (int i = 1; i < grid->getNXC() - 1; i++)
-		for (int j = 1; j < grid->getNYC() - 1; j++)
-		    for (int k = 1; k < grid->getNZC() - 1; k++)
-			    for (int ii = 0; ii < npcelx; ii++)
-			        for (int jj = 0; jj < npcely; jj++)
-				        for (int kk = 0; kk < npcelz; kk++) 
-                        {
-                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-
-                            double u, v, w;
-                            sample_Maxwell_Juttner(u, v, w, thermal_spread, lorentz_factor, drift_direction);
-                            
-                            create_new_particle(u, v, w, q, x, y, z);
-                        }
-
-	fixPosition();
-}
-
-//? Relativistic double Harris for pair plasma: Maxwellian background, drifting particles in the sheets
-void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf) 
-{
-	//* Initialise random generator with different seed on different processor
-	long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
-    srand(seed);
-    srand48(seed);
-
-    assert_eq(_pcls.size(), 0);    
-
-    //* Custom input parameters for relativistic reconnection
-    const double sigma                  = input_param[0];       //* Magnetisation parameter
-    const double eta                    = input_param[1];       //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
-    const double delta_CS               = input_param[2];       //* Half-thickness of current sheet (free parameter)
-    const double perturbation           = input_param[3];       //* Amplitude of initial perturbation
-    const double guide_field_ratio      = input_param[4];       //* Ratio of guide field to in-plane magnetic field
-    
-    //* Background (BG) or upstream particles
-    double thermal_spread_BG            = col->getUth(0);                           //* Thermal spread
-    double rho_BG                       = col->getRHOinit(ns)/(4.0*M_PI);           //* Density (rho_BG = n * mc^2)
-    double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
-
-    //* Current sheet (CS) particles
-    double rho_CS                       = eta*rho_BG;                                            //* Density (rho_CS = eta * n * mc^2)
-    double drift_velocity               = B_BG/(8.0*M_PI*rho_CS*delta_CS/c);                     //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
-    double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
-    double thermal_spread_CS            = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
-  
-    //* Additional params needed for setting up a current sheet
-    double y_half           = Ly/2.0;
-    double y_quarter        = Ly/4.0;
-    double y_three_quarters = 3.0*y_quarter;
-
-    const double q_factor = (qom / fabs(qom)) * grid->getVOL()/npcel;
-
-	for (int i = 1; i < grid->getNXC() - 1; i++)
-        for (int j = 1; j < grid->getNYC() - 1; j++)
-            for (int k = 1; k < grid->getNZC() - 1; k++)
-                for (int ii = 0; ii < npcelx; ii++)
-                    for (int jj = 0; jj < npcely; jj++)
-                        for (int kk = 0; kk < npcelz; kk++) 
-                        {
-                            double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-
-                            //* Velocities and charges of particles
-                            double u, v, w, q, fs;
-                        
-                            //* Distinguish between background and drifting species
-                            if (ns < 2) 
-                            {
-                                //? Background species (these are the particles that get accelerated)
-                                q = q_factor * rho_BG;
-
-                                //* Velocity of relativistic nondrifting Maxwellian
-                                sample_Maxwell_Juttner(u, v, w, thermal_spread_BG, 1.0, 0);
-                            }
-                            else 
-                            {
-                                //? Current sheet species (necessary to initialise a current sheet)
-                                if (y < y_half)
-                                    fs = sech_square((y - y_quarter)/delta_CS);
-                                else              
-                                    fs = sech_square((y - y_three_quarters)/delta_CS);
-                        
-                                //* Skip the particle if its weight is too small
-                                if (fabs(fs) < 1.e-8) continue;
-
-                                q = q_factor * rho_CS * fs;
-
-                                //* Velocity of relativistic drifting (along the Z-axis) Maxwellian
-                                if (qom < 0.0) 
-                                    sample_Maxwell_Juttner(u, v, w, thermal_spread_CS, lorentz_factor_CS, -3);  //* Negative charges (e.g., electrons)
-                                else
-                                    sample_Maxwell_Juttner(u, v, w, thermal_spread_CS, lorentz_factor_CS, 3);   //* Positive charges (e.g., positrons)
-                                
-                                //* Flip sign of drift velocity for particles in the second layer
-                                if (y > y_half)
-                                {
-                                    u = -u; 
-                                    v = -v; 
-                                    w = -w;
-                                }
-                            }
-
-                            create_new_particle(u, v, w, q, x, y, z);
-                        }
-
-	fixPosition();
-}
-
-//? Relativistic double Harris for ion-electron plasma: Maxwellian background, drifting particles in the sheets
-void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf) 
-{
-	//* Initialise random generator with different seed on different processor
-	long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
-    srand(seed);
-    srand48(seed);
-
-    assert_eq(_pcls.size(), 0);
-
-    //* Custom input parameters for relativistic reconnection
-    const double sigma                  = input_param[0];       //* Magnetisation parameter
-    const double eta                    = input_param[1];       //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
-    const double delta_CS               = input_param[2];       //* Half-thickness of current sheet (free parameter)
-    const double perturbation           = input_param[3];       //* Amplitude of initial perturbation
-    const double guide_field_ratio      = input_param[4];       //* Ratio of guide field to in-plane magnetic field
-    
-    //* Background (BG) or upstream particles
-    double thermal_spread_BG_electrons  = col->getUth(0);                           //* Thermal spread of electrons
-    double thermal_spread_BG_ions       = col->getUth(1);                           //* Thermal spread of ions
-    double rho_BG                       = col->getRHOinit(ns)/(4.0*M_PI);           //* Density (rho_BG = n * mc^2)
-    double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG);              //* sigma = B^2/(4*pi*rho_electrons)
-    
-    //* Current sheet (CS) particles
-    double rho_CS                       = eta*rho_BG;                                           //* Density (rho_CS = eta * n * mc^2)
-    double drift_velocity               = B_BG/(8.0*M_PI*rho_CS*delta_CS/c);                    //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
-    double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);        //* Lorentz factor of the relativistic drifting particles
-    double thermal_spread_CS_ions       = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);       //* Thermal spread of ions (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
-    double thermal_spread_CS_electrons  = thermal_spread_CS_ions * fabs(col->getQOM(0));        //* Thermal spread of electrons (Ratio of thermal spread = mass ratio)
-    
-    //* Additional params needed for setting up a current sheet
-    double y_half           = Ly/2.0;
-    double y_quarter        = Ly/4.0;
-    double y_three_quarters = 3.0*y_quarter;
-
-    const double q_factor = (qom/fabs(qom)) * grid->getVOL()/npcel;
-    
-	for (int i = 1; i < grid->getNXC() - 1; i++)
-        for (int j = 1; j < grid->getNYC() - 1; j++)
-            for (int k = 1; k < grid->getNZC() - 1; k++)
-                for (int ii = 0; ii < npcelx; ii++)
-                    for (int jj = 0; jj < npcely; jj++)
-                        for (int kk = 0; kk < npcelz; kk++) 
-                        {
-                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-
-                            //* Velocities and charges of particles
-                            double u, v, w, q;
-                        
-                            //* Distinguish between background and drifting species
-                            if (ns < 2) 
-                            {
-                                //? Background species (these are the particles that get accelerated)
-                                q = q_factor * rho_BG;
-                                
-                                //* Velocity of relativistic nondrifting Maxwellian
-								if (qom < 0.0) 
-                                    sample_Maxwell_Juttner(u, v, w, thermal_spread_BG_electrons, 1.0, 0);
-								else        
-                                    sample_Maxwell_Juttner(u, v, w, thermal_spread_BG_ions, 1.0, 0);
-
-                                
-                            }
-                            else 
-                            {
-                                //? Current sheet species (necessary to initialise a current sheet)
-                                double fs;
-
-                                if (y < y_half)   
-                                    fs = sech_square((y - y_quarter)/delta_CS);
-                                else              
-                                    fs = sech_square((y - y_three_quarters)/delta_CS);
-                        
-                                //* Skip the particle if its weight is too small
-                                if (fabs(fs) < 1.e-8) continue;
-
-                                q = q_factor * rho_CS * fs;
-
-                                //* Velocity of relativistic drifting (along the Z-axis) Maxwellian
-                                if (qom < 0.0) 
-                                    sample_Maxwell_Juttner(u, v, w, thermal_spread_CS_electrons, lorentz_factor_CS, -3);    //* Negative charges (e.g., electrons)
-                                else
-                                    sample_Maxwell_Juttner(u, v, w, thermal_spread_CS_ions, lorentz_factor_CS, 3);          //* Positive charges (e.g., ions)
-                                
-                                //* Flip sign of drift velocity for particles in the second layer
-                                if (y > y_half)
-                                {
-                                    u = -u; 
-                                    v = -v; 
-                                    w = -w;
-                                }
-                            }
-
-                            create_new_particle(u, v, w, q, x, y, z);
-                        }
-
-	fixPosition();
-}
-
-//! Initial particle distributions (Non Relativistic and Relativistic) !//
-
-//? Quasi-1D ion-electron shock (Relativistic and Non relativistic)
-void Particles3D::Shock1D(Field * EMf) 
-{
-	//* Initialise random generator with different seed on different processor
-	long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
-    srand(seed);
-    srand48(seed);
-
-    assert_eq(_pcls.size(), 0);
-  
-    //? Parameters for relativistic cases - need to be defined outside of "if (col->getRelativistic())"
-    double thermal_spread = col->getUth(ns);                                    //* Thermal spread
-    double drift_velocity = col->getU0(ns);                                     //* Relativistic drift/bulk velocity
-    double lorentz_factor = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);      //* Lorentz factor
-    //TODO: Ask Fabio -- LF, drift
-
-    const double Lx_half = Lx/2.0;
-    const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns)/(4.0*M_PI);
-
-    for (int i = 1; i < grid->getNXC() - 1; i++)
-        for (int j = 1; j < grid->getNYC() - 1; j++)
-            for (int k = 1; k < grid->getNZC() - 1; k++) 
-                for (int ii = 0; ii < npcelx; ii++)
-                    for (int jj = 0; jj < npcely; jj++)
-                        for (int kk = 0; kk < npcelz; kk++) 
-                        {
-                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-  
-                            //* Velocities of particles
-                            double u, v, w;
-
-                            if (col->getRelativistic())
-                            {
-                                //? Relativistic (velocity of relativistic nondrifting Maxwellian)
-                                if(x < Lx_half) 
-                                    sample_Maxwell_Juttner(u, v, w, thermal_spread, lorentz_factor, 1);
-                                else
-                                    sample_Maxwell_Juttner(u, v, w, thermal_spread, lorentz_factor, -1);
-                            }
-                            else
-                            {
-                                //? Non relativistic
-                                if(x < Lx_half)
-                                    sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
-                                else  
-                                    sample_maxwellian(u, v, w, uth, vth, wth, -u0, v0, w0);
-                            }         
-                            
-                            create_new_particle(u, v, w, q, x, y, z);
-                        }
-
-    fixPosition();
-}
-
-//? Quasi-1D double periodic ion-electron shock driven by a piston (Relativistic and Non relativistic)
-void Particles3D::Shock1D_DoublePiston(Field * EMf) 
-{
-    //* Initialise random generator with different seed on different processor
-	long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
-    srand(seed);
-    srand48(seed);
-
-    assert_eq(_pcls.size(), 0);
-  
-    double thermal_velocity = col->getUth(ns);
-    const double Lx_half = Lx/2.0;
-    const double dx_one_half = 1.5*dx; 
-
-    const double q = (qom / fabs(qom)) * grid->getVOL() / npcel * col->getRHOinit(ns)/(4.0*M_PI);
-
-    for (int i = 1; i < grid->getNXC() - 1; i++)
-        for (int j = 1; j < grid->getNYC() - 1; j++)
-            for (int k = 1; k < grid->getNZC() - 1; k++) 
-                for (int ii = 0; ii < npcelx; ii++) 
-                {
-                    //* Skip first cell near Lx/2 so that the sudden appearance of a 
-                    //* static piston doesn't cause particles to be shot away
-                    double xp = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                    if (fabs(xp - Lx_half) < 1.5*dx) continue;
-  
-                    for (int jj = 0; jj < npcely; jj++)
-                        for (int kk = 0; kk < npcelz; kk++) 
-                        {
-                            const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                            const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                            const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
-
-                            double u, v, w;
-                            
-                            if (col->getRelativistic()) 
-                            {
-                                //? Relativistic (velocity of relativistic nondrifting Maxwellian)
-                                sample_Maxwell_Juttner(u, v, w, thermal_velocity, 1.0, 0);
-                            }
-                            else 
-                            {
-                                //? Non relativistic
-                                sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
-                            }         
-                            
-                            create_new_particle(u, v, w, q, x, y, z);
-                        }
-                }
-
-    fixPosition();
-}
-
-
-//! ============================================================================= !//
-
-// Create a vectorized version of this mover as follows.
-//
-// Let N be the number of doubles that fit in the vector unit.
-//
-// Vectorization can be done in one of two ways:
-// 1. trivially by writing loops over stride-1 data,
-//    particularly if data is in SoA format, and
-// 2. with intrinsics, e.g. by loading the components
-//    of physical vectors in the vector unit and
-//    performing physical vector operations.
-//
-// Process N:=sizeof(vector_unit)/sizeof(double) particles at a time:
-//
-// A. Initialize average position with old position.
-// B. repeat the following steps:
-//    1. Use average position to generate 8 node weights and indices:
-//       for pcl=1:N: (3) position -> (8) weights and (8) node_indices
-//    2. Use weights and fields at node indices to calculate sampled field:
-//       for pcl=1:N: (8) weights, field at nodes -> (6 or 8) sampled field
-//    3. Use sampled field to advance velocity:
-//       for pcl=1:N: sampled field, velocity -> (3) new velocity
-//    4. Use velocity to advance position:
-//       for pcl=1:N: velocity, old position -> (3) average position
-// C. Use old position and average position to update the position.
-//
-// Since the fields used by the pusher are in AoS format,
-// step 2 can be vectorized trivially, independent of whether
-// the particle representation is AoS or SoA, and is expected
-// to dominate in the absence of vectorization.
-//
-// If the particle representation is AoS, then
-// vectorizing steps 1, 3, and 4 requires intrinsics.
-//
-// If the particle representation is SoA then
-// vectorizing step 3 requires intrinsics unless:
-// 1. the Nx(6 or 8) array of sampled fields is transposed
-//    from AoS format to SoA format or
-// 2. particles are sorted by mesh cell and are subcycled
-//    or resorted with each iteration to keep the average
-//    position within the mesh cell;
-//    in this case the cell nodes are the same for all
-//    N particles, so the sampled fields can be directly
-//    calculated in SoA format.
-//
-// Compare the vectorization notes at the top of sumMoments()
-//
 
 //! ECSIM - energy conserving semi-implicit method !//
 void Particles3D::ECSIM_velocity(Field *EMf) 
@@ -1482,9 +664,9 @@ void Particles3D::computeMoments(Field *EMf)
     if (vct->getCartesian_rank() == 0) 
         cout << "Number of particles of species " << ns << " per MPI process: " << getNOP() << endl;
 
-    #pragma omp parallel
+    // #pragma omp parallel
     {
-        convertParticlesToAoS();
+        // convertParticlesToAoS();
 
         //TODO: External forces are to be implemented
         double Fxl = 0.0, Fyl = 0.0, Fzl = 0.0;
@@ -1494,7 +676,7 @@ void Particles3D::computeMoments(Field *EMf)
         //* q*dt/(2*m*c)
         const double q_dt_2mc = 0.5*dt*qom/c;
 
-        #pragma omp for schedule(static)
+        // #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++)
         {
             //* Copy the particle
@@ -1559,7 +741,7 @@ void Particles3D::computeMoments(Field *EMf)
 
             //* --------------------------------------- *//
 
-            //? Compute the rotation matrix, "alpha"
+            //? Compute the rotation matrix
             double lorentz_factor = 1.0;
             if (Relativistic)
             {
@@ -1639,22 +821,19 @@ void Particles3D::computeMoments(Field *EMf)
             const pfloat omsq = (Omx * Omx + Omy * Omy + Omz * Omz);
             const pfloat denom = 1.0 / (1.0 + omsq)/lorentz_factor;
 
-            double alpha[3][3];
-            alpha[0][0] = ( 1.0 + (Omx*Omx))*denom;
-            alpha[0][1] = ( Omz + (Omx*Omy))*denom;
-            alpha[0][2] = (-Omy + (Omx*Omz))*denom;
+            const double a00 = ( 1.0 + (Omx*Omx))*denom;
+            const double a01 = (-Omz + (Omx*Omy))*denom;
+            const double a02 = ( Omy + (Omx*Omz))*denom;
+            const double a10 = ( Omz + (Omx*Omy))*denom;
+            const double a11 = ( 1.0 + (Omy*Omy))*denom;
+            const double a12 = (-Omx + (Omy*Omz))*denom;
+            const double a20 = (-Omy + (Omx*Omz))*denom;
+            const double a21 = ( Omx + (Omy*Omz))*denom;
+            const double a22 = ( 1.0 + (Omz*Omz))*denom;
 
-            alpha[1][0] = (-Omz + (Omx*Omy))*denom;
-            alpha[1][1] = ( 1.0 + (Omy*Omy))*denom;
-            alpha[1][2] = ( Omx + (Omy*Omz))*denom;
-
-            alpha[2][0] = ( Omy + (Omx*Omz))*denom;
-            alpha[2][1] = (-Omx + (Omy*Omz))*denom;
-            alpha[2][2] = ( 1.0 + (Omz*Omz))*denom;
-
-            double qau = q * (alpha[0][0]*(u_n + dt/2.*Fxl) + alpha[0][1]*(v_n + dt/2.*Fyl) + alpha[0][2]*(w_n + dt/2.*Fzl));
-            double qav = q * (alpha[1][0]*(u_n + dt/2.*Fxl) + alpha[1][1]*(v_n + dt/2.*Fyl) + alpha[1][2]*(w_n + dt/2.*Fzl));
-            double qaw = q * (alpha[2][0]*(u_n + dt/2.*Fxl) + alpha[2][1]*(v_n + dt/2.*Fyl) + alpha[2][2]*(w_n + dt/2.*Fzl));
+            double qau = q * (a00*(u_n + dt/2.*Fxl) + a10*(v_n + dt/2.*Fyl) + a20*(w_n + dt/2.*Fzl));
+            double qav = q * (a01*(u_n + dt/2.*Fxl) + a11*(v_n + dt/2.*Fyl) + a21*(w_n + dt/2.*Fzl));
+            double qaw = q * (a02*(u_n + dt/2.*Fxl) + a12*(v_n + dt/2.*Fyl) + a22*(w_n + dt/2.*Fzl));
 
             //* --------------------------------------- *//
 
@@ -1671,23 +850,19 @@ void Particles3D::computeMoments(Field *EMf)
             #endif
 
             //* Add charge density                 
-            for (int ii = 0; ii < 8; ii++)
-                temp[ii] = q * weights[ii];
+            for (int ii = 0; ii < 8; ii++) temp[ii] = q * weights[ii];
             EMf->add_Rho(temp, ix, iy, iz, ns);
 
             //* Add implicit current density - X
-            for (int ii = 0; ii < 8; ii++)
-                temp[ii] = qau * weights[ii];
+            for (int ii = 0; ii < 8; ii++) temp[ii] = qau * weights[ii];
             EMf->add_Jxh(temp, ix, iy, iz, ns);
             
             //* Add implicit current density - Y
-            for (int ii = 0; ii < 8; ii++)
-                temp[ii] = qav * weights[ii];
+            for (int ii = 0; ii < 8; ii++) temp[ii] = qav * weights[ii];
             EMf->add_Jyh(temp, ix, iy, iz, ns);
 
             //* Add implicit current density - Z
-            for (int ii = 0; ii < 8; ii++)
-                temp[ii] = qaw * weights[ii];
+            for (int ii = 0; ii < 8; ii++) temp[ii] = qaw * weights[ii];
             EMf->add_Jzh(temp, ix, iy, iz, ns);
 
             #ifdef __PROFILE_MOMENTS__
@@ -1695,44 +870,37 @@ void Particles3D::computeMoments(Field *EMf)
             time_mm.start();
             #endif
             
+            //? ------------------------------------------------------ ?//
+
             //? Compute exact Mass Matrix
-            for (int i = 0; i < 2; i++) 
-                for (int j = 0; j < 2; j++) 
-                    for (int k = 0; k < 2; k++) 
-                    {
-                        int ni = ix-i;
-                        int nj = iy-j;
-                        int nk = iz-k;
 
-                        //* Iterate over half of the 27 neighbouring nodes as M is symmetric
-                        for (int n_node = 0; n_node < 14; n_node++)
-                        {
-                            int n2i = ni + NeNo.getX(n_node);
-                            int n2j = nj + NeNo.getY(n_node);
-                            int n2k = nk + NeNo.getZ(n_node);
+            const double mass_coeff = q * q_dt_2mc;
 
-                            int i2 = ix - n2i;
-                            int j2 = iy - n2j;
-                            int k2 = iz - n2k;
+            for (int n1 = 0; n1 < 8; ++n1)
+            {
+                const int ni = ix - di_MM[n1];
+                const int nj = iy - dj_MM[n1];
+                const int nk = iz - dk_MM[n1];
 
-                            //TODO: What does this part actually do? - Ask Fabio
-                            //* Check if this node is one of the cell where the particle is
-                            if (i2 >= 0 && i2 < 2 && j2 >= 0 && j2 < 2 && k2 >= 0 && k2 < 2) 
-                            {
-                                // Map (i, j, k) & (i2, j2, k2) to 1D
-                                int index1 = i * 4 + j * 2 + k;
-                                int index2 = i2 * 4 + j2 * 2 + k2; 
-                                double qww = q * q_dt_2mc * weights[index1] * weights[index2];
-                                double value[3][3];
-                                
-                                for (int ind1 = 0; ind1 < 3; ind1++)
-                                    for (int ind2 = 0; ind2 < 3; ind2++) 
-                                        value[ind1][ind2] = alpha[ind2][ind1]*qww;
+                const double mw = mass_coeff * weights[n1];
+                const auto& stencil = mass_stencil[n1];
 
-                                EMf->add_Mass(value, ni, nj, nk, n_node);
-                            }
-                        }
-                    }
+                //* Iterate over half of the 27 neighbouring nodes as M is symmetric
+                for (int mm = 0; mm < stencil.count; mm++)
+                {
+                    const int n_node = stencil.list[mm].n_node;
+                    const int index2 = stencil.list[mm].index2;
+
+                    const double qww = mw * weights[index2];
+
+                    EMf->add_Mass(a00 * qww, a10 * qww, a20 * qww,
+                                    a01 * qww, a11 * qww, a21 * qww,
+                                    a02 * qww, a12 * qww, a22 * qww,
+                                    ni, nj, nk, n_node );
+                }
+            }
+
+            //? ------------------------------------------------------ ?//
             
             #ifdef __PROFILE_MOMENTS__
             time_mm.stop();
@@ -1759,7 +927,7 @@ void Particles3D::compute_supplementary_moments(Field * EMf)
 {
     #pragma omp parallel
     {
-        convertParticlesToAoS();
+        // convertParticlesToAoS();
 
         #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++)

@@ -53,61 +53,18 @@ class Particles3D:public Particles3Dcomm
     
     //? ---------- Initial particle distributions (Non Relativistic) ---------- ?//
 
-    //* Uniform in space and motionless
-    void uniform_background(Field * EMf);
-    
-    //* Initialize particles with a constant velocity along "dim" direction
-    void constantVelocity(double vel, int dim, Field * EMf);
-    
-    //* Uniform in space and Maxwellian in velocity
     void maxwellian(Field * EMf);
-
-    /** Initial condition: uniform in space and maxwellian in velocity with velocity from Null Point currents */
-    void maxwellianNullPoints(Field * EMf);
-
-    //* Maxwellian velocity from currents and uniform spatial distribution for a double Harris sheet
-    void maxwellian_Double_Harris(Field * EMf);
-
-    //* Kelvin--Helmholtz Instability (Finite Larmor Radius; Cerri 2013, https://doi.org/10.1063/1.4828981)
     void maxwellian_KHI_FLR(Field* EMf);
-
-    /** pitch_angle_energy initialization (Assume B on z only) for test particles */
-    void pitch_angle_energy(Field * EMf);
-    /** Force Free initialization (JxB=0) for particles */
-    void force_free(Field * EMf);
-    /** Initial condition: uniform in space and maxwellian in velocity */
-    void alt_maxwellian(Field * EMf);
-    /** Linear_perturbation */
-    //void linear_perturbation(double deltaBX, double kx, double ky, double theta, double omega_r, double omega_i, double Ex_mod, double Ex_phase, double Ey_mod, double Ey_phase, double Ez_mod, double Ez_phase, double Bx_mod, double Bx_phase, double By_mod, double By_phase, double Bz_mod, double Bz_phase, Field * EMf);
-    /**Add a periodic perturbation in velocity exp i(kx - \omega t); deltaBoB is the ratio (Delta B / B0) **/
-    void AddPerturbationJ(double deltaBoB, double kx, double ky, double Bx_mod, double By_mod, double Bz_mod, double jx_mod, double jx_phase, double jy_mod, double jy_phase, double jz_mod, double jz_phase, double B0);
-    /** Linear delta f for bi-maxwellian plasma */
-    double delta_f(double u, double v, double w, double x, double y, double kx, double ky, double omega_re, double omega_i, double Ex_ampl, double Ex_phase, double Ey_ampl, double Ey_phase, double Ez_ampl, double Ez_phase, double theta, Field * EMf);
-    /** Derivative of f0 wrt vpar */
-    double df0_dvpar(double vpar, double vperp);
-    /** Derivative of f0 wrt vperp */
-    double df0_dvperp(double vpar, double vperp);
-    /** Equilibrium bi-maxwellian f0 */
-    double f0(double vpar, double vperp);
-    /** Rotate velocities in plane XY of angle theta */
-    void RotatePlaneXY(double theta);
-
+    void uniform_background(Field * EMf);
+    void maxwellian_Double_Harris(Field * EMf);
+    void maxwellian_Double_Harris_Hump(Field * EMf);
 
     //? ---------- Initial particle distributions (Relativistic) ---------- ?//
 
-    //* Uniform in space and Maxwellian in relativistic velocity
     void Maxwell_Juttner(Field * EMf);
-
-    //* Relativistic quasi-1D ion-electron shock (non relativisitic option available)
     void Shock1D(Field * EMf);
-    
-    //* Quasi-1D double periodic ion-electron shock driven by a piston (non relativisitic option available)
     void Shock1D_DoublePiston(Field * EMf);
-
-    //* Double Harris sheet with electron-positron pairs for relativistic reconnection
     void Relativistic_Double_Harris_pairs(Field * EMf);
-
-    //* Double Harris sheet with ion-electron for relativistic reconnection
     void Relativistic_Double_Harris_ion_electron(Field * EMf);
 
     //? ============================================================================ ? //
@@ -163,13 +120,11 @@ class Particles3D:public Particles3Dcomm
     void openbc_delete_testparticles();
     void openbc_particles_inflow();
 
-    #ifdef BATSRUS
-        /*! Initial condition: given a fluid model (BATSRUS) */
-        void MaxwellianFromFluid(Field* EMf,Collective *col, int is);
-        /*! Initiate dist. func. for a single cell form a fluid model (BATSRUS) */
-        void MaxwellianFromFluidCell(Collective *col, int is, int i, int j, int k, int &ip, double *x, double *y, double *z, double *q, double *vx, double *vy, double *vz, longid* ParticleID);
-    #endif
-
+    double delta_f(double u, double v, double w, double x, double y, double kx, double ky, double omega_re, double omega_i, double Ex_ampl, double Ex_phase, double Ey_ampl, double Ey_phase, double Ez_ampl, double Ez_phase, double theta, Field * EMf);
+    double df0_dvpar(double vpar, double vperp);
+    double df0_dvperp(double vpar, double vperp);
+    double f0(double vpar, double vperp);
+    void RotatePlaneXY(double theta);
 };
 
 #endif
