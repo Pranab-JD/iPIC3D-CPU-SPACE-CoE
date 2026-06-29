@@ -83,82 +83,82 @@ double sech_square_(double x)
 }
 
 //? Used in computing mass matrix
-namespace 
-{
+// namespace 
+// {
 
-    static constexpr uint8_t idx[2][2][2] = {{{0,1}, {2,3}}, 
-                                                {{4,5}, {6,7}}};
+//     static constexpr uint8_t idx[2][2][2] = {{{0,1}, {2,3}}, 
+//                                                 {{4,5}, {6,7}}};
 
-    static constexpr int dx_MM[14] = { 0,
-                                        1, 0, 0,
-                                        1, 1, 1, 1, 0, 0,
-                                        1, 1, -1,
-                                        1 };
+//     static constexpr int dx_MM[14] = { 0,
+//                                         1, 0, 0,
+//                                         1, 1, 1, 1, 0, 0,
+//                                         1, 1, -1,
+//                                         1 };
 
-    static constexpr int dy_MM[14] = { 0,
-                                        0, 1, 0,
-                                        1, -1, 0, 0, 1, 1,
-                                        -1, 1, 1,
-                                        1 };
+//     static constexpr int dy_MM[14] = { 0,
+//                                         0, 1, 0,
+//                                         1, -1, 0, 0, 1, 1,
+//                                         -1, 1, 1,
+//                                         1 };
 
-    static constexpr int dz_MM[14] = { 0,
-                                        0, 0, 1,
-                                        0, 0, 1, -1, 1, -1,
-                                        1, -1, 1,
-                                        1 };
+//     static constexpr int dz_MM[14] = { 0,
+//                                         0, 0, 1,
+//                                         0, 0, 1, -1, 1, -1,
+//                                         1, -1, 1,
+//                                         1 };
 
-    struct MassInteraction 
-    {
-        uint8_t n_node;
-        uint8_t index2;
-    };
+//     struct MassInteraction 
+//     {
+//         uint8_t n_node;
+//         uint8_t index2;
+//     };
 
-    struct MassStencil 
-    {
-        uint8_t count;
-        MassInteraction list[8];
-    };
+//     struct MassStencil 
+//     {
+//         uint8_t count;
+//         MassInteraction list[8];
+//     };
 
-    static std::array<MassStencil, 8> build_mass_stencil()
-    {
-        std::array<MassStencil, 8> table{};
+//     static std::array<MassStencil, 8> build_mass_stencil()
+//     {
+//         std::array<MassStencil, 8> table{};
 
-        for (int i = 0; i < 2; ++i)
-            for (int j = 0; j < 2; ++j)
-                for (int k = 0; k < 2; ++k)
-                {
-                    const int index1 = idx[i][j][k];
-                    auto& entry = table[index1];
-                    entry.count = 0;
+//         for (int i = 0; i < 2; ++i)
+//             for (int j = 0; j < 2; ++j)
+//                 for (int k = 0; k < 2; ++k)
+//                 {
+//                     const int index1 = idx[i][j][k];
+//                     auto& entry = table[index1];
+//                     entry.count = 0;
 
-                    for (int n_node = 0; n_node < 14; ++n_node)
-                    {
-                        const int i2 = i - dx_MM[n_node];
-                        const int j2 = j - dy_MM[n_node];
-                        const int k2 = k - dz_MM[n_node];
+//                     for (int n_node = 0; n_node < 14; ++n_node)
+//                     {
+//                         const int i2 = i - dx_MM[n_node];
+//                         const int j2 = j - dy_MM[n_node];
+//                         const int k2 = k - dz_MM[n_node];
 
-                        if (i2 >= 0 && i2 < 2 &&
-                            j2 >= 0 && j2 < 2 &&
-                            k2 >= 0 && k2 < 2)
-                        {
-                            assert(entry.count < 8);
-                            entry.list[entry.count++] = {
-                                static_cast<uint8_t>(n_node),
-                                idx[i2][j2][k2]
-                            };
-                        }
-                    }
-                }
+//                         if (i2 >= 0 && i2 < 2 &&
+//                             j2 >= 0 && j2 < 2 &&
+//                             k2 >= 0 && k2 < 2)
+//                         {
+//                             assert(entry.count < 8);
+//                             entry.list[entry.count++] = {
+//                                 static_cast<uint8_t>(n_node),
+//                                 idx[i2][j2][k2]
+//                             };
+//                         }
+//                     }
+//                 }
 
-        return table;
-    }
+//         return table;
+//     }
 
-    static const auto mass_stencil = build_mass_stencil();
-}
+//     static const auto mass_stencil = build_mass_stencil();
+// }
 
-static constexpr uint8_t di_MM[8] = {0,0,0,0,1,1,1,1};
-static constexpr uint8_t dj_MM[8] = {0,0,1,1,0,0,1,1};
-static constexpr uint8_t dk_MM[8] = {0,1,0,1,0,1,0,1};
+// static constexpr uint8_t di_MM[8] = {0,0,0,0,1,1,1,1};
+// static constexpr uint8_t dj_MM[8] = {0,0,1,1,0,0,1,1};
+// static constexpr uint8_t dk_MM[8] = {0,1,0,1,0,1,0,1};
 
 /**
  * 
@@ -178,9 +178,9 @@ void Particles3D::ECSIM_velocity(Field *EMf)
     {
         convertParticlesToAoS();
 
-        #pragma omp master
-        if (vct->getCartesian_rank() == 0) 
-            cout << "*** ECSIM MOVER (velocities) for species " << ns << " ***" << endl;
+        // #pragma omp master
+        // if (vct->getCartesian_rank() == 0) 
+        //     cout << "*** ECSIM MOVER (velocities) for species " << ns << " ***" << endl;
 
         const_arr4_double fieldForPcls = EMf->get_fieldForPcls();
 
@@ -278,9 +278,9 @@ void Particles3D::RelSIM_velocity(Field *EMf)
     {
         convertParticlesToAoS();
 
-        #pragma omp master
-        if (vct->getCartesian_rank() == 0) 
-            cout << "*** RelSIM MOVER (velocities) for species " << ns << " ***" << endl;
+        // #pragma omp master
+        // if (vct->getCartesian_rank() == 0) 
+        //     cout << "*** RelSIM MOVER (velocities) for species " << ns << " ***" << endl;
 
         const_arr4_double fieldForPcls = EMf->get_fieldForPcls();
 
@@ -462,17 +462,17 @@ void Particles3D::ECSIM_position(Field *EMf)
     {
         convertParticlesToAoS();
 
-        #pragma omp master
-        if (Relativistic)
-        {
-            if (vct->getCartesian_rank() == 0) 
-                cout << "*** RelSIM MOVER (positions) for species " << ns << " ***" << endl;
-        }
-        else
-        {
-            if (vct->getCartesian_rank() == 0) 
-                cout << "*** ECSIM MOVER (positions) for species " << ns << " ***" << endl;
-        }
+        // #pragma omp master
+        // if (Relativistic)
+        // {
+        //     if (vct->getCartesian_rank() == 0) 
+        //         cout << "*** RelSIM MOVER (positions) for species " << ns << " ***" << endl;
+        // }
+        // else
+        // {
+        //     if (vct->getCartesian_rank() == 0) 
+        //         cout << "*** ECSIM MOVER (positions) for species " << ns << " ***" << endl;
+        // }
 
         double correct_x = 1.0, correct_y = 1.0, correct_z = 1.0;
         const double inv_dx = 1.0/dx, inv_dy = 1.0/dy, inv_dz = 1.0/dz;
@@ -660,13 +660,13 @@ void Particles3D::computeMoments(Field *EMf)
     time_total.start();
     #endif
 
-    #pragma omp master
-    if (vct->getCartesian_rank() == 0) 
-        cout << "Number of particles of species " << ns << " per MPI process: " << getNOP() << endl;
+    // #pragma omp master
+    // if (vct->getCartesian_rank() == 0) 
+    //     cout << "Number of particles of species " << ns << " per MPI process: " << getNOP() << endl;
 
-    // #pragma omp parallel
+    #pragma omp parallel
     {
-        // convertParticlesToAoS();
+        convertParticlesToAoS();
 
         //TODO: External forces are to be implemented
         double Fxl = 0.0, Fyl = 0.0, Fzl = 0.0;
@@ -676,7 +676,7 @@ void Particles3D::computeMoments(Field *EMf)
         //* q*dt/(2*m*c)
         const double q_dt_2mc = 0.5*dt*qom/c;
 
-        // #pragma omp for schedule(static)
+        #pragma omp for schedule(static)
         for (int pidx = 0; pidx < getNOP(); pidx++)
         {
             //* Copy the particle
@@ -741,7 +741,7 @@ void Particles3D::computeMoments(Field *EMf)
 
             //* --------------------------------------- *//
 
-            //? Compute the rotation matrix
+            //? Compute the rotation matrix, "alpha"
             double lorentz_factor = 1.0;
             if (Relativistic)
             {
@@ -821,19 +821,22 @@ void Particles3D::computeMoments(Field *EMf)
             const pfloat omsq = (Omx * Omx + Omy * Omy + Omz * Omz);
             const pfloat denom = 1.0 / (1.0 + omsq)/lorentz_factor;
 
-            const double a00 = ( 1.0 + (Omx*Omx))*denom;
-            const double a01 = (-Omz + (Omx*Omy))*denom;
-            const double a02 = ( Omy + (Omx*Omz))*denom;
-            const double a10 = ( Omz + (Omx*Omy))*denom;
-            const double a11 = ( 1.0 + (Omy*Omy))*denom;
-            const double a12 = (-Omx + (Omy*Omz))*denom;
-            const double a20 = (-Omy + (Omx*Omz))*denom;
-            const double a21 = ( Omx + (Omy*Omz))*denom;
-            const double a22 = ( 1.0 + (Omz*Omz))*denom;
+            double alpha[3][3];
+            alpha[0][0] = ( 1.0 + (Omx*Omx))*denom;
+            alpha[0][1] = ( Omz + (Omx*Omy))*denom;
+            alpha[0][2] = (-Omy + (Omx*Omz))*denom;
 
-            double qau = q * (a00*(u_n + dt/2.*Fxl) + a10*(v_n + dt/2.*Fyl) + a20*(w_n + dt/2.*Fzl));
-            double qav = q * (a01*(u_n + dt/2.*Fxl) + a11*(v_n + dt/2.*Fyl) + a21*(w_n + dt/2.*Fzl));
-            double qaw = q * (a02*(u_n + dt/2.*Fxl) + a12*(v_n + dt/2.*Fyl) + a22*(w_n + dt/2.*Fzl));
+            alpha[1][0] = (-Omz + (Omx*Omy))*denom;
+            alpha[1][1] = ( 1.0 + (Omy*Omy))*denom;
+            alpha[1][2] = ( Omx + (Omy*Omz))*denom;
+
+            alpha[2][0] = ( Omy + (Omx*Omz))*denom;
+            alpha[2][1] = (-Omx + (Omy*Omz))*denom;
+            alpha[2][2] = ( 1.0 + (Omz*Omz))*denom;
+
+            double qau = q * (alpha[0][0]*(u_n + dt/2.*Fxl) + alpha[0][1]*(v_n + dt/2.*Fyl) + alpha[0][2]*(w_n + dt/2.*Fzl));
+            double qav = q * (alpha[1][0]*(u_n + dt/2.*Fxl) + alpha[1][1]*(v_n + dt/2.*Fyl) + alpha[1][2]*(w_n + dt/2.*Fzl));
+            double qaw = q * (alpha[2][0]*(u_n + dt/2.*Fxl) + alpha[2][1]*(v_n + dt/2.*Fyl) + alpha[2][2]*(w_n + dt/2.*Fzl));
 
             //* --------------------------------------- *//
 
@@ -850,19 +853,23 @@ void Particles3D::computeMoments(Field *EMf)
             #endif
 
             //* Add charge density                 
-            for (int ii = 0; ii < 8; ii++) temp[ii] = q * weights[ii];
+            for (int ii = 0; ii < 8; ii++)
+                temp[ii] = q * weights[ii];
             EMf->add_Rho(temp, ix, iy, iz, ns);
 
             //* Add implicit current density - X
-            for (int ii = 0; ii < 8; ii++) temp[ii] = qau * weights[ii];
+            for (int ii = 0; ii < 8; ii++)
+                temp[ii] = qau * weights[ii];
             EMf->add_Jxh(temp, ix, iy, iz, ns);
             
             //* Add implicit current density - Y
-            for (int ii = 0; ii < 8; ii++) temp[ii] = qav * weights[ii];
+            for (int ii = 0; ii < 8; ii++)
+                temp[ii] = qav * weights[ii];
             EMf->add_Jyh(temp, ix, iy, iz, ns);
 
             //* Add implicit current density - Z
-            for (int ii = 0; ii < 8; ii++) temp[ii] = qaw * weights[ii];
+            for (int ii = 0; ii < 8; ii++)
+                temp[ii] = qaw * weights[ii];
             EMf->add_Jzh(temp, ix, iy, iz, ns);
 
             #ifdef __PROFILE_MOMENTS__
@@ -870,37 +877,43 @@ void Particles3D::computeMoments(Field *EMf)
             time_mm.start();
             #endif
             
-            //? ------------------------------------------------------ ?//
-
             //? Compute exact Mass Matrix
+            for (int i = 0; i < 2; i++) 
+                for (int j = 0; j < 2; j++) 
+                    for (int k = 0; k < 2; k++) 
+                    {
+                        int ni = ix-i;
+                        int nj = iy-j;
+                        int nk = iz-k;
 
-            const double mass_coeff = q * q_dt_2mc;
+                        //* Iterate over half of the 27 neighbouring nodes as M is symmetric
+                        for (int n_node = 0; n_node < 14; n_node++)
+                        {
+                            int n2i = ni + NeNo.getX(n_node);
+                            int n2j = nj + NeNo.getY(n_node);
+                            int n2k = nk + NeNo.getZ(n_node);
 
-            for (int n1 = 0; n1 < 8; ++n1)
-            {
-                const int ni = ix - di_MM[n1];
-                const int nj = iy - dj_MM[n1];
-                const int nk = iz - dk_MM[n1];
+                            int i2 = ix - n2i;
+                            int j2 = iy - n2j;
+                            int k2 = iz - n2k;
 
-                const double mw = mass_coeff * weights[n1];
-                const auto& stencil = mass_stencil[n1];
+                            //* Check if this node is one of the cell where the particle is
+                            if (i2 >= 0 && i2 < 2 && j2 >= 0 && j2 < 2 && k2 >= 0 && k2 < 2) 
+                            {
+                                // Map (i, j, k) & (i2, j2, k2) to 1D
+                                int index1 = i * 4 + j * 2 + k;
+                                int index2 = i2 * 4 + j2 * 2 + k2; 
+                                double qww = q * q_dt_2mc * weights[index1] * weights[index2];
+                                double value[3][3];
+                                
+                                for (int ind1 = 0; ind1 < 3; ind1++)
+                                    for (int ind2 = 0; ind2 < 3; ind2++) 
+                                        value[ind1][ind2] = alpha[ind2][ind1]*qww;
 
-                //* Iterate over half of the 27 neighbouring nodes as M is symmetric
-                for (int mm = 0; mm < stencil.count; mm++)
-                {
-                    const int n_node = stencil.list[mm].n_node;
-                    const int index2 = stencil.list[mm].index2;
-
-                    const double qww = mw * weights[index2];
-
-                    EMf->add_Mass(a00 * qww, a10 * qww, a20 * qww,
-                                    a01 * qww, a11 * qww, a21 * qww,
-                                    a02 * qww, a12 * qww, a22 * qww,
-                                    ni, nj, nk, n_node );
-                }
-            }
-
-            //? ------------------------------------------------------ ?//
+                                EMf->add_Mass(value, ni, nj, nk, n_node);
+                            }
+                        }
+                    }
             
             #ifdef __PROFILE_MOMENTS__
             time_mm.stop();

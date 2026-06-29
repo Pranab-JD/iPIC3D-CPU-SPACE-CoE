@@ -55,10 +55,10 @@ int main(int argc, char **argv)
 
         KCode.WriteOutput(KCode.FirstCycle());
 
-        for (int i = KCode.FirstCycle() + 1; i <= KCode.LastCycle(); i++) 
+        for (int cycle = KCode.FirstCycle() + 1; cycle <= KCode.LastCycle(); cycle++) 
         {
-            if (KCode.get_myrank() == 0)
-                std::cout << std::endl << "=================== Cycle " << i << " ===================" << std::endl ;
+            if (KCode.get_myrank() == 0 && cycle%100 == 0)
+                std::cout << std::endl << "=================== Cycle " << cycle << " ===================" << std::endl ;
             
             //? Moment Gatherer --> Compute charge density, current density, and mass matrix
             time_MG.start();
@@ -67,7 +67,7 @@ int main(int argc, char **argv)
             
             //? Field Solver --> Compute E & B fields 
             time_EF.start();
-            KCode.ComputeEMFields(i);        
+            KCode.ComputeEMFields(cycle);        
             time_EF.stop();
             
             //? Particle Pusher --> Compute new velocities and positions of the particles
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
             time_PM.stop();
 
             time_WD.start();
-            KCode.WriteOutput(i);
+            KCode.WriteOutput(cycle);
             time_WD.stop();
 
             if(MPIdata::get_rank() == 0)

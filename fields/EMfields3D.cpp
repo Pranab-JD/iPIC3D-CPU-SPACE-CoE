@@ -156,6 +156,7 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
     Mzx (NE_MASS, nxn, nyn, nzn),
     Myz (NE_MASS, nxn, nyn, nzn),
     Mzy (NE_MASS, nxn, nyn, nzn),
+    // MM(nxn, nyn, nzn, NE_MASS*9),
 
     //! Species-specific quantities
     rhocs_avg (ns, nxc, nyc, nzc),
@@ -553,6 +554,7 @@ void EMfields3D::setAllzero()
                     E_flux_zs.fetch(is, ii, jj, kk)  = 0.0;
                     rhons.fetch(is, ii, jj, kk) = 0.0;
                 }
+
 
     for (int is = 0; is < NE_MASS; is ++)
         for (int ii = 0; ii < nxn; ii++)
@@ -2328,7 +2330,7 @@ void EMfields3D::communicateGhostP2G(int ns)
     communicateInterp(nxn, nyn, nzn, moment9, vct, this);
     
     //* Calculate correct densities on the boundaries
-    adjustNonPeriodicDensities(ns);
+    // adjustNonPeriodicDensities(ns);
 
     //* Populate the ghost nodes - Nonblocking Halo Exchange
     communicateNode_P(nxn, nyn, nzn, moment0, vct, this);
@@ -2575,9 +2577,6 @@ void EMfields3D::calculateE()
     const Collective *col = &get_col();
     const VirtualTopology3D * vct = &get_vct();
     const Grid *grid = &get_grid();
-
-    if (vct->getCartesian_rank() == 0)
-        cout << "*** Electric field computation ***" << endl;
 
     //? X,Y,Z components for E
     double *xkrylov = new double[3 * (nxn - 2) * (nyn - 2) * (nzn - 2)];
@@ -2912,9 +2911,6 @@ void EMfields3D::calculateB()
     const VirtualTopology3D *vct = &get_vct();
     const Grid *grid = &get_grid();
 
-    if (vct->getCartesian_rank() == 0)
-        cout << "*** Magnetic field computation ***" << endl;
-
     //? Compute curl of E_theta
     grid->curlN2C(tempXC, tempYC, tempZC, Exth, Eyth, Ezth);
 
@@ -3009,436 +3005,436 @@ void EMfields3D::energy_conserve_smooth(arr3_double data_X, arr3_double data_Y, 
 //! ===================================== Initial Field Distributions ===================================== !//
 
 //? B boundary for GEM (cell centres) - this assumes non-periodic boundaries along Y ?//
-void EMfields3D::fixBcGEM()
-{
-    const VirtualTopology3D *vct = &get_vct();
-    const Grid *grid = &get_grid();
+// void EMfields3D::fixBcGEM()
+// {
+//     const VirtualTopology3D *vct = &get_vct();
+//     const Grid *grid = &get_grid();
 
-    if (vct->getYright_neighbor() == MPI_PROC_NULL) 
-    {
-        for (int i = 0; i < nxc; i++)
-            for (int k = 0; k < nzc; k++) 
-            {
-                Bxc[i][nyc - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
-                Bxc[i][nyc - 2][k] = Bxc[i][nyc - 1][k];
-                Bxc[i][nyc - 3][k] = Bxc[i][nyc - 1][k];
-                Byc[i][nyc - 1][k] = B0y;
-                Bzc[i][nyc - 1][k] = B0z;
-                Bzc[i][nyc - 2][k] = B0z;
-                Bzc[i][nyc - 3][k] = B0z;
-            }
-    }
+//     if (vct->getYright_neighbor() == MPI_PROC_NULL) 
+//     {
+//         for (int i = 0; i < nxc; i++)
+//             for (int k = 0; k < nzc; k++) 
+//             {
+//                 Bxc[i][nyc - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
+//                 Bxc[i][nyc - 2][k] = Bxc[i][nyc - 1][k];
+//                 Bxc[i][nyc - 3][k] = Bxc[i][nyc - 1][k];
+//                 Byc[i][nyc - 1][k] = B0y;
+//                 Bzc[i][nyc - 1][k] = B0z;
+//                 Bzc[i][nyc - 2][k] = B0z;
+//                 Bzc[i][nyc - 3][k] = B0z;
+//             }
+//     }
     
-    if (vct->getYleft_neighbor() == MPI_PROC_NULL) 
-    {
-        for (int i = 0; i < nxc; i++)
-            for (int k = 0; k < nzc; k++) 
-            {
-                Bxc[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
-                Bxc[i][1][k] = Bxc[i][0][k];
-                Bxc[i][2][k] = Bxc[i][0][k];
-                Byc[i][0][k] = B0y;
-                Bzc[i][0][k] = B0z;
-                Bzc[i][1][k] = B0z;
-                Bzc[i][2][k] = B0z;
-            }
-    }
-}
+//     if (vct->getYleft_neighbor() == MPI_PROC_NULL) 
+//     {
+//         for (int i = 0; i < nxc; i++)
+//             for (int k = 0; k < nzc; k++) 
+//             {
+//                 Bxc[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
+//                 Bxc[i][1][k] = Bxc[i][0][k];
+//                 Bxc[i][2][k] = Bxc[i][0][k];
+//                 Byc[i][0][k] = B0y;
+//                 Bzc[i][0][k] = B0z;
+//                 Bzc[i][1][k] = B0z;
+//                 Bzc[i][2][k] = B0z;
+//             }
+//     }
+// }
 
-//? B boundary for GEM (nodes) - this assumes non-periodic boundaries along Y ?//
-void EMfields3D::fixBnGEM()
-{
-    const VirtualTopology3D *vct = &get_vct();
-    const Grid *grid = &get_grid();
+// //? B boundary for GEM (nodes) - this assumes non-periodic boundaries along Y ?//
+// void EMfields3D::fixBnGEM()
+// {
+//     const VirtualTopology3D *vct = &get_vct();
+//     const Grid *grid = &get_grid();
 
-    if (vct->getYright_neighbor() == MPI_PROC_NULL) 
-    {
-        for (int i = 0; i < nxn; i++)
-            for (int k = 0; k < nzn; k++) 
-            {
-                Bxn[i][nyn - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
-                Bxn[i][nyn - 2][k] = Bxn[i][nyn - 1][k];
-                Bxn[i][nyn - 3][k] = Bxn[i][nyn - 1][k];
-                Byn[i][nyn - 1][k] = B0y;
-                Bzn[i][nyn - 1][k] = B0z;
-                Bzn[i][nyn - 2][k] = B0z;
-                Bzn[i][nyn - 3][k] = B0z;
-            }
-    }
+//     if (vct->getYright_neighbor() == MPI_PROC_NULL) 
+//     {
+//         for (int i = 0; i < nxn; i++)
+//             for (int k = 0; k < nzn; k++) 
+//             {
+//                 Bxn[i][nyn - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
+//                 Bxn[i][nyn - 2][k] = Bxn[i][nyn - 1][k];
+//                 Bxn[i][nyn - 3][k] = Bxn[i][nyn - 1][k];
+//                 Byn[i][nyn - 1][k] = B0y;
+//                 Bzn[i][nyn - 1][k] = B0z;
+//                 Bzn[i][nyn - 2][k] = B0z;
+//                 Bzn[i][nyn - 3][k] = B0z;
+//             }
+//     }
 
-    if (vct->getYleft_neighbor() == MPI_PROC_NULL) 
-    {
-        for (int i = 0; i < nxn; i++)
-            for (int k = 0; k < nzn; k++) 
-            {
-                Bxn[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
-                Bxn[i][1][k] = Bxn[i][0][k];
-                Bxn[i][2][k] = Bxn[i][0][k];
-                Byn[i][0][k] = B0y;
-                Bzn[i][0][k] = B0z;
-                Bzn[i][1][k] = B0z;
-                Bzn[i][2][k] = B0z;
-            }
-    }
-}
+//     if (vct->getYleft_neighbor() == MPI_PROC_NULL) 
+//     {
+//         for (int i = 0; i < nxn; i++)
+//             for (int k = 0; k < nzn; k++) 
+//             {
+//                 Bxn[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
+//                 Bxn[i][1][k] = Bxn[i][0][k];
+//                 Bxn[i][2][k] = Bxn[i][0][k];
+//                 Byn[i][0][k] = B0y;
+//                 Bzn[i][0][k] = B0z;
+//                 Bzn[i][1][k] = B0z;
+//                 Bzn[i][2][k] = B0z;
+//             }
+//     }
+// }
 
-//? B boundary for forcefree ?//
-void EMfields3D::fixBforcefree()
-{
-    const VirtualTopology3D *vct = &get_vct();
-    const Grid *grid = &get_grid();
+// //? B boundary for forcefree ?//
+// void EMfields3D::fixBforcefree()
+// {
+//     const VirtualTopology3D *vct = &get_vct();
+//     const Grid *grid = &get_grid();
 
-    if (vct->getYright_neighbor() == MPI_PROC_NULL) 
-    {
-        for (int i = 0; i < nxc; i++)
-            for (int k = 0; k < nzc; k++) 
-            {
-                Bxc[i][nyc - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
-                Byc[i][nyc - 1][k] = B0y;
-                Bzc[i][nyc - 1][k] = B0z / cosh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);;
-                Bzc[i][nyc - 2][k] = B0z / cosh((grid->getYC(i, nyc - 2, k) - Ly / 2) / delta);;
-                Bzc[i][nyc - 3][k] = B0z / cosh((grid->getYC(i, nyc - 3, k) - Ly / 2) / delta);
-            }
-    }
+//     if (vct->getYright_neighbor() == MPI_PROC_NULL) 
+//     {
+//         for (int i = 0; i < nxc; i++)
+//             for (int k = 0; k < nzc; k++) 
+//             {
+//                 Bxc[i][nyc - 1][k] = B0x * tanh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);
+//                 Byc[i][nyc - 1][k] = B0y;
+//                 Bzc[i][nyc - 1][k] = B0z / cosh((grid->getYC(i, nyc - 1, k) - Ly / 2) / delta);;
+//                 Bzc[i][nyc - 2][k] = B0z / cosh((grid->getYC(i, nyc - 2, k) - Ly / 2) / delta);;
+//                 Bzc[i][nyc - 3][k] = B0z / cosh((grid->getYC(i, nyc - 3, k) - Ly / 2) / delta);
+//             }
+//     }
 
-    if (vct->getYleft_neighbor() == MPI_PROC_NULL) 
-    {
-        for (int i = 0; i < nxc; i++)
-            for (int k = 0; k < nzc; k++) 
-            {
-                Bxc[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
-                Byc[i][0][k] = B0y;
-                Bzc[i][0][k] = B0z / cosh((grid->getYC(i, 0, k) - Ly / 2) / delta);
-                Bzc[i][1][k] = B0z / cosh((grid->getYC(i, 1, k) - Ly / 2) / delta);
-                Bzc[i][2][k] = B0z / cosh((grid->getYC(i, 2, k) - Ly / 2) / delta);
-            }
-    }
-}
+//     if (vct->getYleft_neighbor() == MPI_PROC_NULL) 
+//     {
+//         for (int i = 0; i < nxc; i++)
+//             for (int k = 0; k < nzc; k++) 
+//             {
+//                 Bxc[i][0][k] = B0x * tanh((grid->getYC(i, 0, k) - Ly / 2) / delta);
+//                 Byc[i][0][k] = B0y;
+//                 Bzc[i][0][k] = B0z / cosh((grid->getYC(i, 0, k) - Ly / 2) / delta);
+//                 Bzc[i][1][k] = B0z / cosh((grid->getYC(i, 1, k) - Ly / 2) / delta);
+//                 Bzc[i][2][k] = B0z / cosh((grid->getYC(i, 2, k) - Ly / 2) / delta);
+//             }
+//     }
+// }
 
-// This method assumes mirror boundary conditions;
-// we therefore need to double the density on the boundary
-// nodes to incorporate the mirror particles from the mirror
-// cell just outside the domain.
-//
-/*! adjust densities on boundaries that are not periodic */
-void EMfields3D::adjustNonPeriodicDensities(int is)
-{
-  const VirtualTopology3D *vct = &get_vct();
-  if (vct->getXleft_neighbor_P() == MPI_PROC_NULL) {
-    for (int i = 1; i < nyn - 1; i++)
-    for (int k = 1; k < nzn - 1; k++)
-    {
-        rhons[is][1][i][k] *= 2;
-        Jxs  [is][1][i][k] *= 2;
-        Jys  [is][1][i][k] *= 2;
-        Jzs  [is][1][i][k] *= 2;
-        pXXsn[is][1][i][k] *= 2;
-        pXYsn[is][1][i][k] *= 2;
-        pXZsn[is][1][i][k] *= 2;
-        pYYsn[is][1][i][k] *= 2;
-        pYZsn[is][1][i][k] *= 2;
-        pZZsn[is][1][i][k] *= 2;
-    }
-  }
-  if (vct->getYleft_neighbor_P() == MPI_PROC_NULL) {
-    for (int i = 1; i < nxn - 1; i++)
-    for (int k = 1; k < nzn - 1; k++)
-    {
-        rhons[is][i][1][k] *= 2;
-        Jxs  [is][i][1][k] *= 2;
-        Jys  [is][i][1][k] *= 2;
-        Jzs  [is][i][1][k] *= 2;
-        pXXsn[is][i][1][k] *= 2;
-        pXYsn[is][i][1][k] *= 2;
-        pXZsn[is][i][1][k] *= 2;
-        pYYsn[is][i][1][k] *= 2;
-        pYZsn[is][i][1][k] *= 2;
-        pZZsn[is][i][1][k] *= 2;
-    }
-  }
-  if (vct->getZleft_neighbor_P() == MPI_PROC_NULL) {
-    for (int i = 1; i < nxn - 1; i++)
-    for (int j = 1; j < nyn - 1; j++)
-    {
-        rhons[is][i][j][1] *= 2;
-        Jxs  [is][i][j][1] *= 2;
-        Jys  [is][i][j][1] *= 2;
-        Jzs  [is][i][j][1] *= 2;
-        pXXsn[is][i][j][1] *= 2;
-        pXYsn[is][i][j][1] *= 2;
-        pXZsn[is][i][j][1] *= 2;
-        pYYsn[is][i][j][1] *= 2;
-        pYZsn[is][i][j][1] *= 2;
-        pZZsn[is][i][j][1] *= 2;
-    }
-  }
-  if (vct->getXright_neighbor_P() == MPI_PROC_NULL) {
-    for (int i = 1; i < nyn - 1; i++)
-    for (int k = 1; k < nzn - 1; k++)
-    {
-        rhons[is][nxn - 2][i][k] *= 2;
-        Jxs  [is][nxn - 2][i][k] *= 2;
-        Jys  [is][nxn - 2][i][k] *= 2;
-        Jzs  [is][nxn - 2][i][k] *= 2;
-        pXXsn[is][nxn - 2][i][k] *= 2;
-        pXYsn[is][nxn - 2][i][k] *= 2;
-        pXZsn[is][nxn - 2][i][k] *= 2;
-        pYYsn[is][nxn - 2][i][k] *= 2;
-        pYZsn[is][nxn - 2][i][k] *= 2;
-        pZZsn[is][nxn - 2][i][k] *= 2;
-    }
-  }
-  if (vct->getYright_neighbor_P() == MPI_PROC_NULL) {
-    for (int i = 1; i < nxn - 1; i++)
-    for (int k = 1; k < nzn - 1; k++)
-    {
-        rhons[is][i][nyn - 2][k] *= 2;
-        Jxs  [is][i][nyn - 2][k] *= 2;
-        Jys  [is][i][nyn - 2][k] *= 2;
-        Jzs  [is][i][nyn - 2][k] *= 2;
-        pXXsn[is][i][nyn - 2][k] *= 2;
-        pXYsn[is][i][nyn - 2][k] *= 2;
-        pXZsn[is][i][nyn - 2][k] *= 2;
-        pYYsn[is][i][nyn - 2][k] *= 2;
-        pYZsn[is][i][nyn - 2][k] *= 2;
-        pZZsn[is][i][nyn - 2][k] *= 2;
-    }
-  }
-  if (vct->getZright_neighbor_P() == MPI_PROC_NULL) {
-    for (int i = 1; i < nxn - 1; i++)
-    for (int j = 1; j < nyn - 1; j++)
-    {
-        rhons[is][i][j][nzn - 2] *= 2;
-        Jxs  [is][i][j][nzn - 2] *= 2;
-        Jys  [is][i][j][nzn - 2] *= 2;
-        Jzs  [is][i][j][nzn - 2] *= 2;
-        pXXsn[is][i][j][nzn - 2] *= 2;
-        pXYsn[is][i][j][nzn - 2] *= 2;
-        pXZsn[is][i][j][nzn - 2] *= 2;
-        pYYsn[is][i][j][nzn - 2] *= 2;
-        pYZsn[is][i][j][nzn - 2] *= 2;
-        pZZsn[is][i][j][nzn - 2] *= 2;
-    }
-  }
-}
+// // This method assumes mirror boundary conditions;
+// // we therefore need to double the density on the boundary
+// // nodes to incorporate the mirror particles from the mirror
+// // cell just outside the domain.
+// //
+// /*! adjust densities on boundaries that are not periodic */
+// void EMfields3D::adjustNonPeriodicDensities(int is)
+// {
+//   const VirtualTopology3D *vct = &get_vct();
+//   if (vct->getXleft_neighbor_P() == MPI_PROC_NULL) {
+//     for (int i = 1; i < nyn - 1; i++)
+//     for (int k = 1; k < nzn - 1; k++)
+//     {
+//         rhons[is][1][i][k] *= 2;
+//         Jxs  [is][1][i][k] *= 2;
+//         Jys  [is][1][i][k] *= 2;
+//         Jzs  [is][1][i][k] *= 2;
+//         pXXsn[is][1][i][k] *= 2;
+//         pXYsn[is][1][i][k] *= 2;
+//         pXZsn[is][1][i][k] *= 2;
+//         pYYsn[is][1][i][k] *= 2;
+//         pYZsn[is][1][i][k] *= 2;
+//         pZZsn[is][1][i][k] *= 2;
+//     }
+//   }
+//   if (vct->getYleft_neighbor_P() == MPI_PROC_NULL) {
+//     for (int i = 1; i < nxn - 1; i++)
+//     for (int k = 1; k < nzn - 1; k++)
+//     {
+//         rhons[is][i][1][k] *= 2;
+//         Jxs  [is][i][1][k] *= 2;
+//         Jys  [is][i][1][k] *= 2;
+//         Jzs  [is][i][1][k] *= 2;
+//         pXXsn[is][i][1][k] *= 2;
+//         pXYsn[is][i][1][k] *= 2;
+//         pXZsn[is][i][1][k] *= 2;
+//         pYYsn[is][i][1][k] *= 2;
+//         pYZsn[is][i][1][k] *= 2;
+//         pZZsn[is][i][1][k] *= 2;
+//     }
+//   }
+//   if (vct->getZleft_neighbor_P() == MPI_PROC_NULL) {
+//     for (int i = 1; i < nxn - 1; i++)
+//     for (int j = 1; j < nyn - 1; j++)
+//     {
+//         rhons[is][i][j][1] *= 2;
+//         Jxs  [is][i][j][1] *= 2;
+//         Jys  [is][i][j][1] *= 2;
+//         Jzs  [is][i][j][1] *= 2;
+//         pXXsn[is][i][j][1] *= 2;
+//         pXYsn[is][i][j][1] *= 2;
+//         pXZsn[is][i][j][1] *= 2;
+//         pYYsn[is][i][j][1] *= 2;
+//         pYZsn[is][i][j][1] *= 2;
+//         pZZsn[is][i][j][1] *= 2;
+//     }
+//   }
+//   if (vct->getXright_neighbor_P() == MPI_PROC_NULL) {
+//     for (int i = 1; i < nyn - 1; i++)
+//     for (int k = 1; k < nzn - 1; k++)
+//     {
+//         rhons[is][nxn - 2][i][k] *= 2;
+//         Jxs  [is][nxn - 2][i][k] *= 2;
+//         Jys  [is][nxn - 2][i][k] *= 2;
+//         Jzs  [is][nxn - 2][i][k] *= 2;
+//         pXXsn[is][nxn - 2][i][k] *= 2;
+//         pXYsn[is][nxn - 2][i][k] *= 2;
+//         pXZsn[is][nxn - 2][i][k] *= 2;
+//         pYYsn[is][nxn - 2][i][k] *= 2;
+//         pYZsn[is][nxn - 2][i][k] *= 2;
+//         pZZsn[is][nxn - 2][i][k] *= 2;
+//     }
+//   }
+//   if (vct->getYright_neighbor_P() == MPI_PROC_NULL) {
+//     for (int i = 1; i < nxn - 1; i++)
+//     for (int k = 1; k < nzn - 1; k++)
+//     {
+//         rhons[is][i][nyn - 2][k] *= 2;
+//         Jxs  [is][i][nyn - 2][k] *= 2;
+//         Jys  [is][i][nyn - 2][k] *= 2;
+//         Jzs  [is][i][nyn - 2][k] *= 2;
+//         pXXsn[is][i][nyn - 2][k] *= 2;
+//         pXYsn[is][i][nyn - 2][k] *= 2;
+//         pXZsn[is][i][nyn - 2][k] *= 2;
+//         pYYsn[is][i][nyn - 2][k] *= 2;
+//         pYZsn[is][i][nyn - 2][k] *= 2;
+//         pZZsn[is][i][nyn - 2][k] *= 2;
+//     }
+//   }
+//   if (vct->getZright_neighbor_P() == MPI_PROC_NULL) {
+//     for (int i = 1; i < nxn - 1; i++)
+//     for (int j = 1; j < nyn - 1; j++)
+//     {
+//         rhons[is][i][j][nzn - 2] *= 2;
+//         Jxs  [is][i][j][nzn - 2] *= 2;
+//         Jys  [is][i][j][nzn - 2] *= 2;
+//         Jzs  [is][i][j][nzn - 2] *= 2;
+//         pXXsn[is][i][j][nzn - 2] *= 2;
+//         pXYsn[is][i][j][nzn - 2] *= 2;
+//         pXZsn[is][i][j][nzn - 2] *= 2;
+//         pYYsn[is][i][j][nzn - 2] *= 2;
+//         pYZsn[is][i][j][nzn - 2] *= 2;
+//         pZZsn[is][i][j][nzn - 2] *= 2;
+//     }
+//   }
+// }
 
-void EMfields3D::ConstantChargeOpenBCv2()
-{
-  const VirtualTopology3D *vct = &get_vct();
-  const Grid *grid = &get_grid();
+// void EMfields3D::ConstantChargeOpenBCv2()
+// {
+//   const VirtualTopology3D *vct = &get_vct();
+//   const Grid *grid = &get_grid();
 
-  double ff;
+//   double ff;
 
-  int nx = grid->getNXN();
-  int ny = grid->getNYN();
-  int nz = grid->getNZN();
+//   int nx = grid->getNXN();
+//   int ny = grid->getNYN();
+//   int nz = grid->getNZN();
 
-  for (int is = 0; is < ns; is++) {
+//   for (int is = 0; is < ns; is++) {
 
-	ff = qom[is]/fabs(qom[is]);
+// 	ff = qom[is]/fabs(qom[is]);
 
-    if(vct->getXleft_neighbor()==MPI_PROC_NULL && bcEMfaceXleft ==2) {
-      for (int j=0; j < ny;j++)
-        for (int k=0; k < nz;k++){
-          rhons[is][0][j][k] = rhons[is][4][j][k];
-          rhons[is][1][j][k] = rhons[is][4][j][k];
-          rhons[is][2][j][k] = rhons[is][4][j][k];
-          rhons[is][3][j][k] = rhons[is][4][j][k];
-        }
-    }
+//     if(vct->getXleft_neighbor()==MPI_PROC_NULL && bcEMfaceXleft ==2) {
+//       for (int j=0; j < ny;j++)
+//         for (int k=0; k < nz;k++){
+//           rhons[is][0][j][k] = rhons[is][4][j][k];
+//           rhons[is][1][j][k] = rhons[is][4][j][k];
+//           rhons[is][2][j][k] = rhons[is][4][j][k];
+//           rhons[is][3][j][k] = rhons[is][4][j][k];
+//         }
+//     }
 
-    if(vct->getXright_neighbor()==MPI_PROC_NULL && bcEMfaceXright ==2) {
-      for (int j=0; j < ny;j++)
-        for (int k=0; k < nz;k++){
-          rhons[is][nx-4][j][k] = rhons[is][nx-5][j][k];
-          rhons[is][nx-3][j][k] = rhons[is][nx-5][j][k];
-          rhons[is][nx-2][j][k] = rhons[is][nx-5][j][k];
-          rhons[is][nx-1][j][k] = rhons[is][nx-5][j][k];
-        }
-    }
+//     if(vct->getXright_neighbor()==MPI_PROC_NULL && bcEMfaceXright ==2) {
+//       for (int j=0; j < ny;j++)
+//         for (int k=0; k < nz;k++){
+//           rhons[is][nx-4][j][k] = rhons[is][nx-5][j][k];
+//           rhons[is][nx-3][j][k] = rhons[is][nx-5][j][k];
+//           rhons[is][nx-2][j][k] = rhons[is][nx-5][j][k];
+//           rhons[is][nx-1][j][k] = rhons[is][nx-5][j][k];
+//         }
+//     }
 
-    if(vct->getYleft_neighbor()==MPI_PROC_NULL && bcEMfaceYleft ==2)  {
-      for (int i=0; i < nx;i++)
-        for (int k=0; k < nz;k++){
-          rhons[is][i][0][k] = rhons[is][i][4][k];
-          rhons[is][i][1][k] = rhons[is][i][4][k];
-          rhons[is][i][2][k] = rhons[is][i][4][k];
-          rhons[is][i][3][k] = rhons[is][i][4][k];
-        }
-    }
+//     if(vct->getYleft_neighbor()==MPI_PROC_NULL && bcEMfaceYleft ==2)  {
+//       for (int i=0; i < nx;i++)
+//         for (int k=0; k < nz;k++){
+//           rhons[is][i][0][k] = rhons[is][i][4][k];
+//           rhons[is][i][1][k] = rhons[is][i][4][k];
+//           rhons[is][i][2][k] = rhons[is][i][4][k];
+//           rhons[is][i][3][k] = rhons[is][i][4][k];
+//         }
+//     }
 
-    if(vct->getYright_neighbor()==MPI_PROC_NULL && bcEMfaceYright ==2)  {
-      for (int i=0; i < nx;i++)
-        for (int k=0; k < nz;k++){
-          rhons[is][i][ny-4][k] = rhons[is][i][ny-5][k];
-          rhons[is][i][ny-3][k] = rhons[is][i][ny-5][k];
-          rhons[is][i][ny-2][k] = rhons[is][i][ny-5][k];
-          rhons[is][i][ny-1][k] = rhons[is][i][ny-5][k];
-        }
-    }
+//     if(vct->getYright_neighbor()==MPI_PROC_NULL && bcEMfaceYright ==2)  {
+//       for (int i=0; i < nx;i++)
+//         for (int k=0; k < nz;k++){
+//           rhons[is][i][ny-4][k] = rhons[is][i][ny-5][k];
+//           rhons[is][i][ny-3][k] = rhons[is][i][ny-5][k];
+//           rhons[is][i][ny-2][k] = rhons[is][i][ny-5][k];
+//           rhons[is][i][ny-1][k] = rhons[is][i][ny-5][k];
+//         }
+//     }
 
-    if(vct->getZleft_neighbor()==MPI_PROC_NULL && bcEMfaceZleft ==2)  {
-      for (int i=0; i < nx;i++)
-        for (int j=0; j < ny;j++){
-          rhons[is][i][j][0] = rhons[is][i][j][4];
-          rhons[is][i][j][1] = rhons[is][i][j][4];
-          rhons[is][i][j][2] = rhons[is][i][j][4];
-          rhons[is][i][j][3] = rhons[is][i][j][4];
-        }
-    }
-
-
-    if(vct->getZright_neighbor()==MPI_PROC_NULL && bcEMfaceZright ==2)  {
-      for (int i=0; i < nx;i++)
-        for (int j=0; j < ny;j++){
-          rhons[is][i][j][nz-4] = rhons[is][i][j][nz-5];
-          rhons[is][i][j][nz-3] = rhons[is][i][j][nz-5];
-          rhons[is][i][j][nz-2] = rhons[is][i][j][nz-5];
-          rhons[is][i][j][nz-1] = rhons[is][i][j][nz-5];
-        }
-    }
-  }
-
-}
-
-void EMfields3D::ConstantChargeOpenBC()
-{
-  const VirtualTopology3D *vct = &get_vct();
-  const Grid *grid = &get_grid();
-
-  double ff;
-
-  int nx = grid->getNXN();
-  int ny = grid->getNYN();
-  int nz = grid->getNZN();
-
-  for (int is = 0; is < ns; is++) {
-
-    ff = qom[is]/fabs(qom[is]);
-
-    if(vct->getXleft_neighbor()==MPI_PROC_NULL && (bcEMfaceXleft ==2)) {
-      for (int j=0; j < ny;j++)
-        for (int k=0; k < nz;k++){
-          rhons[is][0][j][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][1][j][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][2][j][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][3][j][k] = ff * rhoINIT[is] / FourPI;
-        }
-    }
-
-    if(vct->getXright_neighbor()==MPI_PROC_NULL && (bcEMfaceXright ==2)) {
-      for (int j=0; j < ny;j++)
-        for (int k=0; k < nz;k++){
-          rhons[is][nx-4][j][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][nx-3][j][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][nx-2][j][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][nx-1][j][k] = ff * rhoINIT[is] / FourPI;
-        }
-    }
-
-    if(vct->getYleft_neighbor()==MPI_PROC_NULL && (bcEMfaceYleft ==2))  {
-      for (int i=0; i < nx;i++)
-        for (int k=0; k < nz;k++){
-          rhons[is][i][0][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][1][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][2][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][3][k] = ff * rhoINIT[is] / FourPI;
-        }
-    }
-
-    if(vct->getYright_neighbor()==MPI_PROC_NULL && (bcEMfaceYright ==2))  {
-      for (int i=0; i < nx;i++)
-        for (int k=0; k < nz;k++){
-          rhons[is][i][ny-4][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][ny-3][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][ny-2][k] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][ny-1][k] = ff * rhoINIT[is] / FourPI;
-        }
-    }
-
-    if(vct->getZleft_neighbor()==MPI_PROC_NULL && (bcEMfaceZleft ==2))  {
-      for (int i=0; i < nx;i++)
-        for (int j=0; j < ny;j++){
-          rhons[is][i][j][0] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][j][1] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][j][2] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][j][3] = ff * rhoINIT[is] / FourPI;
-        }
-    }
+//     if(vct->getZleft_neighbor()==MPI_PROC_NULL && bcEMfaceZleft ==2)  {
+//       for (int i=0; i < nx;i++)
+//         for (int j=0; j < ny;j++){
+//           rhons[is][i][j][0] = rhons[is][i][j][4];
+//           rhons[is][i][j][1] = rhons[is][i][j][4];
+//           rhons[is][i][j][2] = rhons[is][i][j][4];
+//           rhons[is][i][j][3] = rhons[is][i][j][4];
+//         }
+//     }
 
 
-    if(vct->getZright_neighbor()==MPI_PROC_NULL && (bcEMfaceZright ==2))  {
-      for (int i=0; i < nx;i++)
-        for (int j=0; j < ny;j++){
-          rhons[is][i][j][nz-4] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][j][nz-3] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][j][nz-2] = ff * rhoINIT[is] / FourPI;
-          rhons[is][i][j][nz-1] = ff * rhoINIT[is] / FourPI;
-        }
-    }
-  }
+//     if(vct->getZright_neighbor()==MPI_PROC_NULL && bcEMfaceZright ==2)  {
+//       for (int i=0; i < nx;i++)
+//         for (int j=0; j < ny;j++){
+//           rhons[is][i][j][nz-4] = rhons[is][i][j][nz-5];
+//           rhons[is][i][j][nz-3] = rhons[is][i][j][nz-5];
+//           rhons[is][i][j][nz-2] = rhons[is][i][j][nz-5];
+//           rhons[is][i][j][nz-1] = rhons[is][i][j][nz-5];
+//         }
+//     }
+//   }
 
-}
+// }
 
-void EMfields3D::ConstantChargePlanet(double R, double x_center, double y_center, double z_center)
-{
-  const Grid *grid = &get_grid();
+// void EMfields3D::ConstantChargeOpenBC()
+// {
+//   const VirtualTopology3D *vct = &get_vct();
+//   const Grid *grid = &get_grid();
 
-  double xd;
-  double yd;
-  double zd;
-  double ff;
+//   double ff;
 
-  for (int is = 0; is < ns; is++) {
+//   int nx = grid->getNXN();
+//   int ny = grid->getNYN();
+//   int nz = grid->getNZN();
 
-	ff = qom[is]/fabs(qom[is]);
+//   for (int is = 0; is < ns; is++) {
 
-    for (int i = 1; i < nxn; i++) {
-      for (int j = 1; j < nyn; j++) {
-        for (int k = 1; k < nzn; k++) {
+//     ff = qom[is]/fabs(qom[is]);
 
-          xd = grid->getXN(i,j,k) - x_center;
-          yd = grid->getYN(i,j,k) - y_center;
-          zd = grid->getZN(i,j,k) - z_center;
+//     if(vct->getXleft_neighbor()==MPI_PROC_NULL && (bcEMfaceXleft ==2)) {
+//       for (int j=0; j < ny;j++)
+//         for (int k=0; k < nz;k++){
+//           rhons[is][0][j][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][1][j][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][2][j][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][3][j][k] = ff * rhoINIT[is] / FourPI;
+//         }
+//     }
 
-          if ((xd*xd+yd*yd+zd*zd) <= R*R) {
-            rhons[is][i][j][k] = ff * rhoINIT[is] / FourPI;
-          }
+//     if(vct->getXright_neighbor()==MPI_PROC_NULL && (bcEMfaceXright ==2)) {
+//       for (int j=0; j < ny;j++)
+//         for (int k=0; k < nz;k++){
+//           rhons[is][nx-4][j][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][nx-3][j][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][nx-2][j][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][nx-1][j][k] = ff * rhoINIT[is] / FourPI;
+//         }
+//     }
 
-        }
-      }
-    }
-  }
+//     if(vct->getYleft_neighbor()==MPI_PROC_NULL && (bcEMfaceYleft ==2))  {
+//       for (int i=0; i < nx;i++)
+//         for (int k=0; k < nz;k++){
+//           rhons[is][i][0][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][1][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][2][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][3][k] = ff * rhoINIT[is] / FourPI;
+//         }
+//     }
 
-}
+//     if(vct->getYright_neighbor()==MPI_PROC_NULL && (bcEMfaceYright ==2))  {
+//       for (int i=0; i < nx;i++)
+//         for (int k=0; k < nz;k++){
+//           rhons[is][i][ny-4][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][ny-3][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][ny-2][k] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][ny-1][k] = ff * rhoINIT[is] / FourPI;
+//         }
+//     }
 
-void EMfields3D::ConstantChargePlanet2DPlaneXZ(double R,  double x_center,double z_center)
-{
-  const Grid *grid = &get_grid();
-  //if (get_vct().getCartesian_rank() == 0)
-      //cout << "*** Constant Charge 2D Planet ***" << endl;
+//     if(vct->getZleft_neighbor()==MPI_PROC_NULL && (bcEMfaceZleft ==2))  {
+//       for (int i=0; i < nx;i++)
+//         for (int j=0; j < ny;j++){
+//           rhons[is][i][j][0] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][j][1] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][j][2] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][j][3] = ff * rhoINIT[is] / FourPI;
+//         }
+//     }
 
-  assert_eq(nyn,4);
-  double xd;
-  double zd;
 
-  for (int is = 0; is < ns; is++) {
-    const double sign_q = qom[is]/(fabs(qom[is]));
-    for (int i = 1; i < nxn; i++)
-        for (int k = 1; k < nzn; k++) {
+//     if(vct->getZright_neighbor()==MPI_PROC_NULL && (bcEMfaceZright ==2))  {
+//       for (int i=0; i < nx;i++)
+//         for (int j=0; j < ny;j++){
+//           rhons[is][i][j][nz-4] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][j][nz-3] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][j][nz-2] = ff * rhoINIT[is] / FourPI;
+//           rhons[is][i][j][nz-1] = ff * rhoINIT[is] / FourPI;
+//         }
+//     }
+//   }
 
-          xd = grid->getXN(i,1,k) - x_center;
-          zd = grid->getZN(i,1,k) - z_center;
+// }
 
-          if ((xd*xd+zd*zd) <= R*R) {
-            rhons[is][i][1][k] = sign_q * rhoINIT[is] / FourPI;
-            rhons[is][i][2][k] = sign_q * rhoINIT[is] / FourPI;
-          }
+// void EMfields3D::ConstantChargePlanet(double R, double x_center, double y_center, double z_center)
+// {
+//   const Grid *grid = &get_grid();
 
-	}
-  }
+//   double xd;
+//   double yd;
+//   double zd;
+//   double ff;
 
-}
+//   for (int is = 0; is < ns; is++) {
+
+// 	ff = qom[is]/fabs(qom[is]);
+
+//     for (int i = 1; i < nxn; i++) {
+//       for (int j = 1; j < nyn; j++) {
+//         for (int k = 1; k < nzn; k++) {
+
+//           xd = grid->getXN(i,j,k) - x_center;
+//           yd = grid->getYN(i,j,k) - y_center;
+//           zd = grid->getZN(i,j,k) - z_center;
+
+//           if ((xd*xd+yd*yd+zd*zd) <= R*R) {
+//             rhons[is][i][j][k] = ff * rhoINIT[is] / FourPI;
+//           }
+
+//         }
+//       }
+//     }
+//   }
+
+// }
+
+// void EMfields3D::ConstantChargePlanet2DPlaneXZ(double R,  double x_center,double z_center)
+// {
+//   const Grid *grid = &get_grid();
+//   //if (get_vct().getCartesian_rank() == 0)
+//       //cout << "*** Constant Charge 2D Planet ***" << endl;
+
+//   assert_eq(nyn,4);
+//   double xd;
+//   double zd;
+
+//   for (int is = 0; is < ns; is++) {
+//     const double sign_q = qom[is]/(fabs(qom[is]));
+//     for (int i = 1; i < nxn; i++)
+//         for (int k = 1; k < nzn; k++) {
+
+//           xd = grid->getXN(i,1,k) - x_center;
+//           zd = grid->getZN(i,1,k) - z_center;
+
+//           if ((xd*xd+zd*zd) <= R*R) {
+//             rhons[is][i][1][k] = sign_q * rhoINIT[is] / FourPI;
+//             rhons[is][i][2][k] = sign_q * rhoINIT[is] / FourPI;
+//           }
+
+// 	}
+//   }
+
+// }
 
 /*! initialize EM field with transverse electric waves 1D and rotate anticlockwise (theta degrees) */
 // void EMfields3D::initEM_rotate(double B, double theta)

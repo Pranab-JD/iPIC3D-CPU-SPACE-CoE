@@ -360,67 +360,6 @@ void c_Solver::CalculateMoments()
     //* Avoid SIMD array overrun
     pad_particle_capacities();
 
-    //* Vectorised; assumes that particles are sorted by mesh cell
-    // if(Parameters::get_VECTORIZE_MOMENTS())
-    // {
-    //     switch(Parameters::get_MOMENTS_TYPE())
-    //     {
-    //         case Parameters::SoA:
-    //             // since particles are sorted,we can vectorize interpolation of particles to grid
-    //             convertParticlesToSoA();
-    //             sortParticles();
-    //             EMf->sumMoments_vectorized(part);
-    //         break;
-            
-    //         case Parameters::AoS:
-    //             convertParticlesToAoS();
-    //             sortParticles();
-    //             EMf->sumMoments_vectorized_AoS(part);
-    //         break;
-            
-    //         default:
-    //         unsupported_value_error(Parameters::get_MOMENTS_TYPE());
-    //     }
-    // }
-    // else
-    // {
-    //     if(Parameters::get_SORTING_PARTICLES())
-    //         sortParticles();
-
-    //     switch(Parameters::get_MOMENTS_TYPE())
-    //     {
-    //         case Parameters::SoA:
-    //             EMf->setZeroPrimaryMoments();
-    //             convertParticlesToSoA();
-    //             EMf->sumMoments(part);
-    //         break;
-            
-    //         case Parameters::AoS:
-                
-    //             cout << "Parameters::get_MOMENTS_TYPE --> Moments AoS" << endl;
- 
-    //             //* Set moments to 0
-    //             EMf->setZeroDensities();
-                
-    //             convertParticlesToAoS();
-                
-    //             EMf->sumMoments_AoS(part);      // sum up the 10 densities of each particles of each species
-    //             // then calculate the weight according to their position; map the 10 momentum to the grid(node) with the weight
-    //             cout << "---------------------------------" <<  endl;
-
-    //         break;
-            
-    //         case Parameters::AoSintr:
-    //             EMf->setZeroPrimaryMoments();
-    //             convertParticlesToAoS();
-    //             EMf->sumMoments_AoS_intr(part);
-    //         break;
-            
-    //         default:
-    //         unsupported_value_error(Parameters::get_MOMENTS_TYPE());
-    //     }
-    // }
-
     #ifdef __PROFILING__
     LeXInt::timer time_cm, time_com, time_int, time_total;
 
