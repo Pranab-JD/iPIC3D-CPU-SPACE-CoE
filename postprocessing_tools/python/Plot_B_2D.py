@@ -1,18 +1,7 @@
-
 """
-Assemble global Bx/By/Bz (2D slice k=0) from per-proc iPIC3D HDF tiles,
-handling shared boundary/ghost layers to avoid double counting seams.
-
-Assumptions (consistent with B*_data shape (21,21,2)):
-- The first two dimensions are nodal (or nodal-like) with one extra point:
-    nx_tile = nx_cell + 1, ny_tile = ny_cell + 1
-  so nx_cell = nx_tile - 1, ny_cell = ny_tile - 1.
-- Adjacent ranks share one boundary plane. We drop the "lower" shared plane
-  for ranks that are not on the global low edge, i.e. drop index 0 in that
-  direction when i>0 and/or j>0.
-
-If your output instead includes true ghost layers of width >1, you can set
-GHOST=1/2/... and crop [GHOST:-GHOST] etc. See section (B).
+Assemble and plot Bx on three orthogonal slices (XY, YZ, ZX) from per-proc
+iPIC3D HDF tiles. MPI-parallel over files; each rank contributes only to the
+three target planes, which are SUM-reduced on rank 0.
 """
 
 import numpy as np
@@ -24,324 +13,220 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-###* =================================================================== *###
-
-###* Argument parser
-parser = argparse.ArgumentParser(description= "Plot 2D charge density from iPIC3D output data")
-
-parser.add_argument("dir_data",   type=str, help="Directory where proc.hdf files are stored, e.g., './data_reconnection/'")
-parser.add_argument("time_cycle", type=str, help="Time cycle to plot, e.g., 'cycle_100'")
-
-parser.add_argument("xlen", type=int, help="Number of MPI processes along X (must match simulation)")
-parser.add_argument("ylen", type=int, help="Number of MPI processes along Y (must match simulation)")
-parser.add_argument("zlen", type=int, help="Number of MPI processes along Z (must match simulation)")
-
+# --------------------------- Arguments ---------------------------
+parser = argparse.ArgumentParser(description="Plot Bx on XY/YZ/ZX slices from iPIC3D output")
+parser.add_argument("dir_data",   type=str)
+parser.add_argument("time_cycle", type=str)
+parser.add_argument("xlen", type=int)
+parser.add_argument("ylen", type=int)
+parser.add_argument("zlen", type=int)
+parser.add_argument("xmin", type=float)        ###! physical box extents (e.g. from .inp: 0..Lx)
+parser.add_argument("xmax", type=float)
+parser.add_argument("ymin", type=float)
+parser.add_argument("ymax", type=float)
+parser.add_argument("zmin", type=float)
+parser.add_argument("zmax", type=float)
 args = parser.parse_args()
 
-###* Directory where proc.hdf files are saved (plots are saved to the same directory)
-dir_data = args.dir_data
-
-###* Time cycle when data is to plotted 
+dir_data   = args.dir_data
 time_cycle = args.time_cycle
-
-###! MPI topology (must match simulation)
 XLEN, YLEN, ZLEN = args.xlen, args.ylen, args.zlen
+xmin, xmax = args.xmin, args.xmax              ###! used only for axis labelling, not assembly
+ymin, ymax = args.ymin, args.ymax
+zmin, zmax = args.zmin, args.zmax
 num_expected_files = XLEN * YLEN * ZLEN
+SHARED_PLANES = True
 
-# ----------------------------- Helpers -----------------------------
+# --------------------------- Helpers ---------------------------
 def proc_id_from_filename(fp: str) -> int:
-    base = os.path.basename(fp)
-    # expects procNNN.hdf
+    base = os.path.basename(fp)              # expects procNNN.hdf
     return int(base.replace("proc", "").replace(".hdf", ""))
 
-def get_dataset(f: h5py.File, field: str, cycle: str) -> np.ndarray:
-    # expects fields/<field>/<cycle>
-    return np.array(f[f"fields/{field}/{cycle}"])
+def get_Bx(f: h5py.File, cycle: str) -> np.ndarray:
+    return np.array(f[f"fields/Bx/{cycle}"])  # full 3D tile (nx,ny,nz)
 
 def mapping_candidates():
-    """
-    Return common proc_id -> (i,j,k) orderings.
-    The right one depends on how iPIC3D numbers ranks in the output filename.
+    """proc_id -> (i,j,k). Candidate 'A' == iPIC3D's standard MPI_Cart
+    ordering id = i*(YLEN*ZLEN) + j*ZLEN + k (k fastest, then j, then i).
+    ⚠️ If plots look wrong, confirm ordering in VCtopology3D.cpp — the
+    auto-detector only picks the LEAST-BAD of these six, never proves correctness."""
+    def A(p): k=p%ZLEN; t=p//ZLEN; j=t%YLEN; i=t//YLEN; return i,j,k   # k,j,i
+    def B(p): j=p%YLEN; t=p//YLEN; k=t%ZLEN; i=t//ZLEN; return i,j,k   # j,k,i
+    def C(p): k=p%ZLEN; t=p//ZLEN; i=t%XLEN; j=t//XLEN; return i,j,k   # k,i,j
+    def D(p): i=p%XLEN; t=p//XLEN; j=t%YLEN; k=t//YLEN; return i,j,k   # i,j,k
+    def E(p): j=p%YLEN; t=p//YLEN; i=t%XLEN; k=t//XLEN; return i,j,k   # j,i,k
+    def F(p): i=p%XLEN; t=p//XLEN; k=t%ZLEN; j=t//ZLEN; return i,j,k   # i,k,j
+    return [("A",A),("B",B),("C",C),("D",D),("E",E),("F",F)]
 
-    Candidates:
-      A: id = (i*YLEN + j)*ZLEN + k    (k fastest, then j, then i)
-      B: id = (i*ZLEN + k)*YLEN + j    (j fastest, then k, then i)
-      C: id = (j*XLEN + i)*ZLEN + k    (k fastest, then i, then j)  [swap i/j]
-      D: id = (k*YLEN + j)*XLEN + i    (i fastest, then j, then k)
-      E: id = (k*XLEN + i)*YLEN + j    (j fastest, then i, then k)
-      F: id = (j*ZLEN + k)*XLEN + i    (i fastest, then k, then j)
-    """
-    def A(pid):  # (i,j,k) with k fastest
-        k = pid % ZLEN
-        t = pid // ZLEN
-        j = t % YLEN
-        i = t // YLEN
-        return i, j, k
+def axis_layout(idx, ntile, nsplit):
+    """For split index `idx` along one axis, return (g0, crop, n_used):
+       g0     = global index where this tile's (possibly cropped) data starts
+       crop   = how many leading planes to drop (shared-boundary handling)
+       n_used = number of planes actually placed
+    This tiles the global axis with NO gaps and NO overlaps."""
+    if SHARED_PLANES:
+        ncell = ntile - 1
+        crop  = 0 if idx == 0 else 1          # drop duplicated lower node
+        return idx * ncell + crop, crop, ntile - crop
+    else:
+        return idx * ntile, 0, ntile          # cell-centered: contiguous, no crop
 
-    def B(pid):  # j fastest
-        j = pid % YLEN
-        t = pid // YLEN
-        k = t % ZLEN
-        i = t // ZLEN
-        return i, j, k
+def global_size(ntile, nsplit):
+    return nsplit * (ntile - 1) + 1 if SHARED_PLANES else nsplit * ntile
 
-    def C(pid):  # swap i/j relative to A
-        k = pid % ZLEN
-        t = pid // ZLEN
-        i = t % XLEN
-        j = t // XLEN
-        return i, j, k
-
-    def D(pid):  # i fastest
-        i = pid % XLEN
-        t = pid // XLEN
-        j = t % YLEN
-        k = t // YLEN
-        return i, j, k
-
-    def E(pid):  # j fastest, then i, then k
-        j = pid % YLEN
-        t = pid // YLEN
-        i = t % XLEN
-        k = t // XLEN
-        return i, j, k
-
-    def F(pid):  # i fastest, then k, then j
-        i = pid % XLEN
-        t = pid // XLEN
-        k = t % ZLEN
-        j = t // ZLEN
-        return i, j, k
-
-    return [("A", A), ("B", B), ("C", C), ("D", D), ("E", E), ("F", F)]
-
-def score_occupancy(Occ: np.ndarray):
-    gaps = int(np.count_nonzero(Occ == 0))
-    overlaps = int(np.count_nonzero(Occ > 1))
-    maxv = int(Occ.max())
-    # weighted score: gaps matter most, then overlaps, then peak overlap
-    score = gaps * 10 + overlaps * 2 + max(0, maxv - 1) * 1000
-    return score, gaps, overlaps, maxv
-
-# ----------------------------- File discovery -----------------------------
+# --------------------------- File discovery (rank 0) ---------------------------
 if rank == 0:
-    all_hdf_files = sorted(glob.glob(os.path.join(dir_data, "proc*.hdf")))
-    if len(all_hdf_files) == 0:
-        raise RuntimeError(f"No proc*.hdf files found in: {dir_data}")
-    if len(all_hdf_files) != num_expected_files:
-        print(f"WARNING: expected {num_expected_files} files but found {len(all_hdf_files)}.")
+    all_files = sorted(glob.glob(os.path.join(dir_data, "proc*.hdf")))
+    if len(all_files) == 0:
+        raise RuntimeError(f"No proc*.hdf files in: {dir_data}")
+    if len(all_files) != num_expected_files:
+        print(f"WARNING: expected {num_expected_files} files, found {len(all_files)}.")
 else:
-    all_hdf_files = None
+    all_files = None
+all_files = comm.bcast(all_files, root=0)
 
-all_hdf_files = comm.bcast(all_hdf_files, root=0)
+local_files = all_files[rank::size]           # chunked distribution across ranks
 
-# Chunk distribution
-local_files = all_hdf_files[rank::size]
+# --------------------------- Probe tile shape (rank 0 -> all) ---------------------------
 if rank == 0:
-    print(f"Processing {len(all_hdf_files)} files with {size} MPI tasks")
-
-# ----------------------------- Probe tile shape -----------------------------
-tile_shape = None
-if local_files:
-    with h5py.File(local_files[0], "r") as f:
-        tile_shape = get_dataset(f, "Bx", time_cycle).shape  # (nx, ny, nzslab)
-
-tile_shape_all = comm.gather(tile_shape, root=0)
-
-if rank == 0:
-    tile_shape = next(s for s in tile_shape_all if s is not None)
-    nx_tile, ny_tile, nz_tile = tile_shape
-    print("Detected tile shape:", tile_shape)
+    with h5py.File(all_files[0], "r") as f:
+        tile_shape = get_Bx(f, time_cycle).shape
 else:
-    nx_tile = ny_tile = nz_tile = None
+    tile_shape = None
+nx_tile, ny_tile, nz_tile = comm.bcast(tile_shape, root=0)
 
-nx_tile, ny_tile, nz_tile = comm.bcast((nx_tile, ny_tile, nz_tile), root=0)
+nx_global = global_size(nx_tile, XLEN)
+ny_global = global_size(ny_tile, YLEN)
+nz_global = global_size(nz_tile, ZLEN)
 
-# Select a k-slab to plot (use 0 by default; you can change here if desired)
-KSLAB = 0
-if not (0 <= KSLAB < nz_tile):
-    raise ValueError(f"KSLAB={KSLAB} out of bounds for nz_tile={nz_tile}")
+###! Slice positions (global indices). Default = domain mid-planes.
+###! ⚠️ For a double-Harris sheet the current layers are NOT at the centre;
+###! set these to the sheet/X-line locations if you want the reconnection region.
+IX = nx_global // 2     # YZ plane lives at this x
+IY = ny_global // 2     # ZX plane lives at this y
+IZ = nz_global // 2     # XY plane lives at this z
 
-# ----------------------------- Interpret tile layout -----------------------------
-# Nodal-like with shared boundary planes:
-nx_cell = nx_tile - 1
-ny_cell = ny_tile - 1
-
-# Global nodal sizes:
-nx_global = XLEN * nx_cell + 1
-ny_global = YLEN * ny_cell + 1
-
-# ----------------------------- Choose best mapping (rank 0) -----------------------------
-best_name = None
-best_map = None
-best_stats = None
-
+# --------------------------- Choose mapping (rank 0, 3D occupancy) ---------------------------
 if rank == 0:
-    # Use filenames to compute occupancy only (no HDF reads needed here)
-    proc_ids = [proc_id_from_filename(fp) for fp in all_hdf_files]
-
+    proc_ids = [proc_id_from_filename(fp) for fp in all_files]
+    best_name, best_score = None, None
     for name, fn in mapping_candidates():
-        Occ = np.zeros((nx_global, ny_global), dtype=np.int32)
-
+        Occ = np.zeros((nx_global, ny_global, nz_global), dtype=np.int32)
+        bad = False
         for pid in proc_ids:
             i, j, k = fn(pid)
-
-            # Keep only a single z-slab's worth of files for mapping validation
-            # because we are assembling a 2D plot (k fixed). If ZLEN>1, we only
-            # consider those with k==0 (same as KSLAB selection).
-            if k != 0:
-                continue
-
-            # Sanity: reject invalid indices
-            if not (0 <= i < XLEN and 0 <= j < YLEN):
-                # This mapping is incompatible
-                Occ[:] = -1
-                break
-
-            # Crop shared boundary planes to avoid double counting
-            xs = 0 if i == 0 else 1
-            ys = 0 if j == 0 else 1
-
-            nx_use = nx_tile - xs
-            ny_use = ny_tile - ys
-
-            x0 = i * nx_cell
-            y0 = j * ny_cell
-
-            Occ[x0:x0 + nx_use, y0:y0 + ny_use] += 1
-
-        if Occ[0, 0] < 0:
+            if not (0 <= i < XLEN and 0 <= j < YLEN and 0 <= k < ZLEN):
+                bad = True; break
+            gx, _, nxu = axis_layout(i, nx_tile, XLEN)
+            gy, _, nyu = axis_layout(j, ny_tile, YLEN)
+            gz, _, nzu = axis_layout(k, nz_tile, ZLEN)
+            Occ[gx:gx+nxu, gy:gy+nyu, gz:gz+nzu] += 1
+        if bad:
             continue
-
-        score, gaps, overlaps, maxv = score_occupancy(Occ)
-        if best_stats is None or score < best_stats[0]:
-            best_name = name
-            best_map = fn
-            best_stats = (score, gaps, overlaps, maxv)
-
-    if best_map is None:
-        raise RuntimeError("Could not determine a valid proc->(i,j,k) mapping.")
-
-    print(f"Selected mapping: {best_name} with score={best_stats[0]}, gaps={best_stats[1]}, overlaps={best_stats[2]}, Occ.max={best_stats[3]}")
-
+        gaps     = int(np.count_nonzero(Occ == 0))
+        overlaps = int(np.count_nonzero(Occ > 1))
+        score    = gaps * 10 + overlaps * 2 + max(0, int(Occ.max()) - 1) * 1000
+        if best_score is None or score < best_score:
+            best_name, best_score = name, score
+    if best_name is None:
+        raise RuntimeError("No valid proc->(i,j,k) mapping found.")
+else:
+    best_name = None
 best_name = comm.bcast(best_name, root=0)
+rank_to_ijk = dict(mapping_candidates())[best_name]
 
-# Broadcast chosen mapping name; re-instantiate the same mapping on all ranks
-maps = {name: fn for name, fn in mapping_candidates()}
-rank_to_ijk = maps[best_name]
+# --------------------------- Local plane buffers ---------------------------
+# XY[x,y] @ z=IZ ; YZ[y,z] @ x=IX ; ZX[x,z] @ y=IY
+loc_XY = np.zeros((nx_global, ny_global), dtype=np.float64)
+loc_YZ = np.zeros((ny_global, nz_global), dtype=np.float64)
+loc_ZX = np.zeros((nx_global, nz_global), dtype=np.float64)
+occ_XY = np.zeros((nx_global, ny_global), dtype=np.int32)
+occ_YZ = np.zeros((ny_global, nz_global), dtype=np.int32)
+occ_ZX = np.zeros((nx_global, nz_global), dtype=np.int32)
 
-# ----------------------------- Assemble on each rank -----------------------------
-local_Bx = np.zeros((nx_global, ny_global), dtype=np.float64)
-local_By = np.zeros((nx_global, ny_global), dtype=np.float64)
-local_Bz = np.zeros((nx_global, ny_global), dtype=np.float64)
-
-local_occ = np.zeros((nx_global, ny_global), dtype=np.int32)
-
+# --------------------------- Assemble (each rank) ---------------------------
 for fp in local_files:
-    pid = proc_id_from_filename(fp)
-    i, j, k = rank_to_ijk(pid)
+    i, j, k = rank_to_ijk(proc_id_from_filename(fp))
 
-    # Only assemble one z-slab for the 2D plot
-    if k != 0:
+    gx, cx, nxu = axis_layout(i, nx_tile, XLEN)
+    gy, cy, nyu = axis_layout(j, ny_tile, YLEN)
+    gz, cz, nzu = axis_layout(k, nz_tile, ZLEN)
+
+    # Does this tile touch any of the three target planes? If not, skip the read.
+    hit_XY = gz <= IZ < gz + nzu
+    hit_YZ = gx <= IX < gx + nxu
+    hit_ZX = gy <= IY < gy + nyu
+    if not (hit_XY or hit_YZ or hit_ZX):
         continue
 
     with h5py.File(fp, "r") as f:
-        Bx_data = get_dataset(f, "Bx", time_cycle)[:, :, KSLAB]
-        By_data = get_dataset(f, "By", time_cycle)[:, :, KSLAB]
-        Bz_data = get_dataset(f, "Bz", time_cycle)[:, :, KSLAB]
+        tile = get_Bx(f, time_cycle)[cx:, cy:, cz:]   # crop shared lower planes
 
-    # Crop shared boundary planes:
-    xs = 0 if i == 0 else 1
-    ys = 0 if j == 0 else 1
+    if hit_XY:
+        slab = tile[:, :, IZ - gz]                    # (nxu, nyu)
+        loc_XY[gx:gx+nxu, gy:gy+nyu] = slab
+        occ_XY[gx:gx+nxu, gy:gy+nyu] += 1
+    if hit_YZ:
+        slab = tile[IX - gx, :, :]                    # (nyu, nzu)
+        loc_YZ[gy:gy+nyu, gz:gz+nzu] = slab
+        occ_YZ[gy:gy+nyu, gz:gz+nzu] += 1
+    if hit_ZX:
+        slab = tile[:, IY - gy, :]                    # (nxu, nzu)
+        loc_ZX[gx:gx+nxu, gz:gz+nzu] = slab
+        occ_ZX[gx:gx+nxu, gz:gz+nzu] += 1
 
-    Bx_tile = Bx_data[xs:, ys:]
-    By_tile = By_data[xs:, ys:]
-    Bz_tile = Bz_data[xs:, ys:]
-
-    x0 = i * nx_cell
-    y0 = j * ny_cell
-
-    nx_use, ny_use = Bx_tile.shape
-
-    local_Bx[x0:x0 + nx_use, y0:y0 + ny_use] = Bx_tile
-    local_By[x0:x0 + nx_use, y0:y0 + ny_use] = By_tile
-    local_Bz[x0:x0 + nx_use, y0:y0 + ny_use] = Bz_tile
-
-    local_occ[x0:x0 + nx_use, y0:y0 + ny_use] += 1
-
-# ----------------------------- Reduce to root -----------------------------
-Bx = By = Bz = Occ = None
+# --------------------------- Reduce to root (SUM: tiles are non-overlapping) ---------------------------
+XY = YZ = ZX = oXY = oYZ = oZX = None
 if rank == 0:
-    Bx  = np.zeros((nx_global, ny_global), dtype=np.float64)
-    By  = np.zeros((nx_global, ny_global), dtype=np.float64)
-    Bz  = np.zeros((nx_global, ny_global), dtype=np.float64)
-    Occ = np.zeros((nx_global, ny_global), dtype=np.int32)
+    XY  = np.zeros_like(loc_XY); YZ  = np.zeros_like(loc_YZ); ZX  = np.zeros_like(loc_ZX)
+    oXY = np.zeros_like(occ_XY); oYZ = np.zeros_like(occ_YZ); oZX = np.zeros_like(occ_ZX)
 
-comm.Reduce(local_Bx, Bx, op=MPI.MAX, root=0)
-comm.Reduce(local_By, By, op=MPI.MAX, root=0)
-comm.Reduce(local_Bz, Bz, op=MPI.MAX, root=0)
-comm.Reduce(local_occ, Occ, op=MPI.SUM, root=0)
+comm.Reduce(loc_XY, XY, op=MPI.SUM, root=0)
+comm.Reduce(loc_YZ, YZ, op=MPI.SUM, root=0)
+comm.Reduce(loc_ZX, ZX, op=MPI.SUM, root=0)
+comm.Reduce(occ_XY, oXY, op=MPI.SUM, root=0)
+comm.Reduce(occ_YZ, oYZ, op=MPI.SUM, root=0)
+comm.Reduce(occ_ZX, oZX, op=MPI.SUM, root=0)
 
-# ----------------------------- Plot on root -----------------------------
+
+# --------------------------- Plot (root) ---------------------------
 if rank == 0:
-    print("Occ min/max:", int(Occ.min()), int(Occ.max()))
-    if Occ.min() == 0:
-        print("WARNING: gaps remain. This usually indicates Z-slab selection mismatch or an unexpected dump layout.")
-    if Occ.max() > 1:
-        print("WARNING: overlaps remain. This usually indicates more than one shared/ghost layer or inconsistent tile size assumptions.")
+    for nm, o in (("XY", oXY), ("ZY", oYZ), ("ZX", oZX)):
+        if o.min() == 0:
+            print(f"WARNING [{nm}]: gaps remain (Occ.min=0) — check mapping / SHARED_PLANES.")
+        if o.max() > 1:
+            print(f"WARNING [{nm}]: overlaps remain (Occ.max={int(o.max())}) — check SHARED_PLANES.")
 
-    print("Bx min/max:", float(Bx.min()), float(Bx.max()))
-    print("By min/max:", float(By.min()), float(By.max()))
-    print("Bz min/max:", float(Bz.min()), float(Bz.max()))
+    def show(ax, data, title, xlabel, ylabel, extent):
+        # data passed as [horizontal, vertical]; transpose so rows=vertical for imshow.
+        # extent = (h_min, h_max, v_min, v_max) matches the horizontal/vertical axes.
+        vmax = np.max(np.abs(data)) or 1.0          # symmetric diverging scale for signed Bx
+        im = ax.imshow(data.T, origin="lower", cmap="seismic", aspect="auto",
+                       vmin=-vmax, vmax=vmax, extent=extent)
+        ax.set_title(title, fontsize=16)
+        ax.set_xlabel(xlabel, fontsize=14); ax.set_ylabel(ylabel, fontsize=14)
+        plt.colorbar(im, ax=ax)
 
-    # 2D plots
-    fig = plt.figure(figsize=(14, 4), dpi=250)
+    # Physical slice positions for titles (map global index -> coordinate)
+    x_at = xmin + (xmax - xmin) * IX / (nx_global - 1)
+    y_at = ymin + (ymax - ymin) * IY / (ny_global - 1)
+    z_at = zmin + (zmax - zmin) * IZ / (nz_global - 1)
 
-    plt.subplot(1, 3, 1)
-    plt.imshow(Bx.T, origin="lower", cmap="seismic", aspect="auto")
-    plt.xlabel("X", fontsize=16); plt.ylabel("Y", fontsize=16)
-    plt.title("Bx", fontsize=18); plt.colorbar()
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4), dpi=250)
 
-    plt.subplot(1, 3, 2)
-    plt.imshow(By.T, origin="lower", cmap="seismic", aspect="auto")
-    plt.xlabel("X", fontsize=16); plt.ylabel("Y", fontsize=16)
-    plt.title("By", fontsize=18); plt.colorbar()
+    # XY: horizontal=X, vertical=Y. Buffer XY is [x,y] -> show() transposes to [y,x]. OK.
+    show(axes[0], XY, f"Bx  XY  (z={z_at:.2f})", "X", "Y",
+         extent=(xmin, xmax, ymin, ymax))
 
-    plt.subplot(1, 3, 3)
-    plt.imshow(Bz.T, origin="lower", cmap="seismic", aspect="auto")
-    plt.xlabel("X", fontsize=16); plt.ylabel("Y", fontsize=16)
-    plt.title("Bz", fontsize=18); plt.colorbar()
+    # ZY: horizontal=Z, vertical=Y. Buffer YZ is [y,z]; show() transposes [y,z]->[z,y],
+    # giving rows=y (vertical), cols=z (horizontal) — exactly Z-horizontal, Y-vertical.
+    show(axes[1], YZ, f"Bx  ZY  (x={x_at:.2f})", "Z", "Y",
+         extent=(zmin, zmax, ymin, ymax))
+
+    # ZX: horizontal=X, vertical=Z. Buffer ZX is [x,z] -> show() transposes to [z,x]. OK.
+    show(axes[2], ZX, f"Bx  ZX  (y={y_at:.2f})", "X", "Z",
+         extent=(xmin, xmax, zmin, zmax))
 
     fig.tight_layout()
-    plt.savefig(os.path.join(dir_data, f"B_field_{time_cycle}.png"))
-    plt.close()
-
-    # 1D cuts: along X for multiple Y (use quarters)
-    ycuts = [ny_global // 4, ny_global // 2, (3 * ny_global) // 4]
-    x = np.arange(nx_global)
-
-    plt.figure(figsize=(7, 4), dpi=200)
-    for y0 in ycuts:
-        plt.plot(x, Bx[:, y0], lw=2, label=f"Y={y0}")
-    plt.xlabel("X index"); plt.ylabel("Bx")
-    plt.title(f"Bx 1D cuts ({time_cycle})")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(os.path.join(dir_data, f"Bx_cutX_{time_cycle}.png"))
-    plt.close()
-
-    # 1D cuts: along Y for multiple X
-    xcuts = [nx_global // 4, nx_global // 2, (3 * nx_global) // 4]
-    y = np.arange(ny_global)
-
-    plt.figure(figsize=(7, 4), dpi=200)
-    for x0 in xcuts:
-        plt.plot(y, By[x0, :], lw=2, label=f"X={x0}")
-    plt.xlabel("Y index"); plt.ylabel("By")
-    plt.title(f"By 1D cuts ({time_cycle})")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(os.path.join(dir_data, f"By_cutY_{time_cycle}.png"))
-    plt.close()
+    fig.savefig(os.path.join(dir_data, f"Bx_{time_cycle}.png"))
+    plt.close(fig)
