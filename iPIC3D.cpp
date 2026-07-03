@@ -57,9 +57,10 @@ int main(int argc, char **argv)
 
         for (int cycle = KCode.FirstCycle() + 1; cycle <= KCode.LastCycle(); cycle++) 
         {
-            if (KCode.get_myrank() == 0 && cycle%100 == 0)
+
+            if(MPIdata::get_rank() == 0 && cycle%100 == 0)
                 std::cout << std::endl << "=================== Cycle " << cycle << " ===================" << std::endl ;
-            
+
             //? Moment Gatherer --> Compute charge density, current density, and mass matrix
             time_MG.start();
             KCode.CalculateMoments();        
@@ -79,7 +80,7 @@ int main(int argc, char **argv)
             KCode.WriteOutput(cycle);
             time_WD.stop();
 
-            if(MPIdata::get_rank() == 0)
+            if(MPIdata::get_rank() == 0 && cycle%100 == 0)
             {
                 std::cout << std::endl << "Runtime of iPIC3D modules " << std::endl;
                 std::cout << "Field solver       : " << time_EF.total()   << " s" << std::endl;
