@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 
 project(iPic3D)
 
@@ -205,10 +205,7 @@ function(add_install_libdir_to_rpath tgt)
 endfunction()
 add_install_libdir_to_rpath(iPIC3D)
 
-############### Install ###############
-
 install(TARGETS iPIC3D)
-add_subdirectory(inputfiles)
 
 ############### Debug Info ###############
 
