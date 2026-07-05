@@ -78,7 +78,7 @@ void EMfields3D::init_Double_Harris_Hump()
     const double delta_y = 4.0 * delta;
     
     //! New initial setup
-    if (restart_status == 0) 
+    if (col->getRestart_status() == 0) 
     {
         if (vct->getCartesian_rank() ==0) 
         {
@@ -190,7 +190,7 @@ void EMfields3D::init_Double_Harris_Hump()
             grid->interpN2C(rhocs, is, rhons);
     }
 
-    else if (restart_status == 1 || restart_status == 2)
+    else if (col->getRestart_status() == 1 || col->getRestart_status() == 2)
     {
         //! Read data from restart files
         init_fields_restart();
@@ -201,9 +201,8 @@ void EMfields3D::init_Double_Harris_Hump()
         if (vct->getCartesian_rank() == 0)
         {
             cout << "Incorrect restart status!" << endl;
-            cout << "restart_status = 0 ---> NO RESTART!" << endl;
-            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are different" << endl;
-            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are the same" << endl;
+            cout << "   restart_status = 0 ---> NO RESTART!" << endl;
+            cout << "   restart_status = 1 or 2 ---> RESTART!" << endl;
         }
         abort();
     }

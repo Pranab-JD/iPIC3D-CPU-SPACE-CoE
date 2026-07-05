@@ -59,7 +59,7 @@ void EMfields3D::init_fields_restart()
 
     //! READ FROM RESTART
     #ifdef NO_HDF5
-        eprintf("If you wish to restart simulations, tou have to complie iPIC3D with HDF5");
+        eprintf("If you wish to restart simulations, you have to complie iPIC3D with HDF5");
     #else
         
         col->read_field_restart(vct, grid, Bxn, Byn, Bzn, Bxc, Byc, Bzc, Ex, Ey, Ez, rhoc_avg, divE_average, ns);

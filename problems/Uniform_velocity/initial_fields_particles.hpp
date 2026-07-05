@@ -56,7 +56,7 @@ void EMfields3D::init_Uniform()
     const VirtualTopology3D *vct = &get_vct();
 
     //! New initial setup
-    if (restart_status == 0)
+    if (col->getRestart_status() == 0)
     {
         if (vct->getCartesian_rank() == 0) 
             cout << "Default field initialisation; initial magnetic field components (Bx, By, Bz) = " << "(" << B0x << ", " << B0y << ", " << B0z << ")" << endl;
@@ -94,7 +94,7 @@ void EMfields3D::init_Uniform()
             grid->interpN2C(rhocs, is, rhons);
     }
 
-    else if (restart_status == 1 || restart_status == 2)
+    else if (col->getRestart_status() == 1 || col->getRestart_status() == 2)
     {
         //! Read data from restart files
         init_fields_restart();
@@ -105,9 +105,8 @@ void EMfields3D::init_Uniform()
         if (vct->getCartesian_rank() == 0)
         {
             cout << "Incorrect restart status!" << endl;
-            cout << "restart_status = 0 ---> NO RESTART!" << endl;
-            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are different" << endl;
-            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are the same" << endl;
+            cout << "   restart_status = 0 ---> NO RESTART!" << endl;
+            cout << "   restart_status = 1 or 2 ---> RESTART!" << endl;
         }
         abort();
     }

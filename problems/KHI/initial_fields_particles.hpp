@@ -215,7 +215,7 @@ void EMfields3D::init_KHI_FLR()
             cout << "---------------------------------------------------------" << endl << endl;
         }
 
-        if (restart_status == 0)
+        if (col->getRestart_status() == 0)
         {
             for (int i = 0; i < nxn; i++)
                 for (int j = 0; j < nyn; j++)
@@ -286,7 +286,7 @@ void EMfields3D::init_KHI_FLR()
     
     }
     
-    else if (restart_status == 1 || restart_status == 2)
+    else if (col->getRestart_status() == 1 || col->getRestart_status() == 2)
     {
         //! Read data from restart files
         init_fields_restart();
@@ -297,9 +297,8 @@ void EMfields3D::init_KHI_FLR()
         if (vct->getCartesian_rank() == 0)
         {
             cout << "Incorrect restart status!" << endl;
-            cout << "restart_status = 0 ---> NO RESTART!" << endl;
-            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are different" << endl;
-            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are the same" << endl;
+            cout << "   restart_status = 0 ---> NO RESTART!" << endl;
+            cout << "   restart_status = 1 or 2 ---> RESTART!" << endl;
         }
         abort();
     }

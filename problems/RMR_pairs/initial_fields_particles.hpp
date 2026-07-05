@@ -143,7 +143,7 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
     double thermal_spread_CS   = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     
     //! New initial setup
-    if (restart_status == 0) 
+    if (col->getRestart_status() == 0) 
     {
         if (vct->getCartesian_rank() == 0) 
         {
@@ -243,7 +243,7 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
         communicateNodeBC(nxn, nyn, nzn, Bzn, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
     }
 
-    else if (restart_status == 1 || restart_status == 2)
+    else if (col->getRestart_status() == 1 || col->getRestart_status() == 2)
     {
         //! Read data from restart files
         init_fields_restart();
@@ -254,9 +254,8 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
         if (vct->getCartesian_rank() == 0)
         {
             cout << "Incorrect restart status!" << endl;
-            cout << "restart_status = 0 ---> NO RESTART!" << endl;
-            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are different" << endl;
-            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are the same" << endl;
+            cout << "   restart_status = 0 ---> NO RESTART!" << endl;
+            cout << "   restart_status = 1 or 2 ---> RESTART!" << endl;
         }
         abort();
     }

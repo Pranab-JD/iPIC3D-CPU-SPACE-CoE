@@ -91,7 +91,7 @@ void EMfields3D::initShock1D()
     double thb = col->getUth(1);
 
     //! New initial setup
-    if (restart_status == 0)
+    if (col->getRestart_status() == 0)
     {
         //! Initial setup (NOT RESTART)
         if (vct->getCartesian_rank() == 0) 
@@ -151,7 +151,7 @@ void EMfields3D::initShock1D()
         communicateNodeBC(nxn, nyn, nzn, Ez, col->bcEz[0],col->bcEz[1],col->bcEz[2],col->bcEz[3],col->bcBz[4],col->bcEz[5], vct, this);
     }
     
-    else if (restart_status == 1 || restart_status == 2)
+    else if (col->getRestart_status() == 1 || col->getRestart_status() == 2)
     {
         //! Read data from restart files
         init_fields_restart();
@@ -162,9 +162,8 @@ void EMfields3D::initShock1D()
         if (vct->getCartesian_rank() == 0)
         {
             cout << "Incorrect restart status!" << endl;
-            cout << "restart_status = 0 ---> NO RESTART!" << endl;
-            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are different" << endl;
-            cout << "restart_status = 1 ---> RESTART! SaveDirName and RestartDirName are the same" << endl;
+            cout << "   restart_status = 0 ---> NO RESTART!" << endl;
+            cout << "   restart_status = 1 or 2 ---> RESTART!" << endl;
         }
         abort();
     }

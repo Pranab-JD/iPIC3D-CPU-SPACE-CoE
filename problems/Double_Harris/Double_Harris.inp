@@ -17,16 +17,16 @@ WriteMethod                    = shdf5                                         #
 output_data_precision          = DOUBLE                                        # Precision of output data [SINGLE | DOUBLE]
 
 #! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are
-restart_status                 = 0                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
+restart_status                 = 2                                             # 0 = NO RESTART; 1 or 2 = RESTART
 
-DiagnosticsOutputCycle         = 5                                             # Diagnostics cycle
+DiagnosticsOutputCycle         = 10                                            # Diagnostics cycle
 RestartOutputCycle             = 0                                             # Restart cycle (final time cycle is automatically written to restart files)
-FieldOutputCycle               = 25                                            # Output for moments and fields (if <= 0, data is NOT saved)
-ParticlesOutputCycle           = 40                                           # Output for particles (if <= 0, data is NOT saved)
+FieldOutputCycle               = 50                                            # Output for moments and fields (if <= 0, data is NOT saved)
+ParticlesOutputCycle           = 100                                           # Output for particles (if <= 0, data is NOT saved)
 ParticlesDownsampleOutputCycle = 0                                             # Downsample output cycle (if <= 0, data is NOT saved)
 ParticlesDownsampleFactor      = 1                                             # Downsampling factor (must be >= 1; if = 1 NO downsampling)
 
-FieldOutputTag                 = B + E + rho + J + J_s + rho_s                 # Select quantites to be written to files
+FieldOutputTag                 = B + E + rho + J                               # Select quantites to be written to files
 ParticlesOutputTag             = position + velocity + q                       # Select quantites to be written to files
 ParticlesDownsampleOutputTag   = position_DS + velocity_DS + q_DS              # Select quantites to be written to files
 
@@ -78,8 +78,8 @@ B0z                            = 0.0                                            
 # %                                     TIME                                   %
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-dt                             = 0.125	                                       # Time-step size
-ncycles                        = 200                                           # Number of time steps
+dt                             = 0.25	                                       # Time-step size
+ncycles                        = 500                                          # Number of time steps
 th                             = 0.5                                           # Decentering parameter
 c                              = 1.0                                           # Speed of light 
 GMREStol                       = 1E-15                                         # GMRES tolerance (must be <= 1e-15 for exact energy conservation)
