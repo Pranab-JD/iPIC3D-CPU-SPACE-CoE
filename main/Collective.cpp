@@ -1103,25 +1103,21 @@ int Collective::ReadRestart(string inputfile)
         w0[i] = 0.0;
 
 
-    // if (RestartDirName == SaveDirName) 
-    // {
-        restart_status = 2;
-        // read dt
-        dataset_id = H5Dopen2(file_id, "/collective/Dt", H5P_DEFAULT); // HDF 1.8.8
-        status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &dt);
-        status = H5Dclose(dataset_id);
-        // read th 
-        dataset_id = H5Dopen2(file_id, "/collective/Th", H5P_DEFAULT); // HDF 1.8.8
-        status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &th);
-        status = H5Dclose(dataset_id);
-        // read Smooth
-        dataset_id = H5Dopen2(file_id, "/collective/Smooth", H5P_DEFAULT); // HDF 1.8.8
-        status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Smooth);
-        status = H5Dclose(dataset_id);
-        dataset_id = H5Dopen2(file_id, "/collective/SmoothCycle", H5P_DEFAULT); // HDF 1.8.8
-        status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &SmoothCycle);
-        status = H5Dclose(dataset_id);
-    // }
+
+    dataset_id = H5Dopen2(file_id, "/collective/Dt", H5P_DEFAULT); // HDF 1.8.8
+    status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &dt);
+    status = H5Dclose(dataset_id);
+    // read th 
+    dataset_id = H5Dopen2(file_id, "/collective/Th", H5P_DEFAULT); // HDF 1.8.8
+    status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &th);
+    status = H5Dclose(dataset_id);
+    // read Smooth
+    dataset_id = H5Dopen2(file_id, "/collective/Smooth", H5P_DEFAULT); // HDF 1.8.8
+    status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &Smooth);
+    status = H5Dclose(dataset_id);
+    dataset_id = H5Dopen2(file_id, "/collective/SmoothCycle", H5P_DEFAULT); // HDF 1.8.8
+    status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &SmoothCycle);
+    status = H5Dclose(dataset_id);
 
     status = H5Fclose(file_id);
 

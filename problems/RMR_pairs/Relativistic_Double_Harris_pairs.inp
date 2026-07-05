@@ -7,7 +7,6 @@
 Case                           = Relativistic_Double_Harris_pairs              # Case
 SimulationName                 = Relativistic_DH_pairs                         # Simulation name for output
 SaveDirName                    = data_rel_DH_pairs                             # Output directory
-RestartDirName                 = data_rel_DH_pairs                             # Restart directory
 
 Relativistic                   = true                                          # Relativistic Case (true or false)
 Relativistic_pusher            = Lapenta_Markidis                              # Relativistic Particle Pusher (Boris or Lapenta_Markidis)
@@ -20,7 +19,7 @@ WriteMethod                    = shdf5                                         #
 output_data_precision          = DOUBLE                                        # Precision of output data [SINGLE | DOUBLE]
 
 #! It is crucial to set this to 0 if you are NOT restarting and to either 1 or 2 if you are
-restart_status                 = 0                                             # 0 = NO RESTART; 1 = RESTART (SaveDirName != RestartDirName); 2 = RESTART (SaveDirName = RestartDirName)
+restart_status                 = 0                                             # 0 = NO RESTART; 1 or 2 = RESTART
 
 DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
 RestartOutputCycle             = 0                                             # Restart cycle (suggest to set this to a factor of ncycles)
