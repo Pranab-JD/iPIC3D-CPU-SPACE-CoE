@@ -210,7 +210,6 @@ void Collective::ReadInput(string inputfile)
         config.readInto(num_smoothings, "num_smoothings", 0);
 
         SaveDirName     = config.read<string>    ("SaveDirName", "data");
-        RestartDirName  = config.read<string>    ("RestartDirName", "data");
         ns              = config.read<int>       ("ns");
         nstestpart      = config.read<int>       ("nsTestPart", 0);
         NpMaxNpRatio    = config.read<double>    ("NpMaxNpRatio", 1.5);
@@ -655,13 +654,11 @@ void Collective::ReadInput(string inputfile)
     int last_cycle_local = -1;
     if (RESTART1) 
     {   
-        RestartDirName = config.read<string>("RestartDirName", "data");
-        //ReadRestart(RestartDirName);
         restart_status = 2;
         
         if (MPIdata::get_rank() == 0)
         {
-            std::string restart_file = RestartDirName + "/restart0.hdf";
+            std::string restart_file = SaveDirName + "/restart0.hdf";
             hid_t file_id = H5Fopen(restart_file.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
 
             if (file_id < 0)
@@ -772,7 +769,7 @@ int Collective::read_last_cycle_from_restart() const
         eprintf("Require HDF5 to read restart file.");
         return -1;
     #else
-        std::string name_file = getRestartDirName() + "/restart0.hdf";
+        std::string name_file = getSaveDirName() + "/restart0.hdf";
 
         hid_t file_id = H5Fopen(name_file.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         if (file_id < 0)
@@ -881,7 +878,8 @@ int Collective::ReadRestart(string inputfile)
     herr_t status;
     // Open the setting file for the restart.
     file_id = H5Fopen((inputfile + "/settings.hdf").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-    if (file_id < 0) {
+    if (file_id < 0) 
+    {
         cout << "couldn't open file: " << inputfile << endl;
         return -1;
     }
@@ -1032,29 +1030,10 @@ int Collective::ReadRestart(string inputfile)
     string *name_testspecies;
     stringstream *testss;
 
-    for (int i = 0; i < ns; i++) {
+    for (int i = 0; i < ns; i++) 
+    {
         ss[i] << i;
         name_species[i] = "/collective/species_" + ss[i].str() + "/";
-    }
-    if(nstestpart>0){
-        name_testspecies = new string[nstestpart];
-        testss = new stringstream[nstestpart];
-        for (int i = 0; i < nstestpart; i++) {
-            testss[i] << (i+ns);
-            name_testspecies[i] = "/collective/testspecies_" + testss[i].str() + "/";
-        }
-
-        pitch_angle = std::make_unique<double[]>(nstestpart);
-        energy      = std::make_unique<double[]>(nstestpart);
-        for (int i = 0; i < nstestpart; i++) {
-            dataset_id = H5Dopen2(file_id, (name_testspecies[i] + "pitch_angle").c_str(), H5P_DEFAULT); // HDF 1.8.8
-            status = H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &pitch_angle[i]);
-            status = H5Dclose(dataset_id);
-
-            dataset_id = H5Dopen2(file_id, (name_testspecies[i] + "energy").c_str(), H5P_DEFAULT); // HDF 1.8.8
-            status = H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &energy[i]);
-            status = H5Dclose(dataset_id);
-        }
     }
 
     // npcelx for different species
@@ -1124,9 +1103,8 @@ int Collective::ReadRestart(string inputfile)
         w0[i] = 0.0;
 
 
-    // if RestartDirName == SaveDirName overwrite dt,Th,Smooth (append to old hdf files)
-    if (RestartDirName == SaveDirName) 
-    {
+    // if (RestartDirName == SaveDirName) 
+    // {
         restart_status = 2;
         // read dt
         dataset_id = H5Dopen2(file_id, "/collective/Dt", H5P_DEFAULT); // HDF 1.8.8
@@ -1143,7 +1121,7 @@ int Collective::ReadRestart(string inputfile)
         dataset_id = H5Dopen2(file_id, "/collective/SmoothCycle", H5P_DEFAULT); // HDF 1.8.8
         status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &SmoothCycle);
         status = H5Dclose(dataset_id);
-    }
+    // }
 
     status = H5Fclose(file_id);
 
@@ -1186,7 +1164,7 @@ void Collective::read_field_restart(const VCtopology3D* vct, const Grid* grid,
 
         stringstream ss;
         ss << vct->getCartesian_rank();
-        string name_file = getRestartDirName() + "/restart" + ss.str() + ".hdf";
+        string name_file = getSaveDirName() + "/restart" + ss.str() + ".hdf";
 
         // hdf stuff
         hid_t file_id, dataspace;
@@ -1374,7 +1352,7 @@ void Collective::read_particles_restart(const VCtopology3D* vct, int species_num
 
         stringstream ss;
         ss << vct->getCartesian_rank();
-        string name_file = getRestartDirName() + "/restart" + ss.str() + ".hdf";
+        string name_file = getSaveDirName() + "/restart" + ss.str() + ".hdf";
 
         // hdf stuff
         hid_t file_id, dataspace;
@@ -1591,8 +1569,7 @@ void Collective::Print()
 
     cout << "Simulation Case                : " << Case << endl;
     cout << "Simulation Name                : " << SimName << endl << endl;
-    cout << "Output data is saved in the '" << SaveDirName << "' directory" << endl;
-    cout << "Restart data is saved in the '" << RestartDirName << "' directory" << endl << endl;
+    cout << "Output and restart data are saved in the '" << SaveDirName << "' directory" << endl;
     cout << "Output data is stored in " << output_data_precision << " precision" << endl << endl;
 
     cout << "-----------------------------------------------------------"   << endl;
@@ -1722,8 +1699,7 @@ void Collective::save()
     my_file << "                        Output Data"                            << endl;
     my_file << "============================================================"   << endl << endl; 
 
-    my_file << "Output data is saved in " << SaveDirName << endl;
-    my_file << "Restart data is saved in " << RestartDirName << endl;
+    my_file << "Output and restart data are saved in " << SaveDirName << endl;
     my_file << "Output data is written in " << output_data_precision << " precision" << endl;
     my_file << "Restart data is written in DOUBLE precision" << endl;
 

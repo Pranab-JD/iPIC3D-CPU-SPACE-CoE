@@ -498,9 +498,6 @@ private:
     //* Boundary electron speed
     double ue0, ve0, we0;
 
-    //! Mass matrix
-    double *mass_matrix;
-
     //* Number of cells including 2 (guard cells)
     int nxc, nxn, nyc, nyn, nzc, nzn;
 
@@ -555,11 +552,6 @@ private:
 
     //! Mass matrix components (defined at nodes)
     array4_double Mxx, Mxy, Mxz, Myx, Myy, Myz, Mzx, Mzy, Mzz;
-    // Interleaved mass matrix: MM[i][j][k][ind*9 + comp]
-    // array4_double MM;
-    // enum{MM_XX=0, MM_XY=1, MM_XZ=2,
-    //      MM_YX=3, MM_YY=4, MM_YZ=5,
-    //      MM_ZX=6, MM_ZY=7, MM_ZZ=8 };
 
     //? Density for each species (defined at nodes and centres, respectively)
     array4_double rhons, rhocs;         
@@ -589,9 +581,6 @@ private:
 
     //? Density (defined at nodes and centres, respectively)
     array3_double rhon, rhoc;            
-    
-    //? Implicit density (defined at cell centres)
-    // array3_double rhoh;
 
     //? Electric potential (defined at cell centres)
     array3_double PHI, Phic;  

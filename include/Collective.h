@@ -165,7 +165,6 @@ class Collective
 
     int getRestart_status()             const{ return (restart_status); }
     string getSaveDirName()             const{ return (SaveDirName); }
-    string getRestartDirName()          const{ return (RestartDirName); }
     string getinputfile()               const{ return (inputfile); }
     string getCase()                    const{ return (Case); }
     string getSimName()                 const{ return (SimName); }
@@ -333,15 +332,8 @@ class Collective
     /*! Simulation name */
     string SimName;
 
-    /*! TrackParticleID */
-    //bool *TrackParticleID;
-    /*! SaveDirName */
     string SaveDirName;
-    /*! RestartDirName */
-    string RestartDirName;
-    /*! restart_status 0 --> no restart; 1--> restart, create new; 2--> restart, append; */
     int restart_status;
-    /*! last cycle */
     int last_cycle;
 
     /*! Boundary condition on particles 0 = exit 1 = perfect mirror 2 = riemission */

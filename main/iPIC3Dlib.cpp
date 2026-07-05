@@ -129,7 +129,6 @@ int c_Solver::Init(int argc, char **argv)
     col = new Collective(argc, argv);               // Every proc loads the parameters of simulation from class Collective
     restart_cycle   = col->getRestartOutputCycle();
     SaveDirName     = col->getSaveDirName();
-    RestartDirName  = col->getRestartDirName();
     restart_status  = col->getRestart_status();
     ns              = col->getNs();                 // get the number of species of particles involved in simulation
 
@@ -163,12 +162,7 @@ int c_Solver::Init(int argc, char **argv)
     if (myrank == 0) 
     {
         if (restart_status == 0)
-        {
             checkOutputFolder(SaveDirName);         //* Create output directory
-
-            if (SaveDirName != RestartDirName)
-                checkOutputFolder(RestartDirName);  //* Create restart directory
-        }
 
         MPIdata::instance().Print();
         vct->Print();
@@ -524,24 +518,29 @@ bool c_Solver::ParticlesMover()
     //* Iterate over each species to update velocities
     for (int i = 0; i < ns; i++)
     {
-        switch(Parameters::get_MOVER_TYPE())
-        {
-            //? ECSIM & RelSIM
-            case Parameters::SoA:
-                if (col->getRelativistic())
-                    particles[i].RelSIM_velocity(EMf);
-                else
-                    particles[i].ECSIM_velocity(EMf);
-            break;
-            case Parameters::AoS:
-                if (col->getRelativistic())
-                    particles[i].RelSIM_velocity(EMf);
-                else
-                    particles[i].ECSIM_velocity(EMf);
-            break;
-            default:
-            unsupported_value_error(Parameters::get_MOVER_TYPE());
-        }
+        if (col->getRelativistic())
+            particles[i].RelSIM_velocity(EMf);
+        else
+            particles[i].ECSIM_velocity(EMf);
+
+        // switch(Parameters::get_MOVER_TYPE())
+        // {
+        //     //? ECSIM & RelSIM
+        //     case Parameters::SoA:
+        //         if (col->getRelativistic())
+        //             particles[i].RelSIM_velocity(EMf);
+        //         else
+        //             particles[i].ECSIM_velocity(EMf);
+        //     break;
+        //     case Parameters::AoS:
+        //         if (col->getRelativistic())
+        //             particles[i].RelSIM_velocity(EMf);
+        //         else
+        //             particles[i].ECSIM_velocity(EMf);
+        //     break;
+        //     default:
+        //     unsupported_value_error(Parameters::get_MOVER_TYPE());
+        // }
     }
 
     #ifdef __PROFILING__
@@ -555,18 +554,18 @@ bool c_Solver::ParticlesMover()
     //* Iterate over each species to update positions
     for (int i = 0; i < ns; i++)
     {
-        switch(Parameters::get_MOVER_TYPE())
-        {
-            case Parameters::SoA:
-                particles[i].ECSIM_position(EMf);
-            break;
-            case Parameters::AoS:
-                particles[i].ECSIM_position(EMf);
-            break;
-        }
+        particles[i].ECSIM_position(EMf);
 
-        //* Should integrate BC into separate_and_send_particles
-        //TODO: what does this do?
+        // switch(Parameters::get_MOVER_TYPE())
+        // {
+        //     case Parameters::SoA:
+        //         particles[i].ECSIM_position(EMf);
+        //     break;
+        //     case Parameters::AoS:
+        //         particles[i].ECSIM_position(EMf);
+        //     break;
+        // }
+
         particles[i].openbc_particles_outflow();
         particles[i].separate_and_send_particles();
     }
@@ -616,45 +615,6 @@ bool c_Solver::ParticlesMover()
         for (int i=0; i < ns; i++)
             Qremoved[i] = particles[i].deleteParticlesInsideSphere2DPlaneXZ(col->getL_square(), col->getx_center(), col->getz_center());
     }
-
-    //* =============== Test Particles =============== *//
-
-    //TODO: uncomment and test
-
-    // for (int i = 0; i < nstestpart; i++)
-    // {
-    //     switch(Parameters::get_MOVER_TYPE())
-    //     {
-    //         case Parameters::SoA:
-    //             testpart[i].ECSIM_velocity(EMf);
-    //         break;
-            
-    //         default:
-    //             unsupported_value_error(Parameters::get_MOVER_TYPE());
-    //     }
-
-    //     testpart[i].openbc_delete_testparticles();
-    //     testpart[i].separate_and_send_particles();
-    // }
-
-    // for (int i = 0; i < nstestpart; i++)
-    // {
-    //     switch(Parameters::get_MOVER_TYPE())
-    //     {
-    //         case Parameters::SoA:
-    //             testpart[i].ECSIM_position(EMf);
-    //         break;
-            
-    //         default:
-    //             unsupported_value_error(Parameters::get_MOVER_TYPE());
-    //     }
-
-    //     testpart[i].openbc_delete_testparticles();
-    //     testpart[i].separate_and_send_particles();
-    // }
-
-    // for (int i = 0; i < nstestpart; i++)
-    //     testpart[i].recommunicate_particles_until_done(1);
 
     //* ============================================== *//
 

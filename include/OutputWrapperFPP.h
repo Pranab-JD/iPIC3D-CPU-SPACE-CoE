@@ -44,7 +44,6 @@ class OutputWrapperFPP
         #endif // NO_HDF5
         int cartesian_rank;
         string SaveDirName;
-        string RestartDirName;
         string output_file;
         string restart_file;
 

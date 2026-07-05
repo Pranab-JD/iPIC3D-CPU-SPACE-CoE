@@ -115,7 +115,6 @@ namespace iPic3D {
 #endif
 
     string SaveDirName;
-    string RestartDirName;
     string cqsat;
     string cq;
     string cqs;
