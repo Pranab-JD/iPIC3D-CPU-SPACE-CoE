@@ -6,10 +6,12 @@ Created on Tue Feb 19:02 2026
 Description: This code deletes user-specified HDF5 dataset subtrees/quantities from iPIC3D HDF output.
 
 Usage: 
+    folder="/project/home/p201005/pjd/RMR/sigma_1/Bz_0/slope_1.66_amp_0.05/xy/"
+    ls "${folder}"proc*.hdf > proc_files.txt
 
-    1. Delete Ex for selected cycles in all proc*.hdf:
+    1. Delete Ex from cycle 1000 to 5000, every 500 cycles, in all proc*.hdf:
         srun -n 64 python3 erase_data.py /path/proc*.hdf \
-        --targets fields/Ex --cycles 0 500 1000-2000
+        --targets fields/Ex --cycles 0 500 1000-5000
 
     2. Delete Jx for species_2 at cycles 11500 and 12000:
         srun -n 64 python3 erase_data.py /path/proc*.hdf \
@@ -17,15 +19,14 @@ Usage:
 
     3. Delete one exact dataset path:
         srun -n 16 python3 erase_data.py /path/proc*.hdf \
-        --targets moments/species_1/rho/cycle_15000
+        --targets moments/rho/cycle_15000
 """
 
-import argparse
-import re, sys, os, subprocess
-from pathlib import Path
-from typing import List, Tuple, Dict, Set, Optional
+import argparse, h5py
 from mpi4py import MPI
-import h5py
+from pathlib import Path
+import re, sys, os, subprocess
+from typing import List, Tuple, Dict, Set, Optional
 
 PROC_RX    = re.compile(r"^proc\d+\.hdf$", re.IGNORECASE)
 RESTART_RX = re.compile(r"^restart.*\.hdf$", re.IGNORECASE)
