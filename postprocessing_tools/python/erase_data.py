@@ -1,7 +1,7 @@
 """
 Created on Tue Feb 19:02 2026
 
-@author: Pranab JD, ChatGPT
+@author: Pranab JD, ClaudeAI
 
 Description: This code deletes user-specified HDF5 dataset subtrees/quantities from iPIC3D HDF output.
 
@@ -111,6 +111,10 @@ def is_cycle_node(name: str) -> Optional[int]:
     m = CYCLE_RX.search(name)
     return int(m.group(1)) if m else None
 
+def parent_of(path: str) -> str:
+    """Return the parent group path of an absolute HDF5 path."""
+    return "/" if path.rfind("/") == 0 else path[: path.rfind("/")]
+
 def delete_node(h5: h5py.File, path: str, dry_run=False, verbose=False) -> bool:
     """
     Delete a dataset OR group at exact `path`. Returns True if deletion attempted.
@@ -121,7 +125,7 @@ def delete_node(h5: h5py.File, path: str, dry_run=False, verbose=False) -> bool:
     if path not in h5:
         return False
 
-    parent_path = "/" if path.rfind("/") == 0 else path[: path.rfind("/")]
+    parent_path = parent_of(path)
     key = path.split("/")[-1]
 
     if verbose or dry_run:
@@ -187,14 +191,38 @@ def find_matching_deletions(h5: h5py.File,
     deletions = sorted(set(deletions), key=lambda p: p.count("/"), reverse=True)
     return deletions
 
-def prune_empty_groups(h5: h5py.File, verbose=False) -> int:
-    groups: List[str] = []
+def prune_empty_groups(h5: h5py.File,
+                       candidates: Optional[Set[str]] = None,
+                       verbose=False) -> int:
+    """
+    Remove empty groups, deepest first.
 
-    def visitor(name, obj):
-        if isinstance(obj, h5py.Group):
-            groups.append("/" + name if not name.startswith("/") else name)
+    SPEED: if `candidates` is given, only those paths (and their ancestors) are
+    examined. Only groups that lost a child can have become empty, so a full
+    `visititems` walk of the file is unnecessary and expensive on proc*.hdf
+    with many species x cycles. Passing candidates=None restores the old
+    whole-file behaviour.
+    """
+    if candidates is None:
+        groups: List[str] = []
 
-    h5.visititems(visitor)
+        def visitor(name, obj):
+            if isinstance(obj, h5py.Group):
+                groups.append("/" + name if not name.startswith("/") else name)
+
+        h5.visititems(visitor)
+    else:
+        # Expand each candidate into its full ancestor chain, so that a group
+        # emptied by pruning its own child is itself reconsidered.
+        chain: Set[str] = set()
+        for c in candidates:
+            cur = norm_path(c)
+            while cur and cur != "/":
+                chain.add(cur)
+                cur = parent_of(cur)
+        groups = list(chain)
+
+    # Deepest first: children must go before parents can be seen as empty.
     groups.sort(key=lambda p: p.count("/"), reverse=True)
 
     removed = 0
@@ -203,8 +231,10 @@ def prune_empty_groups(h5: h5py.File, verbose=False) -> int:
             continue
         try:
             grp = h5[gpath]
+            if not isinstance(grp, h5py.Group):
+                continue          # candidate chain may include dataset paths
             if len(grp.keys()) == 0:
-                parent_path = "/" if gpath.rfind("/") == 0 else gpath[: gpath.rfind("/")]
+                parent_path = parent_of(gpath)
                 key = gpath.split("/")[-1]
                 del h5[parent_path][key]
                 removed += 1
@@ -245,12 +275,16 @@ def repack_file(path: Path, did_delete: bool, verbose=False, dry_run=False):
     def run(cmd):
         return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-    cmd1 = ["h5repack", "-v", str(path), str(tmp_out)]
+    # SPEED: "-v" is deliberately omitted. It makes h5repack emit per-object
+    # logging, which is measurably slower and floods stdout when 64 ranks
+    # repack simultaneously.
+    cmd1 = ["h5repack", str(path), str(tmp_out)]
     res = run(cmd1)
     if res.returncode != 0:
         if verbose:
             print(f"    h5repack (file1 file2) failed: {res.stderr.strip()}", flush=True)
-        cmd2 = ["h5repack", "-v", "-i", str(path), "-o", str(tmp_out)]
+        # Fallback: legacy -i/-o syntax for older HDF5 tool builds
+        cmd2 = ["h5repack", "-i", str(path), "-o", str(tmp_out)]
         res = run(cmd2)
 
     if res.returncode != 0:
@@ -283,6 +317,10 @@ def process_file(path: Path,
                  verbose=False) -> Dict[str, int]:
     stats = {"files_processed": 0, "nodes_deleted": 0, "groups_pruned": 0, "did_delete": 0}
 
+    # Must exist before the try block: if h5py.File() raises, the code after
+    # the except clause still reads it. (Previously a latent NameError.)
+    did_delete = False
+
     try:
         with h5py.File(path, "r+") as h5:
             stats["files_processed"] = 1
@@ -291,18 +329,27 @@ def process_file(path: Path,
             if verbose:
                 print(f"  matched {len(deletions)} deletions", flush=True)
 
-            did_delete = False
+            # Parents of successfully deleted nodes are the only groups that
+            # can have become empty; collect them for targeted pruning.
+            touched_parents: Set[str] = set()
+
+            # Hoisted out of the loop: the increment is loop-invariant.
+            inc = 0 if dry_run else 1
+
             for p in deletions:
                 if delete_node(h5, p, dry_run=dry_run, verbose=verbose):
                     did_delete = True
-                    stats["nodes_deleted"] += 1 if not dry_run else 0
+                    stats["nodes_deleted"] += inc
+                    touched_parents.add(parent_of(norm_path(p)))
 
             if prune:
                 if dry_run:
                     if verbose:
                         print("  (dry-run) would prune empty groups", flush=True)
                 else:
-                    stats["groups_pruned"] = prune_empty_groups(h5, verbose=verbose)
+                    stats["groups_pruned"] = prune_empty_groups(
+                        h5, candidates=touched_parents, verbose=verbose
+                    )
 
     except (OSError, IOError) as e:
         print(f"  ERROR opening {path}: {e}", file=sys.stderr, flush=True)
@@ -337,7 +384,8 @@ def main():
     ap.add_argument("--repack", dest="repack", action="store_true", default=True, help="Repack files after deletions (default: ON)")
     ap.add_argument("--no-repack", dest="repack", action="store_false", help="Disable repack (faster, but file size won't shrink)")
     ap.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
-    ap.add_argument("--progress-percent", type=float, default=10.0, help="Print global progress every X percent (0 disables)")
+    ap.add_argument("--progress-percent", type=float, default=10.0,
+                    help="Print progress every X percent of rank 0's share (0 disables)")
 
     args = ap.parse_args()
 
@@ -384,6 +432,13 @@ def main():
     if not files:
         return
 
+    if rank == 0:
+        d = str(Path(files[0]).parent)
+        for t in targets:
+            print("==========================================================")
+            print()
+            print(f"Data being deleted: {d}{t}", flush=True)
+
     my_files = files[rank::size]
 
     if args.verbose:
@@ -397,8 +452,8 @@ def main():
               "bytes_after": 0}
 
     next_pct = args.progress_percent if args.progress_percent > 0 else None
-    processed_local = 0
-    
+    n_local = len(my_files)
+
     for idx, f in enumerate(my_files, start=1):
         p = Path(f)
         if args.verbose:
@@ -428,20 +483,16 @@ def main():
         my_tot["bytes_before"] += b0
         my_tot["bytes_after"]  += b1
 
-        processed_local += 1
-
-        if args.progress_percent > 0:
-            global_done = comm.allreduce(processed_local, op=MPI.SUM)
-            global_total = len(files)
-            pct = 100.0 * global_done / global_total if global_total else 0.0
-
-            if rank == 0:
-                while next_pct is not None and pct >= next_pct - 1e-12:
-                    print(f"[global] progress: {next_pct:.1f}% ({global_done}/{global_total} files)", flush=True)
-                    next_pct += args.progress_percent
-                    if next_pct > 100.0:
-                        next_pct = None
-                        break
+        # SPEED: progress is reported from rank 0's own share only.
+        if rank == 0 and next_pct is not None and n_local:
+            pct = 100.0 * idx / n_local
+            while next_pct is not None and pct >= next_pct - 1e-12:
+                print(f"[progress ~{next_pct:.1f}%] rank 0: {idx}/{n_local} files",
+                      flush=True)
+                next_pct += args.progress_percent
+                if next_pct > 100.0:
+                    next_pct = None
+                    break
 
     all_tot = comm.gather(my_tot, root=0)
     comm.Barrier()
@@ -459,7 +510,7 @@ def main():
         print("\n============= SUMMARY =============", flush=True)
         print(f"Files assigned      : {files_assigned}", flush=True)
         print(f"Files processed     : {files_processed}", flush=True)
-        print(f"Nodes deleted       : {nodes_deleted}", flush=True)
+
         if args.prune_empty:
             print(f"Groups pruned       : {groups_pruned}", flush=True)
         print()
@@ -472,6 +523,10 @@ def main():
             print(f"\n✅ All {label} processed successfully.", flush=True)
         else:
             print(f"\n⚠️ Some {label} may not have been processed, check logs.", flush=True)
+
+        print()
+        print("==========================================================")
+        print()
 
 if __name__ == "__main__":
     os.environ.setdefault("HDF5_USE_FILE_LOCKING", "FALSE")
