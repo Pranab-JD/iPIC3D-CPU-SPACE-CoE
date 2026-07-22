@@ -36,7 +36,7 @@
 ////? Some Generic Functions
 
 //* sech^2(x) up to arbitrary precision
-double sech_square(double x) 
+inline double sech_square(double x) 
 {
     double y, res;
   
@@ -51,7 +51,7 @@ double sech_square(double x)
 }
 
 //* Function to read fields from files to restart simulations
-void EMfields3D::init_fields_restart()
+inline void EMfields3D::init_fields_restart()
 {
     const Grid *grid = &get_grid();
     const Collective *col = &get_col();
@@ -93,4 +93,46 @@ void EMfields3D::init_fields_restart()
         }
     
     #endif
+}
+
+//* Initialise uniform distribution of particles with a Maxellian velocity distribution
+inline void Particles3D::maxwellian(Field * EMf)
+{
+    //! New initial setup
+    if (col->getRestart_status() == 0)
+    {
+        //* Initialise random generator with different seed on different processor
+        long long seed = (vct->getCartesian_rank() + 1)*20 + ns;
+        srand(seed);
+        srand48(seed);
+
+        assert_eq(_pcls.size(), 0);
+
+        const double q_sgn = (qom / fabs(qom));
+        const double q_factor =  q_sgn * grid->getVOL() / npcel;
+
+        for (int i = 1; i < grid->getNXC() - 1; i++)
+            for (int j = 1; j < grid->getNYC() - 1; j++)
+                for (int k = 1; k < grid->getNZC() - 1; k++)
+                {
+                    const double q = q_factor * fabs(EMf->getRHOcs(i, j, k, ns));
+                    
+                    for (int ii = 0; ii < npcelx; ii++)
+                        for (int jj = 0; jj < npcely; jj++)
+                            for (int kk = 0; kk < npcelz; kk++)
+                            {
+                                const double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
+                                const double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
+                                const double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+
+                                double u, v, w;
+                                sample_maxwellian(u, v, w, uth, vth, wth, u0, v0, w0);
+                                create_new_particle(u, v, w, q, x, y, z);
+                            }
+                }
+
+        fixPosition();
+    }
+
+    //! If col->getRestart_status() == 0 or 1, particle restart data is automatically read from the restart#.hdf files
 }
