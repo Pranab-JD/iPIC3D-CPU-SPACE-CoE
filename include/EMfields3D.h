@@ -63,6 +63,7 @@ public:
     void init_Maxwellian();
     void init_Double_Harris();
     void init_Double_Harris_Hump();
+    void init_Turbulence_Decay();
 
     //? ---------- Initial field distributions (Relativistic) ---------- ?//
 
