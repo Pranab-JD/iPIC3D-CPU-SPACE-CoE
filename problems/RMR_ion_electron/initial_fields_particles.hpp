@@ -23,7 +23,7 @@ void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf)
     //* Custom input parameters for relativistic reconnection
     const double sigma                  = input_param[0];       //* Magnetisation parameter
     const double CS_density             = input_param[1];       //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
-    const double CS_thickness           = input_param[2];       //* Half-thickness of current sheet (free parameter)
+    const double CS_thickness           = input_param[2];       //* Half-thickness of current sheet
     
     //! New initial setup
     if (col->getRestart_status() == 0)
@@ -124,23 +124,22 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
     const VirtualTopology3D *vct = &get_vct();
 
     //* Custom input parameters
-    const double sigma                  = input_param[0];           //* Magnetisation parameter
-    const double CS_density             = input_param[1];           //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
-    const double CS_thickness           = input_param[2];           //* Half-thickness of current sheet (free parameter)
-    const double guide_field            = input_param[3];           //* Ratio of guide field to in-plane magnetic field
-    const double turbulence_amplitude   = input_param[4];           //* Per-component RMS amplitude of turbulent perturbation, normalised to B_BG
-    const int    nmodes                 = int(input_param[5]);      //* Number of turbulent Fourier modes (only used if use_shell_fill = 0)
-    const int    kmin                   = int(input_param[6]);      //* Minimum integer turbulent mode number
-    const int    kmax                   = int(input_param[7]);      //* Maximum integer turbulent mode number
-    const int    use_shell_fill         = int(input_param[9]);      //* Mode selection: 0 -> random sampling, 1 -> deterministic shell fill
-    const int    turbulence_plane       = int(input_param[10]);     //* Turbulence plane: 0 -> xy, 1 -> yz, 2 -> zx
+    const double    sigma                  = input_param[0];                            //* Magnetisation parameter
+    const double    CS_density             = input_param[1];                            //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
+    const double    CS_thickness           = input_param[2];                            //* Half-thickness of current sheet
+    const double    guide_field            = input_param[3];                            //* Ratio of guide field to in-plane magnetic field
+    const long long turbulence_seed        = static_cast<long long>(input_param[4]);    //* "Random" turbulence seed (only for phases)
+    const double    turbulence_amplitude   = input_param[5];                            //* Per-component RMS amplitude of turbulent perturbation, normalised to B_BG
+    const int       kmin                   = int(input_param[6]);                       //* Minimum integer turbulent mode number
+    const int       kmax                   = int(input_param[7]);                       //* Maximum integer turbulent mode number
+    const int       turbulence_plane       = int(input_param[8]);                       //* Turbulence plane: 0 -> xy, 1 -> yz, 2 -> zx
+    const double    spectral_index         = std::max(0.0, input_param[9]);             //* Power-law index; E_B(k) ~ k^(-p)
 
-    //* Power-law index p in E_B(k) ~ k^(-p). A negative input is clamped to 0.
-    //*    spectral_index >  0 -> power law, E_B(k) ~ k^(-spectral_index)
-    //*    spectral_index == 0 -> random Gaussian amplitude on delta_B, no particular slope
-    const double spectral_index         = (input_param[8] > 0.0) ? input_param[8] : 0.0;
-
-    const long long turbulence_seed     = 12345LL;                                          //* "Random" turbulence seed
+    if (input_param[9] < 0.0 && vct->getCartesian_rank() == 0)
+    {
+        cout << "WARNING: negative spectral_index is clamped to 0 " << endl;
+        cout << "   No particular slope is imposed! " << endl;
+    }
 
     //* Background (BG) or upstream particles
     double thermal_spread_BG_electrons  = col->getUth(0);                                   //* Thermal spread of electrons
@@ -166,29 +165,22 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
     //*    turbulence_plane = 2 -> zx : A_y(z,x) -> delta_Bz, delta_Bx ; delta_By = 0
     //*
     //* Spectral method (derived from spectral_index):
-    //*    spectral_index >  0 -> power law: weight ~ k^(-(spectral_index+3)/2),
-    //*                           giving shell-integrated E_B(k) ~ k^(-spectral_index)
-    //*    spectral_index == 0 -> random: random Gaussian amplitude on delta_B per
-    //*                           mode, no slope imposed
+    //*    spectral_index >  0 -> power law: weight ~ k^(-(spectral_index+3)/2), E_B(k) ~ k^(-spectral_index)
+    //*    spectral_index == 0 -> random: random Gaussian amplitude on delta_B per mode, no slope imposed
     //*
     //* Amplitude: each populated in-plane component is independently rescaled so
     //* that its RMS equals turbulence_amplitude * B_BG.
 
     struct TurbMode
     {
-        double kx;
-        double ky;
-        double kz;
-        double phase;
-        double potential_amplitude;
+        double kx; double ky; double kz;
+        double phase; double potential_amplitude;
     };
 
     std::vector<TurbMode> modes;
 
     //* Which two directions the in-plane modes vary in, set by the plane
-    bool vary_x = false;
-    bool vary_y = false;
-    bool vary_z = false;
+    bool vary_x = false; bool vary_y = false; bool vary_z = false;
 
     if      (turbulence_plane == 0) { vary_x = true;  vary_y = true; }    //* xy : A_z(x,y)
     else if (turbulence_plane == 1) { vary_y = true;  vary_z = true; }    //* yz : A_x(y,z)
@@ -248,70 +240,33 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
             modes.push_back(mode);
         };
 
-        if (use_shell_fill != 0)
-        {
-            //* Deterministic shell fill: every integer mode in the band. 
-            //* Iterate over a half-space of mode numbers to avoid double-counting 
-            //* +(n) and -(n) (the same real mode). In the power-law method the 
-            //* amplitude is the spectral weight (random factor = 1, phase random); in
-            //* the random method each mode gets an independent Gaussian random factor.
-            const int range_x = vary_x ? kmax : 0;
-            const int range_y = vary_y ? kmax : 0;
-            const int range_z = vary_z ? kmax : 0;
+        //* Excite every integer mode in the band [kmin, kmax]
+        //* Iterate over a half-space of mode numbers to avoid 
+        //* double-counting +(n) and -(n) (the same real mode)
 
-            for (int nx = 0; nx <= range_x; nx++)
-                for (int ny = -range_y; ny <= range_y; ny++)
-                    for (int nz = -range_z; nz <= range_z; nz++)
-                    {
-                        //* Half-space selection: first non-zero leading component
-                        //* positive; skip the mirror image and the zero mode.
-                        if (nx < 0) continue;
-                        if (nx == 0 && ny < 0) continue;
-                        if (nx == 0 && ny == 0 && nz <= 0) continue;
+        const int range_x = vary_x ? kmax : 0;
+        const int range_y = vary_y ? kmax : 0;
+        const int range_z = vary_z ? kmax : 0;
 
-                        double n_mag = sqrt(double(nx*nx + ny*ny + nz*nz));
-
-                        if (n_mag < double(kmin)) continue;
-                        if (n_mag > double(kmax)) continue;
-
-                        double random_factor = (spectral_index > 0.0) ? 1.0 : gauss_dist(rng);
-
-                        append_mode(nx, ny, nz, random_factor);
-                    }
-        }
-        else
-        {
-            //* Random mode sampling: draw "nmodes" modes. Each active direction gets a random 
-            //* integer mode number in [kmin, kmax] and a random sign; the inactive direction
-            //* stays zero. A Gaussian factor multiplies the (possibly unit) weight.
-            std::uniform_int_distribution<int> mode_dist(kmin, kmax);
-            std::uniform_int_distribution<int> sign_dist(0, 1);
-
-            for (int m = 0; m < nmodes; m++)
-            {
-                int nx = 0;
-                int ny = 0;
-                int nz = 0;
-
-                if (vary_x)
+        for (int nx = 0; nx <= range_x; nx++)
+            for (int ny = -range_y; ny <= range_y; ny++)
+                for (int nz = -range_z; nz <= range_z; nz++)
                 {
-                    nx = mode_dist(rng);
-                    if (sign_dist(rng) == 0) nx = -nx;
-                }
-                if (vary_y)
-                {
-                    ny = mode_dist(rng);
-                    if (sign_dist(rng) == 0) ny = -ny;
-                }
-                if (vary_z)
-                {
-                    nz = mode_dist(rng);
-                    if (sign_dist(rng) == 0) nz = -nz;
-                }
+                    //* Half-space selection: first non-zero leading component
+                    //* positive; skip the mirror image and the zero mode.
+                    if (nx < 0) continue;
+                    if (nx == 0 && ny < 0) continue;
+                    if (nx == 0 && ny == 0 && nz <= 0) continue;
 
-                append_mode(nx, ny, nz, gauss_dist(rng));
-            }
-        }
+                    double n_mag = sqrt(double(nx*nx + ny*ny + nz*nz));
+
+                    if (n_mag < double(kmin)) continue;
+                    if (n_mag > double(kmax)) continue;
+
+                    double random_factor = (spectral_index > 0.0) ? 1.0 : gauss_dist(rng);
+
+                    append_mode(nx, ny, nz, random_factor);
+                }
     }
 
     //? Curl of vector potential, summed over modes. Only the two in-plane
@@ -380,8 +335,7 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
             cout << "Turbulent mode range                               = " << kmin << " to " << kmax           << endl;
             cout << "Spectral method                                    = " << (spectral_index > 0.0 ? "power law" : "random (no slope)") << endl;
             if (spectral_index > 0.0)
-            cout << "Spectral index p in E_B(k) ~ k^(-p)                = " << spectral_index                   << endl;
-            cout << "Mode-selection method                              = " << (use_shell_fill != 0 ? "shell fill" : "random sampling") << endl;
+                cout << "Spectral index p in E_B(k) ~ k^(-p)            = " << spectral_index << endl;
             cout << "Turbulence plane                                   = " << plane_name << " (delta_Bz " << (turbulence_plane == 0 ? "= 0" : "!= 0") << ")" << endl;
             cout << "Turbulence seed                                    = " << turbulence_seed                  << endl << endl;
 
