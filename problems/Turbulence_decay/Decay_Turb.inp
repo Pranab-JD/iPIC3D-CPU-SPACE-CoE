@@ -4,12 +4,9 @@
 #?                                     INPUT                                   
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Case                           = Relativistic_Double_Harris_ion_electron       # Case
-SimulationName                 = Relativistic_DH_ion_electron                  # Simulation name for output
-SaveDirName                    = data_rel_DH_ion_electron                      # Output directory
-
-Relativistic                   = true                                          # Relativistic Case (true or false)
-Relativistic_pusher            = Lapenta_Markidis                              # Relativistic Particle Pusher (Boris or Lapenta_Markidis)
+Case                           = Decay_Turbulence                              # Case
+SimulationName                 = Decaying_Turbulence                           # Simulation name for output
+SaveDirName                    = data_decay_turb                               # Output directory
 
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #?                                     OUTPUT                                  
@@ -21,9 +18,9 @@ output_data_precision          = DOUBLE                                        #
 #! It is crucial to set this to 0 if you are NOT restarting and to 2 if you are
 restart_status                 = 0                                             # 0 = NO RESTART; 2 = RESTART
 
-DiagnosticsOutputCycle         = 1                                             # Diagnostics cycle
+DiagnosticsOutputCycle         = 10                                            # Diagnostics cycle
 RestartOutputCycle             = 1000                                          # Restart cycle (suggest to set this to a factor of ncycles)
-FieldOutputCycle               = 100                                           # Output for moments and fields (if <= 0, data is NOT saved)
+FieldOutputCycle               = 50                                            # Output for moments and fields (if <= 0, data is NOT saved)
 ParticlesOutputCycle           = 0                                             # Output for particles (if <= 0, data is NOT saved)
 ParticlesDownsampleOutputCycle = 0                                             # Downsample output cycle (if <= 0, data is NOT saved)
 ParticlesDownsampleFactor      = 1                                             # Downsampling factor (must be >= 1; if = 1 NO downsampling)
@@ -46,8 +43,6 @@ ParticleDistMaxVelocity        = 1e3                                           #
 ##* Moments
     # J                 --> Jxh, Jyh, and Jzh: overall current density (all species combined)
     # rho               --> rho: overall charge density (all species combined)
-    # J_s               --> current densities for each species
-    # rho_s             --> charge densities for each species
     # pressure          --> pressure tensor for each species
     # E_flux            --> energy flux for each species
     # H_flux            --> heat flux tensor for each species
@@ -66,18 +61,18 @@ ParticleDistMaxVelocity        = 1e3                                           #
 #?                              PHYSICS and GEOMETRY                           
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+B0x                            = 0.01                                          # Initial magnetic field strength along X
+B0y                            = 0.01                                          # Initial magnetic field strength along Y
+B0z                            = 0.0                                           # Initial magnetic field strength along Z
+
 ###? Custom parameters
-nparam                         = 10
-custom_parameters              = 0.1                                           #* custom_parameter 1  --> Magnetisation parameter
-                                 5.0                                           #* custom_parameter 2  --> Ratio of current sheet density to upstream density
-                                 0.5                                           #* custom_parameter 3  --> Half-thickness of current sheet
-                                 0.1                                           #* custom_parameter 4  --> Ratio of guide field to in-plane magnetic field
-                                 12345                                         #* custom_parameter 5  --> Random turbulence seed (only for phases)
-                                 0.1                                           #* custom_parameter 6  --> Per-component RMS amplitude of turbulent perturbation (normalised to B0)
-                                 1                                             #* custom_parameter 7  --> Minimum integer turbulent mode number
-                                 8                                             #* custom_parameter 8  --> Maximum integer turbulent mode number
-                                 1                                             #* custom_parameter 9  --> Turbulence plane: 0 -> xy, 1 -> yz, 2 -> zx
-                                 1.6667                                        #* custom_parameter 10 --> Power-law index, p, in E_dB(k) ~ k^(-p); has to be >= 0
+nparam                         = 6
+custom_parameters              = 12345                                         #* custom_parameter 1  --> Random turbulence seed (only for phases)
+                                 0.5                                           #* custom_parameter 2  --> Per-component RMS amplitude of turbulent perturbation (normalised to B0)
+                                 1                                             #* custom_parameter 3  --> Minimum integer turbulent mode number
+                                 8                                             #* custom_parameter 4  --> Maximum integer turbulent mode number
+                                 0                                             #* custom_parameter 5  --> Turbulence plane: 0 -> xy, 1 -> yz, 2 -> zx
+                                 1.6667                                        #* custom_parameter 6  --> Power-law index, p, in E_dB(k) ~ k^(-p); has to be >= 0
 
 ###! Options for spectral index: 1.6667 (Kolmogorov), 1.5 (Iroshnikov-Kraichnan), 2.0 (Burgers/shock-dominated), 0.0 (random, no slope)
 
@@ -85,39 +80,39 @@ custom_parameters              = 0.1                                           #
 #?                                      TIME                                   
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-dt                             = 0.2	                                       # Time-step size
-ncycles                        = 200                                           # Number of time steps
+dt                             = 0.1	                                       # Time-step size
+ncycles                        = 1000                                          # Number of time steps
 th                             = 0.5                                           # Decentering parameter (0.5 --> 2nd order; 1.0 --> 1st order)
 c                              = 1.0                                           # Speed of light 
-GMREStol                       = 1E-8                                          # GMRES tolerance
+GMREStol                       = 1E-15                                         # GMRES tolerance
 
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #?                                    SMOOTHING                                
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  
 Smooth                         = 1                                             # If Smooth = false (1 = true OR 0 = false), the following 2 parameters will be ignored 
-num_smoothings                 = 8	                                           # Number of smoothings
+num_smoothings                 = 4	                                           # Number of smoothings
 SmoothCycle                    = 1	                                           # After how many time cycles is the data smoothed  
 
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #?                                     BOX SIZE                                
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Lx                             = 17.5                                          # Simulation box length along X
-Ly                             = 35                                            # Simulation box length along Y
-Lz                             = 17.5                                          # Simulation box length along Z
+Lx                             = 64                                            # Simulation box length along X
+Ly                             = 64                                            # Simulation box length along Y
+Lz                             = 0.1                                           # Simulation box length along Z
 
-nxc                            = 128                                           # Number of cells along X
+nxc                            = 256                                           # Number of cells along X
 nyc                            = 256                                           # Number of cells along Y
-nzc                            = 128                                           # Number of cells along Z
+nzc                            = 1                                             # Number of cells along Z
 
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #?                                   MPI TOPOLOGY                               
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 XLEN                           = 8                                             # Number of MPI subdomains along X
-YLEN                           = 2                                             # Number of MPI subdomains along Y
-ZLEN                           = 8                                             # Number of MPI subdomains along Z
+YLEN                           = 8                                             # Number of MPI subdomains along Y
+ZLEN                           = 1                                             # Number of MPI subdomains along Z
 
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #?                                    PARTICLES                                
@@ -126,25 +121,25 @@ ZLEN                           = 8                                             #
 #*    ns = number of species
 #*    0 = electrons; 1 = protons/positrons; 2,3,4,5,... = electrons/positrons/ions
 
-ns                  = 4                                                         # Number of species of particles
+ns                  = 2                                                         # Number of species of particles
 
-rhoINIT             = 1.0           1.0             1.0             1.0         # Initial density
-rhoINJECT           = 0.0           0.0             0.0             0.0         # Injection density
+rhoINIT             = 1.0           1.0                                         # Initial density
+rhoINJECT           = 0.0           0.0                                         # Injection density
 
-npcelx              = 2             2	            2	            2           # Particles per cell along X
-npcely              = 2             2               2	            2           # Particles per cell along Y
-npcelz              = 2	            2	            2	            2           # Particles per cell along Z
+npcelx              = 32            32                                          # Particles per cell along X
+npcely              = 32            32                                          # Particles per cell along Y
+npcelz              = 1	            1	                                        # Particles per cell along Z
 NpMaxNpRatio        = 6.0                                                       # Maximum number of particles allocated
 
-qom                 = -1836.0       1.0            -1836.0          1.0         # Charge/mass ratio
+qom                 = -1.0          1.0                                         # Charge/mass ratio
 
-uth                 = 18.36         0.01            0.01            0.01        # Thermal spread (exclusive to relativistic cases)
-vth                 = 0.0           0.0             0.0             0.0         # NOT used for relativistic cases, but needs to be defined, set to 0
-wth                 = 0.0           0.0             0.0             0.0         # NOT used for relativistic cases, but needs to be defined, set to 0
+uth                 = 0.01          0.01                                        # Thermal velocity along X
+vth                 = 0.01          0.01                                        # Thermal velocity along Y
+wth                 = 0.01          0.01                                        # Thermal velocity along Z
 
-u0                  = 0.0           0.0             0.0             0.0         # Lorentz factor along X
-v0                  = 0.0           0.0             0.0             0.0         # Lorentz factor along Y
-w0                  = 0.0           0.0             0.0	            0.0         # Lorentz factor along Z
+u0                  = 0.0           0.0                                         # Drift velocity along X
+v0                  = 0.0           0.0                                         # Drift velocity along Y
+w0                  = 0.0           0.0                                         # Drift velocity along Z
 
 #? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #?                                BOUNDARY CONDITION                           

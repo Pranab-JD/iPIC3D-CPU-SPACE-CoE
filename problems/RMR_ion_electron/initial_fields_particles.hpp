@@ -335,7 +335,7 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
             cout << "Turbulent mode range                               = " << kmin << " to " << kmax           << endl;
             cout << "Spectral method                                    = " << (spectral_index > 0.0 ? "power law" : "random (no slope)") << endl;
             if (spectral_index > 0.0)
-                cout << "Spectral index p in E_B(k) ~ k^(-p)            = " << spectral_index << endl;
+            cout << "Spectral index p in E_B(k) ~ k^(-p)                = " << spectral_index << endl;
             cout << "Turbulence plane                                   = " << plane_name << " (delta_Bz " << (turbulence_plane == 0 ? "= 0" : "!= 0") << ")" << endl;
             cout << "Turbulence seed                                    = " << turbulence_seed                  << endl << endl;
 
@@ -405,7 +405,7 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
             if (global_sumsq_Bz > 0.0) scale_Bz = target_rms / sqrt(global_sumsq_Bz/global_count);
         }
 
-        //* Total B and E fields
+        //* Initialise B at cell centres
         for (int i = 1; i < nxc-1; i++)
             for (int j = 1; j < nyc-1; j++)
                 for (int k = 1; k < nzc-1; k++)
@@ -448,6 +448,10 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
                     Ex[i][j][k] = 0.0;
                     Ey[i][j][k] = 0.0;
                     Ez[i][j][k] = 0.0;
+
+                    //* Initialize rho on nodes
+                    for (int is = 0; is < ns; is++)
+                        rhons[is][i][j][k] = rhoINIT[is] / FourPI;
                 }
 
         //* Communicate ghost data at cell centres
@@ -455,10 +459,13 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
         communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
         communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
-        //* Initialise B on nodes
+        //* Initialise B on nodes and rho at cell centres
         grid->interpC2N(Bxn, Bxc);
         grid->interpC2N(Byn, Byc);
         grid->interpC2N(Bzn, Bzc);
+        
+        for (int is = 0; is < ns; is++)
+            grid->interpN2C(rhocs, is, rhons);
 
         //* Communicate ghost data on nodes
         communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);

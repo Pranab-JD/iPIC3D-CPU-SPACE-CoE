@@ -221,7 +221,7 @@ void EMfields3D::init_Turbulence_Decay()
             cout << "Turbulent mode range                               = " << kmin << " to " << kmax           << endl;
             cout << "Spectral method                                    = " << (spectral_index > 0.0 ? "power law" : "random (no slope)") << endl;
             if (spectral_index > 0.0)
-                cout << "Spectral index p in E_B(k) ~ k^(-p)            = " << spectral_index << endl;
+            cout << "Spectral index p in E_B(k) ~ k^(-p)                = " << spectral_index                   << endl;
             cout << "Turbulence plane                                   = " << plane_name << " (delta_Bz " << (turbulence_plane == 0 ? "= 0" : "!= 0") << ")" << endl;
             cout << "Turbulence seed                                    = " << turbulence_seed                  << endl << endl;
 
