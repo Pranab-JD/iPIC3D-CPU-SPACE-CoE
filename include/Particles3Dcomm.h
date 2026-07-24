@@ -352,7 +352,7 @@ public:
 
     double getMaxVelocity();
     double getMinVelocity();
-    double *getVelocityDistribution(int nBins, double minVel, double maxVel);
+    double *getVelocityDistribution(int nBins, double minVel, double maxVel, bool logSpacing = true);
 
     void Print() const;
     void PrintNp() const;

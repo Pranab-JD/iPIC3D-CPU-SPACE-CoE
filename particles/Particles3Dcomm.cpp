@@ -1491,69 +1491,97 @@ double Particles3Dcomm::getMaxVelocity() {
 }
 
 //* Get particle velocity (energy) spectrum
-double *Particles3Dcomm::getVelocityDistribution(int nBins, double minVel, double maxVel) 
+double *Particles3Dcomm::getVelocityDistribution(int nBins, double minVel, double maxVel, bool logSpacing)
 {
-	double *f = new double[nBins];
+    double *f = new double[nBins];
+    for (int i = 0; i < nBins; i++)
+        f[i] = 0.0;
 
-	for (int i = 0; i < nBins; i++) 
-		f[i] = 0.0;
-	
-	double Vel = 0.0;
-	int bin = 0;
-	
-	if (!Relativistic)
-	{ 
-		//! Nonrelativistic simulations
-		double dv = maxVel/nBins;
+    //* Bin edges: nBins edges bound nBins-1 interior bins, plus 1 overflow bin.
+    double *edge = new double[nBins];
+    double *dw   = new double[nBins];        //* width of each bin
 
-        for (int i = 0; i < _pcls.size(); i++)
+    if (logSpacing)
+    {
+        //* Guard: log spacing is undefined for a non-positive lower bound.
+        if (minVel <= 0.0 || maxVel <= minVel)
         {
-            SpeciesParticle& pcl = _pcls[i];
-            const double u = pcl.get_u();
-            const double v = pcl.get_v();
-            const double w = pcl.get_w();
-
-            Vel = sqrt(u*u + v*v + w*w);
-            bin = int (floor(Vel / dv));
-            
-            if (bin >= nBins)
-                f[nBins - 1] += fabs(q[i]);
-            else
-                f[bin] += fabs(q[i]);
+            delete[] edge; delete[] dw;
+            eprintf("getVelocityDistribution: log spacing requires 0 < minVel < maxVel "
+                    "(got minVel=%g, maxVel=%g)", minVel, maxVel);
         }
-	}
-	else 
-	{ 
-		//! Relativistic simulations: logspace u distribution
-		double *uDist, *du;
-		uDist = new double[nBins];
-		du = new double[nBins-1];
-		
-		for (int iu = 0; iu < nBins; iu++)  
-			uDist[iu] = pow(10.0,double(iu)*1.0/(double(nBins)-1.0)*(log10(maxVel)-log10(minVel))+log10(minVel));
-		
-		for (int iu = 0; iu < nBins-1; iu++)
-			du[iu] = uDist[iu+1] - uDist[iu];
 
-        for (int i = 0; i < _pcls.size(); i++)
-		{
-            SpeciesParticle& pcl = _pcls[i];
-            const double u = pcl.get_u();
-            const double v = pcl.get_v();
-            const double w = pcl.get_w();
-            const double q = pcl.get_q();
+        const double lmin = log10(minVel);
+        const double lmax = log10(maxVel);
+        for (int i = 0; i < nBins; i++)
+            edge[i] = pow(10.0, lmin + double(i)/(double(nBins)-1.0)*(lmax-lmin));
+    }
+    else
+    {
+        //* Linear spacing starts at 0, not at minVel — minVel is unused here.
+        //* This matches the original nonrelativistic behaviour.
+        const double dv = maxVel/double(nBins);
+        for (int i = 0; i < nBins; i++)
+            edge[i] = double(i)*dv;
+    }
 
-            Vel = sqrt(u*u + v*v + w*w);
-			bin = floor((log10(Vel)-log10(minVel))/((log10(maxVel)-log10(minVel))/double(nBins-1)));
-			
-			if (bin >= 0 && bin < nBins-1)
-				f[bin] += fabs(q)/du[bin];
-		}
-	}
+    for (int i = 0; i < nBins-1; i++)
+        dw[i] = edge[i+1] - edge[i];
 
-	MPI_Allreduce(MPI_IN_PLACE, f, nBins, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    dw[nBins-1] = dw[nBins-2];
 
-	return f;
+
+    long nbad = 0;                           //* non-finite velocities encountered
+    long nlow = 0;                           //* particles below edge[0] (log case)
+
+    for (int i = 0; i < _pcls.size(); i++)
+    {
+        const SpeciesParticle& pcl = _pcls[i];
+        const double u = pcl.get_u();
+        const double v = pcl.get_v();
+        const double w = pcl.get_w();
+        const double q = pcl.get_q();
+
+        const double Vel = sqrt(u*u + v*v + w*w);
+
+        //* One non-finite value poisons the bin globally via the MPI_SUM
+        //* below, permanently, for every subsequent output cycle. Skip.
+        if (!std::isfinite(Vel) || !std::isfinite(q)) { nbad++; continue; }
+
+        int bin;
+        if (logSpacing)
+        {
+            if (Vel <= 0.0) { nlow++; continue; }          //* log10(0) = -inf
+            const double lmin = log10(minVel);
+            const double lmax = log10(maxVel);
+            bin = int(floor((log10(Vel) - lmin)/((lmax - lmin)/(double(nBins)-1.0))));
+        }
+        else
+        {
+            bin = int(floor(Vel/(maxVel/double(nBins))));
+        }
+
+        if (bin < 0)             { nlow++; continue; }     //* below range: discard
+        if (bin >= nBins)        bin = nBins - 1;          //* above range: overflow bin
+
+        f[bin] += fabs(q)/dw[bin];
+    }
+
+    delete[] edge;
+    delete[] dw;
+
+    MPI_Allreduce(MPI_IN_PLACE, f, nBins, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    //* Report discards once, from rank 0, so a silent NaN or a badly-chosen
+    //* velocity range does not go unnoticed.
+    long nbad_g = 0, nlow_g = 0;
+    MPI_Reduce(&nbad, &nbad_g, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&nlow, &nlow_g, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    int myrank; MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+    if (myrank == 0 && (nbad_g > 0 || nlow_g > 0))
+        printf("getVelocityDistribution: discarded %ld non-finite, %ld below-range particles\n", nbad_g, nlow_g);
+
+    return f;
 }
 
 /** print particles info */

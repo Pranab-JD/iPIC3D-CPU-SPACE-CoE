@@ -552,25 +552,6 @@ bool c_Solver::ParticlesMover()
             particles[i].RelSIM_velocity(EMf);
         else
             particles[i].ECSIM_velocity(EMf);
-
-        // switch(Parameters::get_MOVER_TYPE())
-        // {
-        //     //? ECSIM & RelSIM
-        //     case Parameters::SoA:
-        //         if (col->getRelativistic())
-        //             particles[i].RelSIM_velocity(EMf);
-        //         else
-        //             particles[i].ECSIM_velocity(EMf);
-        //     break;
-        //     case Parameters::AoS:
-        //         if (col->getRelativistic())
-        //             particles[i].RelSIM_velocity(EMf);
-        //         else
-        //             particles[i].ECSIM_velocity(EMf);
-        //     break;
-        //     default:
-        //     unsupported_value_error(Parameters::get_MOVER_TYPE());
-        // }
     }
 
     #ifdef __PROFILING__
@@ -585,17 +566,6 @@ bool c_Solver::ParticlesMover()
     for (int i = 0; i < ns; i++)
     {
         particles[i].ECSIM_position(EMf);
-
-        // switch(Parameters::get_MOVER_TYPE())
-        // {
-        //     case Parameters::SoA:
-        //         particles[i].ECSIM_position(EMf);
-        //     break;
-        //     case Parameters::AoS:
-        //         particles[i].ECSIM_position(EMf);
-        //     break;
-        // }
-
         particles[i].openbc_particles_outflow();
         particles[i].separate_and_send_particles();
     }
@@ -832,61 +802,70 @@ void c_Solver::WriteOutput(int cycle)
 		#endif
   	}
 
-    //! Output particle distributions to .txt files
-    if (col->getRelativistic()) 
+    //! Output particle spetra to .txt files
+    if (col->getParticleDistOutputCycle() != 0) 
     {
-        if (col->getParticleDistOutputCycle() != 0) 
+        if (cycle == first_cycle || cycle%(col->getParticleDistOutputCycle()) == 0 || cycle == col->getNcycles() + first_cycle) 
         {
-            if (cycle == first_cycle || cycle%(col->getParticleDistOutputCycle()) == 0 || cycle == col->getNcycles() + first_cycle) 
+            double vmin, vmax;
+            int N_bins = col->getParticleDistBins();
+
+            const bool logSpacing = true;
+
+            double* uDist = new double[N_bins];
+            double* fDist = NULL;              //* allocated by getVelocityDistribution(); caller must delete[]
+
+            char place[128];
+            const char* dirtxt = SaveDirName.c_str();
+            FILE *fd;
+
+            for (int is=0; is<ns; is++) 
             {
-                double vmin, vmax;
-                int N_bins = col->getParticleDistBins();
+                vmin = col->getParticleDistMinVelocity()*fabs(col->getQOM(is));
+                vmax = col->getParticleDistMaxVelocity()*fabs(col->getQOM(is));
 
-                double* uDist = new double[N_bins];
-                double* du = new double[N_bins-1];
-                double* fDist = new double[N_bins-1];
+                sprintf(place, "%s/Spectra_%d.txt", dirtxt, is);
 
-                char place[128];
-                const char* dirtxt = SaveDirName.c_str();
-                FILE *fd;
-                for (int is=0; is<ns; is++) 
+                if (cycle == first_cycle && myrank == 0 && col->getRestart_status() == 0) 
                 {
-                    vmin = col->getParticleDistMinVelocity()*fabs(col->getQOM(is));
-                    vmax = col->getParticleDistMaxVelocity()*fabs(col->getQOM(is));
-                    
-                    //* Output of u (velocity ninning) at first cycle
-                    if (cycle == first_cycle && myrank == 0) 
+                    if (logSpacing)
                     {
-                        for (int iu=0; iu<N_bins; iu++)  
-                            uDist[iu] = pow(10.0,double(iu)*1.0/(double(N_bins)-1.0)*(log10(vmax)-log10(vmin))+log10(vmin));
-                        
-                        for (int iu=0; iu<N_bins-1; iu++)
-                            du[iu] = uDist[iu+1] - uDist[iu];
-            
-                        sprintf(place,"%s/uDist_%d.txt",dirtxt,is);
-                        fd = fopen(place,"w");
-                        
                         for (int iu=0; iu<N_bins; iu++)
-                            fprintf(fd,"%13.6e \n", uDist[iu]);
-                        
-                        fclose(fd);
-                    } 
-                    
-                    fDist = particles[is].getVelocityDistribution(N_bins, vmin, vmax);
-
-                    // Output this species' distribution to txt
-                    if (myrank == 0) 
-                    {
-                        sprintf(place, "%s/fDist_%d_%06d.txt", dirtxt, is, cycle);
-                        fd = fopen(place, "w");
-                        
-                        for (int iu = 0; iu < N_bins-1; iu++)
-                            fprintf(fd, "%13.6e \n", fDist[iu]);
-                        
-                        fclose(fd);
+                            uDist[iu] = pow(10.0, log10(vmin)
+                                          + double(iu)/(double(N_bins)-1.0)*(log10(vmax)-log10(vmin)));
                     }
+                    else
+                    {
+                        const double dv = vmax/double(N_bins);
+                        for (int iu=0; iu<N_bins; iu++)
+                            uDist[iu] = double(iu)*dv;
+                    }
+
+                    fd = fopen(place, "w");        //* "w": truncate — fresh run only
+                    fprintf(fd, "%8s ", "Bins");
+                    for (int iu=0; iu<N_bins; iu++)
+                        fprintf(fd, "%13.6e ", uDist[iu]);
+                    fprintf(fd, "\n");
+                    fclose(fd);
                 }
+
+                fDist = particles[is].getVelocityDistribution(N_bins, vmin, vmax, logSpacing);
+
+                if (myrank == 0) 
+                {
+                    fd = fopen(place, "a");        //* "a": append this cycle's spectrum
+                    fprintf(fd, "%8d ", cycle);
+                    for (int iu = 0; iu < N_bins; iu++)
+                        fprintf(fd, "%13.6e ", fDist[iu]);
+                    fprintf(fd, "\n");
+                    fclose(fd);
+                }
+
+                delete[] fDist;                    //* every rank allocated one; every rank frees it
+                fDist = NULL;
             }
+
+            delete[] uDist;
         }
     }
 }
