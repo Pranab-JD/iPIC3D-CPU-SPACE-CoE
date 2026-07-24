@@ -20,6 +20,11 @@ using namespace iPic3D;
 //? Relativistic double Harris for pair plasma: Maxwellian background, drifting particles in the sheets
 void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf) 
 {
+    //* Custom input parameters for relativistic reconnection
+    const double sigma                  = input_param[0];       //* Magnetisation parameter
+    const double CS_density             = input_param[1];       //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
+    const double CS_thickness           = input_param[2];       //* Half-thickness of current sheet
+
     //! New initial setup
     if (col->getRestart_status() == 0)
     {
@@ -28,30 +33,18 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
         srand(seed);
         srand48(seed);
 
-        assert_eq(_pcls.size(), 0);    
-
-        //* Custom input parameters for relativistic reconnection
-        const double sigma                  = input_param[0];       //* Magnetisation parameter
-        const double eta                    = input_param[1];       //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
-        const double delta_CS               = input_param[2];       //* Half-thickness of current sheet (free parameter)
-        const double perturbation           = input_param[3];       //* Amplitude of initial perturbation
-        const double guide_field_ratio      = input_param[4];       //* Ratio of guide field to in-plane magnetic field
+        assert_eq(_pcls.size(), 0);
         
         //* Background (BG) or upstream particles
         double thermal_spread_BG            = col->getUth(0);                           //* Thermal spread
-        double rho_BG                       = col->getRHOinit(ns)/(4.0*M_PI);           //* Density (rho_BG = n * mc^2)
-        double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
+        double rho_BG                       = col->getRHOinit(0)/(4.0*M_PI);            //* Density (rho_BG = n * mc^2)
+        double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG);              //* sigma = B^2/(4*pi*rho_electron): sigma of electrons or positrons, NOT combined
 
         //* Current sheet (CS) particles
-        double rho_CS                       = eta*rho_BG;                                            //* Density (rho_CS = eta * n * mc^2)
-        double drift_velocity               = B_BG/(8.0*M_PI*rho_CS*delta_CS/c);                     //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
+        double rho_CS                       = CS_density*rho_BG;                                     //* Density (rho_CS = CS_density * n * mc^2)
+        double drift_velocity               = B_BG/(8.0*M_PI*rho_CS*CS_thickness/c);                 //* v = B*c/(8 * pi * rho_CS * CS_thickness); Eq 52
         double lorentz_factor_CS            = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
         double thermal_spread_CS            = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
-    
-        //* Additional params needed for setting up a current sheet
-        double y_half           = Ly/2.0;
-        double y_quarter        = Ly/4.0;
-        double y_three_quarters = 3.0*y_quarter;
 
         const double q_factor = (qom / fabs(qom)) * grid->getVOL()/npcel;
 
@@ -62,12 +55,12 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
                         for (int jj = 0; jj < npcely; jj++)
                             for (int kk = 0; kk < npcelz; kk++) 
                             {
-                                double x = (ii + .5) * (dx / npcelx) + grid->getXN(i, j, k);
-                                double y = (jj + .5) * (dy / npcely) + grid->getYN(i, j, k);
-                                double z = (kk + .5) * (dz / npcelz) + grid->getZN(i, j, k);
+                                double x = (ii + 0.5) * (dx / npcelx) + grid->getXN(i, j, k);
+                                double y = (jj + 0.5) * (dy / npcely) + grid->getYN(i, j, k);
+                                double z = (kk + 0.5) * (dz / npcelz) + grid->getZN(i, j, k);
 
                                 //* Velocities and charges of particles
-                                double u, v, w, q, fs;
+                                double u, v, w, q;
                             
                                 //* Distinguish between background and drifting species
                                 if (ns < 2) 
@@ -81,10 +74,12 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
                                 else 
                                 {
                                     //? Current sheet species (necessary to initialise a current sheet)
-                                    if (y < y_half)
-                                        fs = sech_square((y - y_quarter)/delta_CS);
+                                    double fs;
+
+                                    if (y <= (Ly/2.0))   
+                                        fs = sech_square((y - (Ly/4.0))/CS_thickness);
                                     else              
-                                        fs = sech_square((y - y_three_quarters)/delta_CS);
+                                        fs = sech_square((y - (3.0*Ly/4.0))/CS_thickness);
                             
                                     //* Skip the particle if its weight is too small
                                     if (fabs(fs) < 1.e-8) continue;
@@ -98,7 +93,7 @@ void Particles3D::Relativistic_Double_Harris_pairs(Field * EMf)
                                         sample_Maxwell_Juttner(u, v, w, thermal_spread_CS, lorentz_factor_CS, 3);   //* Positive charges (e.g., positrons)
                                     
                                     //* Flip sign of drift velocity for particles in the second layer
-                                    if (y > y_half)
+                                    if (y > (Ly/2.0))
                                     {
                                         u = -u; 
                                         v = -v; 
@@ -124,97 +119,316 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
     const VirtualTopology3D *vct = &get_vct();
     const Grid *grid = &get_grid();
 
-    //* Custom input parameters for relativistic reconnection
-    const double sigma                  = input_param[0];       //* Magnetisation parameter
-    const double eta                    = input_param[1];       //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
-    const double delta_CS               = input_param[2];       //* Half-thickness of current sheet (free parameter)
-    const double perturbation           = input_param[3];       //* Amplitude of initial perturbation
-    const double guide_field_ratio      = input_param[4];       //* Ratio of guide field to in-plane magnetic field
+    //* Custom input parameters
+    const double    sigma                  = input_param[0];                            //* Magnetisation parameter
+    const double    CS_density             = input_param[1];                            //* Ratio of current sheet density to upstream density (this is "alpha" in Fabio's paper; Eqs 52 and 53)
+    const double    CS_thickness           = input_param[2];                            //* Half-thickness of current sheet
+    const double    guide_field            = input_param[3];                            //* Ratio of guide field to in-plane magnetic field
+    const long long turbulence_seed        = static_cast<long long>(input_param[4]);    //* "Random" turbulence seed (only for phases)
+    const double    turbulence_amplitude   = input_param[5];                            //* Per-component RMS amplitude of turbulent perturbation, normalised to B_BG
+    const int       kmin                   = int(input_param[6]);                       //* Minimum integer turbulent mode number
+    const int       kmax                   = int(input_param[7]);                       //* Maximum integer turbulent mode number
+    const int       turbulence_plane       = int(input_param[8]);                       //* Turbulence plane: 0 -> xy, 1 -> yz, 2 -> zx
+    const double    spectral_index         = std::max(0.0, input_param[9]);             //* Power-law index; E_B(k) ~ k^(-p)
+
+    if (input_param[9] < 0.0 && vct->getCartesian_rank() == 0)
+    {
+        cout << "WARNING: negative spectral_index is clamped to 0 " << endl;
+        cout << "   No particular slope is imposed! " << endl;
+    }
 
     //* Background (BG) or upstream particles
-    double thermal_spread_BG    = col->getUth(0);                           //* Thermal spread
-    double rho_BG               = rhoINIT[0]/(4.0*M_PI);                    //* Density (rho_BG = n * mc^2)
-    double B_BG                 = sqrt(sigma*4.0*M_PI*rho_BG*2.0);          //* sigma = B^2/(4*pi*rho_electron*rho_prositron)
+    double thermal_spread_BG    = col->getUth(0);                                       //* Thermal spread
+    double rho_BG               = rhoINIT[0]/(4.0*M_PI);                                //* Density (rho_BG = n * mc^2)
+    double B_BG                 = sqrt(sigma*4.0*M_PI*rho_BG);                          //* sigma = B^2/(4*pi*rho_electron): sigma of electrons or positrons, NOT combined
 
     //* Current sheet (CS) particles
-    double rho_CS              = eta*rho_BG;                                            //* Density (rho_CS = eta * n * mc^2)
-    double drift_velocity      = B_BG/(2.0*4.0*M_PI*rho_CS*delta_CS/c);                 //* v = B*c/(8 * pi * rho_CS * delta_CS); Eq 52
-    double lorentz_factor_CS   = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);         //* Lorentz factor of the relativistic drifting particles
-    double thermal_spread_CS   = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);        //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
+    double rho_CS               = CS_density*rho_BG;                                    //* Density (rho_CS = CS_density * n * mc^2)
+    double drift_velocity       = B_BG/(8.0*M_PI*rho_CS*CS_thickness/c);                //* v = B*c/(8 * pi * rho_CS * CS_thickness); Eq 52
+    double lorentz_factor_CS    = 1.0/sqrt(1.0 - drift_velocity*drift_velocity);        //* Lorentz factor of the relativistic drifting particles
+    double thermal_spread_CS    = B_BG*B_BG*lorentz_factor_CS/(16.0*M_PI*rho_CS);       //* Thermal spread (B^2 * Gamma/(16 * pi * eta * n * mc^2)); Eq 53
     
+    //* ------------------------------------------------------------------
+    //* Turbulent magnetic perturbation (2D planar, divergence-free)
+    //* ------------------------------------------------------------------
+    //* The perturbation is built from a single out-of-plane vector-potential
+    //* component, so that delta_B = curl(A) is divergence-free by construction.
+    //* The plane selects which potential component is active:
+    //*    turbulence_plane = 0 -> xy : A_z(x,y) -> delta_Bx, delta_By ; delta_Bz = 0
+    //*    turbulence_plane = 1 -> yz : A_x(y,z) -> delta_By, delta_Bz ; delta_Bx = 0
+    //*    turbulence_plane = 2 -> zx : A_y(z,x) -> delta_Bz, delta_Bx ; delta_By = 0
+    //*
+    //* Spectral method (derived from spectral_index):
+    //*    spectral_index >  0 -> power law: weight ~ k^(-(spectral_index+3)/2), E_B(k) ~ k^(-spectral_index)
+    //*    spectral_index == 0 -> random: random Gaussian amplitude on delta_B per mode, no slope imposed
+    //*
+    //* Amplitude: each populated in-plane component is independently rescaled so
+    //* that its RMS equals turbulence_amplitude * B_BG.
+
+    struct TurbMode
+    {
+        double kx; double ky; double kz;
+        double phase; double potential_amplitude;
+    };
+
+    std::vector<TurbMode> modes;
+
+    //* Which two directions the in-plane modes vary in, set by the plane
+    bool vary_x = false; bool vary_y = false; bool vary_z = false;
+
+    if      (turbulence_plane == 0) { vary_x = true;  vary_y = true; }    //* xy : A_z(x,y)
+    else if (turbulence_plane == 1) { vary_y = true;  vary_z = true; }    //* yz : A_x(y,z)
+    else if (turbulence_plane == 2) { vary_z = true;  vary_x = true; }    //* zx : A_y(z,x)
+    else
+    {
+        if (vct->getCartesian_rank() == 0)
+            cout << "Incorrect turbulence plane. Choose 0 for xy, 1 for yz, or 2 for zx" << endl;
+        abort();
+    }
+
+    if (turbulence_amplitude > 0.0 && kmax >= kmin)
+    {
+        std::mt19937_64 rng(turbulence_seed);
+        std::uniform_real_distribution<double> phase_dist(0.0, 2.0*M_PI);
+        std::normal_distribution<double>       gauss_dist(0.0, 1.0);
+
+        //* Fundamental wavenumbers of the box in each direction
+        const double k0x = 2.0*M_PI/Lx;
+        const double k0y = 2.0*M_PI/Ly;
+        const double k0z = 2.0*M_PI/Lz;
+
+        //* Reference wavenumber for the power-law weight (smallest active fundamental)
+        double k0_ref = 0.0;
+        if (vary_x) k0_ref = (k0_ref == 0.0) ? k0x : std::min(k0_ref, k0x);
+        if (vary_y) k0_ref = (k0_ref == 0.0) ? k0y : std::min(k0_ref, k0y);
+        if (vary_z) k0_ref = (k0_ref == 0.0) ? k0z : std::min(k0_ref, k0z);
+
+        //* Power-law weight exponent on the potential (2D, d = 2):
+        //*     E_B(k) ~ k^(d-1) * k^2 |A_k|^2 = k^(d+1) |A_k|^2 = k^(-p)
+        //*     =>  |A_k| ~ k^(-(p+3)/2)
+        const double weight_exponent = -0.5*(spectral_index + 3.0);
+
+        //* Finalise one mode given its integer mode numbers and random factor
+        auto append_mode = [&](int nx, int ny, int nz, double random_factor)
+        {
+            double kx = vary_x ? double(nx)*k0x : 0.0;
+            double ky = vary_y ? double(ny)*k0y : 0.0;
+            double kz = vary_z ? double(nz)*k0z : 0.0;
+
+            double k_mag = sqrt(kx*kx + ky*ky + kz*kz);
+
+            if (k_mag == 0.0)   return;
+
+            //* POWER LAW (spectral_index > 0): weight potential by k^(-(p+3)/2) -> E_B(k) ~ k^(-p)
+            //* RANDOM    (spectral_index == 0): random amplitude on delta_B directly. Since
+            //*             delta_B = curl(A) carries a factor of k, a field amplitude that is
+            //*             purely the random factor needs potential ~ random/k.
+            double potential_weight = (spectral_index > 0.0) ? pow(k_mag/k0_ref, weight_exponent) : 1.0/k_mag;
+
+            TurbMode mode;
+            mode.kx                  = kx;
+            mode.ky                  = ky;
+            mode.kz                  = kz;
+            mode.phase               = phase_dist(rng);
+            mode.potential_amplitude = random_factor * potential_weight;
+            modes.push_back(mode);
+        };
+
+        //* Excite every integer mode in the band [kmin, kmax]
+        //* Iterate over a half-space of mode numbers to avoid 
+        //* double-counting +(n) and -(n) (the same real mode)
+
+        const int range_x = vary_x ? kmax : 0;
+        const int range_y = vary_y ? kmax : 0;
+        const int range_z = vary_z ? kmax : 0;
+
+        for (int nx = 0; nx <= range_x; nx++)
+            for (int ny = -range_y; ny <= range_y; ny++)
+                for (int nz = -range_z; nz <= range_z; nz++)
+                {
+                    //* Half-space selection: first non-zero leading component
+                    //* positive; skip the mirror image and the zero mode.
+                    if (nx < 0) continue;
+                    if (nx == 0 && ny < 0) continue;
+                    if (nx == 0 && ny == 0 && nz <= 0) continue;
+
+                    double n_mag = sqrt(double(nx*nx + ny*ny + nz*nz));
+
+                    if (n_mag < double(kmin)) continue;
+                    if (n_mag > double(kmax)) continue;
+
+                    double random_factor = (spectral_index > 0.0) ? 1.0 : gauss_dist(rng);
+
+                    append_mode(nx, ny, nz, random_factor);
+                }
+    }
+
+    //? Curl of vector potential, summed over modes. Only the two in-plane
+    //? field components are non-zero for each plane; the third is zero.
+    
+    //* xy: A = A_z z_hat -> delta_Bx =  dA_z/dy , delta_By = -dA_z/dx
+    auto turb_Bx = [&](double x, double y, double z)
+    {
+        double dBx = 0.0;
+        for (int m = 0; m < int(modes.size()); m++)
+        {
+            double arg = modes[m].kx*x + modes[m].ky*y + modes[m].kz*z + modes[m].phase;
+            double s   = sin(arg);
+            if      (turbulence_plane == 0) dBx += -modes[m].ky * modes[m].potential_amplitude * s;     //* xy:  dA_z/dy
+            else if (turbulence_plane == 2) dBx +=  modes[m].kz * modes[m].potential_amplitude * s;     //* zx: -dA_y/dz
+            //* yz: delta_Bx = 0
+        }
+        return dBx;
+    };
+
+    //* yz: A = A_x x_hat -> delta_By =  dA_x/dz , delta_Bz = -dA_x/dy
+    auto turb_By = [&](double x, double y, double z)
+    {
+        double dBy = 0.0;
+        for (int m = 0; m < int(modes.size()); m++)
+        {
+            double arg = modes[m].kx*x + modes[m].ky*y + modes[m].kz*z + modes[m].phase;
+            double s   = sin(arg);
+            if      (turbulence_plane == 0) dBy +=  modes[m].kx * modes[m].potential_amplitude * s;     //* xy: -dA_z/dx
+            else if (turbulence_plane == 1) dBy += -modes[m].kz * modes[m].potential_amplitude * s;     //* yz:  dA_x/dz
+            //* zx: delta_By = 0
+        }
+        return dBy;
+    };
+
+    //* zx: A = A_y y_hat -> delta_Bz =  dA_y/dx , delta_Bx = -dA_y/dz
+    auto turb_Bz = [&](double x, double y, double z)
+    {
+        double dBz = 0.0;
+        for (int m = 0; m < int(modes.size()); m++)
+        {
+            double arg = modes[m].kx*x + modes[m].ky*y + modes[m].kz*z + modes[m].phase;
+            double s   = sin(arg);
+            if      (turbulence_plane == 1) dBz +=  modes[m].ky * modes[m].potential_amplitude * s;     //* yz: -dA_x/dy
+            else if (turbulence_plane == 2) dBz += -modes[m].kx * modes[m].potential_amplitude * s;     //* zx:  dA_y/dx
+            //* xy: delta_Bz = 0
+        }
+        return dBz;
+    };    
+
     //! New initial setup
     if (col->getRestart_status() == 0) 
     {
         if (vct->getCartesian_rank() == 0) 
         {
+            const char* plane_name = (turbulence_plane == 0) ? "xy" : (turbulence_plane == 1) ? "yz" : "zx";
+
             cout << "-----------------------------------------------------------"   << endl;
             cout << "Relativistic double Harris sheet for pair plasma"              << endl;
             cout << "-----------------------------------------------------------"   << endl << endl; 
 
-            cout << "Ratio of CS density to upstream density            = " << eta                      << endl;
-            cout << "Perturbation amplitude                             = " << perturbation             << endl; 
-            cout << "Ratio of guide magnetic field to background field  = " << guide_field_ratio        << endl << endl; 
+            cout << "Ratio of CS density to upstream density            = " << CS_density                       << endl;
+            cout << "Ratio of guide magnetic field to background field  = " << guide_field                      << endl;
+            cout << "Turbulent perturbation amplitude (dB/B0)           = " << turbulence_amplitude             << endl;
+            cout << "Number of turbulent modes                          = " << modes.size()                     << endl;
+            cout << "Turbulent mode range                               = " << kmin << " to " << kmax           << endl;
+            cout << "Spectral method                                    = " << (spectral_index > 0.0 ? "power law" : "random (no slope)") << endl;
+            if (spectral_index > 0.0)
+            cout << "Spectral index p in E_B(k) ~ k^(-p)                = " << spectral_index << endl;
+            cout << "Turbulence plane                                   = " << plane_name << " (delta_Bz " << (turbulence_plane == 0 ? "= 0" : "!= 0") << ")" << endl;
+            cout << "Turbulence seed                                    = " << turbulence_seed                  << endl << endl;
             
-            cout << "BACKGROUND/UPSTREAM:"                                                              << endl;
-            cout << "   Magnetisation parameter                 = " << sigma                            << endl; 
-            cout << "   Plasma beta                             = " << 2.0*rho_BG*thermal_spread_BG/(B_BG*B_BG/2.0/FourPI)  << endl;
-            cout << "   Thermal spread                          = " << thermal_spread_BG                << endl << endl;
+            cout << "BACKGROUND/UPSTREAM:"                                                                      << endl;
+            cout << "   Magnetisation parameter                         = " << sigma                            << endl; 
+            cout << "   Plasma beta                                     = " << 2.0*rho_BG*thermal_spread_BG/(B_BG*B_BG/(8.0*M_PI))  << endl;
+            cout << "   Thermal spread                                  = " << thermal_spread_BG                << endl << endl;
             
-            cout << "CURRENT SHEET:"                                                                    << endl;
-            cout << "   Thermal spread of drifiting particles   = " << thermal_spread_CS                << endl; 
-            cout << "   Lorentz factor of drifiting particles   = " << lorentz_factor_CS                << endl; 
+            cout << "CURRENT SHEET:"                                                                            << endl;
+            cout << "   Thermal spread of drifiting particles           = " << thermal_spread_CS                << endl; 
+            cout << "   Lorentz factor of drifiting particles           = " << lorentz_factor_CS                << endl; 
                     
             cout << "-----------------------------------------------------------"   << endl;
         }
   
         //* Params for setting up current sheet
-        double x14=Lx/4.0;
-        double x34=3.0*Lx/4.0;
-        double y12=Ly/2.0;
-        double y14=Ly/4.0;
-        double y34=3.0*Ly/4.0;
-        double ym=Ly;   // 4 times the perturbation height
-        double xm=Lx;   // perturbation wavelength
+        double xN, yN, zN, yh, fBx;
 
-        double xN, yN, yh, xh, cosyh, cosxh, sinyh, sinxh;
-        double fBx, fBy;
+        //* Measure the RMS of each turbulent component so that each can be
+        //* normalised independently to turbulence_amplitude * B_BG.
+        double local_sumsq_Bx = 0.0;
+        double local_sumsq_By = 0.0;
+        double local_sumsq_Bz = 0.0;
+        double local_count    = 0.0;
 
+        for (int i = 1; i < nxc-1; i++)
+            for (int j = 1; j < nyc-1; j++)
+                for (int k = 1; k < nzc-1; k++)
+                {
+                    xN = grid->getXC(i, j, k);
+                    yN = grid->getYC(i, j, k);
+                    zN = grid->getZC(i, j, k);
+
+                    double dBx = turb_Bx(xN, yN, zN);
+                    double dBy = turb_By(xN, yN, zN);
+                    double dBz = turb_Bz(xN, yN, zN);
+
+                    local_sumsq_Bx += dBx*dBx;
+                    local_sumsq_By += dBy*dBy;
+                    local_sumsq_Bz += dBz*dBz;
+                    local_count    += 1.0;
+                }
+
+        double global_sumsq_Bx = 0.0;
+        double global_sumsq_By = 0.0;
+        double global_sumsq_Bz = 0.0;
+        double global_count    = 0.0;
+
+        MPI_Allreduce(&local_sumsq_Bx, &global_sumsq_Bx, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&local_sumsq_By, &global_sumsq_By, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&local_sumsq_Bz, &global_sumsq_Bz, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&local_count,    &global_count,    1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        //* Independent per-component scale factors
+        double scale_Bx = 0.0;
+        double scale_By = 0.0;
+        double scale_Bz = 0.0;
+
+        if (turbulence_amplitude > 0.0 && global_count > 0.0)
+        {
+            double target_rms = turbulence_amplitude * B_BG;
+            if (global_sumsq_Bx > 0.0) scale_Bx = target_rms / sqrt(global_sumsq_Bx/global_count);
+            if (global_sumsq_By > 0.0) scale_By = target_rms / sqrt(global_sumsq_By/global_count);
+            if (global_sumsq_Bz > 0.0) scale_Bz = target_rms / sqrt(global_sumsq_Bz/global_count);
+        }
+
+        //* Initialise B at cell centres
         for (int i = 1; i < nxc-1; i++)
             for (int j = 1; j < nyc-1; j++)
                 for (int k = 1; k < nzc-1; k++) 
                 {
-                    double xN = grid->getXC(i, j, k);
-                    double yN = grid->getYC(i, j, k);
-                    if (yN <= y12) 
+                    xN = grid->getXC(i, j, k);
+                    yN = grid->getYC(i, j, k);
+                    zN = grid->getZC(i, j, k);
+
+                    if (yN <= (Ly/2.0))
                     {
-                        yh = yN-y14;
-                        xh = xN-x14;
+                        yh  = yN-(Ly/4.0);
                         fBx = -1.0;
-                        fBy = 1.0;
                     }
-                    else 
+                    else
                     {
-                        yh = yN-y34;
-                        xh = xN-x34;
+                        yh  = yN-(3.0*Ly/4.0);
                         fBx = 1.0;
-                        fBy = -1.0;
                     }
 
-                    cosyh = cos(2.0*M_PI*yh/ym);
-                    cosxh = cos(2.0*M_PI*xh/xm);
-                    sinyh = sin(2.0*M_PI*yh/ym);
-                    sinxh = sin(2.0*M_PI*xh/xm);
-        
-                    Bxc[i][j][k] = fBx * B_BG * tanh(yh/delta_CS);
-                    
-                    //* Add perturbation
-                    Bxc[i][j][k] = Bxc[i][j][k] * (1.0 + perturbation*cosxh*cosyh*cosyh) + fBx*2.0*perturbation*cosxh*2.0*M_PI/ym*cosyh*sinyh 
-                                                * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-B_BG*delta_CS*LOG_COSH(yh/delta_CS));
-        
-                    Byc[i][j][k] = fBy*2.0*perturbation*M_PI/xm*sinxh*cosyh*cosyh * (B_BG*delta_CS*LOG_COSH(y14/delta_CS)-delta_CS*B_BG*LOG_COSH(yh/delta_CS));
-        
+                    //* Reconnecting/reversing field
+                    Bxc[i][j][k] = fBx * B_BG * tanh(yh/CS_thickness);
+
+                    //* Normal-to-current-sheet field
+                    Byc[i][j][k] = 0.0;
+
                     //* Guide field
-                    Bzc[i][j][k] = B_BG*guide_field_ratio;
+                    Bzc[i][j][k] = B_BG*guide_field;
+
+                    //* Add divergence-free turbulence; each component scaled to the exact amplitude
+                    Bxc[i][j][k] += scale_Bx * turb_Bx(xN, yN, zN);
+                    Byc[i][j][k] += scale_By * turb_By(xN, yN, zN);
+                    Bzc[i][j][k] += scale_Bz * turb_Bz(xN, yN, zN);
                 }
 
         for (int i = 0; i < nxn; i++)
@@ -225,6 +439,19 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
                     Ex[i][j][k] = 0.0;
                     Ey[i][j][k] = 0.0;
                     Ez[i][j][k] = 0.0;
+
+                    //* Initialize rho on nodes
+                    yN = grid->getYN(i, j, k);
+                    if (yN <= (Ly/2.0))   yh = yN - (Ly/4.0);
+                    else                  yh = yN - (3.0*Ly/4.0);
+
+                    const double fs = sech_square(yh/CS_thickness);
+
+                    for (int is = 0; is < ns; is++)
+                    {
+                        const double profile = (is < 2) ? 1.0 : CS_density * fs;
+                        rhons[is][i][j][k] = (rhoINIT[is] / FourPI) * profile;
+                    }
                 }
         
         //* Communicate ghost data at cell centres
@@ -232,10 +459,13 @@ void EMfields3D::init_Relativistic_Double_Harris_pairs()
         communicateCenterBC(nxc, nyc, nzc, Byc, col->bcBy[0],col->bcBy[1],col->bcBy[2],col->bcBy[3],col->bcBy[4],col->bcBy[5], vct, this);
         communicateCenterBC(nxc, nyc, nzc, Bzc, col->bcBz[0],col->bcBz[1],col->bcBz[2],col->bcBz[3],col->bcBz[4],col->bcBz[5], vct, this);
 
-        //* Initialise B on nodes
+        //* Initialise B on nodes and rho at cell centres
         grid->interpC2N(Bxn, Bxc);
         grid->interpC2N(Byn, Byc);
         grid->interpC2N(Bzn, Bzc);
+        
+        for (int is = 0; is < ns; is++)
+            grid->interpN2C(rhocs, is, rhons);
        
         //* Communicate ghost data on nodes
         communicateNodeBC(nxn, nyn, nzn, Bxn, col->bcBx[0],col->bcBx[1],col->bcBx[2],col->bcBx[3],col->bcBx[4],col->bcBx[5], vct, this);
