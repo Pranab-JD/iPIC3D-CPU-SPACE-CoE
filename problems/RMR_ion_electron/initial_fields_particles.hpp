@@ -37,9 +37,9 @@ void Particles3D::Relativistic_Double_Harris_ion_electron(Field * EMf)
 
         //* Background (BG) or upstream particles
         double thermal_spread_BG_electrons  = col->getUth(0);                           //* Thermal spread of electrons
-        double thermal_spread_BG_ions       = col->getUth(1);                           //* Thermal spread of ions
-        double rho_BG                       = col->getRHOinit(1)/(4.0*M_PI);            //* Density (rho_BG = n * mc^2)
-        double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG);              //* sigma = B^2/(4*pi*rho_electrons)
+        double thermal_spread_BG_ions       = col->getUth(1);                           //* Thermal spread of ions 
+        double rho_BG                       = col->getRHOinit(1)/(4.0*M_PI);            //* Density (rho_BG_ions = n * mc^2); read for ALL species
+        double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG);              //* sigma = B^2/(4*pi*rho_ions); B_BG is a global property of the upstream, not of the species currently being initialised
         
         //* Current sheet (CS) particles
         double rho_CS                       = CS_density*rho_BG;                                    //* Density (rho_CS = CS_density * n * mc^2)
@@ -144,8 +144,12 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
     //* Background (BG) or upstream particles
     double thermal_spread_BG_electrons  = col->getUth(0);                                   //* Thermal spread of electrons
     double thermal_spread_BG_ions       = col->getUth(1);                                   //* Thermal spread of ions
-    double rho_BG                       = rhoINIT[1]/(4.0*M_PI);                            //* Density (rho_BG = n * mc^2)
-    double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG);                      //* sigma = B^2/(4*pi*rho_ions)
+    double rho_BG                       = rhoINIT[1]/(4.0*M_PI);                            //* Density (rho_BG_ions = n * mc^2); read for ALL species
+    double B_BG                         = sqrt(sigma*4.0*M_PI*rho_BG);                      //* sigma = B^2/(4*pi*rho_ions); B_BG is a global property of the upstream, not of the species currently being initialised
+
+    const double gamma_mean_e           = 1.0 + thermal_spread_BG_electrons*(6.0 + 15.0*thermal_spread_BG_electrons)/(4.0 + 5.0*thermal_spread_BG_electrons);
+    const double sigma_e_cold           = sigma * fabs(col->getQOM(0));                     //* B^2/(4 pi n m_e c^2)
+    const double sigma_e_hot            = sigma_e_cold / gamma_mean_e;                      //* B^2/(4 pi n <gamma_e> m_e c^2)
 
     //* Current sheet (CS) particles
     double rho_CS                       = CS_density*rho_BG;                                //* Density (rho_CS = CS_density * n * mc^2)
@@ -340,16 +344,22 @@ void EMfields3D::init_Relativistic_Double_Harris_ion_electron()
             cout << "Turbulence seed                                    = " << turbulence_seed                  << endl << endl;
 
             cout << "BACKGROUND/UPSTREAM:"                                                                      << endl;
-            cout << "   Magnetisation parameter (ions)                  = " << sigma                            << endl;
-            cout << "   Plasma beta (ions)                              = " << rho_BG*thermal_spread_BG_ions /fabs(col->getQOM(1))     /(B_BG*B_BG/(8.0*M_PI)) << endl;
-            cout << "   Plasma beta (electrons)                         = " << rho_BG*thermal_spread_BG_electrons/fabs(col->getQOM(0)) /(B_BG*B_BG/(8.0*M_PI)) << endl;
-            cout << "   Thermal spread of ions                          = " << thermal_spread_BG_ions           << endl;
-            cout << "   Thermal spread of electrons                     = " << thermal_spread_BG_electrons      << endl << endl;
+            cout << "   IONS:"                                                                                  << endl;
+            cout << "       Magnetisation parameter                     = " << sigma                            << endl;
+            cout << "       Plasma beta                                 = " << rho_BG*thermal_spread_BG_ions/fabs(col->getQOM(1))/(B_BG*B_BG/(8.0*M_PI)) << endl;
+            cout << "       Thermal spread                              = " << thermal_spread_BG_ions           << endl;
+
+            cout << "   ELECTRONS:"                                                                             << endl;
+            cout << "       Magnetisation parameter (cold)              = " << sigma_e_cold                     << endl;
+            cout << "       Magnetisation parameter (hot)               = " << sigma_e_hot                      << endl;
+            cout << "       Plasma beta                                 = " << rho_BG*thermal_spread_BG_electrons/fabs(col->getQOM(0))/(B_BG*B_BG/(8.0*M_PI)) << endl;
+            cout << "       Thermal spread                              = " << thermal_spread_BG_electrons      << endl;
+            cout << "       Mean Lorentz factor                         = " << gamma_mean_e                     << endl;
 
             cout << "CURRENT SHEET:"                                                                            << endl;
             cout << "   Thermal spread of drifting ions                 = " << thermal_spread_CS_ions           << endl;
             cout << "   Thermal spread of drifting electrons            = " << thermal_spread_CS_electrons      << endl;
-            cout << "   Lorentz factor of drifting particles            = " << lorentz_factor_CS                << endl;
+            cout << "   Lorentz factor of drifting particles            = " << lorentz_factor_CS                << endl << endl;
 
             cout << "-----------------------------------------------------------"   << endl;
         }
