@@ -34,26 +34,33 @@ Writes reconnection_rate.txt with dpsi and R for CS1, CS2, total and average.
 Usage
 -----
   SCRIPT="../postprocessing_tools/python/Reconnection_rate_3D.py"
-  DATA_DIR="/gpfs/scratch/ehpc765/pjd/RMR/sigma_1/Bz_0/slope_1.66_amp_0.40/xy/"
+  DATA_DIR="/scratch/.../Bz_0.5/"
   OUT_DIR="${DATA_DIR}/reconnection"
 
-  XLEN=64; YLEN=2; ZLEN=64
-  xmin=0; xmax=55
-  ymin=0; ymax=110
-  zmin=0; zmax=55
+  xmin=0; xmax=128
+  ymin=0; ymax=256
+  zmin=0; zmax=128
 
   srun python3 "$SCRIPT" "$DATA_DIR" "$OUT_DIR" \
-      "$XLEN" "$YLEN" "$ZLEN" \
       $xmin $xmax $ymin $ymax $zmin $zmax \
-      --nxc 128 --nyc 256 --nzc 128 \
-      --sigma 1 \
-      --time-denom 5 \
-      --cycle-start 0 --cycle-end 20000 --cycle-step 100 \
-      --z-planes 0,0.25,0.5,0.75
+      --nxc 768 --nyc 1536 --nzc 768 \
+      --sigma 5 --time-denom 10 --mapping A \
+      --cycle-start 0 --cycle-end 20000 --cycle-step 500 \
+      --cycle-chunk 2 --ez-smooth 21
 
-  Box lengths are derived from the extents: Lx = xmax - xmin, etc., then
-  dx = Lx/nxc. Both the extents and nxc/nyc/nzc are yours to set; the code
-  applies no default and no relation between them beyond that division.
+  ALWAYS WRITTEN, no flag needed:
+     R_rate_plane_avg.txt/.png  measure Delta psi on EVERY z-plane, average
+                                the RESULTS. Immune to islands sitting at
+                                different x for different z.
+     R_rate_field_avg.txt/.png  average the FIELD along z (<B>_z and <Ez>_z),
+                                then measure once. This is the k_z = 0 mode.
+
+  Each figure has two panels: left from B (d(Delta psi)/dt), right from Ez
+  (-c[Ez_X - Ez_O], no time derivative). Four curves that should agree.
+
+  Box lengths are derived from the extents: Lx = xmax - xmin, then dx = Lx/nxc.
+  Both the extents and nxc/nyc/nzc are yours to set; the code imposes no
+  relation between them beyond that division.
 """
 
 import os
@@ -282,6 +289,7 @@ def assemble_chunk(cycles, local_files, pid_to_ijk, tile_shape,
 
     locBx = np.zeros((nc, nxg, nyg), dtype=work_dtype)
     locBy = np.zeros((nc, nxg, nyg), dtype=work_dtype)
+    locEz = np.zeros((nc, nxg, nyg), dtype=work_dtype) if HAVE_EZ else None
     loccnt = np.zeros((nxg, nyg), dtype=np.int32)     ###! z-planes per column
     locfound = np.zeros(nc, dtype=np.int32)           ###! tiles supplying each cycle
     loctiles = np.zeros(1, dtype=np.int32)            ###! tiles this rank processed
@@ -331,6 +339,7 @@ def assemble_chunk(cycles, local_files, pid_to_ijk, tile_shape,
                 for ci, cyc in enumerate(cycles):
                     pBx = f"fields/Bx/{cyc}"
                     pBy = f"fields/By/{cyc}"
+                    pEz = f"fields/Ez/{cyc}"
 
                     if pBx not in f or pBy not in f:
                         continue      ###! missing cycle -> caught by the partial check
@@ -340,6 +349,10 @@ def assemble_chunk(cycles, local_files, pid_to_ijk, tile_shape,
                         by = np.asarray(f[pBy][xs:, ys:, zs:zs + nz_take], dtype=np.float64)
                         locBx[ci, gx0:gx0 + nx_use, gy0:gy0 + ny_use] += bx.sum(axis=2)
                         locBy[ci, gx0:gx0 + nx_use, gy0:gy0 + ny_use] += by.sum(axis=2)
+                        if HAVE_EZ and pEz in f:
+                            ez = np.asarray(f[pEz][xs:, ys:, zs:zs + nz_take],
+                                            dtype=np.float64)
+                            locEz[ci, gx0:gx0+nx_use, gy0:gy0+ny_use] += ez.sum(axis=2)
 
                     for m, rk in owned:
                         locBxs[m, ci, gx0:gx0 + nx_use, gy0:gy0 + ny_use] += \
@@ -369,6 +382,7 @@ def assemble_chunk(cycles, local_files, pid_to_ijk, tile_shape,
 
     Bx = red_f(locBx)
     By = red_f(locBy)
+    Ez = red_f(locEz) if HAVE_EZ else None
     Bxs = red_f(locBxs) if nsl else None
     Bys = red_f(locBys) if nsl else None
 
@@ -419,8 +433,10 @@ def assemble_chunk(cycles, local_files, pid_to_ijk, tile_shape,
 
     Bx /= cnt[None, :, :]
     By /= cnt[None, :, :]
+    if Ez is not None:
+        Ez /= cnt[None, :, :]
 
-    return dict(Bx=Bx, By=By, Bxs=Bxs, Bys=Bys,
+    return dict(Bx=Bx, By=By, Ez=Ez, Bxs=Bxs, Bys=Bys,
                 zcount=int(cnt.min()), found=found, ntiles=ntiles)
 
 
@@ -580,6 +596,7 @@ def dpsi_from_neutral_line(Bx, psi, j_lo, j_hi):
     the pathological case (count >> nx means noise, not structure).
     """
     vals = []
+    locs = []                                   ###! (i, j, w) of each sample
     for i in range(Bx.shape[0]):
         col = Bx[i, j_lo:j_hi + 1]
         s = np.sign(col)
@@ -599,12 +616,50 @@ def dpsi_from_neutral_line(Bx, psi, j_lo, j_hi):
                 continue                            ###! degenerate flat-zero pair
             w = b0 / (b0 - b1)                      ###! in [0,1); w = 0 if b0 == 0
             vals.append(psi[i, j] * (1.0 - w) + psi[i, j + 1] * w)
+            locs.append((i, j, w))
 
     if len(vals) < 2:
-        return np.nan, 0
+        return np.nan, 0, None, None, None
 
     v = np.asarray(vals)
-    return float(v.max() - v.min()), int(v.size)
+    return (float(v.max() - v.min()), int(v.size), locs,
+            int(np.argmax(v)), int(np.argmin(v)))
+
+
+def sample_at(field, loc):
+    """Linear interpolation of `field` at a neutral-line sample point (i, j, w)."""
+    if loc is None:
+        return np.nan
+    i, j, w = loc
+    return float(field[i, j] * (1.0 - w) + field[i, j + 1] * w)
+
+
+def ez_at(Ez, locs, idx, nsmooth):
+    """
+    E_z at one extremum of psi on the neutral line, optionally averaged over
+    `nsmooth` consecutive samples ALONG THE LINE, centred on that extremum.
+
+    Sampling E_z at a single point is a 2-sample estimate of a field carrying
+    full PIC shot noise -- Delta psi, by contrast, is a double integral of B
+    over the whole plane. That asymmetry is the entire reason the E-based
+    curve is noisier. Averaging N samples cuts it as 1/sqrt(N):
+
+        N =  5  -> x0.45      N = 11 -> x0.30      N = 21 -> x0.22
+
+    psi is stationary at a critical point, so E_z varies little across a
+    modest neighbourhood and the bias introduced is small. The list is
+    ordered by x-column, so consecutive entries are adjacent columns and the
+    index wraps periodically -- exact when there is one crossing per column
+    (npts == nxg), approximate when the sheet folds.
+    """
+    if locs is None or idx is None:
+        return np.nan
+    n = len(locs)
+    h = max(0, int(nsmooth) // 2)
+    if h == 0 or n < 3:
+        return sample_at(Ez, locs[idx])
+    ids = [(idx + m) % n for m in range(-h, h + 1)]
+    return float(np.mean([sample_at(Ez, locs[q]) for q in ids]))
 
 
 def find_sheet_centre(prof, lo, hi):
@@ -717,7 +772,7 @@ p.add_argument("--B0", type=float, default=None,
 p.add_argument("--cycle-start", type=int, default=0)
 p.add_argument("--cycle-end",   type=int, default=20000)
 p.add_argument("--cycle-step",  type=int, default=500)
-p.add_argument("--cycle-chunk", type=int, default=5,
+p.add_argument("--cycle-chunk", type=int, default=10,
                help="Cycles held in memory at once (files-outermost within a chunk). "
                     "Memory ~ chunk * 2 * nxg * nyg * 8 bytes per rank; halve it "
                     "again per requested --z-planes. Reduce for very large grids.")
@@ -734,6 +789,31 @@ p.add_argument("--z-planes", type=str, default=None,
                     "is not exactly 2D-solenoidal -- the Poisson solve still gives "
                     "a well-defined psi but watch the resid column, which will be "
                     "larger than for the z-average.")
+p.add_argument("--z-reduce", type=str, default="mean", choices=["mean", "total"],
+               help="How --per-plane-average combines the z-planes. 'mean' (default) "
+                    "gives mean_k[dpsi], and R is the usual dimensionless rate. "
+                    "'total' gives Phi_tot = sum_k dpsi*dz = mean*Lz, the total "
+                    "reconnected flux through the layer, and R_total = dPhi/dt/(B0 vA), "
+                    "which carries units of length. NOTE the two differ ONLY by the "
+                    "constant factor Lz, so the CURVE SHAPE, sign flips, zero "
+                    "crossings and peak position are identical. Dividing R_total by "
+                    "Lz recovers R_mean exactly.")
+p.add_argument("--check-xo", action="store_true",
+               help="Write xo_check.txt verifying that the reported psi extrema "
+                    "really are X- and O-points. Reports |By| at each extremum "
+                    "normalised to its typical value along the same neutral line "
+                    "(should be <<1; ~1e-16 analytically), the x-positions, and "
+                    "Ez at each point separately -- the O-point should carry "
+                    "Ez ~ 0 while the X-point carries the reconnection field.")
+p.add_argument("--ez-smooth", type=int, default=1,
+               help="Average Ez over this many consecutive neutral-line samples "
+                    "around each psi extremum before forming the E-based rate. "
+                    "1 = no smoothing (single point). Ez is a raw grid quantity "
+                    "with full PIC shot noise sampled at just two points, so the "
+                    "E-curve is much noisier than the flux curve; N samples cut "
+                    "that as 1/sqrt(N) (N=11 -> x0.30). psi is stationary at a "
+                    "critical point, so the bias over a modest neighbourhood is "
+                    "small. 11-21 is a sensible range. Affects E_CS* only.")
 p.add_argument("--no-exclude-last-z", action="store_true",
                help="Keep the top global z node in the average (use if z is NOT periodic)")
 
@@ -751,6 +831,17 @@ p.add_argument("--mapping", type=str, default="auto",
                choices=["auto", "A", "B", "C", "D", "E", "F"])
 
 args = p.parse_args()
+
+###! Both estimators are ALWAYS produced -- they answer different questions and
+###! the comparison between them is the point:
+###!   R_rate_plane_avg : measure Delta psi on every z-plane, average the RESULTS
+###!   R_rate_field_avg : average the FIELD along z first, then measure once
+###! max-min is nonlinear, so these do not commute. Averaging the field first
+###! cancels islands that sit at different x for different z; measuring each
+###! plane first cannot. On staggered synthetic islands of true flux 2.00,
+###! measure-then-average gives 1.9965 at any stagger while average-then-measure
+###! collapses to 0.0000 at half-box stagger. Their ratio is the coherence C.
+args.per_plane_average = True
 
 work_dtype = np.float32 if args.dtype == "float32" else np.float64
 exclude_last_z = not args.no_exclude_last_z
@@ -825,6 +916,13 @@ if rank == 0:
             raise KeyError(f"Missing dataset {pBy} in {all_files[0]}")
 
         tile_shape = tuple(f[pBx].shape)
+        ###! Ez is OPTIONAL: if the run did not write it, the E-based rate is
+        ###! simply omitted and everything else proceeds unchanged.
+        HAVE_EZ = f"fields/Ez/{first_cycle}" in f
+        if HAVE_EZ and tuple(f[f"fields/Ez/{first_cycle}"].shape) != tile_shape:
+            print("  WARNING: Ez tile shape differs from Bx; disabling E-based rate.",
+                  flush=True)
+            HAVE_EZ = False
         ###! Bx and By must live on the same grid or psi mixes two stencils
         if tuple(f[pBy].shape) != tile_shape:
             raise RuntimeError("Bx and By have different tile shapes -- fields are "
@@ -876,6 +974,7 @@ if rank == 0:
 else:
     all_files, tile_shape, map_name, tied = None, None, None, None
     XLEN = YLEN = ZLEN = None
+    HAVE_EZ = None
 
 all_files  = comm.bcast(all_files, root=0)
 tile_shape = comm.bcast(tile_shape, root=0)
@@ -884,6 +983,7 @@ tied       = comm.bcast(tied, root=0)
 XLEN       = comm.bcast(XLEN, root=0)
 YLEN       = comm.bcast(YLEN, root=0)
 ZLEN       = comm.bcast(ZLEN, root=0)
+HAVE_EZ    = comm.bcast(HAVE_EZ, root=0)
 
 all_maps = {n: fn for n, fn in mapping_candidates(XLEN, YLEN, ZLEN)}
 local_files = all_files[rank::size]
@@ -953,6 +1053,19 @@ if rank == 0:
           f"y[{args.ymin},{args.ymax}] z[{args.zmin},{args.zmax}]", flush=True)
     print(f"Box lengths     : Lx={Lx:.6g}  Ly={Ly:.6g}  Lz={Lz:.6g}", flush=True)
     print(f"Spacing         : dx={dx:.6g}  dy={dy:.6g}  dz={dz:.6g}", flush=True)
+    if HAVE_EZ and args.ez_smooth > 1:
+        ###! Averaging N samples along the neutral line attenuates a mode of
+        ###! wavenumber k by the Dirichlet kernel sin(Nk dx/2)/(N sin(k dx/2)).
+        ###! Harmless while N << nxg, fatal once N approaches the box scale.
+        kdx = 2.0 * np.pi / nxc
+        att = (np.sin(args.ez_smooth * kdx / 2.0)
+               / (args.ez_smooth * np.sin(kdx / 2.0)))
+        print(f"Ez smoothing    : {args.ez_smooth} samples "
+              f"(retains {att:.4f} of the lowest box mode)", flush=True)
+        if args.ez_smooth > nxc // 20:
+            print(f"  WARNING: --ez-smooth {args.ez_smooth} exceeds nxc/20 = "
+                  f"{nxc//20}. The averaging is starting to remove the SIGNAL, "
+                  f"not just the noise.", flush=True)
     print(f"vA/c            : {vA:.6f}  (sigma_i={args.sigma:g}, "
           f"sigma_eff={sigma_eff:.6f})", flush=True)
     print(f"                  {vA_note}", flush=True)
@@ -973,10 +1086,88 @@ zcount_used = None
 B0 = args.B0
 
 ###! ============================================================
+###! Per-plane assembly: one z-tile LAYER at a time, entirely rank-local
+###! ============================================================
+
+def assemble_layer(cycles, layer, files_in_layer, pid_to_ijk, tile_shape,
+                   nxg, nyg, nzg, exclude_last_z, gcomm):
+    """
+    GROUP-COLLECTIVE. Assemble every z-plane of one z-tile layer, for a CHUNK
+    of cycles, cooperatively across the ranks of `gcomm`.
+
+    Two efficiency points over the earlier version:
+
+      * the layer's files are SPLIT across the group and Allreduced, so more
+        ranks than there are layers can be used with NO duplicated I/O;
+      * all cycles in the chunk are read per file OPEN. The files were
+        previously reopened once per cycle -- on Lustre that dominated, at
+        ~5200 opens per rank for a 41-dump, 64-layer run.
+
+    Returns (Bx4, By4, Ez4, ks), each shaped (n_cycles, nxg, nyg, n_planes).
+    """
+    nx_t, ny_t, nz_t = tile_shape
+    nx_c, ny_c, nz_c = nx_t - 1, ny_t - 1, nz_t - 1
+    nc = len(cycles)
+
+    zs_l = 0 if layer == 0 else 1
+    gz0 = layer * nz_c + zs_l
+    nz_use = nz_t - zs_l
+    gz1 = min(gz0 + nz_use, nzg - 1) if exclude_last_z else gz0 + nz_use
+    nz_take = gz1 - gz0
+    if nz_take <= 0:
+        return None, None, None, []
+
+    grank, gsize = gcomm.Get_rank(), gcomm.Get_size()
+    mine = files_in_layer[grank::gsize]          ###! no file read twice
+
+    shape = (nc, nxg, nyg, nz_take)
+    Bx4 = np.zeros(shape); By4 = np.zeros(shape)
+    Ez4 = np.zeros(shape) if HAVE_EZ else None
+    fail = np.zeros(1, dtype=np.int32)
+
+    for fp in mine:
+        i, j, k = pid_to_ijk(proc_id_from_filename(fp))
+        xs = 0 if i == 0 else 1
+        ys = 0 if j == 0 else 1
+        gx0, gy0 = i * nx_c + xs, j * ny_c + ys
+        nxu, nyu = nx_t - xs, ny_t - ys
+        try:
+            with h5py.File(fp, "r") as f:        ###! ONE open, all cycles
+                for ci, cyc in enumerate(cycles):
+                    Bx4[ci, gx0:gx0+nxu, gy0:gy0+nyu, :] = np.asarray(
+                        f[f"fields/Bx/{cyc}"][xs:, ys:, zs_l:zs_l+nz_take],
+                        dtype=np.float64)
+                    By4[ci, gx0:gx0+nxu, gy0:gy0+nyu, :] = np.asarray(
+                        f[f"fields/By/{cyc}"][xs:, ys:, zs_l:zs_l+nz_take],
+                        dtype=np.float64)
+                    if Ez4 is not None:
+                        Ez4[ci, gx0:gx0+nxu, gy0:gy0+nyu, :] = np.asarray(
+                            f[f"fields/Ez/{cyc}"][xs:, ys:, zs_l:zs_l+nz_take],
+                            dtype=np.float64)
+        except Exception as e:
+            fail[0] += 1
+            print(f"  rank {rank}: layer {layer} read failed "
+                  f"{os.path.basename(fp)}: {e}", flush=True)
+            break
+
+    ###! every group member needs the whole layer to analyse its share of planes
+    tot = np.zeros(1, dtype=np.int32)
+    gcomm.Allreduce(fail, tot, op=MPI.SUM)
+    if tot[0] > 0:
+        return None, None, None, []
+    gcomm.Allreduce(MPI.IN_PLACE, Bx4, op=MPI.SUM)
+    gcomm.Allreduce(MPI.IN_PLACE, By4, op=MPI.SUM)
+    if Ez4 is not None:
+        gcomm.Allreduce(MPI.IN_PLACE, Ez4, op=MPI.SUM)
+
+    return Bx4, By4, Ez4, list(range(gz0, gz0 + nz_take))
+
+
+###! ============================================================
 ###! Per-field analysis, shared by the z-average and every single-z plane
 ###! ============================================================
 
-def analyse_field(Bx, By):
+def analyse_field(Bx, By, Ez=None):
     """
     Full flux-function analysis of ONE in-plane field. Returns a record dict,
     or None if the two sheets could not be located.
@@ -1012,20 +1203,167 @@ def analyse_field(Bx, By):
         b1 = (max(0, c1 - h), min(mid - 1, c1 + h))
         b2 = (max(mid, c2 - h), min(nyg - 1, c2 + h))
 
-    d1, n1 = dpsi_from_neutral_line(Bx_search, psi, *b1)
-    d2, n2 = dpsi_from_neutral_line(Bx_search, psi, *b2)
+    d1, n1, L1, imax1, imin1 = dpsi_from_neutral_line(Bx_search, psi, *b1)
+    d2, n2, L2, imax2, imin2 = dpsi_from_neutral_line(Bx_search, psi, *b2)
+
+    ###! INDEPENDENT rate from the electric field.
+    ###!   d(psi)/dt = -c Ez, and dpsi = psi(max) - psi(min), so
+    ###!       d(dpsi)/dt = -c [ Ez(at psi_max) - Ez(at psi_min) ]
+    ###! Verified analytically on a growing tearing mode: the two agree exactly.
+    ###! The extrema move, but grad(psi) = 0 at a critical point, so the
+    ###! advective term vanishes and no frame correction is needed.
+    ###! NOTE this is exact for the Z-AVERAGE (periodic z makes <d_z phi>_z = 0);
+    ###! at a single plane the electrostatic term does not vanish, so E_CS*
+    ###! there is only an approximation to the local reconnection field.
+    if Ez is None:
+        e1 = e2 = np.nan
+    else:
+        ns = args.ez_smooth
+        e1 = -(ez_at(Ez, L1, imax1, ns) - ez_at(Ez, L1, imin1, ns))   ###! c = 1
+        e2 = -(ez_at(Ez, L2, imax2, ns) - ez_at(Ez, L2, imin2, ns))
+
+    ###! ---- X/O identification check ----
+    ###! At a genuine critical point BOTH components vanish:
+    ###!   Bx = d_y psi = 0   -- true everywhere on the neutral line
+    ###!   By = -d_x psi = 0  -- true ONLY where psi is stationary ALONG it
+    ###! So |By| at the reported extremum, measured against its typical value
+    ###! along the same line, is a direct test. On an analytic island the ratio
+    ###! is ~1e-16; anything approaching 1 means the extremum is NOT a critical
+    ###! point and dpsi is not psi_X - psi_O.
+    xo = {}
+    if args.check_xo:
+        By_sol = (-np.gradient(psi, dx, axis=0)
+                  if args.psi_method == "fft" else By)
+        for tag, L_, imx, imn in (("1", L1, imax1, imin1), ("2", L2, imax2, imin2)):
+            if L_ is None:
+                continue
+            byline = np.array([abs(sample_at(By_sol, q)) for q in L_])
+            typ = float(np.mean(byline)) if byline.size else np.nan
+            xo[f"bymax{tag}"] = byline[imx] / typ if typ > 0 else np.nan
+            xo[f"bymin{tag}"] = byline[imn] / typ if typ > 0 else np.nan
+            xo[f"xmax{tag}"] = (L_[imx][0] + L_[imx][2]) * dx
+            xo[f"xmin{tag}"] = (L_[imn][0] + L_[imn][2]) * dx
+            if Ez is not None:
+                xo[f"ezmax{tag}"] = ez_at(Ez, L_, imx, args.ez_smooth)
+                xo[f"ezmin{tag}"] = ez_at(Ez, L_, imn, args.ez_smooth)
 
     return dict(y1=c1, y2=c2, d1=d1, d2=d2, n1=n1, n2=n2, pi=resid,
-                B0m=measure_B0(Bx, c1, c2, nyg))
+                e1=e1, e2=e2, xo=xo, B0m=measure_B0(Bx, c1, c2, nyg))
+
+
+def per_plane_pass(cycles, files_by_layer, my_layers, pid_to_ijk, tile_shape,
+                   nxg, nyg, nzg, exclude_last_z, gcomm):
+    """
+    COLLECTIVE over COMM_WORLD. Measure-then-average over every z-plane, for a
+    CHUNK of cycles at once.
+
+    Work is split twice so no rank idles:
+      * layers across GROUPS of ranks; the group's members split that layer's
+        FILES and Allreduce,
+      * planes within a layer across the members of that group.
+
+    Only per-plane RESULTS are reduced globally, never fields. Averaging the
+    FIELD first (the z-average) cancels islands sitting at different x for
+    different z; measuring each plane first cannot. On staggered synthetic
+    islands of true flux 2.00, measure-then-average gives 1.9965 at every
+    stagger while average-then-measure collapses to 0.0000 at half-box stagger.
+
+    Returns {cycle_number: stats} on rank 0, {} elsewhere.
+    """
+    nc = len(cycles)
+    ###! n, s1, s1sq, s2, s2sq, n_e, e1sum, e2sum
+    loc = np.zeros((nc, 8), dtype=np.float64)
+    lo = np.full((nc, 2), np.inf)
+    hi = np.full((nc, 2), -np.inf)
+
+    grank, gsize = gcomm.Get_rank(), gcomm.Get_size()
+
+    for layer in my_layers:
+        fl = files_by_layer.get(layer, [])
+        if not fl:
+            continue
+        Bx4, By4, Ez4, ks = assemble_layer(cycles, layer, fl, pid_to_ijk,
+                                           tile_shape, nxg, nyg, nzg,
+                                           exclude_last_z, gcomm)
+        if Bx4 is None:
+            continue
+        ###! each group member analyses its own share of this layer's planes
+        for m in range(grank, len(ks), gsize):
+            for ci in range(nc):
+                r = analyse_field(Bx4[ci, :, :, m], By4[ci, :, :, m],
+                                  Ez4[ci, :, :, m] if Ez4 is not None else None)
+                if r is None:
+                    continue
+                loc[ci, 0] += 1.0
+                loc[ci, 1] += r["d1"]; loc[ci, 2] += r["d1"]**2
+                loc[ci, 3] += r["d2"]; loc[ci, 4] += r["d2"]**2
+                lo[ci, 0] = min(lo[ci, 0], r["d1"]); hi[ci, 0] = max(hi[ci, 0], r["d1"])
+                lo[ci, 1] = min(lo[ci, 1], r["d2"]); hi[ci, 1] = max(hi[ci, 1], r["d2"])
+                ###! E-based rate on the same plane; counted separately so a
+                ###! missing Ez cannot poison the average
+                if np.isfinite(r.get("e1", np.nan)):
+                    loc[ci, 5] += 1.0
+                    loc[ci, 6] += r["e1"]; loc[ci, 7] += r["e2"]
+        del Bx4, By4, Ez4
+
+    tot = np.zeros_like(loc); glo = np.zeros_like(lo); ghi = np.zeros_like(hi)
+    comm.Reduce(loc, tot, op=MPI.SUM, root=0)
+    comm.Reduce(lo, glo, op=MPI.MIN, root=0)
+    comm.Reduce(hi, ghi, op=MPI.MAX, root=0)
+    if rank != 0:
+        return {}
+
+    out = {}
+    for ci, cyc in enumerate(cycles):
+        n = tot[ci, 0]
+        if n < 1:
+            continue
+        m1, m2 = tot[ci, 1]/n, tot[ci, 3]/n
+        v1 = max(tot[ci, 2]/n - m1*m1, 0.0)
+        v2 = max(tot[ci, 4]/n - m2*m2, 0.0)
+        ne = tot[ci, 5]
+        e1 = tot[ci, 6]/ne if ne > 0 else np.nan
+        e2 = tot[ci, 7]/ne if ne > 0 else np.nan
+        out[int(cyc.split("_")[-1])] = dict(
+            n=int(n), m1=m1, m2=m2, s1=np.sqrt(v1), s2=np.sqrt(v2),
+            lo1=glo[ci, 0], hi1=ghi[ci, 0], lo2=glo[ci, 1], hi2=ghi[ci, 1],
+            e1=e1, e2=e2, ne=int(ne))
+    return out
 
 
 ###! ============================================================
 ###! Main loop
 ###! ============================================================
 
+###! ---- per-plane-average bookkeeping ----
+###! Layers are assigned WHOLE to ranks, so each plane is owned by exactly one
+###! rank and no communication is needed to assemble it. Every file belongs to
+###! exactly one layer, so total I/O is the same as the z-average pass.
+if args.per_plane_average:
+    files_by_layer = {}
+    for fp in all_files:
+        k = pid_to_ijk(proc_id_from_filename(fp))[2]
+        files_by_layer.setdefault(k, []).append(fp)
+    ###! Split COMM_WORLD into groups. A group owns layers; its members split
+    ###! that layer's FILES (Allreduced) and then its PLANES. Every rank works
+    ###! whatever `size` is, and no file is ever read twice.
+    n_groups = min(size, ZLEN)
+    color = rank % n_groups
+    gcomm = comm.Split(color, rank)
+    my_layers = list(range(ZLEN))[color::n_groups]
+    if rank == 0:
+        print(f"\nper-plane average : {nzc} planes in {ZLEN} z-tile layers",
+              flush=True)
+        print(f"  {n_groups} rank-groups of ~{size/n_groups:.1f} ranks; files "
+              f"split within a group, planes split within a layer", flush=True)
+        print(f"  all {size} ranks active", flush=True)
+else:
+    files_by_layer, my_layers, gcomm = {}, [], None
+
 ###! one record list per dataset: "zavg" plus one per requested plane
 keys = ["zavg"] + [f"z{k}" for k in slice_ks]
 records = {k: [] for k in keys}
+pp_records = []          ###! per-plane-average records, rank 0
 zcount_used = None
 B0 = args.B0
 
@@ -1038,6 +1376,16 @@ for c0 in range(0, len(cycles_all), args.cycle_chunk):
 
     out = assemble_chunk(names, local_files, pid_to_ijk, tile_shape,
                          nxg, nyg, nzg, exclude_last_z, slice_ks, work_dtype)
+
+    ###! COLLECTIVE: every rank must enter this, so it sits before the
+    ###! rank-0-only analysis below.
+    pp_chunk = {}
+    if args.per_plane_average:
+        ###! whole chunk in ONE pass, so each layer file is opened once per
+        ###! CHUNK instead of once per cycle
+        pp_chunk = per_plane_pass(names, files_by_layer, my_layers, pid_to_ijk,
+                                  tile_shape, nxg, nyg, nzg, exclude_last_z,
+                                  gcomm)
 
     if rank != 0:
         continue
@@ -1053,7 +1401,8 @@ for c0 in range(0, len(cycles_all), args.cycle_chunk):
             continue
 
         ###! ---- z-averaged field first; it also fixes B0 ----
-        rec = analyse_field(out["Bx"][ci], out["By"][ci])
+        rec = analyse_field(out["Bx"][ci], out["By"][ci],
+                            out["Ez"][ci] if out["Ez"] is not None else None)
         if rec is None:
             print(f"  cycle_{cyc}: could not locate both sheets in the "
                   f"z-average, skipped", flush=True)
@@ -1070,6 +1419,13 @@ for c0 in range(0, len(cycles_all), args.cycle_chunk):
         rec.update(cycle=cyc, t=cyc / args.time_denom)
         records["zavg"].append(rec)
 
+
+        if cyc in pp_chunk:
+            ppr = pp_chunk[cyc]
+            ppr.update(cycle=cyc, t=cyc / args.time_denom,
+                       C1=rec["d1"]/ppr["m1"] if ppr["m1"] > 0 else np.nan,
+                       C2=rec["d2"]/ppr["m2"] if ppr["m2"] > 0 else np.nan)
+            pp_records.append(ppr)
 
         ###! ---- each requested single-z plane, same pipeline ----
         for m, gk in enumerate(slice_ks):
@@ -1103,15 +1459,39 @@ def make_plot(d, path, what):
     if not HAVE_MPL:
         return None
 
-    fig, ax = plt.subplots(figsize=(8.5, 4.8))
-    ax.axhline(0.0, color="k", lw=0.8)
-    ax.plot(d["t"], d["R1"], "-", color="C0", lw=1.6, label="CS1")
-    ax.plot(d["t"], d["R2"], "-", color="C3", lw=1.6, label="CS2")
-    ax.set_xlabel(r"$t\,\omega_p^{-1}$", fontsize=13)
-    ax.set_ylabel(r"$R = \dot{\Delta\psi}\,/\,(B_0 v_A)$", fontsize=13)
-    ax.set_title(what, fontsize=12)
-    ax.legend(fontsize=11)
-    ax.grid(alpha=0.3)
+    ylab = d.get("ylab", r"$R = \dot{\Delta\psi}\,/\,(B_0 v_A)$")
+    has_E = "E1" in d and np.any(np.isfinite(d["E1"]))
+
+    ###! Two panels only when an INDEPENDENT Ez measurement exists (the
+    ###! z-average). sharey puts both on one scale so any offset between the
+    ###! two routes is read directly off the figure rather than inferred.
+    if has_E:
+        fig, axes = plt.subplots(1, 2, figsize=(13.0, 4.8), sharey=True)
+        panels = [(axes[0], d["R1"], d["R2"], r"from $\mathbf{B}$:  $d(\Delta\psi)/dt$"),
+                  (axes[1], d["E1"], d["E2"], r"from $E_z$:  $-c[E_z^{X}-E_z^{O}]$")]
+    else:
+        fig, ax1 = plt.subplots(figsize=(8.5, 4.8))
+        axes = [ax1]
+        panels = [(ax1, d["R1"], d["R2"], None)]
+
+    ###! identical colour and line style in both panels, so the eye compares
+    ###! CS1-to-CS1 and CS2-to-CS2 across the pair
+    for a, y1, y2, sub in panels:
+        a.axhline(0.0, color="k", lw=0.8)
+        a.plot(d["t"], y1, "-", color="C0", lw=1.6, label="CS1")
+        a.plot(d["t"], y2, "-", color="C3", lw=1.6, label="CS2")
+        a.set_xlabel(r"$t\,\omega_p^{-1}$", fontsize=13)
+        a.grid(alpha=0.3)
+        a.legend(fontsize=11)
+        if sub:
+            a.set_title(sub, fontsize=12)
+    axes[0].set_ylabel(ylab, fontsize=13)
+
+    if has_E:
+        fig.suptitle(what, fontsize=12)
+    else:
+        axes[0].set_title(what, fontsize=12)
+
     fig.tight_layout()
     fig.savefig(path, dpi=160, bbox_inches="tight")
     plt.close(fig)
@@ -1127,6 +1507,10 @@ def write_table(recs, path, what):
 
     ###! np.gradient: 2nd order interior, 1st order at the two endpoints
     R1, R2 = np.gradient(d1, t)/norm, np.gradient(d2, t)/norm
+    ###! E-based rate: no time derivative at all, so it is an INDEPENDENT
+    ###! measurement of the same quantity, not a re-processing of dpsi.
+    E1 = np.array([r.get("e1", np.nan) for r in recs])/norm
+    E2 = np.array([r.get("e2", np.nan) for r in recs])/norm
 
     pi_max = max(r["pi"] for r in recs)
 
@@ -1146,6 +1530,7 @@ def write_table(recs, path, what):
         fh.write(f"# B0={B0:.8e}  norm=B0*vA={norm:.8e}  "
                  f"(B0 from the z-average, applied to every plane)\n")
         fh.write(f"# psi method     = {args.psi_method}\n")
+        fh.write(f"# Ez smoothing   = {args.ez_smooth} neutral-line samples\n")
         fh.write(f"# max resid over all dumps = {pi_max:.3e}\n")
         fh.write("#\n")
         fh.write("# dpsi_CS*  psi_X - psi_O for the dominant island: the global\n")
@@ -1154,24 +1539,167 @@ def write_table(recs, path, what):
         fh.write("#           this IS the reconnection electric field at that\n")
         fh.write("#           X-line, normalised to the upstream inflow field.\n")
         fh.write("#           SIGN IS MEANINGFUL -- do not take |R|.\n")
+        fh.write("# E_CS*     SAME rate from the ELECTRIC FIELD, no time derivative:\n")
+        fh.write("#             E_CS = -c[Ez(at psi_max) - Ez(at psi_min)]/(B0 vA)\n")
+        fh.write("#           An INDEPENDENT measurement -- R uses B only, E uses Ez\n")
+        fh.write("#           only. They should agree; where they do not, one of the\n")
+        fh.write("#           two is being corrupted (E by PIC noise, R by dumps that\n")
+        fh.write("#           are too far apart). Exact for the z-average; at a single\n")
+        fh.write("#           plane the electrostatic term d_z(phi) does not vanish,\n")
+        fh.write("#           so E_CS* there is only approximate.\n")
         fh.write("# resid     compressive fraction of B with no flux function\n")
         fh.write("# npts*     Bx = 0 crossings found; ~nxg means one clean\n")
         fh.write("#           crossing per column, much more means folds\n")
         fh.write("# Endpoint rows use a 1st-order time derivative.\n")
         fh.write("#\n")
         fh.write("# {:>8s} {:>11s} {:>6s} {:>6s} {:>15s} {:>15s} {:>14s} {:>14s} "
-                 "{:>11s} {:>7s} {:>7s}\n".format(
+                 "{:>11s} {:>7s} {:>7s} {:>14s} {:>14s}\n".format(
                      "cycle", "time", "y_cs1", "y_cs2",
                      "dpsi_CS1", "dpsi_CS2", "R_CS1", "R_CS2",
-                     "resid", "npts1", "npts2"))
+                     "resid", "npts1", "npts2", "E_CS1", "E_CS2"))
         for i, r in enumerate(recs):
             fh.write("  {:>8d} {:>11.4f} {:>6d} {:>6d} {:>15.7e} {:>15.7e} "
-                     "{:>14.6e} {:>14.6e} {:>11.3e} {:>7d} {:>7d}\n".format(
+                     "{:>14.6e} {:>14.6e} {:>11.3e} {:>7d} {:>7d} "
+                     "{:>14.6e} {:>14.6e}\n".format(
                          r["cycle"], r["t"], r["y1"], r["y2"],
                          d1[i], d2[i], R1[i], R2[i],
-                         r["pi"], r["n1"], r["n2"]))
+                         r["pi"], r["n1"], r["n2"], E1[i], E2[i]))
 
-    return dict(t=t, d1=d1, d2=d2, R1=R1, R2=R2)
+    return dict(t=t, d1=d1, d2=d2, R1=R1, R2=R2, E1=E1, E2=E2)
+
+
+def write_xo(recs, path):
+    """
+    X/O verification table. Two independent tests per sheet:
+
+      byN   |By| at the extremum / mean |By| along the line.  Must be << 1.
+            At a true critical point By = -d_x psi = 0, so this ratio is
+            ~1e-16 for an analytic island. Approaching 1 means the max/min
+            is NOT a stationary point and dpsi is not psi_X - psi_O.
+
+      ezN   Ez at each point SEPARATELY. In a frame where the island centre
+            is ideal, Ez(O) ~ 0 while Ez(X) carries the whole reconnection
+            field. If both are comparable, the pair is not an X-O pair.
+    """
+    recs = [r for r in recs if r.get("xo")]
+    if not recs:
+        return None
+    with open(path, "w") as fh:
+        fh.write("# X/O identification check\n")
+        fh.write(f"# dir = {args.dir_data}\n")
+        fh.write("#\n")
+        fh.write("# by_* : |By| at the extremum / mean|By| on the line.\n")
+        fh.write("#        FLOOR: the extremum is located to ~one cell, so this\n")
+        fh.write("#        ratio cannot beat ~k*dx = 2*pi/nxc = "
+                 f"{2*np.pi/nxc:.4f} for the\n")
+        fh.write("#        lowest mode, and a few times that for higher ones.\n")
+        fh.write("#        Values within a few x the floor mean the extrema ARE\n")
+        fh.write("#        stationary points, resolved as well as the grid allows.\n")
+        fh.write("#        Only values approaching 1 indicate a real failure.\n")
+        fh.write("# x_*  : position of the extremum (code units)\n")
+        fh.write("# ez_* : Ez at each point. Their DIFFERENCE is the rate and should\n")
+        fh.write("#        be LARGE. The individual values are NOT expected to be\n")
+        fh.write("#        zero: for a linear tearing mode they are equal and\n")
+        fh.write("#        opposite. Only in the late nonlinear phase, once the\n")
+        fh.write("#        island centre goes ideal, does Ez(O) approach 0.\n")
+        fh.write("#\n")
+        fh.write("# {:>8s} {:>10s} {:>11s} {:>11s} {:>10s} {:>10s} {:>12s} {:>12s}"
+                 " {:>11s} {:>11s} {:>10s} {:>10s} {:>12s} {:>12s}\n".format(
+                     "cycle","time","by_max1","by_min1","x_max1","x_min1",
+                     "ez_max1","ez_min1","by_max2","by_min2","x_max2","x_min2",
+                     "ez_max2","ez_min2"))
+        for r in recs:
+            x = r["xo"]
+            g = lambda k: x.get(k, np.nan)
+            fh.write("  {:>8d} {:>10.3f} {:>11.3e} {:>11.3e} {:>10.3f} {:>10.3f}"
+                     " {:>12.4e} {:>12.4e} {:>11.3e} {:>11.3e} {:>10.3f}"
+                     " {:>10.3f} {:>12.4e} {:>12.4e}\n".format(
+                         r["cycle"], r["t"], g("bymax1"), g("bymin1"),
+                         g("xmax1"), g("xmin1"), g("ezmax1"), g("ezmin1"),
+                         g("bymax2"), g("bymin2"), g("xmax2"), g("xmin2"),
+                         g("ezmax2"), g("ezmin2")))
+    return path
+
+
+def write_planeavg(recs, path):
+    """Table for the measure-then-average estimator."""
+    recs.sort(key=lambda r: r["cycle"])
+    t  = np.array([r["t"]  for r in recs])
+    m1 = np.array([r["m1"] for r in recs])
+    m2 = np.array([r["m2"] for r in recs])
+
+    ###! 'total' = sum over planes * dz = mean * Lz. A positive constant factor,
+    ###! so every qualitative feature of the curve is unchanged.
+    s1 = np.array([r["s1"] for r in recs]); s2 = np.array([r["s2"] for r in recs])
+    l1 = np.array([r["lo1"] for r in recs]); h1 = np.array([r["hi1"] for r in recs])
+    l2 = np.array([r["lo2"] for r in recs]); h2 = np.array([r["hi2"] for r in recs])
+
+    if args.z_reduce == "total":
+        ###! scale the flux AND its spread/extremes so the columns stay consistent
+        f = Lz
+        m1, m2, s1, s2 = m1*f, m2*f, s1*f, s2*f
+        l1, h1, l2, h2 = l1*f, h1*f, l2*f, h2*f
+        qty, unit = "Phi_tot", "  [B*L^2; divide by Lz for the dimensionless rate]"
+    else:
+        qty, unit = "mean_dpsi", "  [dimensionless rate]"
+
+    R1, R2 = np.gradient(m1, t)/norm, np.gradient(m2, t)/norm
+    ###! E-based rate, averaged over planes the same way. No time derivative.
+    E1 = np.array([r.get("e1", np.nan) for r in recs])/norm
+    E2 = np.array([r.get("e2", np.nan) for r in recs])/norm
+
+    with open(path, "w") as fh:
+        fh.write("# Reconnection rate -- PER-PLANE AVERAGE (measure-then-average)\n")
+        fh.write(f"# dir            = {args.dir_data}\n")
+        fh.write(f"# cells          = {nxc} x {nyc} x {nzc}   mapping = {map_name}\n")
+        fh.write(f"# time           = cycle / {args.time_denom}   [omega_p^-1]\n")
+        fh.write(f"# sigma_i={args.sigma}  vA/c={vA:.8f}  B0={B0:.8e}  "
+                 f"norm={norm:.8e}\n")
+        fh.write(f"# planes averaged = {recs[0]['n']} of {nzc}\n")
+        fh.write(f"# z reduction    = {args.z_reduce}  ({qty}){unit}\n")
+        fh.write(f"#   total = mean * Lz = mean * {Lz:g};  the two curves differ\n")
+        fh.write(f"#   only by that constant, so shape/signs/peaks are identical.\n")
+        fh.write("#\n")
+        fh.write("# dpsi is measured on EVERY z-plane and the RESULTS averaged.\n")
+        fh.write("# The z-averaged file instead averages the FIELD first, which\n")
+        fh.write("# cancels islands sitting at different x for different z.\n")
+        fh.write("#\n")
+        fh.write("# mean_CS*  mean over planes of dpsi           <- use this\n")
+        fh.write("# std_CS*   spread over planes = z-correlation of the layer\n")
+        fh.write("# min/max   extremes over planes\n")
+        fh.write("# R_CS*     = (1/(B0 vA)) d(mean)/dt\n")
+        fh.write("# E_CS*     SAME rate from Ez, measured on each plane and\n")
+        fh.write("#           averaged the same way. No time derivative, so it is\n")
+        fh.write("#           an INDEPENDENT check on R_CS*.\n")
+        fh.write("#           CAVEAT: Ez = -d_t A_z/c - d_z(phi). The electrostatic\n")
+        fh.write("#           term vanishes exactly only for the FIELD average. Here\n")
+        fh.write("#           it is averaged over planes whose X-points sit at\n")
+        fh.write("#           different x, so it cancels only approximately.\n")
+        fh.write("# C_CS*     = dpsi(<B>_z) / mean_CS*   COHERENCE\n")
+        fh.write("#             C ~ 1 : islands aligned in z, z-average is valid\n")
+        fh.write("#             C < 1 : staggered; the z-averaged rate UNDER-reads\n")
+        fh.write("#\n")
+        fh.write("# {:>8s} {:>11s} {:>13s} {:>12s} {:>12s} {:>12s} {:>13s} {:>12s} "
+                 "{:>12s} {:>12s} {:>13s} {:>13s} {:>8s} {:>8s} {:>13s} "
+                 "{:>13s}\n".format(
+                     "cycle","time","mean_CS1","std_CS1","min_CS1","max_CS1",
+                     "mean_CS2","std_CS2","min_CS2","max_CS2",
+                     "R_CS1","R_CS2","C_CS1","C_CS2","E_CS1","E_CS2"))
+        for i, r in enumerate(recs):
+            fh.write("  {:>8d} {:>11.4f} {:>13.6e} {:>12.5e} {:>12.5e} {:>12.5e} "
+                     "{:>13.6e} {:>12.5e} {:>12.5e} {:>12.5e} {:>13.6e} {:>13.6e} "
+                     "{:>8.3f} {:>8.3f} {:>13.6e} {:>13.6e}\n".format(
+                         r["cycle"], r["t"], m1[i], s1[i], l1[i], h1[i],
+                         m2[i], s2[i], l2[i], h2[i], R1[i], R2[i],
+                         r["C1"], r["C2"], E1[i], E2[i]))
+    ylab = (r"$\dot{\Phi}_{\rm tot}/(B_0 v_A)$   [$\times L_z$ of the mean]"
+            if args.z_reduce == "total"
+            else r"$R = \dot{\Delta\psi}\,/\,(B_0 v_A)$")
+    ###! d1/d2 aliases so the summary block can treat this like the others
+    return dict(t=t, R1=R1, R2=R2, E1=E1, E2=E2, m1=m1, m2=m2,
+                d1=m1, d2=m2, ylab=ylab,
+                C1=np.array([r["C1"] for r in recs]),
+                C2=np.array([r["C2"] for r in recs]))
 
 
 if rank == 0:
@@ -1182,16 +1710,64 @@ if rank == 0:
     os.makedirs(args.outdir, exist_ok=True)
 
     summ = {}
-    f0 = os.path.join(args.outdir, "reconnection_rate.txt")
+    f0 = os.path.join(args.outdir, "R_rate_field_avg.txt")
     summ["zavg"] = write_table(records["zavg"], f0,
-                               "z-AVERAGED (k_z = 0) flux function")
+                               "FIELD-AVERAGED along z (k_z = 0): <B>_z and <Ez>_z, then measured once")
     print(f"\nWrote {f0}", flush=True)
     if args.plot:
         pf = make_plot(summ["zavg"],
-                       os.path.join(args.outdir, "reconnection_rate.png"),
+                       os.path.join(args.outdir, "R_rate_field_avg.png"),
                        "z-averaged (k_z = 0)")
         if pf:
             print(f"Wrote {pf}", flush=True)
+
+    if args.check_xo:
+        fx = write_xo(records["zavg"], os.path.join(args.outdir, "xo_check.txt"))
+        if fx:
+            ###! Judge only where there IS an island. When dpsi is tiny, psi is
+            ###! flat along the neutral line and the max/min are picking noise --
+            ###! the ratio is then meaningless, not a failure.
+            rr = [r for r in records["zavg"] if r.get("xo")]
+            dd = np.array([r["d1"] for r in rr])
+            keep = dd > 0.10 * np.nanmax(dd)
+            bb = np.array([[r["xo"].get("bymax1", np.nan),
+                            r["xo"].get("bymin1", np.nan)] for r in rr])[keep].ravel()
+            ###! floor set by locating the extremum to ~one cell
+            floor = 2.0 * np.pi / nxc
+            med = np.nanmedian(bb); p90 = np.nanpercentile(bb, 90)
+            print(f"Wrote {fx}", flush=True)
+            print(f"  judged on {int(keep.sum())}/{len(rr)} dumps with dpsi > 10% of peak",
+                  flush=True)
+            print(f"  |By|/typical at the extrema: median {med:.2e} "
+                  f"({med/floor:.1f}x floor), 90th pct {p90:.2e} "
+                  f"({p90/floor:.1f}x floor)", flush=True)
+            print(f"  grid floor = 2*pi/nxc = {floor:.4f}", flush=True)
+            if med < 5.0 * floor:
+                print("  -> extrema ARE stationary points, resolved to grid accuracy.",
+                      flush=True)
+            else:
+                print("  -> SUSPECT: extrema are well above the grid floor. Likely "
+                      "several comparable islands, so the global max and min belong "
+                      "to different ones. Try --band-half-width.", flush=True)
+
+    if args.per_plane_average and len(pp_records) >= 2:
+        fpa = os.path.join(args.outdir, "R_rate_plane_avg.txt")
+        summ["planeavg"] = write_planeavg(pp_records, fpa)
+        print(f"Wrote {fpa}", flush=True)
+        if args.plot:
+            pf = make_plot(summ["planeavg"],
+                           os.path.join(args.outdir,
+                                        "R_rate_plane_avg.png"),
+                           f"per-plane average over {pp_records[0]['n']} z-planes")
+            if pf:
+                print(f"Wrote {pf}", flush=True)
+        c1 = summ["planeavg"]["C1"]; c2 = summ["planeavg"]["C2"]
+        print(f"  coherence C: CS1 median {np.nanmedian(c1):.2f}"
+              f" (min {np.nanmin(c1):.2f}) ;"
+              f" CS2 median {np.nanmedian(c2):.2f} (min {np.nanmin(c2):.2f})",
+              flush=True)
+        print("    C ~ 1 -> the z-averaged rate is valid;"
+              " C << 1 -> use this file instead.", flush=True)
 
     for fr, gk in zip(z_fracs, slice_ks):
         key = f"z{gk}"
@@ -1199,7 +1775,7 @@ if rank == 0:
             print(f"  z={gk}: fewer than 2 valid dumps, no table written",
                   flush=True)
             continue
-        fp = os.path.join(args.outdir, f"reconnection_rate_z{gk}.txt")
+        fp = os.path.join(args.outdir, f"R_rate_z{gk}.txt")
         summ[key] = write_table(
             records[key], fp,
             f"SINGLE XY PLANE at z index {gk} (f={fr:g}, z={fr*Lz:.4f})")
@@ -1207,7 +1783,7 @@ if rank == 0:
         if args.plot:
             pf = make_plot(summ[key],
                            os.path.join(args.outdir,
-                                        f"reconnection_rate_z{gk}.png"),
+                                        f"R_rate_z{gk}.png"),
                            f"single XY plane, z index {gk} (f={fr:g})")
             if pf:
                 print(f"Wrote {pf}", flush=True)
@@ -1225,7 +1801,7 @@ if rank == 0:
             print(f"  {k:>10} {np.nanmax(np.abs(v['R1'])):>14.5e}"
                   f" {np.nanmax(np.abs(v['R2'])):>14.5e}"
                   f" {np.nanmax(v['d1']):>12.5e} {np.nanmax(v['d2']):>12.5e}")
-        planes = [k for k in summ if k != "zavg"]
+        planes = [k for k in summ if k.startswith("z") and k != "zavg"]
         if len(planes) > 1:
             m1 = np.array([np.nanmax(np.abs(summ[k]["R1"])) for k in planes])
             m2 = np.array([np.nanmax(np.abs(summ[k]["R2"])) for k in planes])
