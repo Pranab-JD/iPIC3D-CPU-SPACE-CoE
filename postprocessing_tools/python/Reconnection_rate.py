@@ -753,6 +753,15 @@ p.add_argument("--sigma", type=float, required=True,
 ###! plasma (=> +22% on every rate), and -10% for hot electrons at
 ###! Theta_i = 0.1. Since these runs span R = 1, 18.36, 1836, this matters.
 ###! Omit them all and the old cold-ion formula is used unchanged.
+p.add_argument("--guide-field", type=float, default=0.0,
+               help="Bz/B0, the guide field as a fraction of the RECONNECTING "
+                    "field. Loads the outflow: vA = c sqrt(sigma/(1+sigma+sigma_g)) "
+                    "with sigma_g = (Bz/B0)^2 * sigma. The guide field is advected "
+                    "with the outflow, so it adds inertia without adding drive -- "
+                    "it therefore enters the denominator ONLY, unlike total-field "
+                    "magnetisation. Default 0 recovers sqrt(sigma/(1+sigma)). "
+                    "Raises R by ~6%% at b=0.5 and ~23-35%% at b=1. B0 itself is "
+                    "unaffected: it is measured from the upstream Bx.")
 p.add_argument("--mass-ratio", type=float, default=None,
                help="m_i/m_e, i.e. |qom| of the electron species. Enables the "
                     "enthalpy correction to vA.")
@@ -772,7 +781,7 @@ p.add_argument("--B0", type=float, default=None,
 p.add_argument("--cycle-start", type=int, default=0)
 p.add_argument("--cycle-end",   type=int, default=20000)
 p.add_argument("--cycle-step",  type=int, default=500)
-p.add_argument("--cycle-chunk", type=int, default=10,
+p.add_argument("--cycle-chunk", type=int, default=5,
                help="Cycles held in memory at once (files-outermost within a chunk). "
                     "Memory ~ chunk * 2 * nxg * nyg * 8 bytes per rank; halve it "
                     "again per requested --z-planes. Reduce for very large grids.")
@@ -894,7 +903,30 @@ else:
     vA_note = (f"enthalpy-corrected: R={args.mass_ratio:g}, "
                f"<g_i>={g_i:.4f}, <g_e>={g_e:.4f}")
 
-vA = np.sqrt(sigma_eff / (1.0 + sigma_eff))          ###! c = 1
+###! ---- guide-field loading of the OUTFLOW ----
+###! The reconnecting field DRIVES the outflow; the guide field is ADVECTED
+###! with it, adding energy density without adding drive. So sigma_g belongs in
+###! the denominator only:
+###!
+###!     vA_out,g = c sqrt( sigma_up / (1 + sigma_up + sigma_g) )
+###!     sigma_g  = Bg^2/(4 pi w) = (Bg/B0)^2 * sigma_up
+###!
+###! Note this is NOT total-field magnetisation, which would put sigma_g in the
+###! numerator too. Setting --guide-field 0 (the default) recovers the ordinary
+###! sqrt(sigma/(1+sigma)).
+###!
+###! Size of the correction (R rises, since it is divided by vA):
+###!     b=0.25  ->  +1.6% (sigma=1)   +2.6% (sigma=5)
+###!     b=0.50  ->  +6.1%             +9.9%
+###!     b=1.00  -> +22.5%            +35.4%
+###! CAVEAT: vA then VARIES across a guide-field scan by construction, so R at
+###! different Bz is no longer normalised by the same speed. That is the
+###! intended physics -- the outflow really does slow -- but it must be stated.
+sigma_g = (args.guide_field ** 2) * sigma_eff
+vA = np.sqrt(sigma_eff / (1.0 + sigma_eff + sigma_g))          ###! c = 1
+if args.guide_field != 0.0:
+    vA_note += (f"; guide-field loaded: b=Bz/B0={args.guide_field:g}, "
+                f"sigma_g={sigma_g:.6f}")
 
 
 ###! ============================================================
@@ -1069,6 +1101,10 @@ if rank == 0:
     print(f"vA/c            : {vA:.6f}  (sigma_i={args.sigma:g}, "
           f"sigma_eff={sigma_eff:.6f})", flush=True)
     print(f"                  {vA_note}", flush=True)
+    if args.guide_field != 0.0:
+        v0 = np.sqrt(sigma_eff / (1.0 + sigma_eff))
+        print(f"                  vA without guide loading would be {v0:.6f}"
+              f"  -> R is {100*(v0/vA - 1):.1f}% higher with it", flush=True)
     print(f"z-average       : exclude_last_z = {exclude_last_z}", flush=True)
     if slice_ks:
         print("single-z planes  : " + ", ".join(
