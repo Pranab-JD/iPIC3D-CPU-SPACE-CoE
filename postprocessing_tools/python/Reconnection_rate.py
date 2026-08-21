@@ -456,6 +456,186 @@ def _cumtrapz0(y, d, axis):
     return np.concatenate([np.zeros(pad), c], axis=axis)
 
 
+
+def psi_hessian_fft(psi, dx, dy, nxc, nyc):
+    """Periodic Hessian of psi on the node grid, consistent with the FFT flux solve."""
+    core = psi[:nxc, :nyc]
+    kx = 2.0 * np.pi * np.fft.fftfreq(nxc, d=dx)[:, None]
+    ky = 2.0 * np.pi * np.fft.fftfreq(nyc, d=dy)[None, :]
+    pk = np.fft.fft2(core)
+    hxx = np.real(np.fft.ifft2(-(kx**2) * pk))
+    hxy = np.real(np.fft.ifft2(-(kx * ky) * pk))
+    hyy = np.real(np.fft.ifft2(-(ky**2) * pk))
+    out = []
+    for a in (hxx, hxy, hyy):
+        q = np.empty((nxc + 1, nyc + 1), dtype=np.float64)
+        q[:nxc, :nyc] = a
+        q[nxc, :nyc] = a[0, :]
+        q[:nxc, nyc] = a[:, 0]
+        q[nxc, nyc] = a[0, 0]
+        out.append(q)
+    return tuple(out)
+
+
+def identify_xo_points(Bx, psi, j_lo, j_hi, dx, dy, nxc, nyc):
+    """
+    Identify X/O points on one current sheet using the neutral line and the psi Hessian.
+    One neutral-line crossing is selected per x column using the strongest local Bx gradient.
+    Local extrema of psi along the neutral line are classified by det(H): det(H)<0 is X,
+    det(H)>0 is O. Periodic x is assumed.
+    """
+    hxx, hxy, hyy = psi_hessian_fft(psi, dx, dy, nxc, nyc)
+    psi_n = np.full(nxc, np.nan, dtype=np.float64)
+    loc_n = [None] * nxc
+    for i in range(nxc):
+        col = Bx[i, j_lo:j_hi + 1]
+        s = np.sign(col)
+        cross = np.where((s[:-1] * s[1:] < 0) | (s[:-1] == 0))[0]
+        candidates = []
+        for m in cross:
+            j = j_lo + m
+            b0, b1 = Bx[i, j], Bx[i, j + 1]
+            if b0 == b1:
+                continue
+            w = b0 / (b0 - b1)
+            candidates.append((abs(b1 - b0), j, w))
+        if not candidates:
+            continue
+        _, j, w = max(candidates, key=lambda q: q[0])
+        psi_n[i] = psi[i, j] * (1.0 - w) + psi[i, j + 1] * w
+        loc_n[i] = (i, j, w)
+    points = []
+    for i in range(nxc):
+        if not np.isfinite(psi_n[i]):
+            continue
+        left_i = (i - 1) % nxc
+        right_i = (i + 1) % nxc
+        if not np.isfinite(psi_n[left_i]) or not np.isfinite(psi_n[right_i]):
+            continue
+        is_max = psi_n[i] > psi_n[left_i] and psi_n[i] >= psi_n[right_i]
+        is_min = psi_n[i] < psi_n[left_i] and psi_n[i] <= psi_n[right_i]
+        if not (is_max or is_min):
+            continue
+        i0, j, w = loc_n[i]
+        Hxx = hxx[i0, j] * (1.0 - w) + hxx[i0, j + 1] * w
+        Hxy = hxy[i0, j] * (1.0 - w) + hxy[i0, j + 1] * w
+        Hyy = hyy[i0, j] * (1.0 - w) + hyy[i0, j + 1] * w
+        det = Hxx * Hyy - Hxy * Hxy
+        if det < 0.0:
+            kind = "X"
+        elif det > 0.0:
+            kind = "O"
+        else:
+            continue
+        points.append(dict(kind=kind, x=i * dx, y=(j + w) * dy,
+                           psi=float(psi_n[i]), loc=loc_n[i], det=float(det)))
+    return points
+
+
+def pair_adjacent_xo_points(points, sheet):
+    """Pair every X with both neighboring O points along periodic x."""
+    xs = sorted([p for p in points if p["kind"] == "X"], key=lambda p: p["x"])
+    os_ = sorted([p for p in points if p["kind"] == "O"], key=lambda p: p["x"])
+    if not xs or not os_:
+        return []
+    pairs = []
+    for xpt in xs:
+        left = [o for o in os_ if o["x"] < xpt["x"]]
+        right = [o for o in os_ if o["x"] > xpt["x"]]
+        ol = left[-1] if left else os_[-1]
+        or_ = right[0] if right else os_[0]
+        pairs.append(dict(sheet=sheet, side="L", X=xpt, O=ol,
+                          dpsi=float(xpt["psi"] - ol["psi"])))
+        pairs.append(dict(sheet=sheet, side="R", X=xpt, O=or_,
+                          dpsi=float(xpt["psi"] - or_["psi"])))
+    return pairs
+
+
+def _periodic_dx(x1, x2, Lx):
+    d = abs(x1 - x2)
+    return min(d, Lx - d)
+
+
+def assign_xo_ids(points, sheet, cycle, tracker, Lx, max_move):
+    """Keep X/O IDs by nearest-position matching; unmatched points get new IDs."""
+    for kind in ("X", "O"):
+        current = [p for p in points if p["kind"] == kind and p.get("sheet") == sheet]
+        previous = tracker["points"].setdefault((sheet, kind), {})
+        unused = set(previous.keys())
+        for p in sorted(current, key=lambda q: q["x"]):
+            best_id = None
+            best_dist = np.inf
+            for pid in unused:
+                old = previous[pid]
+                dist = np.hypot(_periodic_dx(p["x"], old["x"], Lx), p["y"] - old["y"])
+                if dist < best_dist:
+                    best_dist = dist
+                    best_id = pid
+            if best_id is not None and best_dist <= max_move:
+                p["id"] = best_id
+                unused.remove(best_id)
+            else:
+                p["id"] = tracker["next_id"][kind]
+                tracker["next_id"][kind] += 1
+        tracker["points"][(sheet, kind)] = {
+            p["id"]: dict(x=p["x"], y=p["y"], psi=p["psi"], cycle=cycle)
+            for p in current
+        }
+    return points
+
+
+def assign_xo_ids_all(points_by_sheet, cycle, tracker, Lx, max_move):
+    """Assign persistent IDs independently for each current sheet."""
+    out = []
+    for sheet, points in points_by_sheet.items():
+        for p in points:
+            p["sheet"] = sheet
+        assign_xo_ids(points, sheet, cycle, tracker, Lx, max_move)
+        out.extend(points)
+    return out
+
+
+def pair_with_ids(points, sheet):
+    """Pair each X with both neighboring O points after persistent IDs are assigned."""
+    xs = sorted([p for p in points if p["kind"] == "X"], key=lambda p: p["x"])
+    os_ = sorted([p for p in points if p["kind"] == "O"], key=lambda p: p["x"])
+    if not xs or not os_:
+        return []
+    pairs = []
+    for xpt in xs:
+        left = [o for o in os_ if o["x"] < xpt["x"]]
+        right = [o for o in os_ if o["x"] > xpt["x"]]
+        ol = left[-1] if left else os_[-1]
+        or_ = right[0] if right else os_[0]
+        for side, opt in (("L", ol), ("R", or_)):
+            pair_id = f"X{xpt['id']}-O{opt['id']}-{side}"
+            pairs.append(dict(sheet=sheet, side=side, pair_id=pair_id,
+                              X=xpt, O=opt,
+                              dpsi=float(xpt["psi"] - opt["psi"])))
+    return pairs
+
+
+def update_pair_rates(pairs, tracker, t):
+    """Differentiate signed dpsi for each persistent X-O pair; new pairs get NaN rate."""
+    out = []
+    previous = tracker["pairs"]
+    for pair in pairs:
+        pid = pair["pair_id"]
+        dpsi = pair["dpsi"]
+        if pid in previous and pid in tracker["active_pairs"]:
+            old = previous[pid]
+            dt = t - old["t"]
+            rate = (dpsi - old["dpsi"]) / dt if dt > 0 else np.nan
+        else:
+            rate = np.nan
+        pair["ddpsi_dt"] = float(rate)
+        previous[pid] = dict(dpsi=dpsi, t=t)
+        out.append(pair)
+    active = {p["pair_id"] for p in pairs}
+    tracker["active_pairs"] = active
+    return out
+
+
 def flux_function_fft(Bx, By, dx, dy, nxc, nyc):
     """
     Flux function by spectral solution of the Poisson equation, for a FULLY
@@ -836,7 +1016,7 @@ p.add_argument("--psi-method", type=str, default="fft", choices=["fft", "path"],
 p.add_argument("--no-plot", dest="plot", action="store_false",
                help="Skip the .png figures; write only the .txt tables.")
 p.add_argument("--dtype", type=str, default="float64", choices=["float32", "float64"])
-p.add_argument("--mapping", type=str, default="auto",
+p.add_argument("--mapping", type=str, default="A",
                choices=["auto", "A", "B", "C", "D", "E", "F"])
 
 args = p.parse_args()
@@ -1203,7 +1383,7 @@ def assemble_layer(cycles, layer, files_in_layer, pid_to_ijk, tile_shape,
 ###! Per-field analysis, shared by the z-average and every single-z plane
 ###! ============================================================
 
-def analyse_field(Bx, By, Ez=None):
+def analyse_field(Bx, By, Ez=None, xo_tracker=None, cycle=None):
     """
     Full flux-function analysis of ONE in-plane field. Returns a record dict,
     or None if the two sheets could not be located.
@@ -1283,8 +1463,23 @@ def analyse_field(Bx, By, Ez=None):
                 xo[f"ezmax{tag}"] = ez_at(Ez, L_, imx, args.ez_smooth)
                 xo[f"ezmin{tag}"] = ez_at(Ez, L_, imn, args.ez_smooth)
 
+    xo_points = []
+    xo_pairs = []
+    if xo_tracker is not None:
+        points_by_sheet = {
+            1: identify_xo_points(Bx_search, psi, *b1, dx, dy, nxc, nyc),
+            2: identify_xo_points(Bx_search, psi, *b2, dx, dy, nxc, nyc)
+        }
+        xo_points = assign_xo_ids_all(points_by_sheet, cycle, xo_tracker,
+                                       Lx, xo_tracker["max_move"])
+        pairs = []
+        for sheet, sheet_points in points_by_sheet.items():
+            pairs.extend(pair_with_ids(sheet_points, sheet))
+        xo_pairs = update_pair_rates(pairs, xo_tracker, cycle / args.time_denom)
+
     return dict(y1=c1, y2=c2, d1=d1, d2=d2, n1=n1, n2=n2, pi=resid,
-                e1=e1, e2=e2, xo=xo, B0m=measure_B0(Bx, c1, c2, nyg))
+                e1=e1, e2=e2, xo=xo, xo_points=xo_points, xo_pairs=xo_pairs,
+                B0m=measure_B0(Bx, c1, c2, nyg))
 
 
 def per_plane_pass(cycles, files_by_layer, my_layers, pid_to_ijk, tile_shape,
@@ -1400,8 +1595,11 @@ else:
 keys = ["zavg"] + [f"z{k}" for k in slice_ks]
 records = {k: [] for k in keys}
 pp_records = []          ###! per-plane-average records, rank 0
+xo_pair_records = []     ###! per-X/O-pair records, rank 0
 zcount_used = None
 B0 = args.B0
+xo_tracker = {"points": {}, "next_id": {"X": 0, "O": 0}, "pairs": {},
+              "active_pairs": set(), "max_move": max(8.0 * dx, 0.02 * Lx)}
 
 for c0 in range(0, len(cycles_all), args.cycle_chunk):
     chunk = cycles_all[c0:c0 + args.cycle_chunk]
@@ -1438,7 +1636,8 @@ for c0 in range(0, len(cycles_all), args.cycle_chunk):
 
         ###! ---- z-averaged field first; it also fixes B0 ----
         rec = analyse_field(out["Bx"][ci], out["By"][ci],
-                            out["Ez"][ci] if out["Ez"] is not None else None)
+                            out["Ez"][ci] if out["Ez"] is not None else None,
+                            xo_tracker=xo_tracker, cycle=cyc)
         if rec is None:
             print(f"  cycle_{cyc}: could not locate both sheets in the "
                   f"z-average, skipped", flush=True)
@@ -1454,7 +1653,16 @@ for c0 in range(0, len(cycles_all), args.cycle_chunk):
 
         rec.update(cycle=cyc, t=cyc / args.time_denom)
         records["zavg"].append(rec)
-
+        for pair in rec.get("xo_pairs", []):
+            xo_pair_records.append(dict(cycle=cyc, t=cyc / args.time_denom,
+                                        sheet=pair["sheet"], side=pair["side"],
+                                        pair_id=pair["pair_id"],
+                                        x_id=pair["X"]["id"], o_id=pair["O"]["id"],
+                                        x_x=pair["X"]["x"], x_y=pair["X"]["y"],
+                                        o_x=pair["O"]["x"], o_y=pair["O"]["y"],
+                                        psi_x=pair["X"]["psi"], psi_o=pair["O"]["psi"],
+                                        dpsi=pair["dpsi"],
+                                        ddpsi_dt=pair["ddpsi_dt"]))
 
         if cyc in pp_chunk:
             ppr = pp_chunk[cyc]
@@ -1604,6 +1812,31 @@ def write_table(recs, path, what):
     return dict(t=t, d1=d1, d2=d2, R1=R1, R2=R2, E1=E1, E2=E2)
 
 
+def write_xo_pair_rates(recs, path):
+    """Write the signed reconnection rate for every active X-O pair."""
+    with open(path, "w") as fh:
+        fh.write("# Reconnection rate for individual X-O pairs\n")
+        fh.write(f"# dir            = {args.dir_data}\n")
+        fh.write(f"# sigma_i={args.sigma}  vA/c={vA:.8f}  B0={B0:.8e}  norm={norm:.8e}\n")
+        fh.write("# IDs persist by nearest-position matching between consecutive z-averaged dumps.\n")
+        fh.write("# X/O points that disappear are no longer reported; newly detected points get new IDs.\n")
+        fh.write("# Each X is paired with BOTH neighboring O points along periodic x.\n")
+        fh.write("# dpsi = psi_X - psi_O is signed and is NOT absolute-valued before differentiation.\n")
+        fh.write("# R = (1/(B0*vA)) d(dpsi)/dt. New pairs have R=nan until a second dump exists.\n")
+        fh.write("#\n")
+        fh.write("# {:>8s} {:>10s} {:>6s} {:>8s} {:>5s} {:>5s} {:>10s} {:>10s} {:>10s} {:>10s} {:>15s} {:>15s} {:>15s} {:>15s}\n".format(
+            "cycle", "time", "sheet", "pair_id", "X_id", "O_id", "x_X", "y_X", "x_O", "y_O",
+            "psi_X", "psi_O", "dpsi", "R"))
+        for r in sorted(recs, key=lambda q: (q["cycle"], q["sheet"], q["pair_id"])):
+            rate = r["ddpsi_dt"] / norm if np.isfinite(r["ddpsi_dt"]) else np.nan
+            fh.write("  {:>8d} {:>10.4f} {:>6d} {:>8s} {:>5d} {:>5d} {:>10.4f} {:>10.4f} "
+                     "{:>10.4f} {:>10.4f} {:>15.7e} {:>15.7e} {:>15.7e} {:>15.7e}\n".format(
+                         r["cycle"], r["t"], r["sheet"], r["pair_id"], r["x_id"], r["o_id"],
+                         r["x_x"], r["x_y"], r["o_x"], r["o_y"], r["psi_x"], r["psi_o"],
+                         r["dpsi"], rate))
+    return path
+
+
 def write_xo(recs, path):
     """
     X/O verification table. Two independent tests per sheet:
@@ -1744,6 +1977,11 @@ if rank == 0:
 
     norm = B0 * vA
     os.makedirs(args.outdir, exist_ok=True)
+
+    fxp = os.path.join(args.outdir, "reconnection_rate_xo_pairs.txt")
+    if xo_pair_records:
+        write_xo_pair_rates(xo_pair_records, fxp)
+        print(f"Wrote {fxp}", flush=True)
 
     summ = {}
     f0 = os.path.join(args.outdir, "R_rate_field_avg.txt")
