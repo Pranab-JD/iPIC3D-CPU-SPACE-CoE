@@ -652,6 +652,7 @@ for cyc in cycles:
         recs[cs].append(dict(cycle=cyc, t=t, B0=B0,
                              nk_srf=nk_srf, nk_fix=nk_fix, kd_srf=kd_srf,
                              Pk=Pk[1:N+1], Pkf=Pkf[1:N+1],
+                             Pt=Pt,
                              P_1D=P_1D, P_ob_n=P_ob_n,
                              tot_1D=tot_1D, tot_ob=tot_ob,
                              tot_ob_raw=tot_ob_raw,
@@ -692,6 +693,7 @@ def average_sheets():
             cycle=cyc, t=a["t"],
             Pk=0.5*(a["Pk"] + b["Pk"]),
             Pkf=0.5*(a["Pkf"] + b["Pkf"]),
+            Pt=0.5*(a["Pt"] + b["Pt"]),
             ###! recomputed from the AVERAGED spectra, not averaged as indices
             nk_srf=int(np.argmax(0.5*(a["Pk"] + b["Pk"]))) + 1,
             nk_fix=int(np.argmax(0.5*(a["Pkf"] + b["Pkf"]))) + 1,
@@ -732,112 +734,56 @@ def header(fh, what, cs):
     fh.write("#\n")
 
 
-def write_kink(r, cs, path):
+def _f32(x):
+    return np.float32(x)
+
+
+def write_kink_modes(r, path, quantity):
     N = len(r[0]["Pk"])
     with open(path, "w") as fh:
-        header(fh, "KINK modes", cs)
-        fh.write("# COLUMNS\n")
-        fh.write("#  cycle, time   dump number and t*omega_p = cycle/time_denom.\n")
-        fh.write("#  Psrf_n   (xi_n/delta)^2 for z-mode n, from the neutral SURFACE\n")
-        fh.write("#           y_n(x,z); sqrt(Psrf_n) is the sheet displacement in\n")
-        fh.write("#           units of the half-thickness. Exact at any amplitude.\n")
-        fh.write("#           Since dBx/B0 = xi/delta in the linear limit, this IS\n")
-        fh.write("#           the equivalent (dB/B0)^2 and can be ratioed against\n")
-        fh.write("#           P1D or Pob DIRECTLY, with no conversion factor.\n")
-        fh.write("#  Pfix_n   (dBx_n/B0)^2 for the same mode, from FFT_z of Bx on\n")
-        fh.write("#           a FIXED y-plane. Matches Psrf_n while the kink is\n")
-        fh.write("#           small, then reads low as tanh saturates: 24% at a\n")
-        fh.write("#           1-delta displacement, 75% at 4 delta.\n")
-        fh.write("#  n_multi  Columns with more than one Bx = 0 crossing. Island\n")
-        fh.write("#           separatrices become crossings above dpsi = 2*B0*delta,\n")
-        fh.write("#           and the one NEAREST the tracked centre is used.\n")
-        fh.write("#  n_missing Columns with no crossing at all, filled with the\n")
-        fh.write("#           surface mean. Costs ~0.15% on the amplitude at 0.16%\n")
-        fh.write("#           dead, ~1% at 1%.\n")
-        fh.write(f"#  n_srf    Dominant z-mode of Psrf, 1..{N}. Recomputed from the\n")
-        fh.write("#           sheet-averaged spectrum, not averaged as an index.\n")
-        fh.write(f"#  n_fix    Dominant z-mode of Pfix, 1..{N}. If it differs from\n")
-        fh.write("#           n_srf the surface and the field are peaking at\n")
-        fh.write("#           different wavelengths -- check before quoting either.\n")
-        fh.write("#  k_delta  k_z*delta of the n_srf mode = 2*pi*n_srf*delta/Lz.\n")
-        fh.write("#           The physical label: DKI is kinetic and sits near\n")
-        fh.write("#           k*delta ~ O(1), the MHD kink at k*delta << 1. Use\n")
-        fh.write("#           this rather than n, which does not transfer between\n")
-        fh.write("#           runs of different box size.\n")
-        fh.write("#\n")
-        c1 = "".join(f"{'Psrf_'+str(n):>14s}" for n in range(1, N + 1))
-        c2 = "".join(f"{'Pfix_'+str(n):>14s}" for n in range(1, N + 1))
-        fh.write(f"# {'cycle':>8s} {'time':>11s}{c1}{c2}{'n_multi':>10s}"
-                 f"{'n_missing':>11s}{'n_srf':>7s}{'n_fix':>7s}{'k_delta':>10s}\n")
+        fh.write(f"# {quantity}\n")
+        fh.write(f"# time = cycle / {args.time_denom} [omega_p^-1]\n")
+        fh.write("# 10 strongest modes at each time, ranked by P.\n")
+        fh.write(f"{'Time':>12s} {'mode':>8s} {'n':>8s} {'kz':>20s} {'Power':>20s}\n")
         for x in r:
-            v1 = "".join(f"{v:>14.6e}" for v in x["Pk"])
-            v2 = "".join(f"{v:>14.6e}" for v in x["Pkf"])
-            fh.write(f"  {x['cycle']:>8d} {x['t']:>11.4f}{v1}{v2}"
-                     f"{x['n_multi']:>10d}{x['n_missing']:>11d}"
-                     f"{x['nk_srf']:>7d}{x['nk_fix']:>7d}{x['kd_srf']:>10.4f}\n")
+            P = x["Pk"] if quantity == "KINK from current-sheet displacement" else x["Pkf"]
+            modes = [(n + 1, P[n]) for n in range(N) if np.isfinite(P[n])]
+            modes.sort(key=lambda q: q[1], reverse=True)
+            for mode, power in modes[:10]:
+                n = mode
+                kz = 2.0 * np.pi * n / Lz
+                vals = np.array([x["t"], kz, power], dtype=np.float32)
+                fh.write(f"{vals[0]:12.2f} {mode:8d} {n:8d} {vals[1]:20.7e} {vals[2]:20.7e}\n")
+            fh.write("\n")
 
 
-def write_tearing(r, cs, path):
-    M = len(r[0]["P_1D"]); N = len(r[0]["P_ob_n"])
+def write_tearing_modes(r, path):
     with open(path, "w") as fh:
-        header(fh, "TEARING: 1D (n=0) and OBLIQUE (n!=0) from By", cs)
-        fh.write("# COLUMNS\n")
-        fh.write("#  cycle, time   dump number and t*omega_p = cycle/time_denom.\n")
-        fh.write("#  P1D_m    Power in the ordinary 2D tearing mode of x-mode m\n")
-        fh.write("#           (n = 0), as max over y of |FFT_x FFT_z By|^2 / B0^2.\n")
-        fh.write("#           Dimensionless; sqrt(P1D_m) is the PEAK dBy/B0 of\n")
-        fh.write("#           that mode, same amplitude convention as the kink.\n")
-        fh.write(f"#  Pob_n    Oblique power at z-mode n > 0, summed over m = 1..{M}\n")
-        fh.write("#           (the same range the P1D_m columns cover).\n")
-        fh.write("#           Same units. n != 0 means the mode is tilted out of\n")
-        fh.write("#           the x-y plane. ONLY POSITIVE n is counted, matching\n")
-        fh.write("#           the MATLAB script. At fixed m the (m,+n) and (m,-n)\n")
-        fh.write("#           modes are physically distinct (opposite tilts), so\n")
-        fh.write("#           this drops real information, not redundancy: at\n")
-        fh.write("#           b = 0 the two halves are equal by symmetry, but at\n")
-        fh.write("#           b > 0 the discarded half need not match.\n")
-        fh.write(f"#  tot1D    P1D summed over m = 1..{M}.\n")
-        fh.write(f"#  totOB    Oblique power summed over m = 1..{M}, n = 1..{N},\n")
-        fh.write("#           only inside the resonance wedge |k_z/k_x| < 1/b;\n")
-        fh.write("#           outside it no resonant surface exists and the bin\n")
-        fh.write("#           holds only noise. b = 0 admits every mode.\n")
-        fh.write("#  totOBraw Same sum with the wedge cut removed, so the effect\n")
-        fh.write("#           of the cut stays visible. Equals totOB when b = 0.\n")
-        fh.write("#  1D/OB    tot1D / totOB. Above 1 the layer is 2D-dominated,\n")
-        fh.write("#           below 1 it is oblique-dominated. Both sums are\n")
-        fh.write(f"#           capped at the same {M} x-modes, so this is not\n")
-        fh.write("#           inflated by the oblique side simply having more\n")
-        fh.write(f"#           bins -- it still counts {N}x more (n = 1..{N} vs\n")
-        fh.write("#           n = 0 alone), so divide by that for a per-mode view.\n")
-        fh.write("#  m_dom    x-mode number of the strongest oblique mode, i.e.\n")
-        fh.write(f"#           roughly the island count along x. Capped at {M}\n")
-        fh.write("#           because higher modes are not well resolved.\n")
-        fh.write(f"#  n_dom    z-mode number of that same mode, 1..{N} (positive\n")
-        fh.write("#           half only, as above).\n")
-        fh.write("#  y_pk     Distance from the SHEET at which that mode's power\n")
-        fh.write("#           peaks, in units of DELTA (positive = away from the\n")
-        fh.write("#           domain centre). VALIDATION COLUMN: in these units it\n")
-        fh.write("#           should equal arctanh(-b*n/m) directly, with no\n")
-        fh.write("#           scaling -- 0 for b = 0. A value\n")
-        fh.write(f"#           pinned at the search edge ({HALF_PK*dy/args.delta:.2f} delta) means the\n")
-        fh.write("#           peak was clipped and that row is noise, not a mode.\n")
-        fh.write("#           The window TRACKS the sheet, so this is a resonance\n")
-        fh.write("#           offset and not a drift.\n")
-        fh.write("#\n")
-        c1 = "".join(f"{'P1D_'+str(m):>14s}" for m in range(1, M + 1))
-        c2 = "".join(f"{'Pob_'+str(n):>14s}" for n in range(1, N + 1))
-        fh.write(f"# {'cycle':>8s} {'time':>11s}{c1}{c2}"
-                 f"{'tot1D':>14s}{'totOB':>14s}{'totOBraw':>14s}{'1D/OB':>12s}"
-                 f"{'m_dom':>7s}{'n_dom':>7s}{'y_pk':>11s}\n")
+        fh.write("# TEARING modes\n")
+        fh.write(f"# time = cycle / {args.time_denom} [omega_p^-1]\n")
+        fh.write("# 10 strongest modes at each time, ranked by Power.\n")
+        fh.write("# n=0 is the 1D tearing mode; n!=0 are oblique modes.\n")
+        fh.write(f"{'Time':>12s} {'mode':>8s} {'m':>8s} {'n':>8s} {'kx':>20s} {'kz':>20s} {'k':>20s} {'angle':>20s} {'Power':>20s}\n")
         for x in r:
-            v1 = "".join(f"{v:>14.6e}" for v in x["P_1D"])
-            v2 = "".join(f"{v:>14.6e}" for v in x["P_ob_n"])
-            ratio = x["tot_1D"] / x["tot_ob"] if x["tot_ob"] > 0 else np.inf
-            fh.write(f"  {x['cycle']:>8d} {x['t']:>11.4f}{v1}{v2}"
-                     f"{x['tot_1D']:>14.6e}{x['tot_ob']:>14.6e}"
-                     f"{x['tot_ob_raw']:>14.6e}{ratio:>12.4e}"
-                     f"{x['m_dom']:>7d}{x['n_dom']:>7d}"
-                     f"{x['ypk_dom']:>11.4f}\n")
+            Pt = x["Pt"]
+            nvals = np.fft.fftfreq(nzc, d=1.0 / nzc).astype(int)
+            modes = []
+            for m in range(1, Pt.shape[0]):
+                for j, n in enumerate(nvals):
+                    power = Pt[m, j]
+                    if np.isfinite(power):
+                        modes.append((power, m, int(n)))
+            modes.sort(key=lambda q: q[0], reverse=True)
+            for mode, (power, m, n) in enumerate(modes[:10], start=1):
+                kx = 2.0 * np.pi * m / Lx
+                kz = 2.0 * np.pi * n / Lz
+                k = np.sqrt(kx*kx + kz*kz)
+                angle = np.degrees(np.arctan2(kz, kx))
+                vals = np.array([x["t"], kx, kz, k, angle, power], dtype=np.float32)
+                fh.write(f"{vals[0]:12.2f} {mode:8d} {m:8d} {n:8d} "
+                         f"{vals[1]:20.7e} {vals[2]:20.7e} {vals[3]:20.7e} "
+                         f"{vals[4]:20.7f} {vals[5]:20.7e}\n")
+            fh.write("\n")
 
 
 YMIN = 1e-8          ###! shared lower limit on all three panels
@@ -927,10 +873,12 @@ if rank == 0:
 
     avg = average_sheets()
     if avg:
-        fk = os.path.join(args.outdir, "kink_modes_avg.txt")
-        ft = os.path.join(args.outdir, "tearing_modes_avg.txt")
-        write_kink(avg, None, fk);     print(f"Wrote {fk}", flush=True)
-        write_tearing(avg, None, ft);  print(f"Wrote {ft}", flush=True)
+        ft = os.path.join(args.outdir, "tearing_modes.txt")
+        fcs = os.path.join(args.outdir, "kink_modes_CS.txt")
+        fbx = os.path.join(args.outdir, "kink_modes_Bx.txt")
+        write_tearing_modes(avg, ft); print(f"Wrote {ft}", flush=True)
+        write_kink_modes(avg, fcs, "KINK from current-sheet displacement"); print(f"Wrote {fcs}", flush=True)
+        write_kink_modes(avg, fbx, "KINK from Bx"); print(f"Wrote {fbx}", flush=True)
         if args.plot:
             fp = make_figure(avg, None,
                              os.path.join(args.outdir, "modes_avg.png"))
