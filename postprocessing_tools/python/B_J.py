@@ -357,7 +357,7 @@ def plot_cycle(cycle_name, Bx_XY, Jz_XY, Jz_ZY, Bx_occ, Jz_XY_occ, Jz_ZY_occ,
     fig.colorbar(im2, ax=axs[2])
 
     cycle_number = int(cycle_name.replace("cycle_", ""))
-    time_omega = cycle_number // 5          ###! T = cycle/10; verify dt matches this convention
+    time_omega = cycle_number / args.cycle_step * args.time_step
     fig.suptitle(rf"$T = {time_omega}\,\omega_p^{{-1}}$", fontsize=18)
     fig.tight_layout()
 
@@ -386,6 +386,7 @@ parser.add_argument("zmax", type=float)
 parser.add_argument("--cycle-start", type=int, default=0)
 parser.add_argument("--cycle-end", type=int, default=20000)
 parser.add_argument("--cycle-step", type=int, default=500)
+parser.add_argument("--time-step", type=float, default=50.0)
 
 parser.add_argument("--species", type=int, nargs="+", default=[1, 2])
 
