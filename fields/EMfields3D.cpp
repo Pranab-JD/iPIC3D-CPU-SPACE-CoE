@@ -334,6 +334,31 @@ EMfields3D::EMfields3D(Collective * col, Grid * grid, VirtualTopology3D *vct) :
         Qyyzs = newArr4(double, ns, nxn, nyn, nzn);
     }
 
+    const size_t sz   = (size_t)nzn;
+    const size_t syz  = (size_t)nyn * sz;
+    const size_t sxyz = (size_t)nxn * syz;
+
+    int count = 0;
+
+    for (int n_node = 0; n_node < 14; n_node++)
+    for (int i = 1; i >= 0; i--)
+    for (int j = 1; j >= 0; j--)
+    for (int k = 1; k >= 0; k--)
+    {
+        const int i2 = i - NeNo.getX(n_node);
+        const int j2 = j - NeNo.getY(n_node);
+        const int k2 = k - NeNo.getZ(n_node);
+
+        if (i2 >= 0 && i2 < 2 && j2 >= 0 && j2 < 2 && k2 >= 0 && k2 < 2)
+        {
+            mass_offset[count] = n_node*sxyz - i*syz - j*sz - k;
+            mass_w1[count]     = i*4 + j*2 + k;
+            mass_w2[count]     = i2*4 + j2*2 + k2;
+            count++;
+        }
+    }
+    assert_eq(count, NUM_MASS_NODES);
+
     //! Define MPI Derived Data types for Center Halo Exchange
     //? For face exchange on X dir
     MPI_Type_vector((nyc-2),(nzc-2),nzc, MPI_DOUBLE, &yzFacetypeC);

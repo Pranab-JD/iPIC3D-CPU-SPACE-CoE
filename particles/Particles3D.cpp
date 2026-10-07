@@ -663,7 +663,7 @@ void Particles3D::computeMoments(Field *EMf)
     #endif
 
     // #pragma omp master
-    // if (vct->getCartesian_rank() == 0) 
+    // if (vct->getCartesian_rank() == 0)
     //     cout << "Number of particles of species " << ns << " per MPI process: " << getNOP() << endl;
 
     #pragma omp parallel
@@ -879,44 +879,15 @@ void Particles3D::computeMoments(Field *EMf)
             time_mm.start();
             #endif
             
-            //? Compute exact Mass Matrix
-            for (int i = 0; i < 2; i++) 
-                for (int j = 0; j < 2; j++) 
-                    for (int k = 0; k < 2; k++) 
-                    {
-                        int ni = ix-i;
-                        int nj = iy-j;
-                        int nk = iz-k;
+            const double qq = q * q_dt_2mc;
+            double value[3][3];
 
-                        //* Iterate over half of the 27 neighbouring nodes as M is symmetric
-                        for (int n_node = 0; n_node < 14; n_node++)
-                        {
-                            int n2i = ni + NeNo.getX(n_node);
-                            int n2j = nj + NeNo.getY(n_node);
-                            int n2k = nk + NeNo.getZ(n_node);
+            for (int ind1 = 0; ind1 < 3; ind1++)
+              for (int ind2 = 0; ind2 < 3; ind2++)
+                value[ind1][ind2] = alpha[ind2][ind1] * qq;
 
-                            int i2 = ix - n2i;
-                            int j2 = iy - n2j;
-                            int k2 = iz - n2k;
+            EMf->add_Mass(value, weights, ix, iy, iz);
 
-                            //* Check if this node is one of the cell where the particle is
-                            if (i2 >= 0 && i2 < 2 && j2 >= 0 && j2 < 2 && k2 >= 0 && k2 < 2) 
-                            {
-                                // Map (i, j, k) & (i2, j2, k2) to 1D
-                                int index1 = i * 4 + j * 2 + k;
-                                int index2 = i2 * 4 + j2 * 2 + k2; 
-                                double qww = q * q_dt_2mc * weights[index1] * weights[index2];
-                                double value[3][3];
-                                
-                                for (int ind1 = 0; ind1 < 3; ind1++)
-                                    for (int ind2 = 0; ind2 < 3; ind2++) 
-                                        value[ind1][ind2] = alpha[ind2][ind1]*qww;
-
-                                EMf->add_Mass(value, ni, nj, nk, n_node);
-                            }
-                        }
-                    }
-            
             #ifdef __PROFILE_MOMENTS__
             time_mm.stop();
             #endif

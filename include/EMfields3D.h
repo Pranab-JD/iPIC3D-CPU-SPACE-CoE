@@ -39,6 +39,9 @@ using namespace std;
 // dimension of vectors used in fieldForPcls
 const int DFIELD_3or4 = 4; // 4 pads with garbage but is needed for alignment
 
+// only these contribute to the mass matrix
+const int NUM_MASS_NODES = 36;
+
 class Particles3Dcomm;
 class Moments10;
 class ECSIM_Moments13;
@@ -176,7 +179,7 @@ public:
     void add_Jyh(double weight[8], int X, int Y, int Z, int is);
     void add_Jzh(double weight[8], int X, int Y, int Z, int is);
 
-    void add_Mass(double value[3][3], int X, int Y, int Z, int ind);
+    void add_Mass(double value[3][3], const double weights[8], int X, int Y, int Z);
 
     //* ECSIM/RelSIM supplementary moments
     void add_Jx(double weight[8], int X, int Y, int Z, int is);
@@ -608,6 +611,10 @@ private:
     //* Object of class to handle which nodes have to be computed when the mass matrix is calculated
     NeighbouringNodes NeNo;
 
+    size_t mass_offset[NUM_MASS_NODES];
+    int mass_w1[NUM_MASS_NODES];
+    int mass_w2[NUM_MASS_NODES];
+
     /*! Field Boundary Condition
       0 = Dirichlet Boundary Condition: specifies the
           value on the boundary of the domain
@@ -899,18 +906,35 @@ inline void EMfields3D::add_Qyyz(double weight[8], int X, int Y, int Z, int is)
                 Qyyzs[is][X - i][Y - j][Z - k] += weight[i * 4 + j * 2 + k] * invVOL;
 }
 
-//* Add an amount of current density to mass matrix field at node X,Y *//
-inline void EMfields3D::add_Mass(double value[3][3], int X, int Y, int Z, int ind) 
+//* Add an amount of current density to mass matrix field at node X,Y,Z *//
+inline void EMfields3D::add_Mass(double value[3][3], const double weights[8], int X, int Y, int Z)
 {
-    Mxx[ind][X][Y][Z] += value[0][0];
-    Mxy[ind][X][Y][Z] += value[0][1];
-    Mxz[ind][X][Y][Z] += value[0][2];
-    Myx[ind][X][Y][Z] += value[1][0];
-    Myy[ind][X][Y][Z] += value[1][1];
-    Myz[ind][X][Y][Z] += value[1][2];
-    Mzx[ind][X][Y][Z] += value[2][0];
-    Mzy[ind][X][Y][Z] += value[2][1];
-    Mzz[ind][X][Y][Z] += value[2][2];
+    double *mxx = Mxx.fetch_arr();
+    double *mxy = Mxy.fetch_arr();
+    double *mxz = Mxz.fetch_arr();
+    double *myx = Myx.fetch_arr();
+    double *myy = Myy.fetch_arr();
+    double *myz = Myz.fetch_arr();
+    double *mzx = Mzx.fetch_arr();
+    double *mzy = Mzy.fetch_arr();
+    double *mzz = Mzz.fetch_arr();
+
+    const size_t base = ((size_t)X*nyn + Y)*nzn + Z;
+
+    const double vxx = value[0][0], vxy = value[0][1], vxz = value[0][2];
+    const double vyx = value[1][0], vyy = value[1][1], vyz = value[1][2];
+    const double vzx = value[2][0], vzy = value[2][1], vzz = value[2][2];
+
+    #pragma omp simd
+    for (int n = 0; n < NUM_MASS_NODES; n++)
+    {
+        const size_t idx = base + mass_offset[n];
+        const double w = weights[mass_w1[n]] * weights[mass_w2[n]];
+
+        mxx[idx] += vxx*w;  mxy[idx] += vxy*w;  mxz[idx] += vxz*w;
+        myx[idx] += vyx*w;  myy[idx] += vyy*w;  myz[idx] += vyz*w;
+        mzx[idx] += vzx*w;  mzy[idx] += vzy*w;  mzz[idx] += vzz*w;
+    }
 }
 
 inline void get_field_components_for_cell(const double* field_components[8], const_arr4_double fieldForPcls, int cx, int cy, int cz)
